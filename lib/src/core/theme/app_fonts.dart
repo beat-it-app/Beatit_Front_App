@@ -10,14 +10,14 @@ abstract class FontStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
-  static const TextStyle semi20 = TextStyle(
-    fontSize: 20,
+  static const TextStyle semi24 = TextStyle(
+    fontSize: 24,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
-  static const TextStyle semi24 = TextStyle(
-    fontSize: 24,
+  static const TextStyle semi20 = TextStyle(
+    fontSize: 20,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
@@ -28,41 +28,53 @@ abstract class FontStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
+  static const TextStyle semi14 = TextStyle(
+    fontSize: 14,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
 
   static const TextStyle med20 = TextStyle(
     fontSize: 20,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle med18 = TextStyle(
+    fontSize: 18,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
   static const TextStyle med16 = TextStyle(
     fontSize: 16,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
   static const TextStyle med15 = TextStyle(
     fontSize: 15,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
   static const TextStyle med14 = TextStyle(
     fontSize: 14,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
   static const TextStyle med12 = TextStyle(
     fontSize: 12,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
   static const TextStyle med11 = TextStyle(
     fontSize: 11,
     fontFamily: _fontFamily,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
 }

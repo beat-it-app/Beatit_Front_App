@@ -14,17 +14,19 @@ abstract final class AppTheme {
     ).copyWith(
       primary: AppColor.beatOrange1,
       onPrimary: AppColor.white,
-      primaryContainer: AppColor.beatOrange6,
+      primaryContainer: AppColor.beatOrange5,
       onPrimaryContainer: AppColor.beatOrange1,
-      secondary: AppColor.beatOrange2,
+      secondary: AppColor.gray1,
       onSecondary: AppColor.white,
       surface: AppColor.white,
       onSurface: AppColor.black,
       error: AppColor.error,
       onError: AppColor.white,
-      errorContainer: AppColor.errorContainor,
+      errorContainer: AppColor.errorContainer,
       onErrorContainer: AppColor.error,
-      outline: AppColor.gray6,
+      outline: AppColor.gray2,
+      surfaceContainerHighest: AppColor.gray7,
+      onSurfaceVariant: AppColor.gray4,
     );
 
     return _theme(
@@ -34,7 +36,7 @@ abstract final class AppTheme {
       inputFillColor: AppColor.gray8,
       dividerColor: AppColor.gray7,
       textColor: AppColor.black,
-      subTextColor: AppColor.gray3,
+      subTextColor: AppColor.gray5,
     );
   }
 
@@ -47,15 +49,17 @@ abstract final class AppTheme {
       onPrimary: AppColor.black,
       primaryContainer: AppColor.beatOrange1,
       onPrimaryContainer: AppColor.white,
-      secondary: AppColor.beatOrange4,
+      secondary: AppColor.white,
       onSecondary: AppColor.black,
       surface: AppColor.black,
       onSurface: AppColor.white,
       error: AppColor.error,
       onError: AppColor.white,
-      errorContainer: AppColor.errorContainor,
+      errorContainer: AppColor.errorContainer,
       onErrorContainer: AppColor.error,
-      outline: AppColor.gray3,
+      outline: AppColor.gray6,
+      surfaceContainerHighest: AppColor.gray2,
+      onSurfaceVariant: AppColor.gray5,
     );
 
     return _theme(
@@ -97,27 +101,30 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+          disabledForegroundColor: colorScheme.onSurfaceVariant,
           minimumSize: const Size.fromHeight(48),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.x16,
+            vertical: AppSpacing.x12,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           textStyle: FontStyles.semi16,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: colorScheme.secondary,
           minimumSize: const Size.fromHeight(48),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.x16,
+            vertical: AppSpacing.x12,
           ),
           side: BorderSide(color: colorScheme.outline),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           textStyle: FontStyles.semi16,
         ),
@@ -125,32 +132,33 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputFillColor,
+        isDense: true,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.x16,
         ),
-        hintStyle: FontStyles.med14.copyWith(color: subTextColor),
-        labelStyle: FontStyles.med14.copyWith(color: subTextColor),
+        hintStyle: FontStyles.med18.copyWith(color: subTextColor),
+        labelStyle: FontStyles.med18.copyWith(color: textColor),
         errorStyle: FontStyles.med12.copyWith(color: colorScheme.error),
+        suffixIconColor: subTextColor,
+
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: dividerColor),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: dividerColor),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide.none,
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: colorScheme.primary),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: colorScheme.error),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          borderSide: BorderSide(color: colorScheme.error),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide(
+            color: colorScheme.secondary,
+            width: 1,
+          ),
         ),
       ),
       cardTheme: CardThemeData(
@@ -219,7 +227,7 @@ abstract final class AppTheme {
       bodyMedium: FontStyles.med14.copyWith(color: textColor),
       bodySmall: FontStyles.med12.copyWith(color: subTextColor),
       labelLarge: FontStyles.med15.copyWith(color: textColor),
-      labelMedium: FontStyles.med12.copyWith(color: subTextColor),
+      labelMedium: FontStyles.semi14.copyWith(color: subTextColor),
       labelSmall: FontStyles.med11.copyWith(color: subTextColor),
     );
   }
