@@ -97,7 +97,7 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
         backgroundColor: scaffoldBackgroundColor,
         foregroundColor: textColor,
-        titleTextStyle: FontStyles.semi20.copyWith(color: textColor),
+        titleTextStyle: FontStyles.semi14.copyWith(color: textColor),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(

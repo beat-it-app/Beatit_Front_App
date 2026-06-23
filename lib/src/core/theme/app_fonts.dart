@@ -22,6 +22,12 @@ abstract class FontStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
+  static const TextStyle semi18 = TextStyle(
+    fontSize: 18,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
   static const TextStyle semi16 = TextStyle(
     fontSize: 16,
     fontFamily: _fontFamily,
