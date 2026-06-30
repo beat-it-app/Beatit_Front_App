@@ -1,4 +1,5 @@
 // lib/src/core/theme/app_theme.dart
+import 'package:beatit_front_app/src/core/theme/app_gray_colors.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
@@ -8,29 +9,42 @@ import 'app_spacing.dart';
 
 abstract final class AppTheme {
   static ThemeData get light {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColor.beatOrange1,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColor.beatOrange1,
-      onPrimary: AppColor.white,
-      primaryContainer: AppColor.beatOrange5,
-      onPrimaryContainer: AppColor.beatOrange1,
-      secondary: AppColor.gray1,
-      onSecondary: AppColor.white,
-      surface: AppColor.white,
-      onSurface: AppColor.black,
-      error: AppColor.error,
-      onError: AppColor.white,
-      errorContainer: AppColor.errorContainer,
-      onErrorContainer: AppColor.error,
-      outline: AppColor.gray2,
-      surfaceContainerHighest: AppColor.gray7,
-      onSurfaceVariant: AppColor.gray4,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColor.beatOrange1,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColor.beatOrange1,
+          onPrimary: AppColor.white,
+          primaryContainer: AppColor.beatOrange5,
+          onPrimaryContainer: AppColor.beatOrange1,
+          secondary: AppColor.gray1,
+          onSecondary: AppColor.white,
+          surface: AppColor.white,
+          onSurface: AppColor.black,
+          error: AppColor.error,
+          onError: AppColor.white,
+          errorContainer: AppColor.errorContainer,
+          onErrorContainer: AppColor.error,
+          outline: AppColor.gray2,
+          surfaceContainerHighest: AppColor.gray7,
+          onSurfaceVariant: AppColor.gray4,
+        );
 
     return _theme(
       colorScheme: colorScheme,
+      grayColors: const AppGrayColors(
+        black: AppColor.black,
+        gray1: AppColor.gray1,
+        gray2: AppColor.gray2,
+        gray3: AppColor.gray3,
+        gray4: AppColor.gray4,
+        gray5: AppColor.gray5,
+        gray6: AppColor.gray6,
+        gray7: AppColor.gray7,
+        gray8: AppColor.gray8,
+        white: AppColor.white,
+      ),
       scaffoldBackgroundColor: AppColor.white,
       cardColor: AppColor.white,
       inputFillColor: AppColor.gray8,
@@ -41,29 +55,42 @@ abstract final class AppTheme {
   }
 
   static ThemeData get dark {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColor.beatOrange1,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: AppColor.beatOrange3,
-      onPrimary: AppColor.black,
-      primaryContainer: AppColor.beatOrange1,
-      onPrimaryContainer: AppColor.white,
-      secondary: AppColor.white,
-      onSecondary: AppColor.black,
-      surface: AppColor.black,
-      onSurface: AppColor.white,
-      error: AppColor.error,
-      onError: AppColor.white,
-      errorContainer: AppColor.errorContainer,
-      onErrorContainer: AppColor.error,
-      outline: AppColor.gray6,
-      surfaceContainerHighest: AppColor.gray2,
-      onSurfaceVariant: AppColor.gray5,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColor.beatOrange1,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: AppColor.beatOrange2,
+          onPrimary: AppColor.black,
+          primaryContainer: AppColor.beatOrange1,
+          onPrimaryContainer: AppColor.white,
+          secondary: AppColor.white,
+          onSecondary: AppColor.black,
+          surface: AppColor.black,
+          onSurface: AppColor.white,
+          error: AppColor.error,
+          onError: AppColor.white,
+          errorContainer: AppColor.errorContainer,
+          onErrorContainer: AppColor.error,
+          outline: AppColor.gray6,
+          surfaceContainerHighest: AppColor.gray2,
+          onSurfaceVariant: AppColor.gray5,
+        );
 
     return _theme(
       colorScheme: colorScheme,
+      grayColors: const AppGrayColors(
+        black: AppColor.white,
+        gray1: AppColor.gray8,
+        gray2: AppColor.gray7,
+        gray3: AppColor.gray6,
+        gray4: AppColor.gray5,
+        gray5: AppColor.gray4,
+        gray6: AppColor.gray3,
+        gray7: AppColor.gray2,
+        gray8: AppColor.gray1,
+        white: AppColor.black,
+      ),
       scaffoldBackgroundColor: AppColor.black,
       cardColor: AppColor.gray1,
       inputFillColor: AppColor.gray2,
@@ -75,6 +102,7 @@ abstract final class AppTheme {
 
   static ThemeData _theme({
     required ColorScheme colorScheme,
+    required AppGrayColors grayColors,
     required Color scaffoldBackgroundColor,
     required Color cardColor,
     required Color inputFillColor,
@@ -86,11 +114,9 @@ abstract final class AppTheme {
       useMaterial3: true,
       fontFamily: 'Pretendard',
       colorScheme: colorScheme,
+      extensions: [grayColors],
       scaffoldBackgroundColor: scaffoldBackgroundColor,
-      textTheme: _textTheme(
-        textColor: textColor,
-        subTextColor: subTextColor,
-      ),
+      textTheme: _textTheme(textColor: textColor, subTextColor: subTextColor),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -133,9 +159,7 @@ abstract final class AppTheme {
         filled: true,
         fillColor: inputFillColor,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x16,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
         hintStyle: FontStyles.med18.copyWith(color: subTextColor),
         labelStyle: FontStyles.med18.copyWith(color: textColor),
         errorStyle: FontStyles.med12.copyWith(color: colorScheme.error),
@@ -155,10 +179,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: BorderSide(
-            color: colorScheme.secondary,
-            width: 1,
-          ),
+          borderSide: BorderSide(color: colorScheme.secondary, width: 1),
         ),
       ),
       cardTheme: CardThemeData(

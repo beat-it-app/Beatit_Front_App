@@ -4,6 +4,20 @@ import 'package:flutter/material.dart';
 abstract class FontStyles {
   static const _fontFamily = 'Pretendard';
 
+  static const TextStyle exbold16 = TextStyle(
+    fontSize: 16,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.32,
+  );
+
+  static const TextStyle bold28 = TextStyle(
+    fontSize: 28,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
+
   static const TextStyle semi28 = TextStyle(
     fontSize: 28,
     fontFamily: _fontFamily,
