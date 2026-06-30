@@ -1,15 +1,16 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
-import 'package:beatit_front_app/src/core/theme/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/widgets/bottons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class SigninPage extends StatefulWidget {
   const SigninPage({super.key});

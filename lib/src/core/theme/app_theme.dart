@@ -1,5 +1,5 @@
 // lib/src/core/theme/app_theme.dart
-import 'package:beatit_front_app/src/core/theme/app_gray_colors.dart';
+import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';

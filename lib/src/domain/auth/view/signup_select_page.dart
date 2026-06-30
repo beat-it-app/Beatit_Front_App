@@ -1,15 +1,15 @@
-import 'package:beatit_front_app/src/core/theme/app_theme.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/core/theme/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
+import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
 
 class SignupSelectPage extends StatefulWidget {
   const SignupSelectPage({super.key});

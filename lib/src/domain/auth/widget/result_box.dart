@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:beatit_front_app/src/core/theme/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
