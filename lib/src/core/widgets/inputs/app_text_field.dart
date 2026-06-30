@@ -16,6 +16,9 @@ class AppTextField extends StatefulWidget {
     this.readOnly = false,
     this.obscureText = false,
     this.errorText,
+    this.messageText,
+    this.messageColor,
+    this.messageIcon,
     this.keyboardType,
     this.textInputAction,
     this.prefixIcon,
@@ -34,7 +37,12 @@ class AppTextField extends StatefulWidget {
   final bool enabled;
   final bool readOnly;
   final bool obscureText;
+
   final String? errorText;
+
+  final String? messageText;
+  final Color? messageColor;
+  final Widget? messageIcon;
 
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -55,6 +63,14 @@ class _AppTextFieldState extends State<AppTextField> {
 
   bool get _hasError {
     return widget.errorText != null && widget.errorText!.isNotEmpty;
+  }
+
+  bool get _hasMessage {
+    return widget.messageText != null && widget.messageText!.isNotEmpty;
+  }
+
+  bool get _hasBottomText {
+    return _hasError || _hasMessage;
   }
 
   @override
@@ -106,6 +122,14 @@ class _AppTextFieldState extends State<AppTextField> {
         ? inputTheme.hintStyle?.color ?? colors.onSurfaceVariant
         : colors.onSurfaceVariant;
 
+    final bottomText = _hasError ? widget.errorText : widget.messageText;
+
+    final bottomTextColor = _hasError
+        ? colors.error
+        : widget.messageColor ?? colors.onSurfaceVariant;
+
+    final bottomIcon = _hasError ? null : widget.messageIcon;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -134,7 +158,9 @@ class _AppTextFieldState extends State<AppTextField> {
             horizontal: AppSpacing.x16,
           ),
           decoration: BoxDecoration(
-            color: inputTheme.fillColor,
+            color: widget.enabled
+                ? inputTheme.fillColor
+                : colors.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: _borderColor(colors),
@@ -154,41 +180,45 @@ class _AppTextFieldState extends State<AppTextField> {
                 const SizedBox(width: AppSpacing.x8),
               ],
               Expanded(
-                child: TextFormField(
-                  controller: widget.controller,
-                  focusNode: _focusNode,
-                  enabled: widget.enabled,
-                  readOnly: widget.readOnly,
-                  obscureText: widget.obscureText,
-                  keyboardType: widget.keyboardType,
-                  textInputAction: widget.textInputAction,
-                  onChanged: widget.onChanged,
-                  cursorColor: colors.primary,
-                  textAlignVertical: TextAlignVertical.center,
-                  style: FontStyles.med18.copyWith(
-                    color: inputTextColor,
-                    height: 1.0,
-                  ),
-                  decoration: InputDecoration(
-                    isCollapsed: true,
-                    filled: false,
-                    fillColor: Colors.transparent,
-                    hintText: widget.hintText,
-                    hintStyle: FontStyles.med18.copyWith(
-                      color: hintColor,
-                      height: 1.0,
+                child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextFormField(
+                      controller: widget.controller,
+                      focusNode: _focusNode,
+                      enabled: widget.enabled,
+                      readOnly: widget.readOnly,
+                      obscureText: widget.obscureText,
+                      keyboardType: widget.keyboardType,
+                      textInputAction: widget.textInputAction,
+                      onChanged: widget.onChanged,
+                      cursorColor: colors.primary,
+                      style: FontStyles.med18.copyWith(
+                        color: inputTextColor,
+                        height: 1.0,
+                      ),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        hintText: widget.hintText,
+                        hintStyle: FontStyles.med18.copyWith(
+                          color: hintColor,
+                          height: 1.0,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onTapOutside: (_) {
+                        FocusScope.of(context).unfocus();
+                      },
                     ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
                   ),
-                  onTapOutside: (_) {
-                    FocusScope.of(context).unfocus();
-                  },
                 ),
               ),
               if (widget.suffixIcon != null) ...[
@@ -204,11 +234,24 @@ class _AppTextFieldState extends State<AppTextField> {
             ],
           ),
         ),
-        if (_hasError) ...[
-          const SizedBox(height: AppSpacing.x8),
-          Text(
-            widget.errorText!,
-            style: inputTheme.errorStyle,
+        if (_hasBottomText) ...[
+          const SizedBox(height: AppSpacing.x4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (bottomIcon != null) ...[
+                bottomIcon,
+                const SizedBox(width: AppSpacing.x4),
+              ],
+              Expanded(
+                child: Text(
+                  bottomText!,
+                  style: FontStyles.med12.copyWith(
+                    color: bottomTextColor,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ],
