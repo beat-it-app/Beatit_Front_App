@@ -162,7 +162,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               const SizedBox(height: AppSpacing.x4),
               Text(
                 '가입한 이메일을 통해 인증 후 아이디를 확인해주세요.',
-                style: FontStyles.med12.copyWith(
+                style: FontStyles.reg12.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
               ),

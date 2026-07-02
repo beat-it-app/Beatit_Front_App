@@ -70,7 +70,7 @@ class _TextLinkButtonState extends State<TextLinkButton> {
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 100),
             curve: Curves.easeOut,
-            style: FontStyles.med14.copyWith(
+            style: FontStyles.reg14.copyWith(
               color: widget.color,
               decoration: _isActive
                   ? TextDecoration.underline

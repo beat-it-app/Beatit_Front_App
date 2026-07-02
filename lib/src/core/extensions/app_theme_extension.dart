@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_brand_colors.dart';
 import 'app_gray_colors.dart';
 
 extension ThemeContextExtension on BuildContext {
@@ -13,5 +14,9 @@ extension ThemeContextExtension on BuildContext {
 
   AppGrayColors get grays {
     return Theme.of(this).extension<AppGrayColors>()!;
+  }
+
+  AppBrandColors get brands {
+    return Theme.of(this).extension<AppBrandColors>()!;
   }
 }

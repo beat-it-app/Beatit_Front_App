@@ -1,4 +1,5 @@
 // lib/src/core/theme/app_theme.dart
+import 'package:beatit_front_app/src/core/extensions/app_brand_colors.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:flutter/material.dart';
 
@@ -45,6 +46,7 @@ abstract final class AppTheme {
         gray8: AppColor.gray8,
         white: AppColor.white,
       ),
+      brandColors: AppBrandColors.light(),
       scaffoldBackgroundColor: AppColor.white,
       cardColor: AppColor.white,
       inputFillColor: AppColor.gray8,
@@ -91,9 +93,10 @@ abstract final class AppTheme {
         gray8: AppColor.gray1,
         white: AppColor.black,
       ),
+      brandColors: AppBrandColors.dark(),
       scaffoldBackgroundColor: AppColor.black,
       cardColor: AppColor.gray1,
-      inputFillColor: AppColor.gray2,
+      inputFillColor: AppColor.gray1,
       dividerColor: AppColor.gray2,
       textColor: AppColor.white,
       subTextColor: AppColor.gray5,
@@ -103,6 +106,7 @@ abstract final class AppTheme {
   static ThemeData _theme({
     required ColorScheme colorScheme,
     required AppGrayColors grayColors,
+    required AppBrandColors brandColors,
     required Color scaffoldBackgroundColor,
     required Color cardColor,
     required Color inputFillColor,
@@ -114,7 +118,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       fontFamily: 'Pretendard',
       colorScheme: colorScheme,
-      extensions: [grayColors],
+      extensions: [grayColors, brandColors],
       scaffoldBackgroundColor: scaffoldBackgroundColor,
       textTheme: _textTheme(textColor: textColor, subTextColor: subTextColor),
       appBarTheme: AppBarTheme(
@@ -160,9 +164,9 @@ abstract final class AppTheme {
         fillColor: inputFillColor,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-        hintStyle: FontStyles.med18.copyWith(color: subTextColor),
-        labelStyle: FontStyles.med18.copyWith(color: textColor),
-        errorStyle: FontStyles.med12.copyWith(color: colorScheme.error),
+        hintStyle: FontStyles.reg18.copyWith(color: subTextColor),
+        labelStyle: FontStyles.reg18.copyWith(color: textColor),
+        errorStyle: FontStyles.reg12.copyWith(color: colorScheme.error),
         suffixIconColor: subTextColor,
 
         border: OutlineInputBorder(
@@ -200,15 +204,15 @@ abstract final class AppTheme {
         backgroundColor: scaffoldBackgroundColor,
         selectedItemColor: colorScheme.primary,
         unselectedItemColor: subTextColor,
-        selectedLabelStyle: FontStyles.med12,
-        unselectedLabelStyle: FontStyles.med12,
+        selectedLabelStyle: FontStyles.reg12,
+        unselectedLabelStyle: FontStyles.reg12,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: textColor,
-        contentTextStyle: FontStyles.med14.copyWith(
+        contentTextStyle: FontStyles.reg14.copyWith(
           color: scaffoldBackgroundColor,
         ),
         shape: RoundedRectangleBorder(
@@ -244,12 +248,12 @@ abstract final class AppTheme {
       headlineMedium: FontStyles.semi24.copyWith(color: textColor),
       titleLarge: FontStyles.semi20.copyWith(color: textColor),
       titleMedium: FontStyles.semi16.copyWith(color: textColor),
-      bodyLarge: FontStyles.med16.copyWith(color: textColor),
-      bodyMedium: FontStyles.med14.copyWith(color: textColor),
-      bodySmall: FontStyles.med12.copyWith(color: subTextColor),
-      labelLarge: FontStyles.med15.copyWith(color: textColor),
+      bodyLarge: FontStyles.reg16.copyWith(color: textColor),
+      bodyMedium: FontStyles.reg14.copyWith(color: textColor),
+      bodySmall: FontStyles.reg12.copyWith(color: subTextColor),
+      labelLarge: FontStyles.reg15.copyWith(color: textColor),
       labelMedium: FontStyles.semi14.copyWith(color: subTextColor),
-      labelSmall: FontStyles.med11.copyWith(color: subTextColor),
+      labelSmall: FontStyles.reg11.copyWith(color: subTextColor),
     );
   }
 }

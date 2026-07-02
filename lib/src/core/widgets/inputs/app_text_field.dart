@@ -110,9 +110,7 @@ class _AppTextFieldState extends State<AppTextField> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = textTheme.labelMedium?.copyWith(
-      color: colors.onSurface,
-    );
+    final labelStyle = textTheme.labelMedium?.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
@@ -142,9 +140,7 @@ class _AppTextFieldState extends State<AppTextField> {
                 if (widget.requiredMark)
                   TextSpan(
                     text: ' *',
-                    style: labelStyle?.copyWith(
-                      color: colors.primary,
-                    ),
+                    style: labelStyle?.copyWith(color: colors.primary),
                   ),
               ],
             ),
@@ -154,9 +150,7 @@ class _AppTextFieldState extends State<AppTextField> {
         AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: widget.height,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
           decoration: BoxDecoration(
             color: widget.enabled
                 ? inputTheme.fillColor
@@ -193,7 +187,7 @@ class _AppTextFieldState extends State<AppTextField> {
                       textInputAction: widget.textInputAction,
                       onChanged: widget.onChanged,
                       cursorColor: colors.primary,
-                      style: FontStyles.med18.copyWith(
+                      style: FontStyles.reg18.copyWith(
                         color: inputTextColor,
                         height: 1.0,
                       ),
@@ -202,7 +196,7 @@ class _AppTextFieldState extends State<AppTextField> {
                         filled: false,
                         fillColor: Colors.transparent,
                         hintText: widget.hintText,
-                        hintStyle: FontStyles.med18.copyWith(
+                        hintStyle: FontStyles.reg18.copyWith(
                           color: hintColor,
                           height: 1.0,
                         ),
@@ -246,9 +240,7 @@ class _AppTextFieldState extends State<AppTextField> {
               Expanded(
                 child: Text(
                   bottomText!,
-                  style: FontStyles.med12.copyWith(
-                    color: bottomTextColor,
-                  ),
+                  style: FontStyles.reg12.copyWith(color: bottomTextColor),
                 ),
               ),
             ],

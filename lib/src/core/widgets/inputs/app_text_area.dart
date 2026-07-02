@@ -76,19 +76,15 @@ class _AppTextAreaState extends State<AppTextArea> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = textTheme.labelMedium?.copyWith(
-      color: colors.onSurface,
-    );
+    final labelStyle = textTheme.labelMedium?.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
         : colors.onSurfaceVariant;
 
-    final areaTextStyle = FontStyles.med16.copyWith(
-      color: inputTextColor,
-    );
+    final areaTextStyle = FontStyles.reg16.copyWith(color: inputTextColor);
 
-    final areaHintStyle = FontStyles.med16.copyWith(
+    final areaHintStyle = FontStyles.reg16.copyWith(
       color: inputTheme.hintStyle?.color ?? colors.onSurfaceVariant,
     );
 
@@ -104,9 +100,7 @@ class _AppTextAreaState extends State<AppTextArea> {
                 if (widget.requiredMark)
                   TextSpan(
                     text: ' *',
-                    style: labelStyle?.copyWith(
-                      color: colors.primary,
-                    ),
+                    style: labelStyle?.copyWith(color: colors.primary),
                   ),
               ],
             ),
@@ -155,10 +149,7 @@ class _AppTextAreaState extends State<AppTextArea> {
             children: [
               Expanded(
                 child: _hasError
-                    ? Text(
-                  widget.errorText!,
-                  style: inputTheme.errorStyle,
-                )
+                    ? Text(widget.errorText!, style: inputTheme.errorStyle)
                     : const SizedBox.shrink(),
               ),
               if (_shouldShowCounter)
