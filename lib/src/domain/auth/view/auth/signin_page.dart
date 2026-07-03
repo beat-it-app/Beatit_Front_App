@@ -8,8 +8,8 @@ import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/widgets/bottons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/find_id_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
 
 class SigninPage extends StatefulWidget {
