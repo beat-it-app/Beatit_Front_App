@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_fonts.dart';
 
-enum AppTopAppBarTrailing {
-  none,
-  more,
-  close,
-  alarm,
-}
+enum AppTopAppBarTrailing { none, more, close, alarm }
 
 class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopAppBar({
@@ -19,77 +14,77 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onMorePressed,
     this.onClosePressed,
     this.onAlarmPressed,
-    this.toolbarHeight = 56,
+    this.toolbarHeight = 64,
   });
 
   const AppTopAppBar.backTitle({
     super.key,
     required String title,
     VoidCallback? onBackPressed,
-    double toolbarHeight = 56,
-  })  : title = title,
-        showBackButton = true,
-        trailing = AppTopAppBarTrailing.none,
-        onBackPressed = onBackPressed,
-        onMorePressed = null,
-        onClosePressed = null,
-        onAlarmPressed = null,
-        toolbarHeight = toolbarHeight;
+    double toolbarHeight = 64,
+  }) : title = title,
+       showBackButton = true,
+       trailing = AppTopAppBarTrailing.none,
+       onBackPressed = onBackPressed,
+       onMorePressed = null,
+       onClosePressed = null,
+       onAlarmPressed = null,
+       toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.backOnly({
     super.key,
     VoidCallback? onBackPressed,
-    double toolbarHeight = 56,
-  })  : title = null,
-        showBackButton = true,
-        trailing = AppTopAppBarTrailing.none,
-        onBackPressed = onBackPressed,
-        onMorePressed = null,
-        onClosePressed = null,
-        onAlarmPressed = null,
-        toolbarHeight = toolbarHeight;
+    double toolbarHeight = 64,
+  }) : title = null,
+       showBackButton = true,
+       trailing = AppTopAppBarTrailing.none,
+       onBackPressed = onBackPressed,
+       onMorePressed = null,
+       onClosePressed = null,
+       onAlarmPressed = null,
+       toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.backMore({
     super.key,
     String? title,
     VoidCallback? onBackPressed,
     VoidCallback? onMorePressed,
-    double toolbarHeight = 56,
-  })  : title = title,
-        showBackButton = true,
-        trailing = AppTopAppBarTrailing.more,
-        onBackPressed = onBackPressed,
-        onMorePressed = onMorePressed,
-        onClosePressed = null,
-        onAlarmPressed = null,
-        toolbarHeight = toolbarHeight;
+    double toolbarHeight = 64,
+  }) : title = title,
+       showBackButton = true,
+       trailing = AppTopAppBarTrailing.more,
+       onBackPressed = onBackPressed,
+       onMorePressed = onMorePressed,
+       onClosePressed = null,
+       onAlarmPressed = null,
+       toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.closeOnly({
     super.key,
     VoidCallback? onClosePressed,
-    double toolbarHeight = 56,
-  })  : title = null,
-        showBackButton = false,
-        trailing = AppTopAppBarTrailing.close,
-        onBackPressed = null,
-        onMorePressed = null,
-        onClosePressed = onClosePressed,
-        onAlarmPressed = null,
-        toolbarHeight = toolbarHeight;
+    double toolbarHeight = 64,
+  }) : title = null,
+       showBackButton = false,
+       trailing = AppTopAppBarTrailing.close,
+       onBackPressed = null,
+       onMorePressed = null,
+       onClosePressed = onClosePressed,
+       onAlarmPressed = null,
+       toolbarHeight = toolbarHeight;
 
   /// 우측 trailing 영역에 벨 버튼 하나만 있는 앱바
   const AppTopAppBar.alarmOnly({
     super.key,
     VoidCallback? onAlarmPressed,
-    double toolbarHeight = 56,
-  })  : title = null,
-        showBackButton = false,
-        trailing = AppTopAppBarTrailing.alarm,
-        onBackPressed = null,
-        onMorePressed = null,
-        onClosePressed = null,
-        onAlarmPressed = onAlarmPressed,
-        toolbarHeight = toolbarHeight;
+    double toolbarHeight = 64,
+  }) : title = null,
+       showBackButton = false,
+       trailing = AppTopAppBarTrailing.alarm,
+       onBackPressed = null,
+       onMorePressed = null,
+       onClosePressed = null,
+       onAlarmPressed = onAlarmPressed,
+       toolbarHeight = toolbarHeight;
 
   final String? title;
   final bool showBackButton;
@@ -116,20 +111,18 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       centerTitle: title != null,
       toolbarHeight: toolbarHeight,
-      leadingWidth: 48,
+      leadingWidth: 60,
       elevation: 0,
       scrolledUnderElevation: 0,
       backgroundColor: theme.scaffoldBackgroundColor,
       foregroundColor: colors.onSurface,
-      titleTextStyle: FontStyles.semi18.copyWith(
-        color: colors.onSurface,
-      ),
+      titleTextStyle: FontStyles.semi18.copyWith(color: colors.onSurface),
       leading: showBackButton
           ? _AppBarPressIconButton(
-        icon: Icons.arrow_back_ios_new_rounded,
-        semanticLabel: '뒤로가기',
-        onPressed: onBackPressed ?? _noop,
-      )
+              icon: Icons.arrow_back_ios_new_rounded,
+              semanticLabel: '뒤로가기',
+              onPressed: onBackPressed ?? _noop,
+            )
           : null,
       title: title == null ? null : Text(title!),
       actions: [
@@ -215,7 +208,7 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
         },
         onTap: widget.onPressed,
         child: SizedBox(
-          width: 48,
+          width: 60,
           height: 48,
           child: Center(
             child: AnimatedScale(

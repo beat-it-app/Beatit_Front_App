@@ -11,7 +11,7 @@ import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
 import 'package:flutter/material.dart';
 
 import 'src/core/theme/app_theme.dart';
-import 'src/core/widgets/bottons/app_button.dart';
+import 'src/core/widgets/buttons/app_button.dart';
 
 void main() {
   runApp(const MyApp());

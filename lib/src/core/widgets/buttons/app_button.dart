@@ -1,14 +1,11 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/app_radius.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_fonts.dart';
 
-enum ButtonVariant {
-  primary,
-  black,
-  outlined,
-}
+enum ButtonVariant { primary, black, white, gray, outlined }
 
 enum ButtonWidth {
   small, // width 97
@@ -49,13 +46,13 @@ class AppButton extends StatelessWidget {
 
     final child = isLoading
         ? SizedBox(
-      width: 18,
-      height: 18,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: _loadingColor(colors),
-      ),
-    )
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: _loadingColor(colors),
+            ),
+          )
         : Text(text);
 
     final button = switch (variant) {
@@ -74,6 +71,26 @@ class AppButton extends StatelessWidget {
         ),
         child: child,
       ),
+      ButtonVariant.white => FilledButton(
+        onPressed: _isDisabled ? null : onPressed,
+        style: _sizeStyle.merge(
+          FilledButton.styleFrom(
+            backgroundColor: colors.surface,
+            foregroundColor: context.grays.gray4,
+          ),
+        ),
+        child: child,
+      ),
+      ButtonVariant.gray => FilledButton(
+        onPressed: _isDisabled ? null : onPressed,
+        style: _sizeStyle.merge(
+          FilledButton.styleFrom(
+            backgroundColor: context.grays.gray8,
+            foregroundColor: context.grays.gray4,
+          ),
+        ),
+        child: child,
+      ),
       ButtonVariant.outlined => OutlinedButton(
         onPressed: _isDisabled ? null : onPressed,
         style: _sizeStyle,
@@ -81,21 +98,13 @@ class AppButton extends StatelessWidget {
       ),
     };
 
-    return SizedBox(
-      width: width.value,
-      height: height.value,
-      child: button,
-    );
+    return SizedBox(width: width.value, height: height.value, child: button);
   }
 
   ButtonStyle get _sizeStyle {
     return ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(
-        Size(0, height.value),
-      ),
-      fixedSize: WidgetStatePropertyAll(
-        Size.fromHeight(height.value),
-      ),
+      minimumSize: WidgetStatePropertyAll(Size(0, height.value)),
+      fixedSize: WidgetStatePropertyAll(Size.fromHeight(height.value)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
@@ -104,6 +113,8 @@ class AppButton extends StatelessWidget {
     return switch (variant) {
       ButtonVariant.primary => colors.onPrimary,
       ButtonVariant.black => colors.onSecondary,
+      ButtonVariant.white => colors.onSurface,
+      ButtonVariant.gray => colors.onSurface,
       ButtonVariant.outlined => colors.primary,
     };
   }
