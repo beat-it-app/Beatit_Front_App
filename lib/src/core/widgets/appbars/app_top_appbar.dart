@@ -1,4 +1,6 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_fonts.dart';
 
@@ -44,14 +46,14 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        toolbarHeight = toolbarHeight;
 
-  const AppTopAppBar.backMore({
+  const AppTopAppBar.moreOnly({
     super.key,
     String? title,
     VoidCallback? onBackPressed,
     VoidCallback? onMorePressed,
     double toolbarHeight = 64,
   }) : title = title,
-       showBackButton = true,
+       showBackButton = false,
        trailing = AppTopAppBarTrailing.more,
        onBackPressed = onBackPressed,
        onMorePressed = onMorePressed,
@@ -119,7 +121,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleTextStyle: FontStyles.semi18.copyWith(color: colors.onSurface),
       leading: showBackButton
           ? _AppBarPressIconButton(
-              icon: Icons.arrow_back_ios_new_rounded,
+              icon: 'assets/icons/appbar/back.svg',
               semanticLabel: '뒤로가기',
               onPressed: onBackPressed ?? _noop,
             )
@@ -129,17 +131,17 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
         switch (trailing) {
           AppTopAppBarTrailing.none => const SizedBox.shrink(),
           AppTopAppBarTrailing.more => _AppBarPressIconButton(
-            icon: Icons.more_vert_rounded,
+            icon: 'assets/icons/appbar/menu.svg',
             semanticLabel: '더보기',
             onPressed: onMorePressed ?? _noop,
           ),
           AppTopAppBarTrailing.close => _AppBarPressIconButton(
-            icon: Icons.close_rounded,
+            icon: 'assets/icons/appbar/delete.svg',
             semanticLabel: '닫기',
             onPressed: onClosePressed ?? _noop,
           ),
           AppTopAppBarTrailing.alarm => _AppBarPressIconButton(
-            icon: Icons.notifications_none_rounded,
+            icon: 'assets/icons/appbar/bell.svg',
             semanticLabel: '알림',
             onPressed: onAlarmPressed ?? _noop,
           ),
@@ -161,7 +163,7 @@ class _AppBarPressIconButton extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
   });
 
-  final IconData icon;
+  final String icon;
   final String semanticLabel;
   final VoidCallback onPressed;
 
@@ -217,11 +219,7 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
                   ? widget.pressInDuration
                   : widget.pressOutDuration,
               curve: widget.curve,
-              child: Icon(
-                widget.icon,
-                size: widget.iconSize,
-                color: colors.onSurface,
-              ),
+              child: SvgPicture.asset(widget.icon, color: context.grays.black),
             ),
           ),
         ),
