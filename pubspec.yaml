@@ -56,13 +56,14 @@ flutter:
   uses-material-design: true
 
   assets:
-#    - assets/images/
+    - assets/images/
     - assets/icons/
     - assets/icons/popup/
     - assets/icons/navigation/
     - assets/icons/check/
     - assets/icons/appbar/
     - assets/icons/auth/
+    - assets/icons/cal/
     - assets/icons/plus/
 
   fonts:
