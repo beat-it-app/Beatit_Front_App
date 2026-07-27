@@ -1,8 +1,12 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/calendar_day_item.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -24,12 +28,11 @@ class _DetailCalPageState extends State<DetailCalPage> {
   final passwordCheckController = TextEditingController();
   final emailController = TextEditingController();
 
-  bool _isEmailCodeSent = false;
+  bool _isMapVisible = true;
 
-  void _sendEmailCode() {
+  void _toggleMapVisibility() {
     setState(() {
-      // TODO: API 연결 전 테스트용.
-      _isEmailCodeSent = true;
+      _isMapVisible = !_isMapVisible;
     });
   }
 
@@ -55,9 +58,11 @@ class _DetailCalPageState extends State<DetailCalPage> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.x24,
-            horizontal: AppSpacing.x16,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x16,
+            AppSpacing.x24,
+            AppSpacing.x16,
+            0,
           ),
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -127,19 +132,42 @@ class _DetailCalPageState extends State<DetailCalPage> {
                         color: context.grays.black,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.x10),
-                    Row(
-                      children: [
-                        Text(
-                          '지도보기',
-                          style: FontStyles.med16.copyWith(
-                            color: context.colors.primary,
-                            decoration: TextDecoration.underline,
-                            decorationColor: context.colors.primary,
-                          ),
+                    TextButton(
+                      onPressed: _toggleMapVisibility,
+                      style: TextButton.styleFrom(
+                        foregroundColor: context.colors.primary,
+                        backgroundColor: Colors.transparent,
+                        overlayColor: Colors.transparent,
+                        splashFactory: NoSplash.splashFactory,
+                        enableFeedback: false,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.x16,
                         ),
-                        SvgPicture.asset('assets/icons/cal/toggle_down.svg'),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '지도보기',
+                            style: FontStyles.med16.copyWith(
+                              color: context.colors.primary,
+                              decoration: TextDecoration.underline,
+                              decorationColor: context.colors.primary,
+                            ),
+                          ),
+                          RotatedBox(
+                            quarterTurns: _isMapVisible ? 2 : 0,
+                            child: SvgPicture.asset(
+                              'assets/icons/cal/toggle_down.svg',
+                              colorFilter: ColorFilter.mode(
+                                context.colors.primary,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -150,6 +178,16 @@ class _DetailCalPageState extends State<DetailCalPage> {
                   iconAddress: 'assets/icons/cal/clock.svg',
                   value: '연습곡',
                 ),
+
+                const SizedBox(height: AppSpacing.x8),
+
+                MusicListItem(
+                  trackText: 'Basket Case',
+                  artistText: 'Green Day',
+                  onTap: () {},
+                ),
+                Divider(color: context.grays.gray7, height: 1),
+                MusicListItem(trackText: '개화', artistText: '루시', onTap: () {}),
 
                 const SizedBox(height: AppSpacing.x20),
 
