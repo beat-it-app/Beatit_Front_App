@@ -206,10 +206,11 @@ class _CreateCalPageState extends State<CreateCalPage> {
                         requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
-                      AddMemberButton(text: '인원 선택하기', onPressed: () {}),
-                      const SizedBox(height: AppSpacing.x16),
+                      // AddMemberButton(text: '인원 선택하기', onPressed: () {}),
+                      // const SizedBox(height: AppSpacing.x16),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.only(top: AppSpacing.x8),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -242,6 +243,12 @@ class _CreateCalPageState extends State<CreateCalPage> {
                               memberImage: 'assets/images/exProfile.jpg',
                               memberName: '송하은',
                               memberPart: '베이스',
+                            ),
+
+                            _AddButton(
+                              onPressed: () {
+                                print('추가 버튼 선택됨.');
+                              },
                             ),
                           ],
                         ),
@@ -291,12 +298,6 @@ class _CreateCalPageState extends State<CreateCalPage> {
                       ),
                       const SizedBox(height: AppSpacing.x20),
                       Center(child: _AddButton(onPressed: () {})),
-                      const SizedBox(height: AppSpacing.x16),
-
-                      LabelBox(
-                        iconAddress: 'assets/icons/cal/clock.svg',
-                        value: '참여자',
-                      ),
 
                       const SizedBox(height: AppSpacing.x16),
                     ],
