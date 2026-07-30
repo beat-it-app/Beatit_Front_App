@@ -136,17 +136,7 @@ class _ListChatPageState extends State<ListChatPage> {
       timeText: '오후 17:45',
       unreadCount: 0,
       members: [_leeHyeBin, _me],
-      messages: [
-        ChatMessageViewData(
-          id: 'hye-bin-message-1',
-          senderId: 'user-lee-hye-bin',
-          senderName: '이혜빈',
-          senderProfileImageUrl: 'https://i.pravatar.cc/150?img=45',
-          content: '네-!! 이번 공지 확인했어요!\n다음 한번 제가 공지 작성할게요.',
-          timeText: '17:45',
-          isMine: false,
-        ),
-      ],
+      messages: [],
     ),
     _DummyChatRoom(
       id: 'room-direct-jeon',
