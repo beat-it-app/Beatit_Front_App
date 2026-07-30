@@ -1,9 +1,4 @@
-import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
-
-import '../../theme/app_radius.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_fonts.dart';
 
 class GroupChatProfile extends StatelessWidget {
   const GroupChatProfile({
@@ -17,123 +12,243 @@ class GroupChatProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int count = imageUrls.length;
-    final colors = Theme.of(context).colorScheme;
+    // 빈 URL은 제외하고 최대 4개까지만 표시
+    final urls = imageUrls
+        .where((url) => url.trim().isNotEmpty)
+        .take(4)
+        .toList(growable: false);
 
-    if (count == 0) return _buildEmpty();
-    if (count == 1) return _buildOne(imageUrls[0]);
-    if (count == 2) return _buildTwo();
-    if (count == 3) return _buildThree();
+    if (urls.isEmpty) {
+      return _buildEmpty(context);
+    }
 
-    // 4명 이상일 때는 앞에서부터 4개만 잘라서 사용
-    return _buildFourOrMore(imageUrls.take(4).toList());
+    if (urls.length == 1) {
+      return _buildOne(context, urls[0]);
+    }
+
+    if (urls.length == 2) {
+      return _buildTwo(context, urls);
+    }
+
+    if (urls.length == 3) {
+      return _buildThree(context, urls);
+    }
+
+    return _buildFourOrMore(context, urls);
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle),
-      child: const Icon(Icons.person, color: Colors.white),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colorScheme.surfaceContainerHighest,
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.person,
+        size: size * 0.5,
+        color: colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
-  Widget _buildOne(String url) {
+  Widget _buildOne(BuildContext context, String url) {
     return SizedBox(
       width: size,
       height: size,
-      child: CircleAvatar(backgroundImage: NetworkImage(url)),
+      child: _circleImage(
+        context: context,
+        url: url,
+        imageSize: size,
+        borderWidth: 0,
+      ),
     );
   }
 
-  Widget _buildTwo() {
-    final double itemSize = size * 0.65; // 각 이미지 크기를 전체의 65% 정도로 설정
+  Widget _buildTwo(BuildContext context, List<String> urls) {
+    // 기존 0.65보다 크게 잡아 두 이미지가 확실하게 겹치도록 설정
+    final itemSize = size * 0.70;
+
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
+          // 첫 번째 이미지: 왼쪽 위
           Positioned(
             top: 0,
             left: 0,
-            child: _circleImage(imageUrls[0], itemSize),
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
           ),
+
+          // 두 번째 이미지: 오른쪽 아래
+          // 나중에 선언되었으므로 첫 번째 이미지 위로 올라옴
           Positioned(
-            bottom: 0,
             right: 0,
-            child: _circleImage(imageUrls[1], itemSize),
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildThree() {
-    final double itemSize = size * 0.55;
+  Widget _buildThree(BuildContext context, List<String> urls) {
+    final itemSize = size * 0.57;
+
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           // 왼쪽 아래
           Positioned(
             bottom: 0,
             left: 0,
-            child: _circleImage(imageUrls[1], itemSize),
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
           ),
-          // 오른쪽 아래
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: _circleImage(imageUrls[2], itemSize),
-          ),
-          // 위쪽 가운데 (제일 위에 덮임)
+
+          // 위쪽 중앙
           Positioned(
             top: 0,
-            left: (size - itemSize) / 2, // 가로 중앙 정렬
-            child: _circleImage(imageUrls[0], itemSize),
+            left: (size - itemSize) / 2,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 오른쪽 아래
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[2],
+              imageSize: itemSize,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFourOrMore(List<String> urls) {
-    final double itemSize = size * 0.48; // 2x2이므로 절반보다 약간 작게 설정하여 틈(여백)을 줌
+  Widget _buildFourOrMore(BuildContext context, List<String> urls) {
+    // 절반보다 크게 설정해야 네 이미지가 중앙에서 서로 겹침
+    final itemSize = size * 0.55;
 
     return SizedBox(
       width: size,
       height: size,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _circleImage(urls[0], itemSize),
-              _circleImage(urls[1], itemSize),
-            ],
+          // 왼쪽 아래
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[2],
+              imageSize: itemSize,
+            ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _circleImage(urls[2], itemSize),
-              _circleImage(urls[3], itemSize),
-            ],
+
+          // 오른쪽 아래
+          // 마지막에 선언되어 가장 위쪽에 표시됨
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[3],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 왼쪽 위
+          Positioned(
+            top: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 오른쪽 위
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _circleImage(String url, double imageSize) {
+  Widget _circleImage({
+    required BuildContext context,
+    required String url,
+    required double imageSize,
+    double borderWidth = 1,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       width: imageSize,
       height: imageSize,
+      padding: EdgeInsets.all(0),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 1.5), // 겹칠 때 경계선 역할
-        image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+
+        // 프로필 간 경계선 역할
+        color: colorScheme.surface,
+      ),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+          errorBuilder:
+              (BuildContext context, Object error, StackTrace? stackTrace) {
+                return ColoredBox(
+                  color: colorScheme.surfaceContainerHighest,
+                  child: Center(
+                    child: Icon(
+                      Icons.person,
+                      size: imageSize * 0.45,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
+        ),
       ),
     );
   }
