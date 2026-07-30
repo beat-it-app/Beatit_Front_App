@@ -1,229 +1,245 @@
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
-import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:flutter/material.dart';
 
-class TestPage extends StatefulWidget {
-  const TestPage({super.key});
+class GroupChatProfile extends StatelessWidget {
+  const GroupChatProfile({
+    super.key,
+    required this.imageUrls,
+    this.size = 47.0,
+  });
 
-  @override
-  State<TestPage> createState() => _TestPageState();
-}
+  final List<String> imageUrls;
+  final double size;
 
-class _TestPageState extends State<TestPage> {
   @override
   Widget build(BuildContext context) {
+    // 빈 URL은 제외하고 최대 4개까지만 표시
+    final urls = imageUrls
+        .where((url) => url.trim().isNotEmpty)
+        .take(4)
+        .toList(growable: false);
+
+    if (urls.isEmpty) {
+      return _buildEmpty(context);
+    }
+
+    if (urls.length == 1) {
+      return _buildOne(context, urls[0]);
+    }
+
+    if (urls.length == 2) {
+      return _buildTwo(context, urls);
+    }
+
+    if (urls.length == 3) {
+      return _buildThree(context, urls);
+    }
+
+    return _buildFourOrMore(context, urls);
+  }
+
+  Widget _buildEmpty(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppTwoAppBar(trailing: AppTwoAppBarTrailing.all),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          children: [
-            // 1. circle 경고 + small content + 버튼 2개 + horizontal
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '작성을 중단하시겠습니까?',
-                    content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
-                    warningType: WarningType.circle,
-                    contentType: ContentType.small,
-                    buttonNum: ButtonNum.two,
-                    buttonSymmetric: ButtonSymmetric.horizontal,
-                    confirmText: '확인',
-                    cancelText: '취소',
-                  );
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colorScheme.surfaceContainerHighest,
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.person,
+        size: size * 0.5,
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
 
-                  if (!mounted) return;
+  Widget _buildOne(BuildContext context, String url) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: _circleImage(context: context, url: url, imageSize: size),
+    );
+  }
 
-                  if (confirmed == true) {
-                    debugPrint('작성 중단 기능이 실행되었습니다.');
-                  }
-                },
-                text: '작성 중단 팝업',
-                variant: ButtonVariant.primary,
-              ),
+  Widget _buildTwo(BuildContext context, List<String> urls) {
+    // 기존 0.65보다 크게 잡아 두 이미지가 확실하게 겹치도록 설정
+    final itemSize = size * 0.72;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 첫 번째 이미지: 왼쪽 위
+          Positioned(
+            top: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
             ),
+          ),
 
-            const SizedBox(height: 16),
-
-            // 2. triangle 경고 + small content + 버튼 2개 + horizontal
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '정말 삭제하시겠습니까?',
-                    content: '삭제된 게시물은\n복구할 수 없습니다.',
-                    warningType: WarningType.triangle,
-                    contentType: ContentType.small,
-                    buttonNum: ButtonNum.two,
-                    buttonSymmetric: ButtonSymmetric.horizontal,
-                    confirmText: '확인',
-                    cancelText: '취소',
-                  );
-
-                  if (!mounted) return;
-
-                  if (confirmed == true) {
-                    debugPrint('삭제 기능이 실행되었습니다.');
-                  }
-                },
-                text: '삭제 경고 팝업',
-                variant: ButtonVariant.primary,
-              ),
+          // 두 번째 이미지: 오른쪽 아래
+          // 나중에 선언되었으므로 첫 번째 이미지 위로 올라옴
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 16),
+  Widget _buildThree(BuildContext context, List<String> urls) {
+    final itemSize = size * 0.57;
 
-            // 3. circle 경고 + content 없음 + 버튼 1개
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '이름은 10글자 이내로\n작성해주세요.',
-                    warningType: WarningType.circle,
-                    contentType: ContentType.none,
-                    buttonNum: ButtonNum.one,
-                    confirmText: '확인',
-                  );
-
-                  if (!mounted) return;
-
-                  if (confirmed == true) {
-                    debugPrint('글자 수 안내 팝업을 확인했습니다.');
-                  }
-                },
-                text: '글자 수 안내 팝업',
-                variant: ButtonVariant.primary,
-              ),
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 오른쪽 아래
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[2],
+              imageSize: itemSize,
             ),
+          ),
+          // 위쪽 중앙
+          Positioned(
+            top: 0,
+            left: (size - itemSize) / 2,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
+          ),
+          // 왼쪽 아래
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 16),
+  Widget _buildFourOrMore(BuildContext context, List<String> urls) {
+    // 절반보다 크게 설정해야 네 이미지가 중앙에서 서로 겹침
+    final itemSize = size * 0.90;
 
-            // 4. 경고 없음 + large contentWidget + 버튼 2개 + vertical
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '운영진 변경',
-                    warningType: WarningType.none,
-                    contentType: ContentType.large,
-                    buttonNum: ButtonNum.two,
-                    buttonSymmetric: ButtonSymmetric.vertical,
-                    confirmText: '확인',
-                    cancelText: '취소',
-                    contentWidget: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 44,
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: Text(
-                            '노',
-                            style: textTheme.titleLarge?.copyWith(
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: textTheme.titleMedium?.copyWith(
-                              color: colorScheme.onSurface,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: '노영서',
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const TextSpan(text: ' 님을\n운영진으로 추가하시겠습니까?'),
-                            ],
-                          ),
-                        ),
-                      ],
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 왼쪽 위
+          Positioned(
+            top: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 오른쪽 위
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 왼쪽 아래
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[2],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 오른쪽 아래
+          // 마지막에 선언되어 가장 위쪽에 표시됨
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[3],
+              imageSize: itemSize,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _circleImage({
+    required BuildContext context,
+    required String url,
+    required double imageSize,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: imageSize,
+      height: imageSize,
+      padding: EdgeInsets.all(0),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+
+        // 프로필 간 경계선 역할
+        color: colorScheme.surface,
+      ),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+          errorBuilder:
+              (BuildContext context, Object error, StackTrace? stackTrace) {
+                return ColoredBox(
+                  color: colorScheme.surfaceContainerHighest,
+                  child: Center(
+                    child: Icon(
+                      Icons.person,
+                      size: imageSize * 0.45,
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  );
-
-                  if (!mounted) return;
-
-                  if (confirmed == true) {
-                    debugPrint('운영진 변경 기능이 실행되었습니다.');
-                  }
-                },
-                text: '운영진 변경 팝업',
-                variant: ButtonVariant.primary,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 5. 경고 없음 + content 없음 + 버튼 2개 + horizontal
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '팀을 탈퇴하시겠습니까?',
-                    warningType: WarningType.none,
-                    contentType: ContentType.none,
-                    buttonNum: ButtonNum.two,
-                    buttonSymmetric: ButtonSymmetric.horizontal,
-                    confirmText: '확인',
-                    cancelText: '취소',
-                  );
-
-                  if (!mounted) return;
-
-                  if (confirmed == true) {
-                    debugPrint('팀 탈퇴 기능이 실행되었습니다.');
-                  }
-                },
-                text: '기본 확인 팝업',
-                variant: ButtonVariant.primary,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 6. 경고 없음 + content 없음 + 버튼 2개 + vertical
-            Center(
-              child: AppButton(
-                onPressed: () async {
-                  final confirmed = await AppPopup.show(
-                    context,
-                    title: '팀 "잘나가는 밴드"에\n가입하시겠습니까?',
-                    warningType: WarningType.none,
-                    contentType: ContentType.none,
-                    buttonNum: ButtonNum.two,
-                    buttonSymmetric: ButtonSymmetric.vertical,
-                    confirmText: '예',
-                    cancelText: '아니요',
-                  );
-
-                  if (!mounted) return;
-
-                  if (confirmed == true) {
-                    debugPrint('팀 가입 기능이 실행되었습니다.');
-                  }
-                },
-                text: '팀 가입 팝업',
-                variant: ButtonVariant.primary,
-              ),
-            ),
-          ],
+                  ),
+                );
+              },
         ),
       ),
     );
