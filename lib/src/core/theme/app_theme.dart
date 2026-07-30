@@ -191,7 +191,7 @@ abstract final class AppTheme {
         color: cardColor,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
           side: BorderSide(color: dividerColor),
         ),
       ),
@@ -223,7 +223,7 @@ abstract final class AppTheme {
         backgroundColor: cardColor,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -231,7 +231,7 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xxl),
+            top: Radius.circular(AppRadius.xxxl),
           ),
         ),
       ),
