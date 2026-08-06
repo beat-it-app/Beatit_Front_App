@@ -160,7 +160,9 @@ class _AppDropdownListState extends State<AppDropdownList> {
           Size(widget.width, double.infinity),
         ),
 
-        backgroundColor: WidgetStatePropertyAll(context.grays.white),
+        backgroundColor: WidgetStatePropertyAll(
+          context.grays.white.withValues(alpha: 0.95),
+        ),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         shadowColor: WidgetStatePropertyAll(
           context.grays.black.withValues(alpha: 0.3),
@@ -281,7 +283,9 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
             width: widget.width,
             height: widget.height,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-            color: _isPressed ? context.grays.gray7 : Colors.transparent,
+            color: _isPressed
+                ? context.grays.gray7.withValues(alpha: 0.95)
+                : Colors.transparent,
             child: Row(
               children: [
                 AnimatedSwitcher(
