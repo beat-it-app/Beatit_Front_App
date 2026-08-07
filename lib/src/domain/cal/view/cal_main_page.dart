@@ -8,14 +8,14 @@ import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class MainCalPage extends StatefulWidget {
-  const MainCalPage({super.key});
+class CalMainPage extends StatefulWidget {
+  const CalMainPage({super.key});
 
   @override
-  State<MainCalPage> createState() => _MainCalPageState();
+  State<CalMainPage> createState() => _CalMainPageState();
 }
 
-class _MainCalPageState extends State<MainCalPage> {
+class _CalMainPageState extends State<CalMainPage> {
   late final DateTime _today;
   late DateTime _focusedDay;
   late DateTime _selectedDay;
@@ -321,7 +321,7 @@ class _MainCalPageState extends State<MainCalPage> {
 }
 
 /// 실제 일정 API 모델이 연결되기 전까지 사용하는
-/// MainCalPage 전용 임시 표시 모델입니다.
+/// CalMainPage 전용 임시 표시 모델입니다.
 class _CalendarScheduleData {
   const _CalendarScheduleData({
     required this.titleText,

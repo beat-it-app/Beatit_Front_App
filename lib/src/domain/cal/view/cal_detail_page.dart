@@ -15,14 +15,14 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 
-class DetailCalPage extends StatefulWidget {
-  const DetailCalPage({super.key});
+class CalDetailPage extends StatefulWidget {
+  const CalDetailPage({super.key});
 
   @override
-  State<DetailCalPage> createState() => _DetailCalPageState();
+  State<CalDetailPage> createState() => _CalDetailPageState();
 }
 
-class _DetailCalPageState extends State<DetailCalPage> {
+class _CalDetailPageState extends State<CalDetailPage> {
   final idController = TextEditingController();
   final passwordController = TextEditingController();
   final passwordCheckController = TextEditingController();
