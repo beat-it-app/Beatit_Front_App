@@ -173,6 +173,10 @@ class CalendarDayItem extends StatelessWidget {
       return context.colors.primary;
     }
 
+    if (highlightState == CalendarHighlightState.selected) {
+      return context.brands.beatOrange2;
+    }
+
     if (monthState == CalendarMonthState.outsideMonth) {
       return context.grays.gray6;
     }
