@@ -117,8 +117,6 @@ class _CalDetailPageState extends State<CalDetailPage> {
                   ],
                 ),
 
-                const SizedBox(height: AppSpacing.x8),
-
                 Row(
                   children: [
                     LabelBox(
@@ -172,14 +170,14 @@ class _CalDetailPageState extends State<CalDetailPage> {
                   ],
                 ),
 
-                const SizedBox(height: AppSpacing.x20),
+                const SizedBox(height: AppSpacing.x10),
 
                 LabelBox(
-                  iconAddress: 'assets/icons/cal/clock.svg',
+                  iconAddress: 'assets/icons/cal/music_symbol.svg',
                   value: '연습곡',
                 ),
 
-                const SizedBox(height: AppSpacing.x8),
+                const SizedBox(height: AppSpacing.x4),
 
                 MusicListItem(
                   trackText: 'Basket Case',
