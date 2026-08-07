@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_dropdown.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_view.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
 import 'package:flutter/material.dart';
@@ -18,9 +19,8 @@ class _MainCalPageState extends State<MainCalPage> {
   late final DateTime _today;
   late DateTime _focusedDay;
   late DateTime _selectedDay;
-
-  /// 월 헤더를 눌렀을 때 달력을 펼치거나 접기 위한 상태
-  bool _isCalendarVisible = true;
+  static final DateTime _firstCalendarDay = DateTime(2020, 1, 1);
+  static final DateTime _lastCalendarDay = DateTime(2035, 12, 31);
 
   /// API 연결 전 UI 확인용 임시 일정 데이터
   ///
@@ -89,21 +89,6 @@ class _MainCalPageState extends State<MainCalPage> {
     _today = DateUtils.dateOnly(DateTime.now());
     _selectedDay = _today;
     _focusedDay = DateTime(_today.year, _today.month);
-
-    /*
-    디자인 화면을 2026년 7월로 고정해서 확인하려면
-    위의 세 줄 대신 아래 값을 임시로 사용하면 됩니다.
-
-    _today = DateTime(2026, 7, 28);
-    _selectedDay = DateTime(2026, 7, 16);
-    _focusedDay = DateTime(2026, 7);
-    */
-  }
-
-  void _toggleCalendarVisibility() {
-    setState(() {
-      _isCalendarVisible = !_isCalendarVisible;
-    });
   }
 
   void _handleDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -119,6 +104,28 @@ class _MainCalPageState extends State<MainCalPage> {
   void _handlePageChanged(DateTime focusedDay) {
     setState(() {
       _focusedDay = DateTime(focusedDay.year, focusedDay.month);
+    });
+  }
+
+  void _handleMonthSelected(DateTime selectedMonth) {
+    final normalizedMonth = DateTime(selectedMonth.year, selectedMonth.month);
+
+    final lastDayOfMonth = DateUtils.getDaysInMonth(
+      normalizedMonth.year,
+      normalizedMonth.month,
+    );
+
+    final selectedDay = _selectedDay.day > lastDayOfMonth
+        ? lastDayOfMonth
+        : _selectedDay.day;
+
+    setState(() {
+      _focusedDay = normalizedMonth;
+      _selectedDay = DateTime(
+        normalizedMonth.year,
+        normalizedMonth.month,
+        selectedDay,
+      );
     });
   }
 
@@ -186,21 +193,19 @@ class _MainCalPageState extends State<MainCalPage> {
               children: [
                 _buildMonthHeader(context),
 
-                if (_isCalendarVisible) ...[
-                  const SizedBox(height: AppSpacing.x24),
+                const SizedBox(height: AppSpacing.x24),
 
-                  CalendarMonthView(
-                    firstDay: DateTime(2020, 1, 1),
-                    lastDay: DateTime(2035, 12, 31),
-                    focusedDay: _focusedDay,
-                    selectedDay: _selectedDay,
-                    today: _today,
-                    hasSchedule: _hasSchedule,
-                    labelForDay: _labelForDay,
-                    onDaySelected: _handleDaySelected,
-                    onPageChanged: _handlePageChanged,
-                  ),
-                ],
+                CalendarMonthView(
+                  firstDay: _firstCalendarDay,
+                  lastDay: _lastCalendarDay,
+                  focusedDay: _focusedDay,
+                  selectedDay: _selectedDay,
+                  today: _today,
+                  hasSchedule: _hasSchedule,
+                  labelForDay: _labelForDay,
+                  onDaySelected: _handleDaySelected,
+                  onPageChanged: _handlePageChanged,
+                ),
 
                 const SizedBox(height: AppSpacing.x20),
 
@@ -226,41 +231,55 @@ class _MainCalPageState extends State<MainCalPage> {
   }
 
   Widget _buildMonthHeader(BuildContext context) {
-    return Semantics(
-      button: true,
-      expanded: _isCalendarVisible,
-      label: _isCalendarVisible ? '달력 접기' : '달력 펼치기',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _toggleCalendarVisibility,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _formatMonth(_focusedDay),
-              style: FontStyles.bold34.copyWith(
-                color: context.colors.onSurface,
-              ),
-            ),
+    return CalendarMonthDropdown(
+      selectedMonth: _focusedDay,
+      firstMonth: _firstCalendarDay,
+      lastMonth: _lastCalendarDay,
+      onMonthSelected: _handleMonthSelected,
+      triggerBuilder: (context, controller) {
+        return Semantics(
+          button: true,
+          expanded: controller.isOpen,
+          label: '월 선택',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (controller.isOpen) {
+                controller.close();
+                return;
+              }
 
-            const SizedBox(width: AppSpacing.x4),
-
-            RotatedBox(
-              // 화면 예시처럼 달력이 보일 때 아래쪽을 향하게 합니다.
-              quarterTurns: _isCalendarVisible ? 0 : 2,
-              child: SvgPicture.asset(
-                'assets/icons/cal/toggle_down.svg',
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
-                  context.colors.onSurface,
-                  BlendMode.srcIn,
+              controller.open();
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _formatMonth(_focusedDay),
+                  style: FontStyles.bold34.copyWith(
+                    color: context.colors.onSurface,
+                  ),
                 ),
-              ),
+
+                const SizedBox(width: AppSpacing.x4),
+
+                RotatedBox(
+                  quarterTurns: controller.isOpen ? 2 : 0,
+                  child: SvgPicture.asset(
+                    'assets/icons/cal/toggle_down.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      context.colors.onSurface,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
