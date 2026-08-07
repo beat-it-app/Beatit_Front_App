@@ -52,58 +52,101 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(AppRadius.sm);
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      decoration: BoxDecoration(
+      child: Material(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38.0,
-            height: 38.0,
-            decoration: ShapeDecoration(
-              shape: OvalBorder(),
-              color: _resolveScheduleBackgroundColor(context),
-            ),
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/core/calendar.svg',
-                colorFilter: ColorFilter.mode(
-                  _resolveScheduleIconColor(context),
-                  BlendMode.srcIn,
-                ),
-                width: 24.0,
-                height: 24.0,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.x16),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        borderRadius: borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          splashColor: context.grays.gray7.withValues(alpha: 0.1),
+          highlightColor: context.grays.gray7.withValues(alpha: 0.1),
+          hoverColor: context.grays.gray7.withValues(alpha: 0.1),
+          onTapDown: (_) {
+            _setPressed(true);
+          },
+          onTapUp: (_) {
+            _setPressed(false);
+          },
+          onTapCancel: () {
+            _setPressed(false);
+          },
+          onHighlightChanged: _setPressed,
+          onHover: (value) {
+            if (_isHovered == value) {
+              return;
+            }
+
+            setState(() {
+              _isHovered = value;
+            });
+          },
+          onFocusChange: (value) {
+            if (_isFocused == value) {
+              return;
+            }
+
+            setState(() {
+              _isFocused = value;
+            });
+          },
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: borderRadius,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.titleText,
-                style: FontStyles.semi16.copyWith(color: context.grays.black),
+              Container(
+                width: 38.0,
+                height: 38.0,
+                decoration: ShapeDecoration(
+                  shape: const OvalBorder(),
+                  color: _resolveScheduleBackgroundColor(context),
+                ),
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/icons/core/calendar.svg',
+                    colorFilter: ColorFilter.mode(
+                      _resolveScheduleIconColor(context),
+                      BlendMode.srcIn,
+                    ),
+                    width: 24.0,
+                    height: 24.0,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
-              Text(
-                widget.locationText,
-                style: FontStyles.med14.copyWith(color: context.grays.gray4),
-              ),
-              Text(
-                widget.timeText,
-                style: FontStyles.med12.copyWith(color: context.grays.gray4),
+              const SizedBox(width: AppSpacing.x16),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.titleText,
+                    style: FontStyles.semi16.copyWith(
+                      color: context.grays.black,
+                    ),
+                  ),
+                  Text(
+                    widget.locationText,
+                    style: FontStyles.med14.copyWith(
+                      color: context.grays.gray4,
+                    ),
+                  ),
+                  Text(
+                    widget.timeText,
+                    style: FontStyles.med12.copyWith(
+                      color: context.grays.gray4,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
