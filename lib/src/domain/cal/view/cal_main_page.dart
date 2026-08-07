@@ -2,6 +2,9 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_create_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_dropdown.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_view.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
@@ -91,6 +94,18 @@ class _CalMainPageState extends State<CalMainPage> {
     _focusedDay = DateTime(_today.year, _today.month);
   }
 
+  void _goToCalCreatePage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CalCreatePage()));
+  }
+
+  void _goToCalDetialPage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CalDetailPage()));
+  }
+
   void _handleDaySelected(DateTime selectedDay, DateTime focusedDay) {
     setState(() {
       _selectedDay = DateUtils.dateOnly(selectedDay);
@@ -176,7 +191,20 @@ class _CalMainPageState extends State<CalMainPage> {
     final selectedSchedules = _schedulesForDay(_selectedDay);
 
     return Scaffold(
-      appBar: AppTwoAppBar.add(title: ''),
+      appBar: AppTwoAppBar(
+        trailing: AppTwoAppBarTrailing.add,
+        addMenuAlignment: AppDropdownAlignment.right,
+        addMenuOffset: const Offset(0, 68),
+
+        addMenuItems: [
+          AppDropdownItem(
+            label: '일정 생성하기',
+            onPressed: () {
+              _goToCalCreatePage();
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -312,6 +340,7 @@ class _CalMainPageState extends State<CalMainPage> {
             scheduleType: schedule.scheduleType,
             onTap: () {
               debugPrint('${schedule.titleText} 일정 선택');
+              _goToCalDetialPage();
             },
           ),
         );
