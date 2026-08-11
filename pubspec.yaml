@@ -64,6 +64,7 @@ flutter:
     - assets/icons/appbar/
     - assets/icons/auth/
     - assets/icons/plus/
+    - assets/icons/post/
 
   fonts:
     - family: Pretendard

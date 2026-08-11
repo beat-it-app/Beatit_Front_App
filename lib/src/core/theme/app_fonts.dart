@@ -35,6 +35,18 @@ abstract class FontStyles {
     fontWeight: FontWeight.w700,
     letterSpacing: -0.32,
   );
+  static const TextStyle bold20 = TextStyle(
+    fontSize: 20,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle bold14 = TextStyle(
+    fontSize: 14,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
 
   static const TextStyle semi28 = TextStyle(
     fontSize: 28,
