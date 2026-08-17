@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/domain/auth/view/signup_select_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_main_page.dart';
 import 'package:flutter/material.dart';
 
 import 'src/core/theme/app_theme.dart';
@@ -56,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: SignupSelectPage(),
+      body: CloudMainPage(),
     );
   }
 }
