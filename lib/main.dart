@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_detail_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_main_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signup_select_page.dart';
@@ -57,7 +58,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: PostMainPage(),
+      body: PostDetailPage(),
     );
   }
 }
