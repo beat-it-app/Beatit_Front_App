@@ -145,10 +145,15 @@ class AppPopup extends StatelessWidget {
                 const SizedBox(height: AppSpacing.x20),
               ],
 
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: FontStyles.bold22.copyWith(color: colorScheme.onSurface),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.x16),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: FontStyles.bold22.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                ),
               ),
 
               if (_hasContent) ...[

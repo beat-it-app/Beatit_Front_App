@@ -2,6 +2,8 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
 import 'package:flutter/material.dart';
 
 class TestPage extends StatefulWidget {
@@ -223,6 +225,27 @@ class _TestPageState extends State<TestPage> {
                 variant: ButtonVariant.primary,
               ),
             ),
+            const SizedBox(height: 16),
+
+            Center(
+              child: AppButton(
+                onPressed: () async {
+                  final confirmed = await ServiceConsentPopup();
+
+                  if (!mounted) return;
+
+                  if (confirmed == true) {
+                    debugPrint('팀 가입 기능이 실행되었습니다.');
+                  }
+                },
+                text: '서비스 이용 동의 팝업',
+                variant: ButtonVariant.primary,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            PrivacyConsentPopup(),
           ],
         ),
       ),

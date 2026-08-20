@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_fonts.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
+import 'app_field_message.dart';
 
 class AppTextField extends StatefulWidget {
   const AppTextField({
@@ -15,6 +16,7 @@ class AppTextField extends StatefulWidget {
     this.enabled = true,
     this.readOnly = false,
     this.obscureText = false,
+    this.isError = false,
     this.errorText,
     this.messageText,
     this.messageColor,
@@ -38,6 +40,10 @@ class AppTextField extends StatefulWidget {
   final bool readOnly;
   final bool obscureText;
 
+  /// 외부에서 오류 문구를 표시할 때, 문구 없이 오류 테두리만 적용함.
+  ///
+  /// 기존처럼 [errorText]를 전달하면 오류 테두리와 문구가 모두 표시됨.
+  final bool isError;
   final String? errorText;
 
   final String? messageText;
@@ -61,8 +67,12 @@ class _AppTextFieldState extends State<AppTextField> {
 
   FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode;
 
-  bool get _hasError {
+  bool get _hasInlineError {
     return widget.errorText != null && widget.errorText!.isNotEmpty;
+  }
+
+  bool get _hasError {
+    return widget.isError || _hasInlineError;
   }
 
   bool get _hasMessage {
@@ -70,7 +80,7 @@ class _AppTextFieldState extends State<AppTextField> {
   }
 
   bool get _hasBottomText {
-    return _hasError || _hasMessage;
+    return _hasInlineError || _hasMessage;
   }
 
   @override
@@ -110,7 +120,7 @@ class _AppTextFieldState extends State<AppTextField> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = textTheme.labelMedium?.copyWith(color: colors.onSurface);
+    final labelStyle = FontStyles.semi16.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
@@ -120,13 +130,7 @@ class _AppTextFieldState extends State<AppTextField> {
         ? inputTheme.hintStyle?.color ?? colors.onSurfaceVariant
         : colors.onSurfaceVariant;
 
-    final bottomText = _hasError ? widget.errorText : widget.messageText;
-
-    final bottomTextColor = _hasError
-        ? colors.error
-        : widget.messageColor ?? colors.onSurfaceVariant;
-
-    final bottomIcon = _hasError ? null : widget.messageIcon;
+    final bottomText = _hasInlineError ? widget.errorText : widget.messageText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,11 +140,11 @@ class _AppTextFieldState extends State<AppTextField> {
             text: TextSpan(
               style: labelStyle,
               children: [
-                TextSpan(text: widget.label),
+                TextSpan(text: widget.label, style: labelStyle),
                 if (widget.requiredMark)
                   TextSpan(
                     text: ' *',
-                    style: labelStyle?.copyWith(color: colors.primary),
+                    style: labelStyle.copyWith(color: colors.primary),
                   ),
               ],
             ),
@@ -230,20 +234,11 @@ class _AppTextFieldState extends State<AppTextField> {
         ),
         if (_hasBottomText) ...[
           const SizedBox(height: AppSpacing.x4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (bottomIcon != null) ...[
-                bottomIcon,
-                const SizedBox(width: AppSpacing.x4),
-              ],
-              Expanded(
-                child: Text(
-                  bottomText!,
-                  style: FontStyles.reg12.copyWith(color: bottomTextColor),
-                ),
-              ),
-            ],
+          AppFieldMessage(
+            text: bottomText!,
+            isError: _hasInlineError,
+            color: widget.messageColor,
+            icon: _hasInlineError ? null : widget.messageIcon,
           ),
         ],
       ],
