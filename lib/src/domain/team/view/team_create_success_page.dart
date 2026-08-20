@@ -8,10 +8,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 
 class TeamCreateSuccessPage extends StatelessWidget {
-  const TeamCreateSuccessPage({
-    super.key,
-    required this.teamName,
-  });
+  const TeamCreateSuccessPage({super.key, required this.teamName});
 
   final String teamName;
 
@@ -25,10 +22,9 @@ class TeamCreateSuccessPage extends StatelessWidget {
         '${now.year}.${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}';
 
     return Scaffold(
-      backgroundColor: colors.onSurface,
+      backgroundColor: AppColor.black,
       body: Stack(
         children: [
-          // 💡 배경 이미지 (맨 위 상단에 딱 맞게 배치)
           Positioned(
             top: 0,
             left: 0,
@@ -41,7 +37,6 @@ class TeamCreateSuccessPage extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                // 커스텀 앱바
                 SizedBox(
                   height: kToolbarHeight,
                   child: Row(
@@ -66,10 +61,11 @@ class TeamCreateSuccessPage extends StatelessWidget {
                 Expanded(
                   child: SingleChildScrollView(
                     keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.x20),
+                        horizontal: AppSpacing.x20,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -104,7 +100,9 @@ class TeamCreateSuccessPage extends StatelessWidget {
                               height: 300,
                               decoration: BoxDecoration(
                                 color: colors.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.lg,
+                                ),
                               ),
                             ),
                           ),
@@ -117,7 +115,7 @@ class TeamCreateSuccessPage extends StatelessWidget {
                                 Text(
                                   '"$teamName"의 생성을 환영합니다.',
                                   style: FontStyles.semi14.copyWith(
-                                    color: colors.primary,
+                                    color: AppColor.beatOrange1,
                                   ),
                                 ),
                                 const SizedBox(height: AppSpacing.x8),
@@ -144,6 +142,7 @@ class TeamCreateSuccessPage extends StatelessWidget {
                     AppSpacing.x20,
                     AppSpacing.x24,
                   ),
+                  //Todo: 버튼 다크모드 제외
                   child: AppButton(
                     text: '팀 페이지 가기',
                     variant: ButtonVariant.primary,

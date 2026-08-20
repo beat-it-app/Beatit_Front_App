@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 
+//Todo: 다크모드 적용
 class TeamJoinSuccessPopup extends StatelessWidget {
   final String teamName;
   final VoidCallback? onConfirm;
