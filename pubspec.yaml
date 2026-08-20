@@ -67,6 +67,7 @@ flutter:
     - assets/icons/core/
     - assets/icons/cal/
     - assets/icons/plus/
+    - assets/icons/profile/
 
   fonts:
     - family: Pretendard
