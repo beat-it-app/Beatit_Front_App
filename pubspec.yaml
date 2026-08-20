@@ -27,6 +27,7 @@ dependencies:
   dio: ^5.9.2
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0
+  table_calendar: ^3.2.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,8 @@ flutter:
     - assets/icons/check/
     - assets/icons/appbar/
     - assets/icons/auth/
+    - assets/icons/core/
+    - assets/icons/cal/
     - assets/icons/plus/
     - assets/icons/profile/
 
