@@ -1,21 +1,21 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
+import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PostDetailPage extends StatefulWidget {
-  const PostDetailPage({super.key});
+class PollDetailPage extends StatefulWidget {
+  const PollDetailPage({super.key});
 
   @override
-  State<PostDetailPage> createState() => _PostDetailPageState();
+  State<PollDetailPage> createState() => _PollDetailPageState();
 }
 
-class _PostDetailPageState extends State<PostDetailPage> {
+class _PollDetailPageState extends State<PollDetailPage> {
   static const String _currentUserName = '송하은';
   static const int _initialLikedCount = 100;
   static const int _initialDislikedCount = 90;
@@ -218,64 +218,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.x24),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.only(top: AppSpacing.x8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (int i = 0; i < imageUrls.length; i++) ...[
-                                  SizedBox(
-                                    width: 190,
-                                    height: 190,
-                                    // Container 대신 ClipRRect를 사용하여 자식 위젯을 둥글게 자릅니다.
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.lg,
-                                      ),
-                                      child: Image.network(
-                                        imageUrls[i],
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child;
-                                              }
-
-                                              return ColoredBox(
-                                                color: colors
-                                                    .surfaceContainerHighest,
-                                                child: const Center(
-                                                  child: SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return ColoredBox(
-                                            color: colors.errorContainer,
-                                            child: Icon(
-                                              Icons
-                                                  .image_not_supported_outlined, // 프로필이 아닌 일반 이미지 오류 아이콘으로 변경 추천
-                                              color: colors.onErrorContainer,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  if (i < imageUrls.length - 1)
-                                    const SizedBox(width: AppSpacing.x8),
-                                ],
-                              ],
-                            ),
-                          ),
+                          PollSelectionBox(),
                         ],
                       ),
                     ),
@@ -290,139 +233,29 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         horizontal: AppSpacing.x16,
                       ),
                       width: double.infinity,
-                      child: Wrap(
-                        spacing: AppSpacing.x10,
-                        runSpacing: AppSpacing.x4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Semantics(
-                            button: true,
-                            toggled: _isLiked,
-                            label: '좋아요',
-                            child: InkWell(
-                              onTap: _toggleLike,
-                              hoverColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.pill,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.x4,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SvgPicture.asset(
-                                      _isLiked
-                                          ? 'assets/icons/post/heart.svg'
-                                          : 'assets/icons/post/heart_off.svg',
-                                      width: 24,
-                                      height: 24,
-                                      colorFilter: ColorFilter.mode(
-                                        _isLiked
-                                            ? colors.primary
-                                            : context.grays.gray4,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.x4),
-                                    Text(
-                                      '좋아요 $_likedCount',
-                                      style: FontStyles.reg14.copyWith(
-                                        color: context.grays.gray4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.x4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/icons/post/chat_off.svg',
+                              colorFilter: ColorFilter.mode(
+                                context.grays.gray4,
+                                BlendMode.srcIn,
                               ),
                             ),
-                          ),
-                          Semantics(
-                            button: true,
-                            toggled: _isDisliked,
-                            label: '싫어요',
-                            child: InkWell(
-                              onTap: _toggleDislike,
-                              hoverColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.pill,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.x4,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 19,
-                                      height: 19,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _isDisliked
-                                            ? colors.primary
-                                            : context.grays.white,
-                                        border: Border.all(
-                                          color: _isDisliked
-                                              ? colors.primary
-                                              : context.grays.gray4,
-                                          width: 0.9,
-                                        ),
-                                      ),
-                                      child: SvgPicture.asset(
-                                        'assets/icons/post/sad_face.svg',
-                                        colorFilter: ColorFilter.mode(
-                                          _isDisliked
-                                              ? context.grays.white
-                                              : context.grays.gray4,
-                                          BlendMode.srcIn,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.x4),
-                                    Text(
-                                      '싫어요 $_dislikedCount',
-                                      style: FontStyles.reg14.copyWith(
-                                        color: context.grays.gray4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(width: AppSpacing.x4),
+                            Text(
+                              '댓글 $_commentCount',
+                              style: FontStyles.reg14.copyWith(
+                                color: context.grays.gray4,
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.x4,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/icons/post/chat_off.svg',
-                                  colorFilter: ColorFilter.mode(
-                                    context.grays.gray4,
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.x4),
-                                Text(
-                                  '댓글 $_commentCount',
-                                  style: FontStyles.reg14.copyWith(
-                                    color: context.grays.gray4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.x20),

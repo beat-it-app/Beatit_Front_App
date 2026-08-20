@@ -70,7 +70,7 @@ class _AppToggleColors {
   }) {
     if (isSelected) {
       return _AppToggleColors(
-        background: context.brands.beatOrange6,
+        background: context.colors.primary.withValues(alpha: 0.20),
         border: context.brands.beatOrange2,
         text: context.brands.beatOrange1,
       );
