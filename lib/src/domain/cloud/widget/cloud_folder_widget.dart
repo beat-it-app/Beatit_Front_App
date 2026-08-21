@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_selection_checkbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -9,12 +10,14 @@ class CloudFolderWidget extends StatelessWidget {
     super.key,
     required this.folderName,
     required this.fileCount,
+    this.isSelectionMode = false,
     this.isSelected = false,
     this.onTap,
   });
 
   final String folderName;
   final int fileCount;
+  final bool isSelectionMode;
   final bool isSelected;
   final VoidCallback? onTap;
 
@@ -46,12 +49,17 @@ class CloudFolderWidget extends StatelessWidget {
           child: SizedBox(
             height: _itemHeight,
             child: Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.x30,
+              padding: EdgeInsets.only(
+                left: isSelectionMode ? AppSpacing.x16 : AppSpacing.x30,
                 right: AppSpacing.x20,
               ),
               child: Row(
                 children: [
+                  if (isSelectionMode) ...[
+                    const SizedBox(width: AppSpacing.x4),
+                    CloudSelectionCheckbox(isSelected: isSelected),
+                    const SizedBox(width: AppSpacing.x20),
+                  ],
                   SvgPicture.asset(
                     'assets/icons/cloud/folder.svg',
                     width: 20.0,
@@ -76,15 +84,18 @@ class CloudFolderWidget extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.x4),
-                  SvgPicture.asset(
-                    'assets/icons/cloud/back.svg',
-                    width: 20.0,
-                    height: 20.0,
-                    colorFilter: ColorFilter.mode(
-                      context.grays.gray6,
-                      BlendMode.srcIn,
+                  if (!isSelectionMode) ...[
+                    SvgPicture.asset(
+                      'assets/icons/cloud/back.svg',
+                      width: 20.0,
+                      height: 20.0,
+                      colorFilter: ColorFilter.mode(
+                        context.grays.gray6,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
+                  ],
+                  const SizedBox(width: AppSpacing.x4),
                 ],
               ),
             ),

@@ -3,22 +3,27 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_folder_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class CloudMainPage extends StatefulWidget {
-  const CloudMainPage({super.key});
+class CloudFolderPage extends StatefulWidget {
+  const CloudFolderPage({
+    super.key,
+    required this.title,
+    required this.fileCount,
+  });
+
+  final String title;
+  final int fileCount;
 
   @override
-  State<CloudMainPage> createState() => _CloudMainPageState();
+  State<CloudFolderPage> createState() => _CloudFolderPageState();
 }
 
-class _CloudMainPageState extends State<CloudMainPage> {
+class _CloudFolderPageState extends State<CloudFolderPage> {
   String? _selectedEntryId;
 
   bool _isSelectionMode = false;
@@ -26,11 +31,6 @@ class _CloudMainPageState extends State<CloudMainPage> {
 
   /// 화면 확인용 임시 데이터
   static const List<_CloudEntry> _entries = [
-    _CloudFolderEntry(
-      id: 'folder-youngseo',
-      folderName: '영서의 폴더',
-      fileCount: 10,
-    ),
     _CloudFileEntry(
       id: 'audio-basket-case',
       itemType: CloudItemType.audio,
@@ -62,44 +62,7 @@ class _CloudMainPageState extends State<CloudMainPage> {
       uploadedAt: '2026. 07. 20',
       uploaderName: '김지원',
     ),
-    _CloudFolderEntry(id: 'folder-jiwon', folderName: '지원이의 폴더', fileCount: 4),
   ];
-
-  void _openDummyPdfPreview() {
-    const testPdfUrl =
-        'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
-
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => CloudFilePreview(
-          folderName: '팀 클라우드',
-          files: [
-            CloudFilePreviewItem(
-              name: '2차 베이스 악보 공유.pdf',
-              uploadedAt: '2026. 07. 22',
-              uploaderName: '송하은',
-              sizeLabel: '8.2MB',
-              type: CloudPreviewFileType.document,
-              iconPath: 'assets/icons/cloud/pdf.svg',
-              previewUri: Uri.parse(testPdfUrl),
-            ),
-          ],
-          onDeletePressed: (file) {
-            debugPrint('[TEST] 삭제: ${file.name}');
-          },
-          onMovePressed: (file) {
-            debugPrint('[TEST] 이동: ${file.name}');
-          },
-          onDownloadPressed: (file) {
-            debugPrint('[TEST] 다운로드: ${file.name}');
-          },
-          onFileSelected: (file) {
-            debugPrint('[TEST] 다른 미리보기 이동: ${file.name}');
-          },
-        ),
-      ),
-    );
-  }
 
   int get _selectedCount => _selectedEntryIds.length;
   bool get _hasSelectedEntries => _selectedEntryIds.isNotEmpty;
@@ -134,18 +97,12 @@ class _CloudMainPageState extends State<CloudMainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppTwoAppBar(
+        trailing: AppTwoAppBarTrailing.add,
         showBackButton: true,
         onBackPressed: _navigateBack,
-        trailing: AppTwoAppBarTrailing.add,
         addMenuAlignment: AppDropdownAlignment.right,
         addMenuOffset: const Offset(-4, 68),
         addMenuItems: [
-          AppDropdownItem(
-            label: '새 폴더 만들기',
-            onPressed: () {
-              debugPrint('새 폴더 만들기');
-            },
-          ),
           AppDropdownItem(
             label: '파일 등록하기',
             onPressed: () {
@@ -193,25 +150,34 @@ class _CloudMainPageState extends State<CloudMainPage> {
                 AppSpacing.x16,
                 AppSpacing.x24,
                 AppSpacing.x16,
-                AppSpacing.x24,
+                AppSpacing.x16,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      _isSelectionMode && _selectedCount > 0
-                          ? '$_selectedCount개 항목 선택됨'
-                          : '팀 클라우드',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.bold34.copyWith(
-                        color: context.grays.black,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FontStyles.bold34.copyWith(
+                          color: context.grays.black,
+                        ),
                       ),
+                      const SizedBox(width: AppSpacing.x8),
+                      _buildHeaderMenu(),
+                    ],
+                  ),
+                  Text(
+                    '${widget.fileCount}개의 파일',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: FontStyles.med14.copyWith(
+                      color: context.grays.gray4,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.x8),
-                  _buildHeaderMenu(),
                 ],
               ),
             ),
@@ -304,14 +270,7 @@ class _CloudMainPageState extends State<CloudMainPage> {
 
           _selectEntry(entry.id);
           debugPrint('${entry.folderName} 선택');
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => CloudFolderPage(
-                title: entry.folderName,
-                fileCount: entry.fileCount,
-              ),
-            ),
-          );
+          // TODO: 폴더 상세 페이지 이동을 여기에 연결한다.
         },
       );
     }
@@ -344,10 +303,6 @@ class _CloudMainPageState extends State<CloudMainPage> {
         _selectEntry(file.id);
         debugPrint('${file.fileName} 선택');
         // TODO: 파일 형식에 맞는 상세 동작을 여기에 연결한다.
-        // 더미 파일 미리보기를 입력한다.
-        if (file.itemType == CloudItemType.file) {
-          _openDummyPdfPreview();
-        }
       },
     );
   }

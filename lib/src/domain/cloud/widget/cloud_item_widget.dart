@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_selection_checkbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -32,7 +33,9 @@ class CloudItemWidget extends StatelessWidget {
     required this.uploadedAt,
     required this.uploaderName,
     this.fileSize,
+    this.isSelectionMode = false,
     this.isSelected = false,
+    this.showMoreMenu = true,
     this.onTap,
     this.onMenuTap,
     this.menuItems = const [],
@@ -46,6 +49,11 @@ class CloudItemWidget extends StatelessWidget {
   final String? fileSize;
   final String uploadedAt;
   final String uploaderName;
+
+  final bool showMoreMenu;
+
+  /// 선택 모드일 때 체크박스를 표시하고 더보기 메뉴를 숨긴다.
+  final bool isSelectionMode;
 
   /// 메인 화면에서 관리하는 현재 선택 상태다.
   final bool isSelected;
@@ -94,13 +102,18 @@ class CloudItemWidget extends StatelessWidget {
           child: SizedBox(
             height: _itemHeight,
             child: Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.x30,
+              padding: EdgeInsets.only(
+                left: isSelectionMode ? AppSpacing.x16 : AppSpacing.x30,
                 right: AppSpacing.x8,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  if (isSelectionMode) ...[
+                    const SizedBox(width: AppSpacing.x4),
+                    CloudSelectionCheckbox(isSelected: isSelected),
+                    const SizedBox(width: AppSpacing.x20),
+                  ],
                   SvgPicture.asset(
                     itemType.iconPath,
                     width: 20.0,
@@ -167,7 +180,7 @@ class CloudItemWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _buildMoreMenu(),
+                  if (!isSelectionMode && showMoreMenu) _buildMoreMenu(),
                 ],
               ),
             ),

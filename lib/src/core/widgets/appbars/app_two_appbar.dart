@@ -13,6 +13,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     this.title,
     this.showBackButton = false,
+    this.onBackPressed,
     this.trailing = AppTwoAppBarTrailing.add,
     this.onAddPressed,
     this.onSearchPressed,
@@ -27,6 +28,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTwoAppBar.add({
     super.key,
     required String title,
+    VoidCallback? onBackPressed,
     VoidCallback? onAddPressed,
     this.addMenuItems = const [],
     this.addMenuAlignment = AppDropdownAlignment.right,
@@ -36,6 +38,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
     double toolbarHeight = 84,
   }) : title = title,
        showBackButton = true,
+       onBackPressed = onBackPressed,
        trailing = AppTwoAppBarTrailing.add,
        onAddPressed = onAddPressed,
        onSearchPressed = null,
@@ -43,10 +46,12 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const AppTwoAppBar.search({
     super.key,
+    VoidCallback? onBackPressed,
     VoidCallback? onSearchPressed,
     double toolbarHeight = 84,
   }) : title = null,
        showBackButton = true,
+       onBackPressed = onBackPressed,
        trailing = AppTwoAppBarTrailing.search,
        onAddPressed = null,
        onSearchPressed = onSearchPressed,
@@ -60,6 +65,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTwoAppBar.all({
     super.key,
     String? title,
+    VoidCallback? onBackPressed,
     VoidCallback? onAddPressed,
     VoidCallback? onSearchPressed,
     this.addMenuItems = const [],
@@ -70,6 +76,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
     double toolbarHeight = 84,
   }) : title = title,
        showBackButton = true,
+       onBackPressed = onBackPressed,
        trailing = AppTwoAppBarTrailing.all,
        onAddPressed = onAddPressed,
        onSearchPressed = onSearchPressed,
@@ -77,6 +84,7 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   final String? title;
   final bool showBackButton;
+  final VoidCallback? onBackPressed;
   final AppTwoAppBarTrailing trailing;
 
   /// 메뉴 항목이 없을 때 + 버튼이 직접 실행할 콜백
@@ -110,6 +118,13 @@ class AppTwoAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       centerTitle: title != null,
       toolbarHeight: toolbarHeight,
+      leading: showBackButton
+          ? _BackIconButton(
+              icon: 'assets/icons/appbar/back.svg',
+              semanticLabel: '뒤로가기',
+              onPressed: onBackPressed ?? _noop,
+            )
+          : null,
       leadingWidth: 60,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -256,6 +271,89 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
                 height: widget.iconSize,
                 colorFilter: ColorFilter.mode(
                   context.grays.gray5,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackIconButton extends StatefulWidget {
+  const _BackIconButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onPressed,
+    this.iconSize = 20.0,
+    this.pressedScale = 0.86,
+    this.pressInDuration = const Duration(milliseconds: 200),
+    this.pressOutDuration = const Duration(milliseconds: 400),
+    this.curve = Curves.easeOutCubic,
+  });
+
+  final String icon;
+  final String semanticLabel;
+  final VoidCallback onPressed;
+
+  final double iconSize;
+  final double pressedScale;
+  final Duration pressInDuration;
+  final Duration pressOutDuration;
+  final Curve curve;
+
+  @override
+  State<_BackIconButton> createState() => _BackIconButtonState();
+}
+
+class _BackIconButtonState extends State<_BackIconButton> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) {
+      return;
+    }
+
+    setState(() {
+      _isPressed = value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _setPressed(true);
+        },
+        onTapUp: (_) {
+          _setPressed(false);
+        },
+        onTapCancel: () {
+          _setPressed(false);
+        },
+        onTap: widget.onPressed,
+        child: SizedBox(
+          width: 60.0,
+          height: 60.0,
+          child: Center(
+            child: AnimatedScale(
+              scale: _isPressed ? widget.pressedScale : 1.0,
+              duration: _isPressed
+                  ? widget.pressInDuration
+                  : widget.pressOutDuration,
+              curve: widget.curve,
+              child: SvgPicture.asset(
+                widget.icon,
+                width: widget.iconSize,
+                height: widget.iconSize,
+                colorFilter: ColorFilter.mode(
+                  context.grays.black,
                   BlendMode.srcIn,
                 ),
               ),

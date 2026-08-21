@@ -12,9 +12,13 @@ class SelectFloatButton extends StatelessWidget {
     required this.onMovePressed,
     required this.onDownloadPressed,
     required this.onConfirmPressed,
+    this.isEnabled = true,
   });
 
   final bool isVisible;
+
+  /// 선택된 항목이 하나라도 있을 때만 true로 전달한다.
+  final bool isEnabled;
 
   final VoidCallback onDeletePressed;
   final VoidCallback onMovePressed;
@@ -45,7 +49,8 @@ class SelectFloatButton extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _CloudSelectionFloatingBar(
+                    CloudSelectionFloatingBar(
+                      isEnabled: isEnabled,
                       onDeletePressed: onDeletePressed,
                       onMovePressed: onMovePressed,
                       onDownloadPressed: onDownloadPressed,
@@ -62,13 +67,16 @@ class SelectFloatButton extends StatelessWidget {
   }
 }
 
-class _CloudSelectionFloatingBar extends StatelessWidget {
-  const _CloudSelectionFloatingBar({
+class CloudSelectionFloatingBar extends StatelessWidget {
+  const CloudSelectionFloatingBar({
+    super.key,
+    required this.isEnabled,
     required this.onDeletePressed,
     required this.onMovePressed,
     required this.onDownloadPressed,
   });
 
+  final bool isEnabled;
   final VoidCallback onDeletePressed;
   final VoidCallback onMovePressed;
   final VoidCallback onDownloadPressed;
@@ -84,7 +92,7 @@ class _CloudSelectionFloatingBar extends StatelessWidget {
         border: Border.all(color: context.grays.gray7.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
-            color: context.grays.black.withValues(alpha: 0.08),
+            color: context.grays.black.withValues(alpha: 0.01),
             blurRadius: 8.0,
             offset: const Offset(0, 2),
           ),
@@ -98,18 +106,21 @@ class _CloudSelectionFloatingBar extends StatelessWidget {
             _CloudFloatingIconButton(
               semanticLabel: '선택한 항목 삭제',
               iconPath: 'assets/icons/cloud/del.svg',
+              isEnabled: isEnabled,
               onPressed: onDeletePressed,
             ),
             const SizedBox(width: AppSpacing.x8),
             _CloudFloatingIconButton(
               semanticLabel: '선택한 항목 이동',
               iconPath: 'assets/icons/cloud/move.svg',
+              isEnabled: isEnabled,
               onPressed: onMovePressed,
             ),
             const SizedBox(width: AppSpacing.x8),
             _CloudFloatingIconButton(
               semanticLabel: '선택한 항목 다운로드',
               iconPath: 'assets/icons/cloud/download.svg',
+              isEnabled: isEnabled,
               onPressed: onDownloadPressed,
             ),
           ],
@@ -123,11 +134,13 @@ class _CloudFloatingIconButton extends StatefulWidget {
   const _CloudFloatingIconButton({
     required this.semanticLabel,
     required this.iconPath,
+    required this.isEnabled,
     required this.onPressed,
   });
 
   final String semanticLabel;
   final String iconPath;
+  final bool isEnabled;
   final VoidCallback onPressed;
 
   @override
@@ -161,30 +174,39 @@ class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = _isHovered || _isPressed;
+    final isActive = widget.isEnabled && (_isHovered || _isPressed);
+    final backgroundColor = !widget.isEnabled
+        ? context.grays.gray7.withValues(alpha: 0.4)
+        : isActive
+        ? context.grays.gray7.withValues(alpha: 0.9)
+        : context.grays.white.withValues(alpha: 0.0);
+    final iconColor = widget.isEnabled
+        ? context.grays.gray1
+        : context.grays.gray4;
 
     return Semantics(
       button: true,
+      enabled: widget.isEnabled,
       label: widget.semanticLabel,
       child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => _setHovered(true),
-        onExit: (_) => _setHovered(false),
+        cursor: widget.isEnabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        onEnter: widget.isEnabled ? (_) => _setHovered(true) : null,
+        onExit: widget.isEnabled ? (_) => _setHovered(false) : null,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => _setPressed(true),
-          onTapUp: (_) => _setPressed(false),
-          onTapCancel: () => _setPressed(false),
-          onTap: widget.onPressed,
+          onTapDown: widget.isEnabled ? (_) => _setPressed(true) : null,
+          onTapUp: widget.isEnabled ? (_) => _setPressed(false) : null,
+          onTapCancel: widget.isEnabled ? () => _setPressed(false) : null,
+          onTap: widget.isEnabled ? widget.onPressed : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 100),
             curve: Curves.easeOut,
             width: 52.0,
             height: 52.0,
             decoration: BoxDecoration(
-              color: isActive
-                  ? context.grays.gray7.withValues(alpha: 0.9)
-                  : context.grays.white.withValues(alpha: 0.0),
+              color: backgroundColor,
               borderRadius: BorderRadius.circular(16.0),
             ),
             child: Center(
@@ -192,10 +214,7 @@ class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
                 widget.iconPath,
                 width: 24.0,
                 height: 24.0,
-                colorFilter: ColorFilter.mode(
-                  context.grays.gray1,
-                  BlendMode.srcIn,
-                ),
+                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
               ),
             ),
           ),
@@ -231,7 +250,7 @@ class _CloudConfirmFloatingButtonState
 
   @override
   Widget build(BuildContext context) {
-    final defaultColor = context.brands.beatOrange1;
+    final defaultColor = context.brands.beatOrange1.withValues(alpha: 0.9);
 
     final pressedColor = Color.alphaBlend(
       context.grays.black.withValues(alpha: 0.12),
@@ -259,7 +278,7 @@ class _CloudConfirmFloatingButtonState
               borderRadius: BorderRadius.circular(18.0),
               boxShadow: [
                 BoxShadow(
-                  color: context.grays.black.withValues(alpha: 0.12),
+                  color: context.grays.black.withValues(alpha: 0.1),
                   blurRadius: 16.0,
                   offset: const Offset(0, 4),
                 ),
