@@ -29,6 +29,12 @@ abstract class FontStyles {
     fontWeight: FontWeight.w700,
     letterSpacing: -0.32,
   );
+  static const TextStyle bold26 = TextStyle(
+    fontSize: 28,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
   static const TextStyle bold22 = TextStyle(
     fontSize: 22,
     fontFamily: _fontFamily,
