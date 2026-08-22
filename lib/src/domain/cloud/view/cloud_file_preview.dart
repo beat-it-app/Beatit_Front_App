@@ -170,7 +170,10 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
         panEnabled: true,
         scaleEnabled: true,
         loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
-          return const Center(child: CircularProgressIndicator());
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.x70),
+            child: const Center(child: CircularProgressIndicator()),
+          );
         },
         errorBannerBuilder: (context, error, stackTrace, documentRef) {
           debugPrint('[CloudFilePreview] PDF load failed: $error');

@@ -3,8 +3,11 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_audio_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_folder_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_link_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
@@ -38,6 +41,8 @@ class _CloudMainPageState extends State<CloudMainPage> {
       fileSize: '10MB',
       uploadedAt: '2026. 08. 05',
       uploaderName: '이현영',
+      // TODO: 실제 Cloud API 연결 후 서버에서 받은 음원 URL로 교체
+      previewUrl: 'https://samplelib.com/mp3/sample-20s.mp3',
     ),
     _CloudFileEntry(
       id: 'video-practice',
@@ -46,6 +51,9 @@ class _CloudMainPageState extends State<CloudMainPage> {
       fileSize: '32MB',
       uploadedAt: '2026. 08. 04',
       uploaderName: '송하은',
+      // TODO: 실제 Cloud API 연결 후 서버에서 받은 영상 URL로 교체
+      previewUrl:
+          'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
     ),
     _CloudFileEntry(
       id: 'file-setlist',
@@ -54,6 +62,9 @@ class _CloudMainPageState extends State<CloudMainPage> {
       fileSize: '8.2MB',
       uploadedAt: '2026. 07. 22',
       uploaderName: '송하은',
+      // TODO: 실제 Cloud API 연결 후 제거
+      previewUrl:
+          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
     ),
     _CloudFileEntry(
       id: 'link-surfin-boy',
@@ -61,29 +72,72 @@ class _CloudMainPageState extends State<CloudMainPage> {
       fileName: 'Surfin’ Boy',
       uploadedAt: '2026. 07. 20',
       uploaderName: '김지원',
+      // TODO: 실제 Cloud API 연결 후 서버에서 받은 URL로 교체
+      previewUrl: 'https://www.youtube.com/watch?v=NZP153MUpHY',
     ),
     _CloudFolderEntry(id: 'folder-jiwon', folderName: '지원이의 폴더', fileCount: 4),
   ];
 
-  void _openDummyPdfPreview() {
-    const testPdfUrl =
-        'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+  List<_CloudFileEntry> get _previewEntries {
+    return _entries.whereType<_CloudFileEntry>().toList(growable: false);
+  }
+
+  CloudFilePreviewItem _toPreviewItem(_CloudFileEntry file) {
+    final previewType = switch (file.itemType) {
+      CloudItemType.audio => CloudPreviewFileType.audio,
+      CloudItemType.video => CloudPreviewFileType.video,
+      CloudItemType.file => CloudPreviewFileType.document,
+      CloudItemType.link => CloudPreviewFileType.link,
+    };
+
+    return CloudFilePreviewItem(
+      name: file.fileName,
+      uploadedAt: file.uploadedAt,
+      uploaderName: file.uploaderName,
+      sizeLabel: file.fileSize,
+      type: previewType,
+      iconPath: file.itemType.iconPath,
+      previewUri: file.previewUrl == null
+          ? null
+          : Uri.tryParse(file.previewUrl!),
+    );
+  }
+
+  void _openPreview(_CloudFileEntry selectedEntry) {
+    final entries = _previewEntries;
+    final initialIndex = entries.indexWhere(
+      (entry) => entry.id == selectedEntry.id,
+    );
+
+    if (initialIndex < 0) {
+      return;
+    }
+
+    final files = entries.map(_toPreviewItem).toList(growable: false);
+    final page = _buildPreviewPage(files: files, initialIndex: initialIndex);
+
+    if (page == null) {
+      debugPrint('[TEST] 아직 구현되지 않은 미리보기: ${selectedEntry.fileName}');
+      return;
+    }
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => CloudFilePreview(
+      MaterialPageRoute<void>(builder: (_) => page),
+    );
+  }
+
+  Widget? _buildPreviewPage({
+    required List<CloudFilePreviewItem> files,
+    required int initialIndex,
+  }) {
+    final currentFile = files[initialIndex];
+
+    switch (currentFile.type) {
+      case CloudPreviewFileType.document:
+        return CloudFilePreview(
           folderName: '팀 클라우드',
-          files: [
-            CloudFilePreviewItem(
-              name: '2차 베이스 악보 공유.pdf',
-              uploadedAt: '2026. 07. 22',
-              uploaderName: '송하은',
-              sizeLabel: '8.2MB',
-              type: CloudPreviewFileType.document,
-              iconPath: 'assets/icons/cloud/pdf.svg',
-              previewUri: Uri.parse(testPdfUrl),
-            ),
-          ],
+          files: files,
+          initialIndex: initialIndex,
           onDeletePressed: (file) {
             debugPrint('[TEST] 삭제: ${file.name}');
           },
@@ -94,10 +148,87 @@ class _CloudMainPageState extends State<CloudMainPage> {
             debugPrint('[TEST] 다운로드: ${file.name}');
           },
           onFileSelected: (file) {
-            debugPrint('[TEST] 다른 미리보기 이동: ${file.name}');
+            _replacePreview(files: files, selectedFile: file);
           },
-        ),
-      ),
+        );
+
+      case CloudPreviewFileType.link:
+        return CloudLinkPreview(
+          folderName: '팀 클라우드',
+          files: files,
+          initialIndex: initialIndex,
+          onDeletePressed: (file) {
+            debugPrint('[TEST] 링크 삭제: ${file.name}');
+          },
+          onMovePressed: (file) {
+            debugPrint('[TEST] 링크 이동: ${file.name}');
+          },
+          onFileSelected: (file) {
+            _replacePreview(files: files, selectedFile: file);
+          },
+        );
+
+      case CloudPreviewFileType.audio:
+        return CloudAudioPreview(
+          folderName: '팀 클라우드',
+          files: files,
+          initialIndex: initialIndex,
+          onDeletePressed: (file) {
+            debugPrint('[TEST] 음원 삭제: ${file.name}');
+          },
+          onMovePressed: (file) {
+            debugPrint('[TEST] 음원 이동: ${file.name}');
+          },
+          onDownloadPressed: (file) {
+            debugPrint('[TEST] 음원 다운로드: ${file.name}');
+          },
+          onFileSelected: (file) {
+            _replacePreview(files: files, selectedFile: file);
+          },
+        );
+
+      case CloudPreviewFileType.video:
+        return CloudVideoPreview(
+          folderName: '팀 클라우드',
+          files: files,
+          initialIndex: initialIndex,
+          onDeletePressed: (file) {
+            debugPrint('[TEST] 영상 삭제: ${file.name}');
+          },
+          onMovePressed: (file) {
+            debugPrint('[TEST] 영상 이동: ${file.name}');
+          },
+          onDownloadPressed: (file) {
+            debugPrint('[TEST] 영상 다운로드: ${file.name}');
+          },
+          onFileSelected: (file) {
+            _replacePreview(files: files, selectedFile: file);
+          },
+        );
+    }
+  }
+
+  void _replacePreview({
+    required List<CloudFilePreviewItem> files,
+    required CloudFilePreviewItem selectedFile,
+  }) {
+    final selectedIndex = files.indexOf(selectedFile);
+    if (selectedIndex < 0) {
+      return;
+    }
+
+    final page = _buildPreviewPage(
+      files: files,
+      initialIndex: selectedIndex,
+    );
+
+    if (page == null) {
+      debugPrint('[TEST] 아직 구현되지 않은 미리보기: ${selectedFile.name}');
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => page),
     );
   }
 
@@ -343,11 +474,7 @@ class _CloudMainPageState extends State<CloudMainPage> {
 
         _selectEntry(file.id);
         debugPrint('${file.fileName} 선택');
-        // TODO: 파일 형식에 맞는 상세 동작을 여기에 연결한다.
-        // 더미 파일 미리보기를 입력한다.
-        if (file.itemType == CloudItemType.file) {
-          _openDummyPdfPreview();
-        }
+        _openPreview(file);
       },
     );
   }
@@ -516,6 +643,7 @@ class _CloudFileEntry extends _CloudEntry {
     required this.uploadedAt,
     required this.uploaderName,
     this.fileSize,
+    this.previewUrl,
   });
 
   final CloudItemType itemType;
@@ -523,4 +651,5 @@ class _CloudFileEntry extends _CloudEntry {
   final String? fileSize;
   final String uploadedAt;
   final String uploaderName;
+  final String? previewUrl;
 }

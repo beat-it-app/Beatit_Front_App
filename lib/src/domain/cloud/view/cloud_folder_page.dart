@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
@@ -91,6 +92,42 @@ class _CloudFolderPageState extends State<CloudFolderPage> {
         _selectedEntryIds.add(id);
       }
     });
+  }
+
+  void _openDummyPdfPreview() {
+    const testPdfUrl =
+        'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => CloudFilePreview(
+          folderName: '팀 클라우드',
+          files: [
+            CloudFilePreviewItem(
+              name: '2차 베이스 악보 공유.pdf',
+              uploadedAt: '2026. 07. 22',
+              uploaderName: '송하은',
+              sizeLabel: '8.2MB',
+              type: CloudPreviewFileType.document,
+              iconPath: 'assets/icons/cloud/pdf.svg',
+              previewUri: Uri.parse(testPdfUrl),
+            ),
+          ],
+          onDeletePressed: (file) {
+            debugPrint('[TEST] 삭제: ${file.name}');
+          },
+          onMovePressed: (file) {
+            debugPrint('[TEST] 이동: ${file.name}');
+          },
+          onDownloadPressed: (file) {
+            debugPrint('[TEST] 다운로드: ${file.name}');
+          },
+          onFileSelected: (file) {
+            debugPrint('[TEST] 다른 미리보기 이동: ${file.name}');
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -303,6 +340,9 @@ class _CloudFolderPageState extends State<CloudFolderPage> {
         _selectEntry(file.id);
         debugPrint('${file.fileName} 선택');
         // TODO: 파일 형식에 맞는 상세 동작을 여기에 연결한다.
+        if (file.itemType == CloudItemType.file) {
+          _openDummyPdfPreview();
+        }
       },
     );
   }

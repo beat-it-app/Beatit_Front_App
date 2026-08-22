@@ -73,18 +73,23 @@ class CloudSelectionFloatingBar extends StatelessWidget {
     required this.isEnabled,
     required this.onDeletePressed,
     required this.onMovePressed,
-    required this.onDownloadPressed,
-  });
+    this.onDownloadPressed,
+    this.showDownload = true,
+  }) : assert(
+         !showDownload || onDownloadPressed != null,
+         'showDownload이 true이면 onDownloadPressed가 필요합니다.',
+       );
 
   final bool isEnabled;
   final VoidCallback onDeletePressed;
   final VoidCallback onMovePressed;
-  final VoidCallback onDownloadPressed;
+  final VoidCallback? onDownloadPressed;
+  final bool showDownload;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 190.0,
+      width: showDownload ? 190.0 : 130.0,
       height: 66.0,
       decoration: BoxDecoration(
         color: context.grays.white.withValues(alpha: 0.9),
@@ -116,13 +121,15 @@ class CloudSelectionFloatingBar extends StatelessWidget {
               isEnabled: isEnabled,
               onPressed: onMovePressed,
             ),
-            const SizedBox(width: AppSpacing.x8),
-            _CloudFloatingIconButton(
-              semanticLabel: '선택한 항목 다운로드',
-              iconPath: 'assets/icons/cloud/download.svg',
-              isEnabled: isEnabled,
-              onPressed: onDownloadPressed,
-            ),
+            if (showDownload) ...[
+              const SizedBox(width: AppSpacing.x8),
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 다운로드',
+                iconPath: 'assets/icons/cloud/download.svg',
+                isEnabled: isEnabled,
+                onPressed: onDownloadPressed!,
+              ),
+            ],
           ],
         ),
       ),

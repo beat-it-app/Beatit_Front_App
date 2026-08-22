@@ -15,9 +15,13 @@ class CloudPreviewBackground extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
+          begin: Alignment.center,
           end: Alignment.bottomCenter,
-          colors: [context.grays.white, context.grays.gray7],
+          colors: [
+            context.grays.white,
+            context.grays.white,
+            context.grays.gray7,
+          ],
         ),
       ),
       child: child,

@@ -12,17 +12,23 @@ class CloudFileAppbar extends StatelessWidget implements PreferredSizeWidget {
     required this.titleText,
     this.onLeadingPressed,
     this.onTitlePressed,
+    this.onBackPressed,
   });
 
   final String titleText;
   final VoidCallback? onLeadingPressed;
   final VoidCallback? onTitlePressed;
+  final VoidCallback? onBackPressed;
 
   @override
   Size get preferredSize => const Size.fromHeight(84.0);
 
   @override
   Widget build(BuildContext context) {
+    void _navigateBack() {
+      Navigator.of(context).pop();
+    }
+
     return AppBar(
       automaticallyImplyLeading: false,
       toolbarHeight: preferredSize.height,
@@ -38,16 +44,23 @@ class CloudFileAppbar extends StatelessWidget implements PreferredSizeWidget {
             alignment: Alignment.center,
             children: [
               Positioned(
-                left: AppSpacing.x20,
-                child: CloudBasicButton(onPressed: onLeadingPressed),
+                left: AppSpacing.x10,
+                child: _BackIconButton(
+                  icon: 'assets/icons/appbar/back.svg',
+                  semanticLabel: '뒤로가기',
+                  onPressed: _navigateBack,
+                ),
               ),
               Padding(
-                // 왼쪽 버튼이 있어도 제목은 화면 전체의 정중앙에 유지한다.
-                padding: const EdgeInsets.symmetric(horizontal: 106.0),
+                padding: const EdgeInsets.symmetric(horizontal: 110.0),
                 child: _CloudFileTitleButton(
                   titleText: titleText,
                   onPressed: onTitlePressed,
                 ),
+              ),
+              Positioned(
+                right: AppSpacing.x20,
+                child: CloudBasicButton(onPressed: onLeadingPressed),
               ),
             ],
           ),
@@ -87,9 +100,7 @@ class _CloudFileTitleButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FontStyles.semi18.copyWith(
-                    color: context.grays.black,
-                  ),
+                  style: FontStyles.semi18.copyWith(color: context.grays.black),
                 ),
               ),
               const SizedBox(width: AppSpacing.x8),
@@ -113,6 +124,89 @@ class _CloudFileTitleButton extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackIconButton extends StatefulWidget {
+  const _BackIconButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onPressed,
+    this.iconSize = 24.0,
+    this.pressedScale = 0.86,
+    this.pressInDuration = const Duration(milliseconds: 200),
+    this.pressOutDuration = const Duration(milliseconds: 400),
+    this.curve = Curves.easeOutCubic,
+  });
+
+  final String icon;
+  final String semanticLabel;
+  final VoidCallback onPressed;
+
+  final double iconSize;
+  final double pressedScale;
+  final Duration pressInDuration;
+  final Duration pressOutDuration;
+  final Curve curve;
+
+  @override
+  State<_BackIconButton> createState() => _BackIconButtonState();
+}
+
+class _BackIconButtonState extends State<_BackIconButton> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) {
+      return;
+    }
+
+    setState(() {
+      _isPressed = value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _setPressed(true);
+        },
+        onTapUp: (_) {
+          _setPressed(false);
+        },
+        onTapCancel: () {
+          _setPressed(false);
+        },
+        onTap: widget.onPressed,
+        child: SizedBox(
+          width: 60.0,
+          height: 60.0,
+          child: Center(
+            child: AnimatedScale(
+              scale: _isPressed ? widget.pressedScale : 1.0,
+              duration: _isPressed
+                  ? widget.pressInDuration
+                  : widget.pressOutDuration,
+              curve: widget.curve,
+              child: SvgPicture.asset(
+                widget.icon,
+                width: widget.iconSize,
+                height: widget.iconSize,
+                colorFilter: ColorFilter.mode(
+                  context.grays.black,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
           ),
         ),
       ),
