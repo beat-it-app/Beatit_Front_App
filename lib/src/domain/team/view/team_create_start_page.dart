@@ -73,7 +73,7 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
               Expanded(
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -84,21 +84,6 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                         controller: teamNameController,
                         errorText: _teamNameErrorText,
                         onChanged: (_) => setState(() {}),
-                      ),
-
-                      const SizedBox(height: AppSpacing.x20),
-
-                      AppTextField(
-                        label: '팀 개설일',
-                        requiredMark: true,
-                        hintText: '날짜를 선택해주세요',
-                        controller: teamDateController,
-                        readOnly: true,
-                        suffixIcon: Image.asset(
-                          'assets/icons/navigation/calendar_gray.png',
-                          width: 20,
-                          height: 20,
-                        ),
                       ),
 
                       const SizedBox(height: AppSpacing.x20),
@@ -135,7 +120,11 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                       ),
 
                       const SizedBox(height: AppSpacing.x8),
-                      AppUploadButton(text: '팀 사진 등록하기', onPressed: () {}),
+                      AppUploadButton(
+                        text: '팀 사진 등록하기',
+                        onPressed: () {
+                        },
+                      ),
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -147,6 +136,21 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                         maxLength: 200,
                         fieldHeight: 196,
                         onChanged: (_) => setState(() {}),
+                      ),
+
+                      const SizedBox(height: AppSpacing.x20),
+
+                      AppTextField(
+                        label: '팀 개설일',
+                        requiredMark: true,
+                        hintText: '날짜를 선택해주세요',
+                        controller: teamDateController,
+                        readOnly: true,
+                        suffixIcon: Image.asset(
+                          'assets/icons/navigation/calendar_gray.png',
+                          width: 20,
+                          height: 20,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.x24),
                     ],
@@ -163,16 +167,16 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                 variant: ButtonVariant.primary,
                 onPressed: _canSubmit
                     ? () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TeamCreateSuccessPage(
-                              teamName: teamNameController.text,
-                            ),
-                          ),
-                          (route) => route.isFirst,
-                        );
-                      }
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TeamCreateSuccessPage(
+                        teamName: teamNameController.text,
+                      ),
+                    ),
+                        (route) => route.isFirst,
+                  );
+                }
                     : null,
               ),
             ],
@@ -201,9 +205,7 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
           children: [
             TextSpan(text: text, style: style),
             TextSpan(
