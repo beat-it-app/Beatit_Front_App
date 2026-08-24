@@ -14,14 +14,18 @@ class AppTimeBottomSheet extends StatefulWidget {
     this.title,
     this.initialTime,
     this.initialDate,
+    this.startYear = 2000,
+    int? endYear,
     required this.onConfirmTime,
     required this.onConfirmDate,
-  });
+  }) : endYear = endYear ?? 2030;
 
   final AppTimePickerMode mode;
   final String? title;
   final TimeOfDay? initialTime;
   final DateTime? initialDate;
+  final int startYear;
+  final int endYear;
 
   final ValueChanged<TimeOfDay>? onConfirmTime;
   final ValueChanged<DateTime>? onConfirmDate;
@@ -50,6 +54,8 @@ class AppTimeBottomSheet extends StatefulWidget {
     BuildContext context, {
     String? title,
     DateTime? initialDate,
+    int? startYear,
+    int? endYear,
   }) {
     return showModalBottomSheet<DateTime>(
       context: context,
@@ -58,6 +64,8 @@ class AppTimeBottomSheet extends StatefulWidget {
       builder: (context) => AppTimeBottomSheet(
         mode: AppTimePickerMode.date,
         initialDate: initialDate,
+        startYear: startYear ?? 2000,
+        endYear: endYear,
         onConfirmTime: null,
         onConfirmDate: (selectedDate) {
           Navigator.of(context).pop(selectedDate);
@@ -79,8 +87,9 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
   late int _selectedMonth;
   late int _selectedDay;
 
-  final int _startYear = 2000;
-  final int _endYear = DateTime.now().year;
+  int get _startYear => widget.startYear;
+
+  int get _endYear => widget.endYear;
 
   @override
   void initState() {
@@ -93,11 +102,17 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
       if (hour12 == 0) hour12 = 12;
       _selectedHourIndex = hour12 - 1;
       _selectedMinuteIndex = initial.minute;
+      _selectedYear = DateTime.now().year;
+      _selectedMonth = DateTime.now().month;
+      _selectedDay = DateTime.now().day;
     } else {
       final initial = widget.initialDate ?? DateTime.now();
       _selectedYear = initial.year;
       _selectedMonth = initial.month;
       _selectedDay = initial.day;
+      _selectedPeriodIndex = 0;
+      _selectedHourIndex = 0;
+      _selectedMinuteIndex = 0;
     }
   }
 
@@ -233,29 +248,59 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
 
             const SizedBox(height: AppSpacing.x8),
 
-            // 피커 영역 (시간 또는 날짜)
-            SizedBox(
-              height: 200,
-              child: isTimeMode
-                  ? _buildTimePicker(colors)
-                  : _buildDatePicker(colors),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                IgnorePointer(
+                  child: Container(
+                    height: 40,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: context.grays.gray8,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 120,
+                  child: isTimeMode
+                      ? _buildTimePicker(colors)
+                      : _buildDatePicker(colors),
+                ),
+              ],
             ),
 
             const SizedBox(height: AppSpacing.x20),
 
-            // 선택 완료 버튼
-            AppButton(
-              text: '선택 완료',
-              width: ButtonWidth.expand,
-              height: ButtonHeight.normal,
-              variant: ButtonVariant.primary,
-              onPressed: () {
-                if (isTimeMode) {
-                  widget.onConfirmTime?.call(_getSelectedTime());
-                } else {
-                  widget.onConfirmDate?.call(_getSelectedDate());
-                }
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    text: '취소',
+                    height: ButtonHeight.normal,
+                    variant: ButtonVariant.outlinedGray,
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.x12),
+                Expanded(
+                  child: AppButton(
+                    text: '확인',
+                    height: ButtonHeight.normal,
+                    variant: ButtonVariant.primary,
+                    onPressed: () {
+                      if (isTimeMode) {
+                        widget.onConfirmTime?.call(_getSelectedTime());
+                      } else {
+                        widget.onConfirmDate?.call(_getSelectedDate());
+                      }
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -263,14 +308,13 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
     );
   }
 
-  // 시간 피커 (오전/오후, 시, 분)
   Widget _buildTimePicker(ColorScheme colors) {
     return Row(
       children: [
-        // 오전 / 오후
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem: _selectedPeriodIndex,
             ),
@@ -292,10 +336,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             ],
           ),
         ),
-        // 시 (1시 ~ 12시)
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem: _selectedHourIndex,
             ),
@@ -311,10 +355,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             }),
           ),
         ),
-        // 분 (00분 ~ 59분)
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem: _selectedMinuteIndex,
             ),
@@ -335,7 +379,6 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
     );
   }
 
-  // 날짜 피커 (년, 월, 일)
   Widget _buildDatePicker(ColorScheme colors) {
     int maxDays = DateUtils.getDaysInMonth(_selectedYear, _selectedMonth);
 
@@ -345,10 +388,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
 
     return Row(
       children: [
-        // 년도
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem: yearIndex,
             ),
@@ -368,10 +411,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             }),
           ),
         ),
-        // 월
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem: _selectedMonth - 1,
             ),
@@ -390,10 +433,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             }),
           ),
         ),
-        // 일
         Expanded(
           child: CupertinoPicker(
             itemExtent: 40,
+            selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
               initialItem:
                   (_selectedDay > maxDays ? maxDays : _selectedDay) - 1,
