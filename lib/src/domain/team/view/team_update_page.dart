@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import '../../../core/extensions/app_gray_colors.dart';
+import '../../../core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import '../../../core/widgets/buttons/app_upload_button.dart';
 import '../../../core/widgets/inputs/app_text_area.dart';
 
@@ -109,6 +110,22 @@ class _TeamUpdatePageState extends State<TeamUpdatePage> {
                         hintText: '날짜를 선택해주세요',
                         controller: teamDateController,
                         readOnly: true,
+                        onTap: () async {
+                          final selectedDate =
+                              await AppTimeBottomSheet.showDatePicker(
+                                context,
+                                title: '팀 개설일 선택',
+                                initialDate: DateTime.now(),
+                                maxDate: DateTime.now(),
+                              );
+
+                          if (selectedDate != null) {
+                            setState(() {
+                              teamDateController.text =
+                                  '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                            });
+                          }
+                        },
                         suffixIcon: Image.asset(
                           'assets/icons/navigation/calendar_gray.png',
                           width: 20,
