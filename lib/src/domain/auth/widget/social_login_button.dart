@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_fonts.dart';
@@ -75,7 +76,7 @@ class _SocialLoginButtonState extends State<SocialLoginButton> {
     }
 
     // 누르는 동안 아주 살짝 어둡게
-    return Color.lerp(baseColor, Colors.black, 0.06)!;
+    return Color.lerp(baseColor, Colors.black, 0.15)!;
   }
 
   @override
@@ -114,7 +115,7 @@ class _SocialLoginButtonState extends State<SocialLoginButton> {
             children: [
               Positioned(
                 left: AppSpacing.x20,
-                child: Image.asset(
+                child: SvgPicture.asset(
                   style.iconPath,
                   width: style.iconSize,
                   height: style.iconSize,
@@ -154,14 +155,14 @@ class _SocialLoginButtonStyle {
     return switch (provider) {
       SocialLoginProvider.naver => const _SocialLoginButtonStyle(
         text: 'Naver로 계속하기',
-        iconPath: 'assets/icons/auth/naver.png',
+        iconPath: 'assets/icons/auth/naver_logo.svg',
         backgroundColor: Color(0xFF00C53A),
         textColor: AppColor.white,
-        iconSize: 24,
+        iconSize: 28,
       ),
       SocialLoginProvider.google => const _SocialLoginButtonStyle(
         text: 'Google로 계속하기',
-        iconPath: 'assets/icons/auth/google.png',
+        iconPath: 'assets/icons/auth/google_logo.svg',
         backgroundColor: AppColor.white,
         textColor: AppColor.black,
         borderColor: Color(0xFFE5E5E5),
@@ -169,10 +170,10 @@ class _SocialLoginButtonStyle {
       ),
       SocialLoginProvider.kakao => const _SocialLoginButtonStyle(
         text: 'Kakao로 로그인하기',
-        iconPath: 'assets/icons/auth/kakao.png',
+        iconPath: 'assets/icons/auth/kakao_logo.svg',
         backgroundColor: Color(0xFFFDDC3F),
         textColor: AppColor.black,
-        iconSize: 22,
+        iconSize: 30,
       ),
     };
   }
