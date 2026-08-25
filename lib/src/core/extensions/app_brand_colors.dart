@@ -12,6 +12,8 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
     required this.beatOrange5,
     required this.beatOrange6,
     required this.beatGreen,
+    required this.beatYellow,
+    required this.beatYellowContainer,
     required this.error,
     required this.errorContainer,
   });
@@ -25,6 +27,9 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
 
   final Color beatGreen;
 
+  final Color beatYellow;
+  final Color beatYellowContainer;
+
   final Color error;
   final Color errorContainer;
 
@@ -37,6 +42,8 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatOrange5: AppColor.beatOrange5,
       beatOrange6: AppColor.beatOrange6,
       beatGreen: AppColor.beatGreen,
+      beatYellow: AppColor.beatYellow,
+      beatYellowContainer: AppColor.beatYellowContainer,
       error: AppColor.error,
       errorContainer: AppColor.errorContainer,
     );
@@ -52,6 +59,8 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatOrange5: AppColor.beatOrange2,
       beatOrange6: AppColor.beatOrange1,
       beatGreen: AppColor.beatGreen,
+      beatYellow: AppColor.beatYellow,
+      beatYellowContainer: AppColor.beatYellowContainer,
       error: AppColor.error,
       errorContainer: AppColor.errorContainer,
     );
@@ -77,6 +86,8 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatOrange5: beatOrange5 ?? this.beatOrange5,
       beatOrange6: beatOrange6 ?? this.beatOrange6,
       beatGreen: beatGreen ?? this.beatGreen,
+      beatYellow: beatYellow ?? this.beatYellow,
+      beatYellowContainer: beatYellowContainer ?? this.beatYellowContainer,
       error: error ?? this.error,
       errorContainer: errorContainer ?? this.errorContainer,
     );
@@ -96,6 +107,12 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatOrange5: Color.lerp(beatOrange5, other.beatOrange5, t)!,
       beatOrange6: Color.lerp(beatOrange6, other.beatOrange6, t)!,
       beatGreen: Color.lerp(beatGreen, other.beatGreen, t)!,
+      beatYellow: Color.lerp(beatYellow, other.beatYellow, t)!,
+      beatYellowContainer: Color.lerp(
+        beatYellowContainer,
+        other.beatYellowContainer,
+        t,
+      )!,
       error: Color.lerp(error, other.error, t)!,
       errorContainer: Color.lerp(errorContainer, other.errorContainer, t)!,
     );

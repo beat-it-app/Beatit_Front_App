@@ -22,6 +22,8 @@ abstract final class AppColor {
   static const beatOrange5 = Color(0xFFFFCABD);
   static const beatOrange6 = Color(0xFFFFEDE8);
   static const beatGreen = Color(0xFF2DCC70);
+  static const beatYellow = Color(0xFFFFF89A);
+  static const beatYellowContainer = Color(0xFFFFFDE1);
 
   // Error Colors
   static const error = Color(0xFFFF4747);

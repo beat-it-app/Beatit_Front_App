@@ -10,6 +10,9 @@ import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_create_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_detail_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_edit_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
@@ -61,7 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: CalMainPage(),
+      body: MeetitDetailPage(),
     );
   }
 }
