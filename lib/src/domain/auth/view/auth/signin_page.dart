@@ -12,8 +12,8 @@ import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/model/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
-import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/find_id_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
 
 class SigninPage extends ConsumerStatefulWidget {
@@ -44,7 +44,9 @@ class _SigninPageState extends ConsumerState<SigninPage> {
       _passwordErrorText = null;
     });
 
-    await ref.read(authProvider.notifier).login(
+    await ref
+        .read(authProvider.notifier)
+        .login(
           identifier: idController.text.trim(),
           password: passwordController.text,
           rememberMe: _isSaveLogin,
@@ -78,9 +80,9 @@ class _SigninPageState extends ConsumerState<SigninPage> {
   void _handleLoginSuccess(AuthSession session) {
     if (session.createdProfile) {
       // TODO: 실제 메인 화면 route가 확정되면 여기에서 이동.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 성공 - 메인 화면 이동 대상입니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 성공 - 메인 화면 이동 대상입니다.')));
       return;
     }
 
@@ -106,9 +108,9 @@ class _SigninPageState extends ConsumerState<SigninPage> {
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error.toString())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   @override

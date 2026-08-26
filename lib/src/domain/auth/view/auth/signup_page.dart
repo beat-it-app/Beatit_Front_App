@@ -1,4 +1,6 @@
 import 'package:beatit_front_app/src/domain/auth/provider/signup_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,13 +13,8 @@ import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart'
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 
 import 'signin_page.dart';
-import '../widget/privacy_consent_popup.dart';
-import '../widget/service_consent_popup.dart';
 
 class SignupPage extends ConsumerStatefulWidget {
-  const SignupPage({super.key});
-
-  @override
   ConsumerState<SignupPage> createState() => _SignupPageState();
 }
 
@@ -223,9 +220,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
           ref.read(signupProvider.notifier).reset();
 
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => const SigninPage(),
-            ),
+            MaterialPageRoute(builder: (_) => const SigninPage()),
           );
         },
         error: (error, stackTrace) {

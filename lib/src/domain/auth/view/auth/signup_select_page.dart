@@ -9,10 +9,10 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/domain/auth/model/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signup_page.dart';
 
 class SignupSelectPage extends ConsumerStatefulWidget {
   const SignupSelectPage({super.key});
@@ -75,9 +75,9 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
             return;
           }
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         },
       );
     });
@@ -148,9 +148,7 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
 
                         const SizedBox(height: AppSpacing.x10),
 
-                        SocialLoginButton.google(
-                          onPressed: _loginWithGoogle,
-                        ),
+                        SocialLoginButton.google(onPressed: _loginWithGoogle),
 
                         const SizedBox(height: AppSpacing.x10),
 
