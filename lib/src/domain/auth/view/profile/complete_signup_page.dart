@@ -62,10 +62,9 @@ class CompleteSignupPage extends StatelessWidget {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: AppSpacing.x50),
+                          const SizedBox(height: AppSpacing.x20),
                           Image.asset(
-                            'assets/images/auth/gift_box.png',
-                            width: 266,
+                            'assets/images/auth/gift_box.gif',
                             fit: BoxFit.fitWidth,
                           ),
                         ],
