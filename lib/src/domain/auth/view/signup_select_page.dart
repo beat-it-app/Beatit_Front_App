@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/domain/auth/model/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
 
-class SignupSelectPage extends StatefulWidget {
+class SignupSelectPage extends ConsumerStatefulWidget {
   const SignupSelectPage({super.key});
 
   @override
-  State<SignupSelectPage> createState() => _SignupSelectPageState();
+  ConsumerState<SignupSelectPage> createState() => _SignupSelectPageState();
 }
 
-class _SignupSelectPageState extends State<SignupSelectPage> {
+class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
   void _goToSignupPage() {
     Navigator.of(
       context,
@@ -31,14 +34,58 @@ class _SignupSelectPageState extends State<SignupSelectPage> {
     ).push(MaterialPageRoute(builder: (_) => const SigninPage()));
   }
 
+  Future<void> _loginWithGoogle() async {
+    final authState = ref.read(authProvider);
+
+    if (authState.isLoading) {
+      return;
+    }
+
+    await ref.read(authProvider.notifier).loginWithGoogle();
+  }
+
+  void _handleGoogleLoginSuccess(AuthSession session) {
+    if (session.createdProfile) {
+      // TODO: 실제 메인 화면 route가 확정되면 여기에서 이동.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google 로그인 성공 - 메인 화면 이동 대상입니다.')),
+      );
+      return;
+    }
+
+    // TODO: 실제 프로필 생성 화면 route가 확정되면 여기에서 이동.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google 로그인 성공 - 프로필 생성 화면 이동 대상입니다.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(authProvider, (previous, next) {
+      next.whenOrNull(
+        data: (session) {
+          if (!mounted || session == null) {
+            return;
+          }
+
+          _handleGoogleLoginSuccess(session);
+        },
+        error: (error, stackTrace) {
+          if (!mounted) {
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        },
+      );
+    });
+
     return Theme(
       data: AppTheme.dark,
       child: Builder(
         builder: (context) {
-          final colors = Theme.of(context).colorScheme;
-
           return Scaffold(
             backgroundColor: AppColor.black,
             body: SafeArea(
@@ -102,9 +149,7 @@ class _SignupSelectPageState extends State<SignupSelectPage> {
                         const SizedBox(height: AppSpacing.x10),
 
                         SocialLoginButton.google(
-                          onPressed: () {
-                            // TODO: 구글 로그인 연결
-                          },
+                          onPressed: _loginWithGoogle,
                         ),
 
                         const SizedBox(height: AppSpacing.x10),

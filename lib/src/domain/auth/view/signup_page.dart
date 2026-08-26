@@ -1,4 +1,6 @@
+import 'package:beatit_front_app/src/domain/auth/provider/signup_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -8,31 +10,45 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 
+import 'signin_page.dart';
 import '../widget/privacy_consent_popup.dart';
 import '../widget/service_consent_popup.dart';
 
-class SignupPage extends StatefulWidget {
+class SignupPage extends ConsumerStatefulWidget {
   const SignupPage({super.key});
 
   @override
-  State<SignupPage> createState() => _SignupPageState();
+  ConsumerState<SignupPage> createState() => _SignupPageState();
 }
 
-class _SignupPageState extends State<SignupPage> {
+class _SignupPageState extends ConsumerState<SignupPage> {
   final idController = TextEditingController();
   final passwordController = TextEditingController();
   final passwordCheckController = TextEditingController();
   final emailController = TextEditingController();
 
+  // 아이디 중복확인 API 연결 전 테스트 상태
+  bool _isIdChecked = false;
   bool _isIdDuplicated = false;
 
   bool _isPasswordVisible = false;
   bool _isPasswordCheckVisible = false;
 
+  // 이메일 인증 API 연결 전 테스트 상태
   bool _isEmailCodeSent = false;
 
   bool _isTermsAgreed = false;
   bool _isPrivacyAgreed = false;
+
+  Future<void> _signup() async {
+    await ref
+        .read(signupProvider.notifier)
+        .signup(
+          identifier: idController.text.trim(),
+          password: passwordController.text,
+          email: emailController.text.trim(),
+        );
+  }
 
   bool get _isAllAgreed {
     return _isTermsAgreed && _isPrivacyAgreed;
@@ -84,26 +100,41 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   bool get _canSubmit {
-    return idController.text.isNotEmpty &&
+    return idController.text.trim().isNotEmpty &&
+        _isIdChecked &&
         !_isIdDuplicated &&
         _isPasswordValid &&
         passwordController.text == passwordCheckController.text &&
         passwordCheckController.text.isNotEmpty &&
-        emailController.text.isNotEmpty &&
+        emailController.text.trim().isNotEmpty &&
         _isAllAgreed;
   }
 
+  /// TODO:
+  /// 실제 아이디 중복확인 API가 연결되면
+  /// 서버 응답을 기준으로 _isIdChecked / _isIdDuplicated를 변경한다.
   void _checkDuplicateId() {
+    if (idController.text.trim().isEmpty) {
+      return;
+    }
+
     setState(() {
-      // TODO: API 연결 전 테스트용.
-      // 중복 확인 버튼을 누르면 바로 중복 아이디로 처리.
-      _isIdDuplicated = true;
+      // 회원가입 POST API 테스트를 위해
+      // 임시로 "중복확인 완료 + 사용 가능한 아이디"로 처리한다.
+      _isIdChecked = true;
+      _isIdDuplicated = false;
     });
   }
 
+  /// TODO:
+  /// 실제 이메일 인증번호 발송 API가 연결되면
+  /// 이 로직을 Provider 호출로 변경한다.
   void _sendEmailCode() {
+    if (emailController.text.trim().isEmpty) {
+      return;
+    }
+
     setState(() {
-      // TODO: API 연결 전 테스트용.
       _isEmailCodeSent = true;
     });
   }
@@ -167,6 +198,7 @@ class _SignupPageState extends State<SignupPage> {
     passwordController.dispose();
     passwordCheckController.dispose();
     emailController.dispose();
+
     super.dispose();
   }
 
@@ -174,6 +206,39 @@ class _SignupPageState extends State<SignupPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+
+    final signupState = ref.watch(signupProvider);
+
+    ref.listen(signupProvider, (previous, next) {
+      next.whenOrNull(
+        data: (data) {
+          if (data == null || !mounted) {
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${data.identifier} 회원가입이 완료되었습니다.')),
+          );
+
+          ref.read(signupProvider.notifier).reset();
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const SigninPage(),
+            ),
+          );
+        },
+        error: (error, stackTrace) {
+          if (!mounted) {
+            return;
+          }
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
+        },
+      );
+    });
 
     return Scaffold(
       appBar: AppTopAppBar.backTitle(
@@ -202,6 +267,7 @@ class _SignupPageState extends State<SignupPage> {
                         requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
+
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -212,6 +278,8 @@ class _SignupPageState extends State<SignupPage> {
                               isError: _idErrorText != null,
                               onChanged: (_) {
                                 setState(() {
+                                  // 아이디를 수정하면 이전 중복확인 결과는 무효.
+                                  _isIdChecked = false;
                                   _isIdDuplicated = false;
                                 });
                               },
@@ -223,13 +291,22 @@ class _SignupPageState extends State<SignupPage> {
                             width: ButtonWidth.small,
                             height: ButtonHeight.small,
                             variant: ButtonVariant.black,
-                            onPressed: _checkDuplicateId,
+                            onPressed: idController.text.trim().isNotEmpty
+                                ? _checkDuplicateId
+                                : null,
                           ),
                         ],
                       ),
+
                       if (_idErrorText != null) ...[
                         const SizedBox(height: AppSpacing.x4),
                         AppFieldMessage(text: _idErrorText!, isError: true),
+                      ] else if (_isIdChecked) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: '사용 가능한 아이디입니다.',
+                          color: colors.onSurfaceVariant,
+                        ),
                       ],
 
                       const SizedBox(height: AppSpacing.x20),
@@ -292,13 +369,13 @@ class _SignupPageState extends State<SignupPage> {
 
                       const SizedBox(height: AppSpacing.x20),
 
-                      //TODO: 이메일 버튼 및 동작 로직 수정하기
                       _RequiredLabel(
                         text: '이메일',
                         color: colors.onSurface,
                         requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
+
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -308,7 +385,10 @@ class _SignupPageState extends State<SignupPage> {
                               controller: emailController,
                               keyboardType: TextInputType.emailAddress,
                               onChanged: (_) {
-                                setState(() {});
+                                setState(() {
+                                  // 이메일 변경 시 발송 상태 초기화
+                                  _isEmailCodeSent = false;
+                                });
                               },
                             ),
                           ),
@@ -318,14 +398,17 @@ class _SignupPageState extends State<SignupPage> {
                             width: ButtonWidth.medium,
                             height: ButtonHeight.small,
                             variant: ButtonVariant.black,
-                            onPressed: _sendEmailCode,
+                            onPressed: emailController.text.trim().isNotEmpty
+                                ? _sendEmailCode
+                                : null,
                           ),
                         ],
                       ),
+
                       if (_isEmailCodeSent) ...[
                         const SizedBox(height: AppSpacing.x4),
                         AppFieldMessage(
-                          text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                          text: '이메일 인증 API 연결 전 테스트 상태입니다.',
                           color: colors.onSurfaceVariant,
                         ),
                       ],
@@ -438,14 +521,12 @@ class _SignupPageState extends State<SignupPage> {
               const SizedBox(height: AppSpacing.x16),
 
               AppButton(
-                text: '회원가입 완료',
+                text: signupState.isLoading ? '가입 중...' : '회원가입 완료',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,
-                onPressed: _canSubmit
-                    ? () {
-                        // TODO: 회원가입 API 연결
-                      }
+                onPressed: _canSubmit && !signupState.isLoading
+                    ? _signup
                     : null,
               ),
             ],
@@ -498,8 +579,6 @@ class _PasswordVisibilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

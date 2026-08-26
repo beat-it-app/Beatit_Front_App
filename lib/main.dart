@@ -1,25 +1,11 @@
-import 'package:beatit_front_app/popup_test_page.dart';
-import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signup_select_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
-import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'src/core/theme/app_theme.dart';
-import 'src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/domain/auth/view/signup_select_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -33,35 +19,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const MyHomePage(title: 'Beatit'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _currentIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // bottomNavigationBar: AppBottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   onTap: (index) {
-      //     setState(() {
-      //       _currentIndex = index;
-      //     });
-      //   },
-      // ),
-      body: CalMainPage(),
+      home: const SignupSelectPage(),
     );
   }
 }

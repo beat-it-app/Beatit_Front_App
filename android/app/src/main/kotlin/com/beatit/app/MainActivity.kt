@@ -1,4 +1,4 @@
-package com.example.beatit_front_app
+package com.beatit.app
 
 import io.flutter.embedding.android.FlutterActivity
 
