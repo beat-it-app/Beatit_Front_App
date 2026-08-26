@@ -1,3 +1,5 @@
+import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -7,9 +9,6 @@ import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-
-import '../widget/privacy_consent_popup.dart';
-import '../widget/service_consent_popup.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});

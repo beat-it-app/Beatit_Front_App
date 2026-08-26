@@ -2,7 +2,7 @@ name: beatit_front_app
 description: "Beat it! App 레포지토리입니다."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
@@ -50,7 +50,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -58,6 +57,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/auth/
     - assets/icons/
     - assets/icons/popup/
     - assets/icons/navigation/
@@ -73,4 +73,3 @@ flutter:
     - family: Pretendard
       fonts:
         - asset: assets/fonts/PretendardVariable.ttf
-
