@@ -4,7 +4,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/bottons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/profile_preview_item.dart';
 
 import 'complete_signup_page.dart';
