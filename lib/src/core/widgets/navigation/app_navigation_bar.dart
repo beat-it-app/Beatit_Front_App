@@ -18,10 +18,7 @@ class AppNavigationItem {
 }
 
 const List<AppNavigationItem> defaultAppNavigationItems = [
-  AppNavigationItem(
-    iconPath: 'assets/icons/navigation/home.svg',
-    label: '홈',
-  ),
+  AppNavigationItem(iconPath: 'assets/icons/navigation/home.svg', label: '홈'),
   AppNavigationItem(
     iconPath: 'assets/icons/navigation/notice.svg',
     label: '문서',
@@ -30,10 +27,7 @@ const List<AppNavigationItem> defaultAppNavigationItems = [
     iconPath: 'assets/icons/navigation/calendar.svg',
     label: '일정',
   ),
-  AppNavigationItem(
-    iconPath: 'assets/icons/navigation/chat.svg',
-    label: '채팅',
-  ),
+  AppNavigationItem(iconPath: 'assets/icons/navigation/chat.svg', label: '채팅'),
   AppNavigationItem(
     iconPath: 'assets/icons/navigation/mypage.svg',
     label: '마이페이지',
@@ -46,7 +40,7 @@ class AppBottomNavigationBar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     this.items = defaultAppNavigationItems,
-    this.height = 58,
+    this.height = 64,
     this.iconSize = 24,
 
     this.pressedScale = 0.90,
@@ -77,7 +71,7 @@ class AppBottomNavigationBar extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColor.gray1,
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
+          top: Radius.circular(AppRadius.xxl),
         ),
       ),
       child: SafeArea(
@@ -177,13 +171,13 @@ class _NavigationIconButtonState extends State<_NavigationIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final iconPath =
-    widget.isSelected && widget.item.selectedIconPath != null
+    final iconPath = widget.isSelected && widget.item.selectedIconPath != null
         ? widget.item.selectedIconPath!
         : widget.item.iconPath;
 
-    final iconColor =
-    widget.isSelected ? widget.activeColor : widget.inactiveColor;
+    final iconColor = widget.isSelected
+        ? widget.activeColor
+        : widget.inactiveColor;
 
     return Semantics(
       button: true,
@@ -205,18 +199,16 @@ class _NavigationIconButtonState extends State<_NavigationIconButton> {
         child: Center(
           child: AnimatedScale(
             scale: _isPressed ? widget.pressedScale : 1.0,
-            duration:
-            _isPressed ? widget.pressInDuration : widget.pressOutDuration,
+            duration: _isPressed
+                ? widget.pressInDuration
+                : widget.pressOutDuration,
             curve: widget.pressCurve,
             child: SvgPicture.asset(
               iconPath,
               width: widget.iconSize,
               height: widget.iconSize,
               semanticsLabel: widget.item.label,
-              colorFilter: ColorFilter.mode(
-                iconColor,
-                BlendMode.srcIn,
-              ),
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
             ),
           ),
         ),

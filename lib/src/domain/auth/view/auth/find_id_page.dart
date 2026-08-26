@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/bottons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/result_box.dart';
@@ -84,10 +85,6 @@ class _FindIdPageState extends State<FindIdPage> {
                       hintText: '이메일',
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
-                      messageText: _isEmailCodeSent
-                          ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                          : null,
-                      messageColor: colors.onSurfaceVariant,
                       onChanged: (_) {
                         setState(() {});
                       },
@@ -103,6 +100,13 @@ class _FindIdPageState extends State<FindIdPage> {
                   ),
                 ],
               ),
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
 
               const SizedBox(height: AppSpacing.x10),
 
@@ -113,10 +117,6 @@ class _FindIdPageState extends State<FindIdPage> {
                     child: AppTextField(
                       hintText: '이메일',
                       keyboardType: TextInputType.emailAddress,
-                      messageText: _isEmailCodeSent
-                          ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                          : null,
-                      messageColor: colors.onSurfaceVariant,
                       onChanged: (_) {},
                     ),
                   ),
@@ -130,6 +130,13 @@ class _FindIdPageState extends State<FindIdPage> {
                   ),
                 ],
               ),
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
 
               const SizedBox(height: AppSpacing.x40),
 
@@ -167,16 +174,13 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.semi16.copyWith(color: color),
           children: [
             TextSpan(text: text),
-            if (requiredColor != null)
-              TextSpan(
-                text: ' *',
-                style: TextStyle(color: requiredColor),
-              ),
+            TextSpan(
+              text: ' *',
+              style: FontStyles.semi16.copyWith(color: requiredColor),
+            ),
           ],
         ),
       ),

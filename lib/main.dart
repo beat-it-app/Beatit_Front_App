@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/popup_test_page.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
@@ -8,10 +9,14 @@ import 'package:beatit_front_app/src/domain/auth/view/signup_select_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/find_id_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
 import 'package:flutter/material.dart';
 
 import 'src/core/theme/app_theme.dart';
-import 'src/core/widgets/bottons/app_button.dart';
+import 'src/core/widgets/buttons/app_button.dart';
 
 void main() {
   runApp(const MyApp());
@@ -56,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: SignupSelectPage(),
+      body: CalMainPage(),
     );
   }
 }

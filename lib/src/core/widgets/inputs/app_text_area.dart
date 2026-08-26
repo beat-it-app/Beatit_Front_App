@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/app_fonts.dart';
+import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 
 class AppTextArea extends StatefulWidget {
@@ -14,6 +15,7 @@ class AppTextArea extends StatefulWidget {
     this.requiredMark = false,
     this.enabled = true,
     this.readOnly = false,
+    this.isError = false,
     this.errorText,
     this.maxLength = 200,
     this.showCounter = true,
@@ -30,6 +32,11 @@ class AppTextArea extends StatefulWidget {
 
   final bool enabled;
   final bool readOnly;
+
+  /// 외부에서 오류 문구를 표시할 때, 문구 없이 오류 테두리만 적용함.
+  ///
+  /// 기존처럼 [errorText]를 전달하면 오류 테두리와 문구가 모두 표시됨.
+  final bool isError;
   final String? errorText;
 
   final int? maxLength;
@@ -49,8 +56,12 @@ class _AppTextAreaState extends State<AppTextArea> {
     return widget.controller ?? _internalController;
   }
 
-  bool get _hasError {
+  bool get _hasInlineError {
     return widget.errorText != null && widget.errorText!.isNotEmpty;
+  }
+
+  bool get _hasError {
+    return widget.isError || _hasInlineError;
   }
 
   bool get _shouldShowCounter {
@@ -76,7 +87,7 @@ class _AppTextAreaState extends State<AppTextArea> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = textTheme.labelMedium?.copyWith(color: colors.onSurface);
+    final labelStyle = FontStyles.semi16.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
@@ -88,6 +99,11 @@ class _AppTextAreaState extends State<AppTextArea> {
       color: inputTheme.hintStyle?.color ?? colors.onSurfaceVariant,
     );
 
+    final errorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      borderSide: BorderSide(color: colors.error, width: 1),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,11 +112,11 @@ class _AppTextAreaState extends State<AppTextArea> {
             text: TextSpan(
               style: labelStyle,
               children: [
-                TextSpan(text: widget.label),
+                TextSpan(text: widget.label, style: labelStyle),
                 if (widget.requiredMark)
                   TextSpan(
                     text: ' *',
-                    style: labelStyle?.copyWith(color: colors.primary),
+                    style: labelStyle.copyWith(color: colors.primary),
                   ),
               ],
             ),
@@ -132,6 +148,11 @@ class _AppTextAreaState extends State<AppTextArea> {
               hintStyle: areaHintStyle,
               counterText: '',
 
+              border: _hasError ? errorBorder : null,
+              enabledBorder: _hasError ? errorBorder : null,
+              focusedBorder: _hasError ? errorBorder : null,
+              disabledBorder: _hasError ? errorBorder : null,
+
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.x16,
                 vertical: AppSpacing.x12,
@@ -142,13 +163,13 @@ class _AppTextAreaState extends State<AppTextArea> {
             },
           ),
         ),
-        if (_hasError || _shouldShowCounter) ...[
+        if (_hasInlineError || _shouldShowCounter) ...[
           const SizedBox(height: AppSpacing.x4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _hasError
+                child: _hasInlineError
                     ? Text(widget.errorText!, style: inputTheme.errorStyle)
                     : const SizedBox.shrink(),
               ),

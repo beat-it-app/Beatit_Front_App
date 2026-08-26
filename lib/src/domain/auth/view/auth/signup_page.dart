@@ -3,9 +3,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/bottons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+
+import '../widget/privacy_consent_popup.dart';
+import '../widget/service_consent_popup.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -125,6 +129,38 @@ class _SignupPageState extends State<SignupPage> {
     });
   }
 
+  Future<void> _showTermsConsentPopup() async {
+    final isAgreed = await ServiceConsentPopup.show(
+      context,
+      title: '서비스 이용약관',
+      confirmText: '동의하기',
+    );
+
+    if (!mounted || isAgreed != true) {
+      return;
+    }
+
+    setState(() {
+      _isTermsAgreed = true;
+    });
+  }
+
+  Future<void> _showPrivacyConsentPopup() async {
+    final isAgreed = await PrivacyConsentPopup.show(
+      context,
+      title: '개인정보 수집 및 이용 동의',
+      confirmText: '동의하기',
+    );
+
+    if (!mounted || isAgreed != true) {
+      return;
+    }
+
+    setState(() {
+      _isPrivacyAgreed = true;
+    });
+  }
+
   @override
   void dispose() {
     idController.dispose();
@@ -173,7 +209,7 @@ class _SignupPageState extends State<SignupPage> {
                             child: AppTextField(
                               hintText: '아이디',
                               controller: idController,
-                              errorText: _idErrorText,
+                              isError: _idErrorText != null,
                               onChanged: (_) {
                                 setState(() {
                                   _isIdDuplicated = false;
@@ -191,6 +227,10 @@ class _SignupPageState extends State<SignupPage> {
                           ),
                         ],
                       ),
+                      if (_idErrorText != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(text: _idErrorText!, isError: true),
+                      ],
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -267,10 +307,6 @@ class _SignupPageState extends State<SignupPage> {
                               hintText: '이메일',
                               controller: emailController,
                               keyboardType: TextInputType.emailAddress,
-                              messageText: _isEmailCodeSent
-                                  ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                                  : null,
-                              messageColor: colors.onSurfaceVariant,
                               onChanged: (_) {
                                 setState(() {});
                               },
@@ -286,6 +322,13 @@ class _SignupPageState extends State<SignupPage> {
                           ),
                         ],
                       ),
+                      if (_isEmailCodeSent) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ],
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -342,7 +385,9 @@ class _SignupPageState extends State<SignupPage> {
                                     ),
                                   ),
                                 ),
-                                SvgPicture.asset('assets/icons/auth/back.svg'),
+                                _AgreementDetailButton(
+                                  onTap: _showTermsConsentPopup,
+                                ),
                               ],
                             ),
 
@@ -377,7 +422,9 @@ class _SignupPageState extends State<SignupPage> {
                                     ),
                                   ),
                                 ),
-                                SvgPicture.asset('assets/icons/auth/back.svg'),
+                                _AgreementDetailButton(
+                                  onTap: _showPrivacyConsentPopup,
+                                ),
                               ],
                             ),
                           ],
@@ -426,14 +473,12 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.semi16.copyWith(color: color),
           children: [
             TextSpan(text: text),
             TextSpan(
               text: ' *',
-              style: TextStyle(color: requiredColor),
+              style: FontStyles.semi16.copyWith(color: requiredColor),
             ),
           ],
         ),
@@ -464,6 +509,25 @@ class _PasswordVisibilityButton extends StatelessWidget {
         child: isVisible
             ? SvgPicture.asset('assets/icons/auth/eye_off.svg')
             : SvgPicture.asset('assets/icons/auth/eye_on.svg'),
+      ),
+    );
+  }
+}
+
+class _AgreementDetailButton extends StatelessWidget {
+  const _AgreementDetailButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: const SizedBox(
+        width: 32,
+        height: 32,
+        child: Icon(Icons.chevron_right, size: 24),
       ),
     );
   }
