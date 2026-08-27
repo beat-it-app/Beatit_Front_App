@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart'; // 추가된 위젯 임포트
 
 import '../../../core/widgets/popups/app_popup.dart';
 import '../widget/team_join_success_popup.dart';
@@ -107,91 +108,52 @@ class _TeamJoinPageState extends State<TeamJoinPage> {
               const SizedBox(height: AppSpacing.x24),
 
               if (_isFound) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Container(
-                    height: 280,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/team_card_bg.png'),
-                        fit: BoxFit.cover,
-                      ),
+                Stack(
+                  children: [
+                    AppTeamCard(
+                      genre: _teamType,
+                      teamName: _teamName,
+                      date: _formattedDate,
+                      height: 280,
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.2),
-                            Colors.black.withValues(alpha: 0.7),
-                          ],
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.x20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Text(
-                            _teamType,
-                            style: FontStyles.med14.copyWith(
-                              color: context.colors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _teamName,
-                            style: FontStyles.bold34.copyWith(
-                              color: context.colors.onPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.x4),
-                          Text(
-                            '$_formattedDate 개설',
-                            style: FontStyles.med14.copyWith(
-                              color: context.grays.gray5,
-                            ),
-                          ),
-                          const Spacer(),
-                          AppButton(
-                            text: '팀 가입하기',
-                            variant: ButtonVariant.primary,
-                            width: ButtonWidth.expand,
-                            height: ButtonHeight.normal,
-                            onPressed: () async {
-                              final result = await AppPopup.show(
-                                context,
-                                title: "팀 '$_teamName'에\n가입하시겠습니까?",
-                                buttonNum: ButtonNum.two,
-                                buttonSymmetric: ButtonSymmetric.vertical,
-                                confirmText: '예',
-                                cancelText: '아니요',
-                                onConfirm: () {
-                                  print('팀 가입 확정!');
-                                },
-                                onCancel: () {
-                                  print('팀 가입 취소');
-                                },
-                              );
-
-                              if (result == true && context.mounted) {
-                                await TeamJoinSuccessPopup.show(
-                                  context,
-                                  teamName: _teamName,
-                                  onConfirm: () {
-                                    print('팀 페이지로 이동!');
-                                  },
-                                );
-                              }
+                    Positioned(
+                      left: AppSpacing.x20,
+                      right: AppSpacing.x20,
+                      bottom: AppSpacing.x20,
+                      child: AppButton(
+                        text: '팀 가입하기',
+                        variant: ButtonVariant.primary,
+                        width: ButtonWidth.expand,
+                        height: ButtonHeight.normal,
+                        onPressed: () async {
+                          final result = await AppPopup.show(
+                            context,
+                            title: "팀 '$_teamName'에\n가입하시겠습니까?",
+                            buttonNum: ButtonNum.two,
+                            buttonSymmetric: ButtonSymmetric.vertical,
+                            confirmText: '예',
+                            cancelText: '아니요',
+                            onConfirm: () {
+                              print('팀 가입 확정!');
                             },
-                          ),
-                        ],
+                            onCancel: () {
+                              print('팀 가입 취소');
+                            },
+                          );
+
+                          if (result == true && context.mounted) {
+                            await TeamJoinSuccessPopup.show(
+                              context,
+                              teamName: _teamName,
+                              onConfirm: () {
+                                print('팀 페이지로 이동!');
+                              },
+                            );
+                          }
+                        },
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ],
