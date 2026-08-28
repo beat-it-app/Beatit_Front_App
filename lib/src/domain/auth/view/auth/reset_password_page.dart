@@ -1,40 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/result_box.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/reset_password_provider.dart';
 
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+class ResetPasswordPage extends ConsumerStatefulWidget {
+  const ResetPasswordPage({
+    super.key,
+    required this.identifier,
+    required this.email,
+  });
+
+  final String identifier;
+  final String email;
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  ConsumerState<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final idController = TextEditingController();
+class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   final passwordController = TextEditingController();
   final passwordCheckController = TextEditingController();
-  final emailController = TextEditingController();
-
-  bool _isIdDuplicated = false;
 
   bool _isPasswordVisible = false;
   bool _isPasswordCheckVisible = false;
-
-  bool _isEmailCodeSent = false;
-
-  bool _isTermsAgreed = false;
-  bool _isPrivacyAgreed = false;
-
-  bool get _isAllAgreed {
-    return _isTermsAgreed && _isPrivacyAgreed;
-  }
 
   bool get _isPasswordValid {
     final password = passwordController.text;
@@ -44,14 +39,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final hasSpecial = RegExp(r'[#*]').hasMatch(password);
 
     return hasMinLength && hasNumber && hasSpecial;
-  }
-
-  String? get _idErrorText {
-    if (_isIdDuplicated) {
-      return '중복되는 아이디입니다.';
-    }
-
-    return null;
   }
 
   String? get _passwordErrorText {
@@ -81,65 +68,44 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     return null;
   }
 
-  bool get _canSubmit {
-    return idController.text.isNotEmpty &&
-        !_isIdDuplicated &&
-        _isPasswordValid &&
+  bool get _isInputValid {
+    return _isPasswordValid &&
         passwordController.text == passwordCheckController.text &&
-        passwordCheckController.text.isNotEmpty &&
-        emailController.text.isNotEmpty &&
-        _isAllAgreed;
+        passwordCheckController.text.isNotEmpty;
   }
 
-  void _checkDuplicateId() {
-    setState(() {
-      // TODO: API 연결 전 테스트용.
-      // 중복 확인 버튼을 누르면 바로 중복 아이디로 처리.
-      _isIdDuplicated = true;
-    });
-  }
+  Future<void> _resetPassword() async {
+    FocusScope.of(context).unfocus();
 
-  void _sendEmailCode() {
-    setState(() {
-      // TODO: API 연결 전 테스트용.
-      _isEmailCodeSent = true;
-    });
-  }
+    final success = await ref
+        .read(resetPasswordProvider.notifier)
+        .resetPassword(
+          identifier: widget.identifier,
+          email: widget.email,
+          newPassword: passwordController.text,
+        );
 
-  void _toggleAllAgreements() {
-    final nextValue = !_isAllAgreed;
+    if (!mounted || !success) {
+      return;
+    }
 
-    setState(() {
-      _isTermsAgreed = nextValue;
-      _isPrivacyAgreed = nextValue;
-    });
-  }
-
-  void _toggleTermsAgreement() {
-    setState(() {
-      _isTermsAgreed = !_isTermsAgreed;
-    });
-  }
-
-  void _togglePrivacyAgreement() {
-    setState(() {
-      _isPrivacyAgreed = !_isPrivacyAgreed;
-    });
+    Navigator.of(context).pop();
   }
 
   @override
   void dispose() {
-    idController.dispose();
     passwordController.dispose();
     passwordCheckController.dispose();
-    emailController.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final colors = Theme.of(context).colorScheme;
+    final state = ref.watch(resetPasswordProvider);
+
+    final canSubmit = _isInputValid && !state.isLoading;
 
     return Scaffold(
       appBar: AppTopAppBar.backOnly(
@@ -165,13 +131,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         color: colors.onSurface,
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.x4),
+
                     Text(
                       '원하는 비밀번호를 입력하여 재설정하세요.',
                       style: FontStyles.reg12.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
                     ),
+
                     const SizedBox(height: AppSpacing.x50),
 
                     ValueListenableBuilder<TextEditingValue>(
@@ -228,52 +197,24 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         );
                       },
                     ),
-                    const SizedBox(height: AppSpacing.x10),
+
+                    if (state.resetError != null) ...[
+                      const SizedBox(height: AppSpacing.x4),
+                      AppFieldMessage(text: state.resetError!, isError: true),
+                    ],
                   ],
                 ),
               ),
+
               AppButton(
-                text: '확인',
+                text: state.isResettingPassword ? '재설정 중' : '확인',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: () {
-                  //TODO: 만약, 비밀번호가 올바르지 않다면 비활성화 상태 + 올바르다면 활성 및 로그인 화면으로 이동.
-                },
+                onPressed: canSubmit ? _resetPassword : null,
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RequiredLabel extends StatelessWidget {
-  const _RequiredLabel({
-    required this.text,
-    required this.color,
-    required this.requiredColor,
-  });
-
-  final String text;
-  final Color color;
-  final Color requiredColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: RichText(
-        text: TextSpan(
-          style: FontStyles.semi16.copyWith(color: color),
-          children: [
-            TextSpan(text: text),
-            TextSpan(
-              text: ' *',
-              style: FontStyles.semi16.copyWith(color: requiredColor),
-            ),
-          ],
         ),
       ),
     );
@@ -291,8 +232,6 @@ class _PasswordVisibilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

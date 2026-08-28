@@ -1,4 +1,3 @@
-import 'package:beatit_front_app/src/domain/auth/model/account/find_id_response.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -8,6 +7,8 @@ import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart'
 import 'package:beatit_front_app/src/domain/auth/model/login/login_response.dart';
 import 'package:beatit_front_app/src/domain/auth/model/signup/signup_response.dart';
 import 'package:beatit_front_app/src/domain/auth/model/signup/signup_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/account/find_id_response.dart';
+import 'package:beatit_front_app/src/domain/auth/model/account/reset_password_request.dart';
 
 class AuthApi {
   AuthApi(this._dio);
@@ -141,6 +142,90 @@ class AuthApi {
       debugPrint('$stackTrace');
 
       rethrow;
+    }
+  }
+
+  Future<void> sendResetPasswordCode({
+    required String email,
+    required String identifier,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _resetPasswordSendPath,
+        queryParameters: {'email': email, 'identifier': identifier},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '비밀번호 재설정에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> verifyResetPasswordCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _resetPasswordVerifyPath,
+        queryParameters: {'email': email, 'code': code},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '인증번호 확인에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> resetPassword(ResetPasswordRequest request) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _resetPasswordPath,
+        data: request.toJson(),
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '비밀번호 재설정에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
     }
   }
 

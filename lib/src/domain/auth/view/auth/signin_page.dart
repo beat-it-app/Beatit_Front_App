@@ -1,4 +1,5 @@
 import 'package:beatit_front_app/src/app.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/verify_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/profile/create_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +16,6 @@ import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/find_id_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
 
 class SigninPage extends ConsumerStatefulWidget {
@@ -73,10 +73,10 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     ).push(MaterialPageRoute(builder: (_) => const FindIdPage()));
   }
 
-  void _goToResetPasswordPage() {
+  void _goToVerifyPasswordPage() {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const ResetPasswordPage()));
+    ).push(MaterialPageRoute(builder: (_) => const VerifyPasswordPage()));
   }
 
   void _handleLoginSuccess(AuthSession session) {
@@ -291,7 +291,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                                 TextLinkButton(
                                   text: '비밀번호찾기',
                                   color: context.grays.gray2,
-                                  onTap: _goToResetPasswordPage,
+                                  onTap: _goToVerifyPasswordPage,
                                 ),
                               ],
                             ),
