@@ -1,12 +1,13 @@
+import 'package:beatit_front_app/src/domain/auth/model/account/find_id_response.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 
-import '../model/auth_session.dart';
-import '../model/google_login_request.dart';
-import '../model/login_request.dart';
-import '../model/login_response.dart';
-import '../model/signup_request.dart';
-import '../model/signup_response.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/google_login_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/login_response.dart';
+import 'package:beatit_front_app/src/domain/auth/model/signup/signup_response.dart';
+import 'package:beatit_front_app/src/domain/auth/model/signup/signup_request.dart';
 
 class AuthApi {
   AuthApi(this._dio);
@@ -14,8 +15,20 @@ class AuthApi {
   final Dio _dio;
 
   static const String _signupPath = '/auth/signup';
+  static const String _checkDuplicationPath = '/auth/check-identifier';
   static const String _loginPath = '/auth/login';
   static const String _googleLoginPath = '/auth/google';
+  static const String _logoutPath = '/auth/logout';
+
+  static const String _findIdentifierPath = '/auth/find-identifier/verify';
+  static const String _findIdentifierSendPath = '/auth/find-identifier/send';
+  static const String _resetPasswordPath = '/auth/reset-password';
+  static const String _resetPasswordVerifyPath = '/auth/reset-password/verify';
+  static const String _resetPasswordSendPath = '/auth/reset-password/send';
+  static const String _verifyEmailPath = '/auth/email-verification/verify';
+  static const String _verifyEmailSendPath = '/auth/email-verification/send';
+
+  static const String _profilePath = '/users/profile';
 
   Future<SignupResponse> signup(SignupRequest request) async {
     try {
@@ -53,6 +66,84 @@ class AuthApi {
     return _authenticate(path: _googleLoginPath, data: request.toJson());
   }
 
+  Future<void> sendFindIdentifierCode({required String email}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _findIdentifierSendPath,
+        queryParameters: {'email': email},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '이메일 인증에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<FindIdentifierData> verifyFindIdentifierCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      debugPrint('[FindId] verify request');
+      debugPrint('[FindId] email: $email');
+      debugPrint('[FindId] code: $code');
+
+      final response = await _dio.post<Map<String, dynamic>>(
+        _findIdentifierPath,
+        queryParameters: {'email': email, 'code': code},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      debugPrint('[FindId] statusCode: ${response.statusCode}');
+      debugPrint('[FindId] response body: $body');
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '아이디 조회에 실패했습니다. 다시 시도해주세요.',
+        );
+      }
+
+      debugPrint('[FindId] parsing start');
+
+      final result = FindIdentifierResponse.fromJson(body);
+
+      debugPrint('[FindId] identifier: ${result.data.identifier}');
+
+      return result.data;
+    } on DioException catch (error) {
+      debugPrint('[FindId] DioException');
+      debugPrint('[FindId] response: ${error.response?.data}');
+
+      throw _mapDioException(error);
+    } catch (error, stackTrace) {
+      debugPrint('[FindId] unexpected error: $error');
+      debugPrint('$stackTrace');
+
+      rethrow;
+    }
+  }
+
   Future<AuthSession> _authenticate({
     required String path,
     required Map<String, dynamic> data,
@@ -78,18 +169,11 @@ class AuthApi {
         );
       }
 
-      final rawData = body['data'];
-
       debugPrint('[AuthApi] response body: $body');
-      debugPrint('[AuthApi] response data: $rawData');
 
-      if (rawData is! Map) {
-        throw const AuthApiException(message: '로그인 응답 형식이 올바르지 않습니다.');
-      }
+      final loginResponse = LoginResponse.fromJson(body);
 
-      final loginResponse = LoginResponse.fromJson(
-        Map<String, dynamic>.from(rawData),
-      );
+      final loginData = loginResponse.data;
 
       final authorization = response.headers.value('authorization');
       final accessToken = _extractBearerToken(authorization);
@@ -99,10 +183,10 @@ class AuthApi {
       }
 
       return AuthSession(
-        userId: loginResponse.userId,
-        role: loginResponse.role,
-        createdProfile: loginResponse.createdProfile,
-        socialProvider: loginResponse.socialProvider,
+        userId: loginData.userId,
+        role: loginData.role,
+        createdProfile: loginData.createdProfile,
+        socialProvider: loginData.socialProvider,
         accessToken: accessToken,
       );
     } on DioException catch (error) {

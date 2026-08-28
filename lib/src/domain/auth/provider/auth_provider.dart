@@ -1,13 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/auth_token_storage.dart';
-import '../api/google_auth_client.dart';
-import '../model/auth_session.dart';
-import '../model/google_login_request.dart';
-import '../model/login_request.dart';
-import '../model/login_response.dart';
-import 'auth_api_provider.dart';
+import 'package:beatit_front_app/src/core/network/auth_token_storage.dart';
+import 'package:beatit_front_app/src/domain/auth/api/google_auth_client.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/google_login_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/login_response.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_api_provider.dart';
 
 final googleAuthClientProvider = Provider<GoogleAuthClient>((ref) {
   return GoogleAuthClient();

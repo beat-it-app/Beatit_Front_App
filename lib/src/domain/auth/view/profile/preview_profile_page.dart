@@ -122,6 +122,7 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                                     '${widget.userName} 기본 프로필 ${index + 1}',
                                 onTap: () {
                                   _selectProfile(index);
+                                  //TODO: 일반 프로필 선택 시 defaultImageId에 1~4 번호를 입력. 단, 이 경우는 profileImage가 값이 비워져 있어야 함.
                                 },
                                 image: Image.asset(
                                   _profileAssetPaths[index],
@@ -137,6 +138,8 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                               semanticsLabel: _isCustomProfileAdded
                                   ? '${widget.userName} 커스텀 프로필'
                                   : '프로필 추가',
+                              //TODO: 커스텀 프로필 선택 시 profileImage에 multi-file을 등록해야 함. 단, 이 경우는 defaultImageId가 값이 비워져 있어야 함.
+                              // 또한, + 버튼 대신에 이미지가 입력되어야 함.
                               onTap: _selectCustomProfile,
                               image: const AddProfileImage(),
                             ),
@@ -148,6 +151,8 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                 ),
               ),
               const SizedBox(height: AppSpacing.x16),
+              //TODO: 완료 버튼을 누르면 profile 입력을 해서 해당 프로필이 실제 db에 입력되었을때 complete 화면으로 넘어가야 함.
+              // 만약 응답이 제대로 안되었다면, 다시 프로필을 생성할 수 있도록 유저에게 재요청해야 함.
               AppButton(
                 text: '완료',
                 width: ButtonWidth.expand,

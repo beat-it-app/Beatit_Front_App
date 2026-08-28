@@ -21,9 +21,7 @@ class GoogleAuthClient {
       debugPrint('[GoogleAuth] initialize success');
       debugPrint('[GoogleAuth] authenticate start');
 
-      final account = await _googleSignIn.authenticate(
-        scopeHint: const ['openid', 'email'],
-      );
+      final account = await _googleSignIn.authenticate();
 
       debugPrint('[GoogleAuth] authenticate success');
       debugPrint('[GoogleAuth] email: ${account.email}');

@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../model/signup_request.dart';
-import '../model/signup_response.dart';
-import 'auth_api_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/model/signup/signup_request.dart';
+import 'package:beatit_front_app/src/domain/auth/model/signup/signup_response.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_api_provider.dart';
 
 final signupProvider =
     NotifierProvider<SignupNotifier, AsyncValue<SignupData?>>(
-  SignupNotifier.new,
-);
+      SignupNotifier.new,
+    );
 
 class SignupNotifier extends Notifier<AsyncValue<SignupData?>> {
   @override

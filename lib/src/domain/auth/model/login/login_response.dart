@@ -22,12 +22,25 @@ enum SocialProvider {
 @freezed
 abstract class LoginResponse with _$LoginResponse {
   const factory LoginResponse({
-    required int userId,
-    required Role role,
-    required bool createdProfile,
-    SocialProvider? socialProvider,
+    required bool success,
+    required int status,
+    required String message,
+    required LoginData data,
   }) = _LoginResponse;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) =>
       _$LoginResponseFromJson(json);
+}
+
+@freezed
+abstract class LoginData with _$LoginData {
+  const factory LoginData({
+    required int userId,
+    required Role role,
+    required bool createdProfile,
+    SocialProvider? socialProvider,
+  }) = _LoginData;
+
+  factory LoginData.fromJson(Map<String, dynamic> json) =>
+      _$LoginDataFromJson(json);
 }

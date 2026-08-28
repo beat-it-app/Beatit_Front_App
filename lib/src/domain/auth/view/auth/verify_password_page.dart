@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -9,14 +10,14 @@ import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/result_box.dart';
 
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+class VerifyPasswordPage extends StatefulWidget {
+  const VerifyPasswordPage({super.key});
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  State<VerifyPasswordPage> createState() => _VerifyPasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
+class _VerifyPasswordPageState extends State<VerifyPasswordPage> {
   final idController = TextEditingController();
   final passwordController = TextEditingController();
   final passwordCheckController = TextEditingController();
@@ -154,93 +155,118 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             horizontal: AppSpacing.x16,
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '비밀번호 재설정',
-                      style: FontStyles.bold28.copyWith(
-                        color: colors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    Text(
-                      '원하는 비밀번호를 입력하여 재설정하세요.',
-                      style: FontStyles.reg12.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.x50),
-
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: passwordController,
-                      builder: (context, value, _) {
-                        return AppTextField(
-                          label: '비밀번호',
-                          hintText: '비밀번호',
-                          requiredMark: true,
-                          controller: passwordController,
-                          obscureText: !_isPasswordVisible,
-                          errorText: _passwordErrorText,
-                          onChanged: (_) {
-                            setState(() {});
-                          },
-                          suffixIcon: value.text.isEmpty
-                              ? null
-                              : _PasswordVisibilityButton(
-                                  isVisible: _isPasswordVisible,
-                                  onTap: () {
-                                    setState(() {
-                                      _isPasswordVisible = !_isPasswordVisible;
-                                    });
-                                  },
-                                ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: AppSpacing.x10),
-
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: passwordCheckController,
-                      builder: (context, value, _) {
-                        return AppTextField(
-                          hintText: '비밀번호 확인',
-                          controller: passwordCheckController,
-                          obscureText: !_isPasswordCheckVisible,
-                          errorText: _passwordCheckErrorText,
-                          onChanged: (_) {
-                            setState(() {});
-                          },
-                          suffixIcon: value.text.isEmpty
-                              ? null
-                              : _PasswordVisibilityButton(
-                                  isVisible: _isPasswordCheckVisible,
-                                  onTap: () {
-                                    setState(() {
-                                      _isPasswordCheckVisible =
-                                          !_isPasswordCheckVisible;
-                                    });
-                                  },
-                                ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.x10),
-                  ],
+              Text(
+                '비밀번호 재설정',
+                style: FontStyles.bold28.copyWith(color: colors.onSurface),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              Text(
+                '가입한 이메일을 통해 인증 후 아이디를 확인해주세요.',
+                style: FontStyles.reg12.copyWith(
+                  color: colors.onSurfaceVariant,
                 ),
               ),
-              AppButton(
-                text: '확인',
-                width: ButtonWidth.expand,
-                height: ButtonHeight.normal,
-                variant: ButtonVariant.black,
-                onPressed: () {
-                  //TODO: 만약, 비밀번호가 올바르지 않다면 비활성화 상태 + 올바르다면 활성 및 로그인 화면으로 이동.
+              const SizedBox(height: AppSpacing.x50),
+
+              _RequiredLabel(
+                text: '아이디',
+                color: colors.onSurface,
+                requiredColor: colors.primary,
+              ),
+              const SizedBox(height: AppSpacing.x8),
+              AppTextField(
+                hintText: '아이디',
+                controller: idController,
+                isError: _idErrorText != null,
+                onChanged: (_) {
+                  setState(() {
+                    _isIdDuplicated = false;
+                  });
                 },
               ),
+              if (_idErrorText != null) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(text: _idErrorText!, isError: true),
+              ],
+
+              const SizedBox(height: AppSpacing.x20),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: AppTextField(
+                      label: '이메일',
+                      hintText: '이메일',
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (_) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.x10),
+                  AppButton(
+                    text: _isEmailCodeSent ? '재전송' : '인증번호 발송',
+                    width: ButtonWidth.medium,
+                    height: ButtonHeight.small,
+                    variant: ButtonVariant.black,
+                    onPressed: _sendEmailCode,
+                  ),
+                ],
+              ),
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
+
+              const SizedBox(height: AppSpacing.x10),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: AppTextField(
+                      hintText: '인증번호',
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (_) {},
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.x10),
+                  AppButton(
+                    text: '확인',
+                    width: ButtonWidth.medium,
+                    height: ButtonHeight.small,
+                    variant: ButtonVariant.black,
+                    onPressed: () {
+                      //TODO: 인증번호와 email을 함께 api로 보내고, 인증번호가 맞는지 확인.
+
+                      //TODO: 인증번호가 맞으면, 비밀번호 재설정 페이지 이동.
+                    },
+                  ),
+                ],
+              ),
+              //FIXME: 인증번호가 맞는지/틀리는지에 따라 다른 값이 들어가야 함.
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증번호가 일치하지 않습니다.',
+                  color: context.brands.error,
+                  isError: true,
+                ),
+                AppFieldMessage(
+                  text: '인증번호 확인이 완료되었습니다.',
+                  color: context.grays.gray1,
+                  icon: 'assets/icons/check/check_round_green.svg',
+                ),
+              ],
+
+              const SizedBox(height: AppSpacing.x20),
             ],
           ),
         ),

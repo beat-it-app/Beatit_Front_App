@@ -1,3 +1,5 @@
+import 'package:beatit_front_app/src/app.dart';
+import 'package:beatit_front_app/src/domain/auth/view/profile/create_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -10,7 +12,7 @@ import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
-import 'package:beatit_front_app/src/domain/auth/model/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/find_id_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
@@ -83,6 +85,12 @@ class _SigninPageState extends ConsumerState<SigninPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('로그인 성공 - 메인 화면 이동 대상입니다.')));
+
+      //TODO: 메인 화면 이동
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => MainShell()));
+
       return;
     }
 
@@ -90,6 +98,11 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('로그인 성공 - 프로필 생성 화면 이동 대상입니다.')),
     );
+
+    //TODO: 프로필 생성 화면 이동
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CreateProfilePage()));
   }
 
   void _handleLoginError(Object error) {

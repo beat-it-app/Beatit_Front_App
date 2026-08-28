@@ -8,16 +8,31 @@ part of 'login_response.dart';
 
 _LoginResponse _$LoginResponseFromJson(Map<String, dynamic> json) =>
     _LoginResponse(
-      userId: (json['userId'] as num).toInt(),
-      role: $enumDecode(_$RoleEnumMap, json['role']),
-      createdProfile: json['createdProfile'] as bool,
-      socialProvider: $enumDecodeNullable(
-        _$SocialProviderEnumMap,
-        json['socialProvider'],
-      ),
+      success: json['success'] as bool,
+      status: (json['status'] as num).toInt(),
+      message: json['message'] as String,
+      data: LoginData.fromJson(json['data'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$LoginResponseToJson(_LoginResponse instance) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'status': instance.status,
+      'message': instance.message,
+      'data': instance.data,
+    };
+
+_LoginData _$LoginDataFromJson(Map<String, dynamic> json) => _LoginData(
+  userId: (json['userId'] as num).toInt(),
+  role: $enumDecode(_$RoleEnumMap, json['role']),
+  createdProfile: json['createdProfile'] as bool,
+  socialProvider: $enumDecodeNullable(
+    _$SocialProviderEnumMap,
+    json['socialProvider'],
+  ),
+);
+
+Map<String, dynamic> _$LoginDataToJson(_LoginData instance) =>
     <String, dynamic>{
       'userId': instance.userId,
       'role': _$RoleEnumMap[instance.role]!,
