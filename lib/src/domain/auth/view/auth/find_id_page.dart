@@ -106,7 +106,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
               const SizedBox(height: AppSpacing.x50),
 
               _RequiredLabel(
-                text: '이메일',
+                text: '이메일 인증',
                 color: colors.onSurface,
                 requiredColor: colors.primary,
               ),

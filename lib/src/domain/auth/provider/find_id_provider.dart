@@ -2,11 +2,13 @@ import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_api_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// 1. Provider 등록
 final findIdentifierProvider =
     NotifierProvider.autoDispose<FindIdentifierNotifier, FindIdentifierState>(
       FindIdentifierNotifier.new,
     );
 
+// 2. 화면 상태 정의
 class FindIdentifierState {
   const FindIdentifierState({
     this.isSendingCode = false,
@@ -51,6 +53,7 @@ class FindIdentifierState {
   }
 }
 
+// 3. 화면 상태를 변경하는 로직
 class FindIdentifierNotifier extends Notifier<FindIdentifierState> {
   @override
   FindIdentifierState build() {

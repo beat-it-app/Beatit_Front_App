@@ -198,7 +198,7 @@ class _VerifyPasswordPageState extends State<VerifyPasswordPage> {
                 children: [
                   Expanded(
                     child: AppTextField(
-                      label: '이메일',
+                      label: '이메일 인증',
                       hintText: '이메일',
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
