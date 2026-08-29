@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_login_result.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/google_login_request.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/login_response.dart';
@@ -142,15 +143,15 @@ class AuthApi {
     }
   }
 
-  Future<AuthSession> login(LoginRequest request) {
+  Future<AuthLoginResult> login(LoginRequest request) {
     return _authenticate(path: _loginPath, data: request.toJson());
   }
 
-  Future<AuthSession> loginWithGoogle(GoogleLoginRequest request) {
+  Future<AuthLoginResult> loginWithGoogle(GoogleLoginRequest request) {
     return _authenticate(path: _googleLoginPath, data: request.toJson());
   }
 
-  Future<AuthSession> _authenticate({
+  Future<AuthLoginResult> _authenticate({
     required String path,
     required Map<String, dynamic> data,
   }) async {
@@ -183,17 +184,25 @@ class AuthApi {
 
       final authorization = response.headers.value('authorization');
       final accessToken = _extractBearerToken(authorization);
+      final refreshToken = response.headers.value('refresh-token')?.trim();
 
       if (accessToken == null) {
         throw const AuthApiException(message: '로그인 토큰이 응답에 존재하지 않습니다.');
       }
 
-      return AuthSession(
-        userId: loginData.userId,
-        role: loginData.role,
-        createdProfile: loginData.createdProfile,
-        socialProvider: loginData.socialProvider,
-        accessToken: accessToken,
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw const AuthApiException(message: 'Refresh Token이 응답에 존재하지 않습니다.');
+      }
+
+      return AuthLoginResult(
+        session: AuthSession(
+          userId: loginData.userId,
+          role: loginData.role,
+          createdProfile: loginData.createdProfile,
+          socialProvider: loginData.socialProvider,
+          accessToken: accessToken,
+        ),
+        refreshToken: refreshToken,
       );
     } on DioException catch (error) {
       throw _mapDioException(error);

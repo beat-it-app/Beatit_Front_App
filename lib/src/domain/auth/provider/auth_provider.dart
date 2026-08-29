@@ -34,7 +34,7 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       final authApi = ref.read(authApiProvider);
       final tokenStorage = ref.read(authTokenStorageProvider);
 
-      final session = await authApi.login(
+      final result = await authApi.login(
         LoginRequest(
           identifier: identifier,
           password: password,
@@ -42,9 +42,12 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
         ),
       );
 
-      await tokenStorage.saveAccessToken(session.accessToken);
+      await tokenStorage.saveTokens(
+        accessToken: result.session.accessToken,
+        refreshToken: result.refreshToken,
+      );
 
-      return session;
+      return result.session;
     });
   }
 
@@ -63,19 +66,20 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       debugPrint('[Auth] Google token acquired');
       debugPrint('[Auth] Beatit /auth/google request start');
 
-      final session = await authApi.loginWithGoogle(
+      final result = await authApi.loginWithGoogle(
         GoogleLoginRequest(idToken: idToken),
       );
 
       debugPrint('[Auth] Beatit login success');
 
-      await ref
-          .read(authTokenStorageProvider)
-          .saveAccessToken(session.accessToken);
+      await ref.read(authTokenStorageProvider).saveTokens(
+        accessToken: result.session.accessToken,
+        refreshToken: result.refreshToken,
+      );
 
-      debugPrint('[Auth] access token saved');
+      debugPrint('[Auth] access/refresh token saved');
 
-      return session;
+      return result.session;
     });
   }
 
@@ -97,7 +101,7 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       await ref.read(googleAuthClientProvider).signOut();
     }
 
-    await tokenStorage.deleteAccessToken();
+    await tokenStorage.deleteTokens();
     state = const AsyncData(null);
   }
 }
