@@ -27,6 +27,7 @@ class AppTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.onChanged,
+    this.onTap,
     this.height = 45,
   });
 
@@ -56,6 +57,7 @@ class AppTextField extends StatefulWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
 
   final double height;
 
@@ -191,6 +193,7 @@ class _AppTextFieldState extends State<AppTextField> {
                       keyboardType: widget.keyboardType,
                       textInputAction: widget.textInputAction,
                       onChanged: widget.onChanged,
+                      onTap: widget.onTap,
                       cursorColor: colors.primary,
                       style: FontStyles.reg18.copyWith(
                         color: inputTextColor,

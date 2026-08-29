@@ -1,29 +1,32 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import '../../../core/extensions/app_gray_colors.dart';
+import '../../../core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import '../../../core/widgets/buttons/app_upload_button.dart';
 import '../../../core/widgets/inputs/app_text_area.dart';
-import '../../../core/widgets/toggles/app_toggle.dart';
-import 'team_create_success_page.dart';
 
-class TeamCreatePage extends StatefulWidget {
-  const TeamCreatePage({super.key});
+class TeamUpdatePage extends StatefulWidget {
+  const TeamUpdatePage({super.key});
 
   @override
-  State<TeamCreatePage> createState() => _TeamCreatePageState();
+  State<TeamUpdatePage> createState() => _TeamUpdatePageState();
 }
 
-class _TeamCreatePageState extends State<TeamCreatePage> {
+class _TeamUpdatePageState extends State<TeamUpdatePage> {
   final teamNameController = TextEditingController();
   final teamDescriptionController = TextEditingController();
   final teamDateController = TextEditingController();
-
-  String? selectedTeamType;
-
-  final List<String> teamTypes = ['band', 'dance', 'vocal', 'team'];
+  final List<TextEditingController> _linkControllers = [
+    TextEditingController(),
+    TextEditingController(),
+  ];
 
   bool get _isTeamNameValid {
     final text = teamNameController.text.trim();
@@ -36,10 +39,21 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
     return null;
   }
 
+  void _addLinkField() {
+    setState(() {
+      _linkControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeLinkField(int index) {
+    setState(() {
+      _linkControllers[index].dispose();
+      _linkControllers.removeAt(index);
+    });
+  }
+
   bool get _canSubmit {
-    return _isTeamNameValid &&
-        teamDescriptionController.text.isNotEmpty &&
-        selectedTeamType != null;
+    return _isTeamNameValid && teamDescriptionController.text.isNotEmpty;
   }
 
   @override
@@ -47,6 +61,9 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
     teamNameController.dispose();
     teamDescriptionController.dispose();
     teamDateController.dispose();
+    for (var controller in _linkControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -54,7 +71,6 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final inputTheme = theme.inputDecorationTheme;
 
     return Scaffold(
       appBar: AppTopAppBar.backOnly(
@@ -94,37 +110,29 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                         hintText: '날짜를 선택해주세요',
                         controller: teamDateController,
                         readOnly: true,
+                        onTap: () async {
+                          final selectedDate =
+                              await AppTimeBottomSheet.showDatePicker(
+                                context,
+                                title: '팀 개설일 선택',
+                                initialDate: DateTime.now(),
+                                maxDate: DateTime.now(),
+                              );
+
+                          if (selectedDate != null) {
+                            setState(() {
+                              teamDateController.text =
+                                  '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                            });
+                          }
+                        },
                         suffixIcon: Image.asset(
                           'assets/icons/navigation/calendar_gray.png',
                           width: 20,
                           height: 20,
                         ),
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '팀 유형 선택',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      Wrap(
-                        spacing: AppSpacing.x12,
-                        runSpacing: AppSpacing.x8,
-                        children: teamTypes.map((type) {
-                          final isSelected = selectedTeamType == type;
-                          return AppToggle(
-                            text: type,
-                            isSelected: isSelected,
-                            onChanged: (bool selected) {
-                              setState(() {
-                                selectedTeamType = selected ? type : null;
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -148,6 +156,50 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
                         fieldHeight: 196,
                         onChanged: (_) => setState(() {}),
                       ),
+
+                      Text(
+                        '링크 등록',
+                        style: FontStyles.med14.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.x8),
+
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _linkControllers.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: AppSpacing.x8),
+                        itemBuilder: (context, index) {
+                          return _LinkInputField(
+                            controller: _linkControllers[index],
+                            onDelete: () => _removeLinkField(index),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: AppSpacing.x12),
+
+                      Center(
+                        child: GestureDetector(
+                          onTap: _addLinkField,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF2F2F7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              color: Color(0xFF8E8E93),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: AppSpacing.x24),
                     ],
                   ),
@@ -157,7 +209,7 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
               const SizedBox(height: AppSpacing.x16),
 
               AppButton(
-                text: '팀 생성하기',
+                text: '저장하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,
@@ -179,6 +231,80 @@ class _TeamCreatePageState extends State<TeamCreatePage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LinkInputField extends StatelessWidget {
+  const _LinkInputField({required this.controller, required this.onDelete});
+
+  final TextEditingController controller;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Row(
+      children: [
+        Container(
+          width: 45,
+          height: 45,
+          decoration: BoxDecoration(
+            color: context.grays.gray8,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: SvgPicture.asset(
+              'assets/icons/team/instagram.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                context.grays.gray6,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            height: 45,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: context.grays.gray8,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Center(
+              child: TextField(
+                controller: controller,
+                style: FontStyles.reg18.copyWith(color: context.grays.gray5),
+                decoration: InputDecoration(
+                  hintText: '링크 붙여넣기',
+                  border: InputBorder.none,
+                  hintStyle: FontStyles.reg18.copyWith(
+                    color: context.grays.gray5,
+                  ),
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        GestureDetector(
+          onTap: onDelete,
+          child: SvgPicture.asset(
+            'assets/icons/etc/cancel.svg',
+            width: 16,
+            height: 16,
+          ),
+        ),
+      ],
     );
   }
 }
