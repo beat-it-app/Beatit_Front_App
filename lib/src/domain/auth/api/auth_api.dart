@@ -9,6 +9,7 @@ import 'package:beatit_front_app/src/domain/auth/model/signup/signup_response.da
 import 'package:beatit_front_app/src/domain/auth/model/signup/signup_request.dart';
 import 'package:beatit_front_app/src/domain/auth/model/account/find_id_response.dart';
 import 'package:beatit_front_app/src/domain/auth/model/account/reset_password_request.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AuthApi {
   AuthApi(this._dio);
@@ -17,6 +18,9 @@ class AuthApi {
 
   static const String _signupPath = '/auth/signup';
   static const String _checkDuplicationPath = '/auth/check-identifier';
+  static const String _verifyEmailPath = '/auth/email-verification/verify';
+  static const String _verifyEmailSendPath = '/auth/email-verification/send';
+
   static const String _loginPath = '/auth/login';
   static const String _googleLoginPath = '/auth/google';
   static const String _logoutPath = '/auth/logout';
@@ -26,8 +30,6 @@ class AuthApi {
   static const String _resetPasswordPath = '/auth/reset-password';
   static const String _resetPasswordVerifyPath = '/auth/reset-password/verify';
   static const String _resetPasswordSendPath = '/auth/reset-password/send';
-  static const String _verifyEmailPath = '/auth/email-verification/verify';
-  static const String _verifyEmailSendPath = '/auth/email-verification/send';
 
   static const String _profilePath = '/users/profile';
 
@@ -59,12 +61,143 @@ class AuthApi {
     }
   }
 
+  Future<void> sendEmailCode({required String email}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _verifyEmailSendPath,
+        queryParameters: {'email': email},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '이메일 전송에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> verifyEmailCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _verifyEmailPath,
+        queryParameters: {'email': email, 'code': code},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '이메일 인증에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> dulicateCheck({required String identifier}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        _checkDuplicationPath,
+        queryParameters: {'identifier': identifier},
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '아이디 중복 확인에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<AuthSession> login(LoginRequest request) {
     return _authenticate(path: _loginPath, data: request.toJson());
   }
 
   Future<AuthSession> loginWithGoogle(GoogleLoginRequest request) {
     return _authenticate(path: _googleLoginPath, data: request.toJson());
+  }
+
+  Future<AuthSession> _authenticate({
+    required String path,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        path,
+        data: data,
+        options: _publicRequestOptions(),
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '로그인에 실패했습니다.',
+        );
+      }
+
+      debugPrint('[AuthApi] response body: $body');
+
+      final loginResponse = LoginResponse.fromJson(body);
+
+      final loginData = loginResponse.data;
+
+      final authorization = response.headers.value('authorization');
+      final accessToken = _extractBearerToken(authorization);
+
+      if (accessToken == null) {
+        throw const AuthApiException(message: '로그인 토큰이 응답에 존재하지 않습니다.');
+      }
+
+      return AuthSession(
+        userId: loginData.userId,
+        role: loginData.role,
+        createdProfile: loginData.createdProfile,
+        socialProvider: loginData.socialProvider,
+        accessToken: accessToken,
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
   Future<void> sendFindIdentifierCode({required String email}) async {
@@ -229,56 +362,6 @@ class AuthApi {
     }
   }
 
-  Future<AuthSession> _authenticate({
-    required String path,
-    required Map<String, dynamic> data,
-  }) async {
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        path,
-        data: data,
-        options: _publicRequestOptions(),
-      );
-
-      final body = response.data;
-
-      if (body == null) {
-        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
-      }
-
-      if (body['success'] != true) {
-        throw _createApiException(
-          body: body,
-          statusCode: response.statusCode,
-          fallbackMessage: '로그인에 실패했습니다.',
-        );
-      }
-
-      debugPrint('[AuthApi] response body: $body');
-
-      final loginResponse = LoginResponse.fromJson(body);
-
-      final loginData = loginResponse.data;
-
-      final authorization = response.headers.value('authorization');
-      final accessToken = _extractBearerToken(authorization);
-
-      if (accessToken == null) {
-        throw const AuthApiException(message: '로그인 토큰이 응답에 존재하지 않습니다.');
-      }
-
-      return AuthSession(
-        userId: loginData.userId,
-        role: loginData.role,
-        createdProfile: loginData.createdProfile,
-        socialProvider: loginData.socialProvider,
-        accessToken: accessToken,
-      );
-    } on DioException catch (error) {
-      throw _mapDioException(error);
-    }
-  }
-
   Options _publicRequestOptions() {
     return Options(extra: const {'requiresAuth': false});
   }
@@ -324,6 +407,64 @@ class AuthApi {
       message: '서버와 통신할 수 없습니다.',
       statusCode: error.response?.statusCode,
     );
+  }
+
+  Future<void> createProfile({
+    required String name,
+    XFile? profileImage,
+    int? defaultImageId,
+  }) async {
+    final hasCustomImage = profileImage != null;
+    final hasDefaultImage = defaultImageId != null;
+
+    if (hasCustomImage == hasDefaultImage) {
+      throw const AuthApiException(message: '프로필 이미지를 하나만 선택해주세요.');
+    }
+
+    try {
+      final formData = FormData();
+
+      formData.fields.add(MapEntry('name', name));
+
+      if (defaultImageId != null) {
+        formData.fields.add(
+          MapEntry('defaultImageId', defaultImageId.toString()),
+        );
+      }
+
+      if (profileImage != null) {
+        formData.files.add(
+          MapEntry(
+            'profileImage',
+            await MultipartFile.fromFile(
+              profileImage.path,
+              filename: profileImage.name,
+            ),
+          ),
+        );
+      }
+
+      final response = await _dio.post<Map<String, dynamic>>(
+        _profilePath,
+        data: formData,
+      );
+
+      final body = response.data;
+
+      if (body == null) {
+        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+      }
+
+      if (body['success'] != true) {
+        throw _createApiException(
+          body: body,
+          statusCode: response.statusCode,
+          fallbackMessage: '프로필 생성에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 }
 

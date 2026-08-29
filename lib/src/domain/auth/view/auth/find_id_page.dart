@@ -108,7 +108,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
               _RequiredLabel(
                 text: '이메일 인증',
                 color: colors.onSurface,
-                requiredColor: colors.primary,
+                requiredColor: null,
               ),
 
               const SizedBox(height: AppSpacing.x8),
@@ -235,15 +235,21 @@ class _RequiredLabel extends StatelessWidget {
   const _RequiredLabel({
     required this.text,
     required this.color,
-    required this.requiredColor,
+    this.requiredColor,
   });
 
   final String text;
   final Color color;
-  final Color requiredColor;
+  final Color? requiredColor;
 
   @override
   Widget build(BuildContext context) {
+    if (requiredColor == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(text, style: FontStyles.semi16.copyWith(color: color)),
+      );
+    }
     return Align(
       alignment: Alignment.centerLeft,
       child: RichText(

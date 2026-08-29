@@ -149,7 +149,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                         return AppTextField(
                           label: '비밀번호',
                           hintText: '비밀번호',
-                          requiredMark: true,
+                          requiredMark: false,
                           controller: passwordController,
                           obscureText: !_isPasswordVisible,
                           errorText: _passwordErrorText,

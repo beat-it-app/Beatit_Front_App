@@ -5,7 +5,7 @@ import 'auth_interceptor.dart';
 import 'auth_token_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
-  'http://3.34.225.157:8083',
+  'API_BASE_URL',
   defaultValue: 'http://3.34.225.157:8083',
 );
 

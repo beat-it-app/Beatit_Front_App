@@ -79,6 +79,16 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
     });
   }
 
+  void markProfileCreated() {
+    final session = state.asData?.value;
+
+    if (session == null) {
+      return;
+    }
+
+    state = AsyncData(session.copyWith(createdProfile: true));
+  }
+
   Future<void> logout() async {
     final currentSession = state.asData?.value;
     final tokenStorage = ref.read(authTokenStorageProvider);

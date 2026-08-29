@@ -132,7 +132,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
               _RequiredLabel(
                 text: '아이디',
                 color: colors.onSurface,
-                requiredColor: colors.primary,
+                requiredColor: null,
               ),
 
               const SizedBox(height: AppSpacing.x8),
@@ -154,6 +154,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
                   Expanded(
                     child: AppTextField(
                       label: '이메일 인증',
+                      requiredMark: false,
                       hintText: '이메일',
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -240,15 +241,22 @@ class _RequiredLabel extends StatelessWidget {
   const _RequiredLabel({
     required this.text,
     required this.color,
-    required this.requiredColor,
+    this.requiredColor,
   });
 
   final String text;
   final Color color;
-  final Color requiredColor;
+  final Color? requiredColor;
 
   @override
   Widget build(BuildContext context) {
+    if (requiredColor == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(text, style: FontStyles.semi16.copyWith(color: color)),
+      );
+    }
+
     return Align(
       alignment: Alignment.centerLeft,
       child: RichText(

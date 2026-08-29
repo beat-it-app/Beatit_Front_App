@@ -5,9 +5,9 @@ import 'package:beatit_front_app/src/domain/auth/model/signup/signup_response.da
 import 'package:beatit_front_app/src/domain/auth/provider/auth_api_provider.dart';
 
 final signupProvider =
-NotifierProvider<SignupNotifier, AsyncValue<SignupData?>>(
-  SignupNotifier.new,
-);
+    NotifierProvider<SignupNotifier, AsyncValue<SignupData?>>(
+      SignupNotifier.new,
+    );
 
 class SignupNotifier extends Notifier<AsyncValue<SignupData?>> {
   @override
