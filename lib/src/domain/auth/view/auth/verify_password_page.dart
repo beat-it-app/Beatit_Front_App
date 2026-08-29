@@ -1,33 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/domain/auth/provider/find_id_provider.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/result_box.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/reset_password_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
 
-class FindIdPage extends ConsumerStatefulWidget {
-  const FindIdPage({super.key});
+class VerifyPasswordPage extends ConsumerStatefulWidget {
+  const VerifyPasswordPage({super.key});
 
   @override
-  ConsumerState<FindIdPage> createState() => _FindIdPageState();
+  ConsumerState<VerifyPasswordPage> createState() => _VerifyPasswordPageState();
 }
 
-class _FindIdPageState extends ConsumerState<FindIdPage> {
+class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
+  final idController = TextEditingController();
   final emailController = TextEditingController();
   final codeController = TextEditingController();
+
+  void _onIdentityChanged() {
+    ref.read(resetPasswordProvider.notifier).onIdentityChanged();
+
+    codeController.clear();
+
+    setState(() {});
+  }
 
   Future<void> _sendEmailCode() async {
     FocusScope.of(context).unfocus();
 
     final success = await ref
-        .read(findIdentifierProvider.notifier)
-        .sendCode(email: emailController.text.trim());
+        .read(resetPasswordProvider.notifier)
+        .sendCode(
+          identifier: idController.text.trim(),
+          email: emailController.text.trim(),
+        );
 
     if (!mounted) {
       return;
@@ -35,26 +46,37 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
 
     if (success) {
       codeController.clear();
+      setState(() {});
     }
   }
 
   Future<void> _verifyEmailCode() async {
     FocusScope.of(context).unfocus();
 
-    await ref
-        .read(findIdentifierProvider.notifier)
+    final success = await ref
+        .read(resetPasswordProvider.notifier)
         .verifyCode(
           email: emailController.text.trim(),
           code: codeController.text.trim(),
         );
-  }
 
-  void _goToLogin() {
-    Navigator.of(context).pop();
+    if (!mounted || !success) {
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ResetPasswordPage(
+          identifier: idController.text.trim(),
+          email: emailController.text.trim(),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    idController.dispose();
     emailController.dispose();
     codeController.dispose();
 
@@ -64,10 +86,12 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final state = ref.watch(findIdentifierProvider);
+    final state = ref.watch(resetPasswordProvider);
 
     final canSendCode =
-        emailController.text.trim().isNotEmpty && !state.isLoading;
+        idController.text.trim().isNotEmpty &&
+        emailController.text.trim().isNotEmpty &&
+        !state.isLoading;
 
     final canVerifyCode =
         state.isCodeSent &&
@@ -81,7 +105,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
         },
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.x24,
             horizontal: AppSpacing.x16,
@@ -90,14 +114,14 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '아이디 찾기',
+                '비밀번호 재설정',
                 style: FontStyles.bold28.copyWith(color: colors.onSurface),
               ),
 
               const SizedBox(height: AppSpacing.x4),
 
               Text(
-                '가입한 이메일을 통해 인증 후 아이디를 확인해주세요.',
+                '가입한 아이디와 이메일을 인증해주세요.',
                 style: FontStyles.reg12.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -106,27 +130,37 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
               const SizedBox(height: AppSpacing.x50),
 
               _RequiredLabel(
-                text: '이메일 인증',
+                text: '아이디',
                 color: colors.onSurface,
                 requiredColor: null,
               ),
 
               const SizedBox(height: AppSpacing.x8),
 
+              AppTextField(
+                hintText: '아이디',
+                controller: idController,
+                isError: state.identityError != null,
+                onChanged: (_) {
+                  _onIdentityChanged();
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.x20),
+
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: AppTextField(
+                      label: '이메일 인증',
+                      requiredMark: false,
                       hintText: '이메일',
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
+                      isError: state.identityError != null,
                       onChanged: (_) {
-                        ref
-                            .read(findIdentifierProvider.notifier)
-                            .onEmailChanged();
-
-                        setState(() {});
+                        _onIdentityChanged();
                       },
                     ),
                   ),
@@ -135,7 +169,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
 
                   AppButton(
                     text: state.isSendingCode
-                        ? '발송 중'
+                        ? '전송 중'
                         : state.isCodeSent
                         ? '재전송'
                         : '인증번호 발송',
@@ -147,18 +181,14 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
                 ],
               ),
 
-              if (state.emailError != null) ...[
+              if (state.identityError != null) ...[
                 const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(
-                  text: state.emailError!,
-                  color: context.brands.error,
-                  isError: true,
-                ),
-              ] else if (state.isCodeSent && !state.isVerified) ...[
+                AppFieldMessage(text: state.identityError!, isError: true),
+              ] else if (state.isCodeSent) ...[
                 const SizedBox(height: AppSpacing.x4),
                 AppFieldMessage(
                   text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
-                  color: context.grays.gray1,
+                  color: colors.onSurfaceVariant,
                   icon: 'assets/icons/check/check_round_green.svg',
                 ),
               ],
@@ -166,15 +196,16 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
               const SizedBox(height: AppSpacing.x10),
 
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: AppTextField(
                       hintText: '인증번호',
                       controller: codeController,
+                      isError: state.codeError != null,
                       onChanged: (_) {
                         ref
-                            .read(findIdentifierProvider.notifier)
+                            .read(resetPasswordProvider.notifier)
                             .onCodeChanged();
 
                         setState(() {});
@@ -196,32 +227,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
 
               if (state.codeError != null) ...[
                 const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(
-                  text: state.codeError!,
-                  color: context.brands.error,
-                  isError: true,
-                ),
-              ] else if (state.isVerified) ...[
-                const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(
-                  text: '인증번호 확인이 완료되었습니다.',
-                  color: context.grays.gray1,
-                  icon: 'assets/icons/check/check_round_green.svg',
-                ),
-              ],
-
-              if (state.isVerified) ...[
-                const SizedBox(height: AppSpacing.x40),
-
-                ResultBox(label: '아이디', value: state.identifier!),
-
-                const SizedBox(height: AppSpacing.x10),
-
-                AppButton(
-                  text: '로그인하러 가기',
-                  onPressed: _goToLogin,
-                  variant: ButtonVariant.outlined,
-                ),
+                AppFieldMessage(text: state.codeError!, isError: true),
               ],
             ],
           ),
@@ -250,6 +256,7 @@ class _RequiredLabel extends StatelessWidget {
         child: Text(text, style: FontStyles.semi16.copyWith(color: color)),
       );
     }
+
     return Align(
       alignment: Alignment.centerLeft,
       child: RichText(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_fonts.dart';
 import '../../theme/app_spacing.dart';
@@ -16,27 +17,22 @@ class AppFieldMessage extends StatelessWidget {
   final String text;
   final bool isError;
   final Color? color;
-  final Widget? icon;
+  final String? icon;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final textColor = isError
-        ? colors.error
-        : color ?? colors.onSurfaceVariant;
+    final textColor = isError ? colors.error : color ?? colors.onSurfaceVariant;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (icon != null) ...[
-          icon!,
+          SvgPicture.asset(icon!, width: 15, height: 15),
           const SizedBox(width: AppSpacing.x4),
         ],
         Expanded(
-          child: Text(
-            text,
-            style: FontStyles.reg12.copyWith(color: textColor),
-          ),
+          child: Text(text, style: FontStyles.med12.copyWith(color: textColor)),
         ),
       ],
     );

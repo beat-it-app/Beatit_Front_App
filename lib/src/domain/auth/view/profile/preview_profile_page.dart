@@ -1,13 +1,20 @@
+import 'dart:io';
+
+import 'package:beatit_front_app/src/app.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/profile_preview_item.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 
-import 'complete_signup_page.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/create_profile_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/profile_preview_item.dart';
 
 const List<String> _profileAssetPaths = <String>[
   'assets/images/auth/profile_orange.png',
@@ -16,58 +23,61 @@ const List<String> _profileAssetPaths = <String>[
   'assets/images/auth/profile_pink.png',
 ];
 
-class PreviewProfilePage extends StatefulWidget {
+class PreviewProfilePage extends ConsumerStatefulWidget {
+  const PreviewProfilePage({super.key, required this.userName});
+
   final String userName;
 
-  const PreviewProfilePage({super.key, this.userName = '송하은'});
-
   @override
-  State<PreviewProfilePage> createState() => _PreviewProfilePageState();
+  ConsumerState<PreviewProfilePage> createState() => _PreviewProfilePageState();
 }
 
-class _PreviewProfilePageState extends State<PreviewProfilePage> {
-  int? _selectedProfileIndex;
-  bool _isCustomProfileAdded = false;
+class _PreviewProfilePageState extends ConsumerState<PreviewProfilePage> {
+  final ImagePicker _imagePicker = ImagePicker();
 
-  int get _customProfileIndex => _profileAssetPaths.length;
+  Future<void> _pickCustomProfile() async {
+    final image = await _imagePicker.pickImage(source: ImageSource.gallery);
 
-  bool get _isCustomProfileSelected {
-    return _selectedProfileIndex == _customProfileIndex;
-  }
-
-  bool get _canSubmit {
-    return _selectedProfileIndex != null;
-  }
-
-  void _selectProfile(int index) {
-    setState(() {
-      _selectedProfileIndex = index;
-    });
-  }
-
-  void _selectCustomProfile() {
-    setState(() {
-      _isCustomProfileAdded = true;
-      _selectedProfileIndex = _customProfileIndex;
-    });
-  }
-
-  void _handleNextPressed() {
-    if (!_canSubmit) {
+    if (!mounted || image == null) {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CompleteSignupPage(userName: widget.userName),
-      ),
+    ref.read(profileCreateProvider.notifier).selectCustomProfile(image);
+  }
+
+  Future<void> _handleCompletePressed() async {
+    FocusScope.of(context).unfocus();
+
+    final success = await ref
+        .read(profileCreateProvider.notifier)
+        .createProfile(name: widget.userName);
+
+    if (!mounted || !success) {
+      return;
+    }
+
+    ref.read(authProvider.notifier).markProfileCreated();
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => MainShell()),
+      (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final colors = Theme.of(context).colorScheme;
+    final state = ref.watch(profileCreateProvider);
+
+    final selection = state.selectedImage;
+
+    final selectedDefaultId = selection is DefaultProfileSelection
+        ? selection.defaultImageId
+        : null;
+
+    final customImage = selection is CustomProfileSelection
+        ? selection.image
+        : null;
 
     return Scaffold(
       appBar: AppTopAppBar.backOnly(
@@ -97,14 +107,18 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                           letterSpacing: -0.92,
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.x10),
+
                       Text(
                         '사용할 프로필 이미지를 선택해주세요.',
                         style: FontStyles.med16.copyWith(
                           color: context.grays.gray5,
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.x60),
+
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -116,29 +130,41 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                               index++
                             )
                               ProfilePreviewItem(
-                                isSelected: _selectedProfileIndex == index,
+                                isSelected: selectedDefaultId == index + 1,
                                 label: widget.userName,
                                 semanticsLabel:
                                     '${widget.userName} 기본 프로필 ${index + 1}',
                                 onTap: () {
-                                  _selectProfile(index);
+                                  ref
+                                      .read(profileCreateProvider.notifier)
+                                      .selectDefaultProfile(index + 1);
                                 },
                                 image: Image.asset(
                                   _profileAssetPaths[index],
                                   fit: BoxFit.contain,
                                 ),
                               ),
+
                             ProfilePreviewItem(
-                              isSelected: _isCustomProfileSelected,
-                              label: _isCustomProfileAdded
+                              isSelected: customImage != null,
+                              label: customImage != null
                                   ? widget.userName
                                   : '프로필 추가',
-                              isLabelEnabled: _isCustomProfileAdded,
-                              semanticsLabel: _isCustomProfileAdded
+                              isLabelEnabled: customImage != null,
+                              semanticsLabel: customImage != null
                                   ? '${widget.userName} 커스텀 프로필'
                                   : '프로필 추가',
-                              onTap: _selectCustomProfile,
-                              image: const AddProfileImage(),
+                              onTap: _pickCustomProfile,
+                              image: customImage == null
+                                  ? const AddProfileImage()
+                                  : ClipOval(
+                                      child: SizedBox.expand(
+                                        child: Image.file(
+                                          File(customImage.path),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ],
                         ),
@@ -147,13 +173,18 @@ class _PreviewProfilePageState extends State<PreviewProfilePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.x16),
+
+              if (state.error != null) ...[
+                AppFieldMessage(text: state.error!, isError: true),
+                const SizedBox(height: AppSpacing.x10),
+              ],
+
               AppButton(
-                text: '완료',
+                text: state.isSubmitting ? '등록 중' : '완료',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _canSubmit ? _handleNextPressed : null,
+                onPressed: state.canSubmit ? _handleCompletePressed : null,
               ),
             ],
           ),
