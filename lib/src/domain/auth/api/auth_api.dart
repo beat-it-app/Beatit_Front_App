@@ -116,7 +116,7 @@ class AuthApi {
     }
   }
 
-  Future<void> dulicateCheck({required String identifier}) async {
+  Future<void> checkIdentifier({required String identifier}) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         _checkDuplicationPath,
