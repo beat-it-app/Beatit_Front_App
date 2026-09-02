@@ -78,6 +78,12 @@ abstract class FontStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
+  static const TextStyle semi10 = TextStyle(
+    fontSize: 10,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
 
   static const TextStyle med20 = TextStyle(
     fontSize: 20,

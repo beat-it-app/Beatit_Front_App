@@ -13,6 +13,7 @@ import 'package:beatit_front_app/src/domain/auth/view/profile/complete_signup_pa
 import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
 import 'package:flutter/material.dart';
 
@@ -62,7 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: CompleteSignupPage(),
+      body: TeamDetailPage(),
     );
   }
 }

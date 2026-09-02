@@ -30,7 +30,7 @@ class TeamCreateSuccessPage extends StatelessWidget {
             left: 0,
             right: 0,
             child: Image.asset(
-              'assets/images/team_success_bg.png',
+              'assets/images/team/team_success_bg.png',
               fit: BoxFit.fitWidth,
             ),
           ),

@@ -58,6 +58,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/auth/
+    - assets/images/team/
     - assets/icons/
     - assets/icons/popup/
     - assets/icons/navigation/
