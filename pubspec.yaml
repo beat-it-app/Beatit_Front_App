@@ -63,6 +63,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/auth/
     - assets/icons/
     - assets/icons/popup/
     - assets/icons/navigation/
@@ -74,6 +75,8 @@ flutter:
     - assets/icons/plus/
     - assets/icons/cloud/
     - assets/icons/profile/
+    - assets/icons/team/
+    - assets/icons/etc/
 
   fonts:
     - family: Pretendard

@@ -141,7 +141,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          textStyle: FontStyles.semi16,
+          textStyle: FontStyles.semi16.copyWith(letterSpacing: 0),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(

@@ -5,7 +5,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_fonts.dart';
 
-enum ButtonVariant { primary, black, white, gray, outlined }
+enum ButtonVariant { primary, black, white, gray, outlined, outlinedGray }
 
 enum ButtonWidth {
   small, // width 97
@@ -96,6 +96,17 @@ class AppButton extends StatelessWidget {
         style: _sizeStyle,
         child: child,
       ),
+      ButtonVariant.outlinedGray => OutlinedButton(
+        onPressed: _isDisabled ? null : onPressed,
+        style: _sizeStyle.merge(
+          OutlinedButton.styleFrom(
+            backgroundColor: colors.surface,
+            foregroundColor: colors.onSurface,
+            side: BorderSide(color: context.grays.gray7, width: 1),
+          ),
+        ),
+        child: child,
+      ),
     };
 
     return SizedBox(width: width.value, height: height.value, child: button);
@@ -116,6 +127,7 @@ class AppButton extends StatelessWidget {
       ButtonVariant.white => colors.onSurface,
       ButtonVariant.gray => colors.onSurface,
       ButtonVariant.outlined => colors.primary,
+      ButtonVariant.outlinedGray => colors.primary,
     };
   }
 }
