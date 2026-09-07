@@ -530,8 +530,8 @@ class TeamDetailPage extends StatelessWidget {
                             data.location,
                             style: FontStyles.med12.copyWith(
                               color: data.isDimmed
-                                  ? context.grays.gray4
-                                  : context.grays.gray6,
+                                  ? context.grays.gray6
+                                  : context.grays.gray4,
                             ),
                           ),
                         ],

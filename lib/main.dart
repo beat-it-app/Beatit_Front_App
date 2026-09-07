@@ -11,10 +11,16 @@ import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.d
 import 'package:beatit_front_app/src/domain/auth/view/auth/signup_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/profile/complete_signup_page.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_detail_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
+
 import 'package:flutter/material.dart';
 
 import 'src/core/theme/app_theme.dart';
@@ -63,7 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //     });
       //   },
       // ),
-      body: TeamDetailPage(),
+      body: TeamArchiveListPage(),
     );
   }
 }
