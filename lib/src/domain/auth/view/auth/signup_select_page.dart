@@ -8,8 +8,8 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signin_page.dart';
-import 'package:beatit_front_app/src/domain/auth/view/signup_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signup_page.dart';
 
 class SignupSelectPage extends StatefulWidget {
   const SignupSelectPage({super.key});
