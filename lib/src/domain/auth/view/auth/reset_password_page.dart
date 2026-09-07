@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/result_box.dart';
@@ -181,7 +182,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     child: AppTextField(
                       hintText: '아이디',
                       controller: idController,
-                      errorText: _idErrorText,
+                      isError: _idErrorText != null,
                       onChanged: (_) {
                         setState(() {
                           _isIdDuplicated = false;
@@ -199,6 +200,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                 ],
               ),
+              if (_idErrorText != null) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(text: _idErrorText!, isError: true),
+              ],
 
               const SizedBox(height: AppSpacing.x20),
 
@@ -211,10 +216,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       hintText: '이메일',
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
-                      messageText: _isEmailCodeSent
-                          ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                          : null,
-                      messageColor: colors.onSurfaceVariant,
                       onChanged: (_) {
                         setState(() {});
                       },
@@ -230,6 +231,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                 ],
               ),
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
 
               const SizedBox(height: AppSpacing.x10),
 
@@ -240,10 +248,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     child: AppTextField(
                       hintText: '인증번호',
                       keyboardType: TextInputType.emailAddress,
-                      messageText: _isEmailCodeSent
-                          ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                          : null,
-                      messageColor: colors.onSurfaceVariant,
                       onChanged: (_) {},
                     ),
                   ),
@@ -257,6 +261,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                 ],
               ),
+              if (_isEmailCodeSent) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(
+                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
 
               const SizedBox(height: AppSpacing.x20),
 
@@ -272,7 +283,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           hintText: '새로운 비밀번호',
                           controller: passwordController,
                           obscureText: !_isPasswordVisible,
-                          errorText: _passwordErrorText,
+                          isError: _passwordErrorText != null,
                           onChanged: (_) {
                             setState(() {});
                           },
@@ -300,6 +311,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                 ],
               ),
+              if (_passwordErrorText != null) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(text: _passwordErrorText!, isError: true),
+              ],
 
               const SizedBox(height: AppSpacing.x10),
 
@@ -313,7 +328,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           hintText: '비밀번호 재입력',
                           controller: passwordCheckController,
                           obscureText: !_isPasswordCheckVisible,
-                          errorText: _passwordCheckErrorText,
+                          isError: _passwordCheckErrorText != null,
                           onChanged: (_) {
                             setState(() {});
                           },
@@ -342,6 +357,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   ),
                 ],
               ),
+              if (_passwordCheckErrorText != null) ...[
+                const SizedBox(height: AppSpacing.x4),
+                AppFieldMessage(text: _passwordCheckErrorText!, isError: true),
+              ],
 
               const SizedBox(height: AppSpacing.x40),
 
@@ -379,14 +398,12 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.semi16.copyWith(color: color),
           children: [
             TextSpan(text: text),
             TextSpan(
               text: ' *',
-              style: TextStyle(color: requiredColor),
+              style: FontStyles.semi16.copyWith(color: requiredColor),
             ),
           ],
         ),

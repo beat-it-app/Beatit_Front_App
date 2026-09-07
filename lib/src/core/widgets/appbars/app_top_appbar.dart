@@ -1,10 +1,13 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../theme/app_fonts.dart';
-
 enum AppTopAppBarTrailing { none, more, close, alarm }
+
+const double _appBarActionButtonWidth = 60.0;
+const double _appBarActionButtonHeight = 48.0;
 
 class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopAppBar({
@@ -16,14 +19,19 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onMorePressed,
     this.onClosePressed,
     this.onAlarmPressed,
-    this.toolbarHeight = 64,
+    this.moreMenuItems = const [],
+    this.moreMenuAlignment = AppDropdownAlignment.right,
+    this.moreMenuWidth = 170.0,
+    this.moreMenuItemHeight = 44.0,
+    this.moreMenuOffset = const Offset(0, 56),
+    this.toolbarHeight = 64.0,
   });
 
   const AppTopAppBar.backTitle({
     super.key,
     required String title,
     VoidCallback? onBackPressed,
-    double toolbarHeight = 64,
+    double toolbarHeight = 64.0,
   }) : title = title,
        showBackButton = true,
        trailing = AppTopAppBarTrailing.none,
@@ -31,12 +39,17 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
+       moreMenuItems = const [],
+       moreMenuAlignment = AppDropdownAlignment.right,
+       moreMenuWidth = 170.0,
+       moreMenuItemHeight = 44.0,
+       moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.backOnly({
     super.key,
     VoidCallback? onBackPressed,
-    double toolbarHeight = 64,
+    double toolbarHeight = 64.0,
   }) : title = null,
        showBackButton = true,
        trailing = AppTopAppBarTrailing.none,
@@ -44,18 +57,27 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
+       moreMenuItems = const [],
+       moreMenuAlignment = AppDropdownAlignment.right,
+       moreMenuWidth = 170.0,
+       moreMenuItemHeight = 44.0,
+       moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
-  const AppTopAppBar.moreOnly({
+  const AppTopAppBar.backMore({
     super.key,
     String? title,
-    VoidCallback? onBackPressed,
     VoidCallback? onMorePressed,
-    double toolbarHeight = 64,
+    this.moreMenuItems = const [],
+    this.moreMenuAlignment = AppDropdownAlignment.right,
+    this.moreMenuWidth = 170.0,
+    this.moreMenuItemHeight = 44.0,
+    this.moreMenuOffset = const Offset(0, 56),
+    double toolbarHeight = 64.0,
   }) : title = title,
-       showBackButton = false,
+       showBackButton = true,
        trailing = AppTopAppBarTrailing.more,
-       onBackPressed = onBackPressed,
+       onBackPressed = null,
        onMorePressed = onMorePressed,
        onClosePressed = null,
        onAlarmPressed = null,
@@ -64,7 +86,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopAppBar.closeOnly({
     super.key,
     VoidCallback? onClosePressed,
-    double toolbarHeight = 64,
+    double toolbarHeight = 64.0,
   }) : title = null,
        showBackButton = false,
        trailing = AppTopAppBarTrailing.close,
@@ -72,13 +94,18 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = onClosePressed,
        onAlarmPressed = null,
+       moreMenuItems = const [],
+       moreMenuAlignment = AppDropdownAlignment.right,
+       moreMenuWidth = 170.0,
+       moreMenuItemHeight = 44.0,
+       moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
-  /// 우측 trailing 영역에 벨 버튼 하나만 있는 앱바
+  /// 우측 trailing 영역에 알림 버튼 하나만 표시한다.
   const AppTopAppBar.alarmOnly({
     super.key,
     VoidCallback? onAlarmPressed,
-    double toolbarHeight = 64,
+    double toolbarHeight = 64.0,
   }) : title = null,
        showBackButton = false,
        trailing = AppTopAppBarTrailing.alarm,
@@ -86,6 +113,11 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = onAlarmPressed,
+       moreMenuItems = const [],
+       moreMenuAlignment = AppDropdownAlignment.right,
+       moreMenuWidth = 170.0,
+       moreMenuItemHeight = 44.0,
+       moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
   final String? title;
@@ -93,9 +125,34 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   final AppTopAppBarTrailing trailing;
 
   final VoidCallback? onBackPressed;
+
+  /// [moreMenuItems]가 비어 있을 때 더보기 버튼이 직접 실행할 콜백
   final VoidCallback? onMorePressed;
+
   final VoidCallback? onClosePressed;
   final VoidCallback? onAlarmPressed;
+
+  /// 더보기 버튼을 눌렀을 때 표시할 드롭다운 항목
+  ///
+  /// 비어 있으면 드롭다운을 표시하지 않고 [onMorePressed]를 실행한다.
+  final List<AppDropdownItem> moreMenuItems;
+
+  /// 드롭다운의 왼쪽 또는 오른쪽 정렬
+  final AppDropdownAlignment moreMenuAlignment;
+
+  /// 드롭다운 너비
+  final double moreMenuWidth;
+
+  /// 드롭다운 항목 하나의 높이
+  final double moreMenuItemHeight;
+
+  /// 정렬된 위치를 기준으로 한 추가 이동값
+  ///
+  /// 예:
+  /// `Offset(-16, 56)`
+  /// - 오른쪽 정렬 위치에서 왼쪽으로 16px
+  /// - 버튼 상단 기준 아래로 56px
+  final Offset moreMenuOffset;
 
   final double toolbarHeight;
 
@@ -113,7 +170,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       centerTitle: title != null,
       toolbarHeight: toolbarHeight,
-      leadingWidth: 60,
+      leadingWidth: _appBarActionButtonWidth,
       elevation: 0,
       scrolledUnderElevation: 0,
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -130,11 +187,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         switch (trailing) {
           AppTopAppBarTrailing.none => const SizedBox.shrink(),
-          AppTopAppBarTrailing.more => _AppBarPressIconButton(
-            icon: 'assets/icons/appbar/menu.svg',
-            semanticLabel: '더보기',
-            onPressed: onMorePressed ?? _noop,
-          ),
+          AppTopAppBarTrailing.more => _buildMoreAction(),
           AppTopAppBarTrailing.close => _AppBarPressIconButton(
             icon: 'assets/icons/appbar/delete.svg',
             semanticLabel: '닫기',
@@ -149,6 +202,44 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
     );
   }
+
+  Widget _buildMoreAction() {
+    // 메뉴 항목이 없는 화면에서는 기존처럼 콜백만 실행한다.
+    if (moreMenuItems.isEmpty) {
+      return _AppBarPressIconButton(
+        icon: 'assets/icons/appbar/menu.svg',
+        semanticLabel: '더보기',
+        onPressed: onMorePressed ?? _noop,
+      );
+    }
+
+    // 메뉴 항목이 있으면 더보기 버튼이 드롭다운을 연다.
+    return AppDropdownList(
+      items: moreMenuItems,
+      width: moreMenuWidth,
+
+      // 더보기 버튼의 실제 너비와 동일해야 한다.
+      anchorWidth: _appBarActionButtonWidth,
+
+      itemHeight: moreMenuItemHeight,
+      alignment: moreMenuAlignment,
+      alignmentOffset: moreMenuOffset,
+      triggerBuilder: (context, controller) {
+        return _AppBarPressIconButton(
+          icon: 'assets/icons/appbar/menu.svg',
+          semanticLabel: '더보기 메뉴',
+          onPressed: () {
+            if (controller.isOpen) {
+              controller.close();
+              return;
+            }
+
+            controller.open();
+          },
+        );
+      },
+    );
+  }
 }
 
 class _AppBarPressIconButton extends StatefulWidget {
@@ -156,7 +247,7 @@ class _AppBarPressIconButton extends StatefulWidget {
     required this.icon,
     required this.semanticLabel,
     required this.onPressed,
-    this.iconSize = 20,
+    this.iconSize = 20.0,
     this.pressedScale = 0.86,
     this.pressInDuration = const Duration(milliseconds: 200),
     this.pressOutDuration = const Duration(milliseconds: 400),
@@ -192,8 +283,6 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Semantics(
       button: true,
       label: widget.semanticLabel,
@@ -210,8 +299,8 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
         },
         onTap: widget.onPressed,
         child: SizedBox(
-          width: 60,
-          height: 48,
+          width: _appBarActionButtonWidth,
+          height: _appBarActionButtonHeight,
           child: Center(
             child: AnimatedScale(
               scale: _isPressed ? widget.pressedScale : 1.0,
@@ -219,7 +308,15 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
                   ? widget.pressInDuration
                   : widget.pressOutDuration,
               curve: widget.curve,
-              child: SvgPicture.asset(widget.icon, color: context.grays.black),
+              child: SvgPicture.asset(
+                widget.icon,
+                width: widget.iconSize,
+                height: widget.iconSize,
+                colorFilter: ColorFilter.mode(
+                  context.grays.black,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
         ),

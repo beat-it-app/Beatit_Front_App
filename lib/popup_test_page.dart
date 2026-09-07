@@ -1,3 +1,9 @@
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
 import 'package:flutter/material.dart';
 
 class GroupChatProfile extends StatelessWidget {
@@ -214,10 +220,9 @@ class GroupChatProfile extends StatelessWidget {
     return Container(
       width: imageSize,
       height: imageSize,
-      padding: EdgeInsets.all(0),
+      padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-
         // 프로필 간 경계선 역할
         color: colorScheme.surface,
       ),

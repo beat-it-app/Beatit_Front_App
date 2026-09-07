@@ -40,7 +40,7 @@ class AppBottomNavigationBar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     this.items = defaultAppNavigationItems,
-    this.height = 58,
+    this.height = 64,
     this.iconSize = 24,
 
     this.pressedScale = 0.90,
