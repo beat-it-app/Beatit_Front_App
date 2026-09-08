@@ -64,7 +64,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
-  const AppTopAppBar.backMore({
+  const AppTopAppBar.moreOnly({
     super.key,
     String? title,
     VoidCallback? onMorePressed,
@@ -75,10 +75,30 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.moreMenuOffset = const Offset(0, 56),
     double toolbarHeight = 64.0,
   }) : title = title,
-       showBackButton = true,
+       showBackButton = false,
        trailing = AppTopAppBarTrailing.more,
        onBackPressed = null,
        onMorePressed = onMorePressed,
+       onClosePressed = null,
+       onAlarmPressed = null,
+       toolbarHeight = toolbarHeight;
+
+  const AppTopAppBar.backMore({
+    super.key,
+    String? title,
+    VoidCallback? onMorePressed,
+    VoidCallback? onBackPressed,
+    this.moreMenuItems = const [],
+    this.moreMenuAlignment = AppDropdownAlignment.right,
+    this.moreMenuWidth = 170.0,
+    this.moreMenuItemHeight = 44.0,
+    this.moreMenuOffset = const Offset(0, 56),
+    double toolbarHeight = 64.0,
+  }) : title = title,
+       showBackButton = true,
+       trailing = AppTopAppBarTrailing.more,
+       onBackPressed = onBackPressed,
+       onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
        toolbarHeight = toolbarHeight;

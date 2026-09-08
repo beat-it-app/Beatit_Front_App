@@ -72,6 +72,7 @@ flutter:
     - assets/icons/core/
     - assets/icons/cal/
     - assets/icons/plus/
+    - assets/icons/post/
     - assets/icons/profile/
     - assets/icons/team/
     - assets/icons/etc/

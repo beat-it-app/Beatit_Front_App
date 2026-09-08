@@ -72,7 +72,9 @@ class _TextLinkButtonState extends State<TextLinkButton> {
             curve: Curves.easeOut,
             style: FontStyles.reg14.copyWith(
               color: widget.color,
-              decoration: TextDecoration.underline,
+              decoration: _isActive
+                  ? TextDecoration.underline
+                  : TextDecoration.none,
               decorationColor: widget.color,
               decorationThickness: 1,
             ),
