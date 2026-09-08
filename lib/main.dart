@@ -18,6 +18,10 @@ import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.d
 import 'package:beatit_front_app/src/domain/auth/view/auth/verify_password_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signup_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/profile/complete_signup_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_create_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_detail_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_edit_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_test_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_detail_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';

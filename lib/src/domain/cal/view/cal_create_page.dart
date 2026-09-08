@@ -49,6 +49,7 @@ class _CalCreatePageState extends State<CalCreatePage> {
 
     return Scaffold(
       appBar: AppTopAppBar.closeOnly(
+        title: '일정 생성하기',
         onClosePressed: () {
           Navigator.of(context).maybePop();
         },

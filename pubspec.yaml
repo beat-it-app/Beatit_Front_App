@@ -80,6 +80,7 @@ flutter:
     - assets/icons/cloud/
     - assets/icons/post/
     - assets/icons/profile/
+    - assets/icons/meetit/
     - assets/icons/team/
     - assets/icons/etc/
 
