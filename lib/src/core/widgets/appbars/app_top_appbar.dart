@@ -193,7 +193,17 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: _appBarActionButtonWidth,
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: theme.scaffoldBackgroundColor,
+
+      // 💡 [수정] AppTopAppBar.alarmOnly 대신 trailing 변수를 검사합니다.
+      backgroundColor: (trailing == AppTopAppBarTrailing.alarm)
+          ? Colors.transparent
+          : theme.scaffoldBackgroundColor,
+
+      // 💡 Material3 스크롤 시 틴트 색상 오버레이 방지 (필수)
+      surfaceTintColor: (trailing == AppTopAppBarTrailing.alarm)
+          ? Colors.transparent
+          : null,
+
       foregroundColor: colors.onSurface,
       titleTextStyle: FontStyles.semi18.copyWith(color: colors.onSurface),
       leading: showBackButton
@@ -216,6 +226,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
           AppTopAppBarTrailing.alarm => _AppBarPressIconButton(
             icon: 'assets/icons/appbar/bell.svg',
             semanticLabel: '알림',
+            iconColor: Colors.white,
             onPressed: onAlarmPressed ?? _noop,
           ),
         },
@@ -268,6 +279,7 @@ class _AppBarPressIconButton extends StatefulWidget {
     required this.semanticLabel,
     required this.onPressed,
     this.iconSize = 20.0,
+    this.iconColor,
     this.pressedScale = 0.86,
     this.pressInDuration = const Duration(milliseconds: 200),
     this.pressOutDuration = const Duration(milliseconds: 400),
@@ -279,6 +291,7 @@ class _AppBarPressIconButton extends StatefulWidget {
   final VoidCallback onPressed;
 
   final double iconSize;
+  final Color? iconColor;
   final double pressedScale;
   final Duration pressInDuration;
   final Duration pressOutDuration;
@@ -333,7 +346,7 @@ class _AppBarPressIconButtonState extends State<_AppBarPressIconButton> {
                 width: widget.iconSize,
                 height: widget.iconSize,
                 colorFilter: ColorFilter.mode(
-                  context.grays.black,
+                  widget.iconColor ?? context.grays.black,
                   BlendMode.srcIn,
                 ),
               ),
