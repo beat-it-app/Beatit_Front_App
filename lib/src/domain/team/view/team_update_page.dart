@@ -1,5 +1,6 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_success_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart'; // 💡 TeamDetailPage 임포트 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -7,9 +8,9 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import '../../../core/extensions/app_gray_colors.dart';
 import '../../../core/widgets/bottomsheets/app_time_bottomsheet.dart';
-import '../../../core/widgets/buttons/app_upload_button.dart';
 import '../../../core/widgets/inputs/app_text_area.dart';
 
 class TeamUpdatePage extends StatefulWidget {
@@ -73,9 +74,30 @@ class _TeamUpdatePageState extends State<TeamUpdatePage> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppTopAppBar.backOnly(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
+      appBar: AppTopAppBar.closeOnly(
+        onClosePressed: () async {
+          final confirmed = await AppPopup.show(
+            context,
+            title: '작성을 중단하시겠습니까?',
+            content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+            warningType: WarningType.circle,
+            contentType: ContentType.small,
+            buttonNum: ButtonNum.two,
+            buttonSymmetric: ButtonSymmetric.horizontal,
+            confirmText: '확인',
+            cancelText: '취소',
+          );
+
+          if (!context.mounted) return;
+
+          // 💡 팝업에서 '확인'을 누른 경우 TeamDetailPage로 이동
+          if (confirmed == true) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const TeamDetailPage()),
+              (route) => route.isFirst,
+            );
+          }
         },
       ),
       body: SafeArea(
@@ -134,8 +156,6 @@ class _TeamUpdatePageState extends State<TeamUpdatePage> {
                       ),
                       const SizedBox(height: AppSpacing.x20),
 
-                      const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '사진 등록',
                         color: colors.onSurface,
@@ -143,7 +163,12 @@ class _TeamUpdatePageState extends State<TeamUpdatePage> {
                       ),
 
                       const SizedBox(height: AppSpacing.x8),
-                      AppUploadButton(text: '팀 사진 등록하기', onPressed: () {}),
+
+                      Image.asset(
+                        'assets/images/team/team_profile_example.png',
+                        width: double.infinity,
+                        fit: BoxFit.fitWidth,
+                      ),
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -187,8 +212,8 @@ class _TeamUpdatePageState extends State<TeamUpdatePage> {
                           child: Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF2F2F7),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF2F2F7),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -243,9 +268,6 @@ class _LinkInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
     return Row(
       children: [
         Container(
