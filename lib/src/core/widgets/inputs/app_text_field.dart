@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_fonts.dart';
 import '../../theme/app_radius.dart';
@@ -49,7 +50,7 @@ class AppTextField extends StatefulWidget {
 
   final String? messageText;
   final Color? messageColor;
-  final Widget? messageIcon;
+  final String? messageIcon;
 
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -241,7 +242,7 @@ class _AppTextFieldState extends State<AppTextField> {
             text: bottomText!,
             isError: _hasInlineError,
             color: widget.messageColor,
-            icon: _hasInlineError ? null : widget.messageIcon,
+            icon: widget.messageIcon,
           ),
         ],
       ],
