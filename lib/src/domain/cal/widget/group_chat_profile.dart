@@ -1,9 +1,3 @@
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
-import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
 import 'package:flutter/material.dart';
 
 class GroupChatProfile extends StatelessWidget {
@@ -66,13 +60,18 @@ class GroupChatProfile extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: _circleImage(context: context, url: url, imageSize: size),
+      child: _circleImage(
+        context: context,
+        url: url,
+        imageSize: size,
+        borderWidth: 0,
+      ),
     );
   }
 
   Widget _buildTwo(BuildContext context, List<String> urls) {
     // 기존 0.65보다 크게 잡아 두 이미지가 확실하게 겹치도록 설정
-    final itemSize = size * 0.72;
+    final itemSize = size * 0.70;
 
     return SizedBox(
       width: size,
@@ -116,26 +115,6 @@ class GroupChatProfile extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 오른쪽 아래
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: _circleImage(
-              context: context,
-              url: urls[2],
-              imageSize: itemSize,
-            ),
-          ),
-          // 위쪽 중앙
-          Positioned(
-            top: 0,
-            left: (size - itemSize) / 2,
-            child: _circleImage(
-              context: context,
-              url: urls[0],
-              imageSize: itemSize,
-            ),
-          ),
           // 왼쪽 아래
           Positioned(
             bottom: 0,
@@ -146,25 +125,11 @@ class GroupChatProfile extends StatelessWidget {
               imageSize: itemSize,
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildFourOrMore(BuildContext context, List<String> urls) {
-    // 절반보다 크게 설정해야 네 이미지가 중앙에서 서로 겹침
-    final itemSize = size * 0.90;
-
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // 왼쪽 위
+          // 위쪽 중앙
           Positioned(
             top: 0,
-            left: 0,
+            left: (size - itemSize) / 2,
             child: _circleImage(
               context: context,
               url: urls[0],
@@ -172,17 +137,31 @@ class GroupChatProfile extends StatelessWidget {
             ),
           ),
 
-          // 오른쪽 위
+          // 오른쪽 아래
           Positioned(
-            top: 0,
             right: 0,
+            bottom: 0,
             child: _circleImage(
               context: context,
-              url: urls[1],
+              url: urls[2],
               imageSize: itemSize,
             ),
           ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildFourOrMore(BuildContext context, List<String> urls) {
+    // 절반보다 크게 설정해야 네 이미지가 중앙에서 서로 겹침
+    final itemSize = size * 0.55;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
           // 왼쪽 아래
           Positioned(
             bottom: 0,
@@ -205,6 +184,28 @@ class GroupChatProfile extends StatelessWidget {
               imageSize: itemSize,
             ),
           ),
+
+          // 왼쪽 위
+          Positioned(
+            top: 0,
+            left: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[0],
+              imageSize: itemSize,
+            ),
+          ),
+
+          // 오른쪽 위
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _circleImage(
+              context: context,
+              url: urls[1],
+              imageSize: itemSize,
+            ),
+          ),
         ],
       ),
     );
@@ -214,15 +215,17 @@ class GroupChatProfile extends StatelessWidget {
     required BuildContext context,
     required String url,
     required double imageSize,
+    double borderWidth = 1,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       width: imageSize,
       height: imageSize,
-      padding: const EdgeInsets.all(0),
+      padding: EdgeInsets.all(0),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+
         // 프로필 간 경계선 역할
         color: colorScheme.surface,
       ),
