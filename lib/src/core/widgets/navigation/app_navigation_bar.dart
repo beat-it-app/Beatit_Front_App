@@ -71,7 +71,7 @@ class AppBottomNavigationBar extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColor.gray1,
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xxl),
+          top: Radius.circular(AppRadius.xxxl),
         ),
       ),
       child: SafeArea(

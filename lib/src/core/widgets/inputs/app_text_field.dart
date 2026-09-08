@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_fonts.dart';
 import '../../theme/app_radius.dart';
@@ -28,6 +29,7 @@ class AppTextField extends StatefulWidget {
     this.onChanged,
     this.onTap,
     this.height = 45,
+    this.fillColor,
   });
 
   final TextEditingController? controller;
@@ -49,7 +51,7 @@ class AppTextField extends StatefulWidget {
 
   final String? messageText;
   final Color? messageColor;
-  final Widget? messageIcon;
+  final String? messageIcon;
 
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -59,6 +61,7 @@ class AppTextField extends StatefulWidget {
   final VoidCallback? onTap;
 
   final double height;
+  final Color? fillColor;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -159,7 +162,7 @@ class _AppTextFieldState extends State<AppTextField> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
           decoration: BoxDecoration(
             color: widget.enabled
-                ? inputTheme.fillColor
+                ? widget.fillColor ?? inputTheme.fillColor
                 : colors.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
@@ -241,7 +244,7 @@ class _AppTextFieldState extends State<AppTextField> {
             text: bottomText!,
             isError: _hasInlineError,
             color: widget.messageColor,
-            icon: _hasInlineError ? null : widget.messageIcon,
+            icon: widget.messageIcon,
           ),
         ],
       ],

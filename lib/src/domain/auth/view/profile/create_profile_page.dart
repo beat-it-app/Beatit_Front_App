@@ -23,8 +23,20 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
     return _nameController.text.trim();
   }
 
+  String? get _nameErrorText {
+    if (_profileName.isEmpty) {
+      return null;
+    }
+
+    if (_profileName.length > 10) {
+      return '이름은 10자 이하로 입력해주세요.';
+    }
+
+    return null;
+  }
+
   bool get _canSubmit {
-    return _profileName.isNotEmpty;
+    return _profileName.isNotEmpty && _profileName.length <= 10;
   }
 
   void _handleNextPressed() {
@@ -44,6 +56,7 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
+
     super.dispose();
   }
 
@@ -81,23 +94,30 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                           letterSpacing: -0.92,
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.x10),
+
                       Text(
                         '설정된 이름은 팀원들과 공유됩니다.',
                         style: FontStyles.med16.copyWith(
                           color: context.grays.gray5,
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.x40),
+
                       _RequiredLabel(
                         text: '이름',
                         color: colors.onSurface,
                         requiredColor: colors.primary,
                       ),
+
                       const SizedBox(height: AppSpacing.x8),
+
                       AppTextField(
                         hintText: '이름을 입력하세요.',
                         controller: _nameController,
+                        errorText: _nameErrorText,
                         onChanged: (_) {
                           setState(() {});
                         },
@@ -106,7 +126,9 @@ class _CreateProfilePageState extends State<CreateProfilePage> {
                   ),
                 ),
               ),
+
               const SizedBox(height: AppSpacing.x16),
+
               AppButton(
                 text: '다음',
                 width: ButtonWidth.expand,

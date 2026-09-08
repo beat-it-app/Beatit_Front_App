@@ -30,13 +30,25 @@ abstract class FontStyles {
     letterSpacing: -0.32,
   );
   static const TextStyle bold26 = TextStyle(
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.32,
   );
   static const TextStyle bold22 = TextStyle(
     fontSize: 22,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle bold20 = TextStyle(
+    fontSize: 20,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle bold14 = TextStyle(
+    fontSize: 14,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.32,
@@ -74,6 +86,18 @@ abstract class FontStyles {
   );
   static const TextStyle semi14 = TextStyle(
     fontSize: 14,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle semi12 = TextStyle(
+    fontSize: 12,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle semi10 = TextStyle(
+    fontSize: 10,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
@@ -119,6 +143,13 @@ abstract class FontStyles {
     fontSize: 11,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w500,
+    letterSpacing: -0.32,
+  );
+
+  static const TextStyle reg22 = TextStyle(
+    fontSize: 22,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w400,
     letterSpacing: -0.32,
   );
 

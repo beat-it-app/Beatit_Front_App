@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.beatit_front_app"
+    namespace = "com.beatit.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: 배포 전에는 com.example.* 형태가 아닌 실제 고유 applicationId로 변경해야 함.
-        applicationId = "com.example.beatit_front_app"
+        applicationId = "com.beatit.app"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
