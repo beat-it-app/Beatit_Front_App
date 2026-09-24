@@ -29,16 +29,21 @@ $GoogleLoginRequestCopyWith<GoogleLoginRequest> get copyWith => _$GoogleLoginReq
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoogleLoginRequest&&(identical(other.idToken, idToken) || other.idToken == idToken));
+  final _this = this as GoogleLoginRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoogleLoginRequest&&(identical(other.idToken, _this.idToken) || other.idToken == _this.idToken));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,idToken);
+int get hashCode {
+  final _this = this as GoogleLoginRequest;
+  return Object.hash(runtimeType,_this.idToken);
+}
 
 @override
 String toString() {
-  return 'GoogleLoginRequest(idToken: $idToken)';
+  final _this = this as GoogleLoginRequest;
+  return 'GoogleLoginRequest(idToken: ${_this.idToken})';
 }
 
 
@@ -228,16 +233,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GoogleLoginRequest&&(identical(other.idToken, idToken) || other.idToken == idToken));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GoogleLoginRequest&&(identical(other.idToken, idToken) || other.idToken == idToken));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,idToken);
+int get hashCode {
+    return Object.hash(runtimeType,idToken);
+}
 
 @override
 String toString() {
-  return 'GoogleLoginRequest(idToken: $idToken)';
+    return 'GoogleLoginRequest(idToken: $idToken)';
 }
 
 

@@ -29,16 +29,21 @@ $ResetPasswordRequestCopyWith<ResetPasswordRequest> get copyWith => _$ResetPassw
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResetPasswordRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.email, email) || other.email == email)&&(identical(other.newPassword, newPassword) || other.newPassword == newPassword));
+  final _this = this as ResetPasswordRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResetPasswordRequest&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.newPassword, _this.newPassword) || other.newPassword == _this.newPassword));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,email,newPassword);
+int get hashCode {
+  final _this = this as ResetPasswordRequest;
+  return Object.hash(runtimeType,_this.identifier,_this.email,_this.newPassword);
+}
 
 @override
 String toString() {
-  return 'ResetPasswordRequest(identifier: $identifier, email: $email, newPassword: $newPassword)';
+  final _this = this as ResetPasswordRequest;
+  return 'ResetPasswordRequest(identifier: ${_this.identifier}, email: ${_this.email}, newPassword: ${_this.newPassword})';
 }
 
 
@@ -232,16 +237,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ResetPasswordRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.email, email) || other.email == email)&&(identical(other.newPassword, newPassword) || other.newPassword == newPassword));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ResetPasswordRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.email, email) || other.email == email)&&(identical(other.newPassword, newPassword) || other.newPassword == newPassword));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,email,newPassword);
+int get hashCode {
+    return Object.hash(runtimeType,identifier,email,newPassword);
+}
 
 @override
 String toString() {
-  return 'ResetPasswordRequest(identifier: $identifier, email: $email, newPassword: $newPassword)';
+    return 'ResetPasswordRequest(identifier: $identifier, email: $email, newPassword: $newPassword)';
 }
 
 
