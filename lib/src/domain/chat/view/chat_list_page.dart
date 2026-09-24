@@ -2,11 +2,11 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
-import 'package:beatit_front_app/src/domain/cal/model/chat_message_data.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/chat_list_item.dart';
+import 'package:beatit_front_app/src/domain/chat/model/chat_message_data.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_list_item.dart';
 import 'package:flutter/material.dart';
 
-import 'room_chat_page.dart';
+import 'chat_room_page.dart';
 
 class ListChatPage extends StatefulWidget {
   const ListChatPage({super.key});
