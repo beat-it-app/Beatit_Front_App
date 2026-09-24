@@ -29,69 +29,112 @@ class _CalMainPageState extends State<CalMainPage> {
   ///
   /// Map의 key는 반드시 시간값이 제거된 날짜여야 합니다.
   final Map<DateTime, List<_CalendarScheduleData>> _schedulesByDate = {
-    DateTime(2026, 7, 16): const [
+    // 지난 일정
+    DateTime(2026, 9, 3): const [
       _CalendarScheduleData(
-        titleText: '13:00 알사탕 합주',
+        titleText: '19:00 정기 합주',
         locationText: '그라운드 합주실 본점 A3',
         calendarLabel: '합주',
         scheduleType: ScheduleType.mine,
       ),
-      _CalendarScheduleData(
-        titleText: '17:00 정기 합주',
-        locationText: '그라운드 합주실 본점 B1',
-        calendarLabel: '합주',
-        scheduleType: ScheduleType.mine,
-      ),
     ],
-    DateTime(2026, 7, 18): const [
+
+    DateTime(2026, 9, 8): const [
       _CalendarScheduleData(
-        titleText: '15:00 공연 리허설',
-        locationText: 'Beat Hall',
-        calendarLabel: '합주',
-        scheduleType: ScheduleType.mine,
-      ),
-    ],
-    DateTime(2026, 7, 20): const [
-      _CalendarScheduleData(
-        titleText: '19:00 개인 연습',
+        titleText: '18:30 개인 연습',
         locationText: '그라운드 합주실 본점 A2',
-        calendarLabel: '합주',
+        calendarLabel: '연습',
         scheduleType: ScheduleType.mine,
       ),
     ],
-    DateTime(2026, 7, 23): const [
+
+    DateTime(2026, 9, 15): const [
       _CalendarScheduleData(
-        titleText: '18:30 알사탕 합주',
-        locationText: '그라운드 합주실 본점 A3',
-        calendarLabel: '합주',
+        titleText: '20:00 공연 회의',
+        locationText: '숙명여대 학생회관',
+        calendarLabel: '회의',
         scheduleType: ScheduleType.mine,
       ),
     ],
-    DateTime(2026, 7, 25): const [
-      _CalendarScheduleData(
-        titleText: '14:00 주말 합주',
-        locationText: '그라운드 합주실 본점 A3',
-        calendarLabel: '합주',
-        scheduleType: ScheduleType.mine,
-      ),
-    ],
-    DateTime(2026, 7, 28): const [
+
+    // 하루에 일정이 여러 개 있는 경우
+    DateTime(2026, 9, 20): const [
       _CalendarScheduleData(
         titleText: '13:00 알사탕 합주',
         locationText: '그라운드 합주실 본점 A3',
-        calendarLabel: '13:00 알',
+        calendarLabel: '합주',
+        scheduleType: ScheduleType.mine,
+      ),
+      _CalendarScheduleData(
+        titleText: '17:00 공연 리허설',
+        locationText: 'Beat Hall',
+        calendarLabel: '리허설',
+        scheduleType: ScheduleType.mine,
+      ),
+    ],
+
+    // 공휴일 + 일정
+    DateTime(2026, 9, 24): const [
+      _CalendarScheduleData(
+        titleText: '16:00 공연 준비',
+        locationText: 'Beat Hall',
+        calendarLabel: '공연',
+        scheduleType: ScheduleType.mine,
+      ),
+    ],
+
+    // 오늘 확인용
+    DateTime(2026, 9, 25): const [
+      _CalendarScheduleData(
+        titleText: '19:00 알사탕 정기 합주',
+        locationText: '그라운드 합주실 본점 A3',
+        calendarLabel: '합주',
+        scheduleType: ScheduleType.mine,
+      ),
+    ],
+
+    // 다가오는 일정
+    DateTime(2026, 9, 27): const [
+      _CalendarScheduleData(
+        titleText: '14:00 개인 연습',
+        locationText: '그라운드 합주실 본점 B1',
+        calendarLabel: '연습',
+        scheduleType: ScheduleType.mine,
+      ),
+    ],
+
+    DateTime(2026, 9, 29): const [
+      _CalendarScheduleData(
+        titleText: '18:30 공연 리허설',
+        locationText: 'Beat Hall',
+        calendarLabel: '리허설',
         scheduleType: ScheduleType.mine,
       ),
     ],
   };
 
+  final Set<DateTime> _holidayDates = {DateTime(2026, 9, 24)};
+
+  bool _isHoliday(DateTime day) {
+    final normalizedDay = _dateKey(day);
+
+    // 일요일은 항상 공휴일 취급
+    if (normalizedDay.weekday == DateTime.sunday) {
+      return true;
+    }
+
+    // 일요일 외 별도 공휴일
+    return _holidayDates.contains(normalizedDay);
+  }
+
   @override
   void initState() {
     super.initState();
 
-    _today = DateUtils.dateOnly(DateTime.now());
+    // API 연결 전 Calendar UI 테스트용
+    _today = DateTime(2026, 9, 25);
     _selectedDay = _today;
-    _focusedDay = DateTime(_today.year, _today.month);
+    _focusedDay = DateTime(2026, 9);
   }
 
   void _goToCalCreatePage() {
@@ -153,17 +196,21 @@ class _CalMainPageState extends State<CalMainPage> {
   }
 
   bool _hasSchedule(DateTime day) {
-    return _schedulesForDay(day).isNotEmpty;
+    return _schedulesForDay(
+      day,
+    ).any((schedule) => schedule.scheduleType == ScheduleType.mine);
   }
 
   String? _labelForDay(DateTime day) {
-    final schedules = _schedulesForDay(day);
+    final mySchedules = _schedulesForDay(
+      day,
+    ).where((schedule) => schedule.scheduleType == ScheduleType.mine).toList();
 
-    if (schedules.isEmpty) {
+    if (mySchedules.isEmpty) {
       return null;
     }
 
-    return schedules.first.calendarLabel;
+    return mySchedules.first.calendarLabel;
   }
 
   String _formatMonth(DateTime date) {
@@ -230,6 +277,7 @@ class _CalMainPageState extends State<CalMainPage> {
                   selectedDay: _selectedDay,
                   today: _today,
                   hasSchedule: _hasSchedule,
+                  isHoliday: _isHoliday,
                   labelForDay: _labelForDay,
                   onDaySelected: _handleDaySelected,
                   onPageChanged: _handlePageChanged,
