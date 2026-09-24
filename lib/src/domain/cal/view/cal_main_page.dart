@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_date_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_month_response.dart';
+import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_write_data.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_main_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_create_page.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
@@ -59,10 +60,37 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     ref.read(calMainProvider.notifier).loadDate(day: day);
   }
 
-  void _goToCalCreatePage() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const CalCreatePage()));
+  Future<void> _goToCalCreatePage() async {
+    final createdSchedule = await Navigator.of(context).push<ScheduleWriteData>(
+      MaterialPageRoute(builder: (_) => const CalCreatePage()),
+    );
+
+    if (!mounted || createdSchedule == null) {
+      return;
+    }
+
+    final createdDay = DateUtils.dateOnly(_toKst(createdSchedule.startsAt));
+    final createdMonth = DateTime(createdDay.year, createdDay.month);
+
+    setState(() {
+      _selectedDay = createdDay;
+      _focusedDay = createdMonth;
+    });
+
+    await ref.read(calMainProvider.notifier).loadMonth(
+      year: createdMonth.year,
+      month: createdMonth.month,
+      force: true,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await ref.read(calMainProvider.notifier).loadDate(
+      day: createdDay,
+      force: true,
+    );
   }
 
   void _goToCalDetialPage() {

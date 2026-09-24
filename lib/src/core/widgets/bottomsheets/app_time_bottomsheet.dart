@@ -41,6 +41,7 @@ class AppTimeBottomSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => AppTimeBottomSheet(
         mode: AppTimePickerMode.time,
+        title: title,
         initialTime: initialTime,
         onConfirmTime: (selectedTime) {
           Navigator.of(context).pop(selectedTime);
@@ -63,6 +64,7 @@ class AppTimeBottomSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => AppTimeBottomSheet(
         mode: AppTimePickerMode.date,
+        title: title,
         initialDate: initialDate,
         startYear: startYear ?? 2000,
         maxDate: maxDate,
@@ -285,7 +287,6 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
                       } else {
                         widget.onConfirmDate?.call(_getSelectedDate());
                       }
-                      Navigator.of(context).pop();
                     },
                   ),
                 ),
