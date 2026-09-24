@@ -10,6 +10,8 @@ import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsh
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_create_request.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
 
@@ -66,6 +68,62 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
         _startTime != null &&
         _endTime != null &&
         _hasValidTimeRange;
+  }
+
+  bool get _hasDraft {
+    return _titleController.text.trim().isNotEmpty ||
+        _selectedDate != null ||
+        _selectedLocationId != null ||
+        _locationController.text.trim().isNotEmpty ||
+        _startTime != null ||
+        _endTime != null ||
+        _contentController.text.trim().isNotEmpty ||
+        _selectedMembers.isNotEmpty ||
+        _selectedMusics.isNotEmpty ||
+        _selectedFiles.isNotEmpty;
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    FocusScope.of(context).unfocus();
+
+    if (!_hasDraft) {
+      return true;
+    }
+
+    final shouldDiscard = await AppPopup.show(
+      context,
+      title: '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+      barrierDismissible: false,
+    );
+
+    return shouldDiscard == true;
+  }
+
+  Future<void> _handleClose() async {
+    final canClose = await _confirmDiscardIfNeeded();
+
+    if (!mounted || !canClose) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
+
+  Future<bool> _handleSystemBack() async {
+    final mutationState = ref.read(calMutationProvider);
+
+    if (mutationState.isCreating) {
+      return false;
+    }
+
+    return _confirmDiscardIfNeeded();
   }
 
   String? get _titleErrorText {
@@ -305,16 +363,14 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   Widget build(BuildContext context) {
     final mutationState = ref.watch(calMutationProvider);
 
-    return Scaffold(
-      appBar: AppTopAppBar.closeOnly(
-        title: '일정 생성하기',
-        onClosePressed: mutationState.isCreating
-            ? null
-            : () {
-                Navigator.of(context).maybePop();
-              },
-      ),
-      body: SafeArea(
+    return WillPopScope(
+      onWillPop: _handleSystemBack,
+      child: Scaffold(
+        appBar: AppTopAppBar.closeOnly(
+          title: '일정 생성하기',
+          onClosePressed: mutationState.isCreating ? null : _handleClose,
+        ),
+        body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.x4,
@@ -473,30 +529,40 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
 
   Widget _buildMemberSection() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.only(top: AppSpacing.x8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ...List.generate(_selectedMembers.length, (index) {
-            final member = _selectedMembers[index];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AddMemberButton(
+          text: '인원 선택하기',
+          onPressed: _openMemberSelector,
+        ),
+        if (_selectedMembers.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.x16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(top: AppSpacing.x8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(_selectedMembers.length, (index) {
+                final member = _selectedMembers[index];
 
-            return _MemberInfoButton(
-              memberImage: member.profileImage,
-              memberName: member.name,
-              memberPart: member.part,
-              onRemove: () => _removeMember(index),
-            );
-          }),
-          _AddButton(onPressed: _openMemberSelector),
+                return _MemberInfoButton(
+                  memberImage: member.profileImage,
+                  memberName: member.name,
+                  memberPart: member.part,
+                  onRemove: () => _removeMember(index),
+                );
+              }),
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 
