@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/app.dart';
 import 'package:beatit_front_app/src/domain/auth/view/profile/create_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,9 +44,9 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
 
   void _handleGoogleLoginSuccess(AuthSession session) {
     if (session.createdProfile) {
-      // TODO: 실제 메인 화면 route가 확정되면 여기에서 이동.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google 로그인 성공 - 메인 화면 이동 대상입니다.')),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
       );
       return;
     }
