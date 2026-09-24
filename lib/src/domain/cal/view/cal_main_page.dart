@@ -93,10 +93,12 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     );
   }
 
-  void _goToCalDetialPage() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const CalDetailPage()));
+  void _goToCalDetailPage(int scheduleId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CalDetailPage(scheduleId: scheduleId),
+      ),
+    );
   }
 
   void _handleDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -497,7 +499,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
             scheduleType: ScheduleType.mine,
             onTap: () {
               debugPrint('scheduleId=${schedule.scheduleId} 일정 선택');
-              _goToCalDetialPage();
+              _goToCalDetailPage(schedule.scheduleId);
             },
           ),
         );

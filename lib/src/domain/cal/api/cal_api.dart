@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_date_res
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_month_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_create_request.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_create_response.dart';
+import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_request.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_response.dart';
 
@@ -63,6 +64,26 @@ class CalApi {
       );
 
       return CalendarDateResponse.fromJson(body);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+
+  Future<ScheduleDetailResponse> getScheduleDetail({
+    required int scheduleId,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_calendarPath/$scheduleId',
+      );
+
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '일정 상세 정보를 불러오지 못했습니다.',
+      );
+
+      return ScheduleDetailResponse.fromJson(body);
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
