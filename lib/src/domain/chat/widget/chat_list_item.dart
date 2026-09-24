@@ -2,7 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/group_chat_profile.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/group_chat_profile.dart';
 import 'package:flutter/material.dart';
 
 class ChatListItem extends StatelessWidget {

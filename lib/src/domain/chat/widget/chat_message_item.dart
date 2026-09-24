@@ -3,8 +3,8 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/domain/cal/model/chat_message_data.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/chat_list_item.dart';
+import 'package:beatit_front_app/src/domain/chat/model/chat_message_data.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_list_item.dart';
 import 'package:flutter/material.dart';
 
 /// 메시지의 소유자를 판단해 상대방 메시지와 내 메시지를 구분합니다.
