@@ -1,48 +1,22 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/music_search_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/music_result_widget.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class MusicSearchPage extends StatefulWidget {
+class MusicSearchPage extends ConsumerStatefulWidget {
   const MusicSearchPage({super.key});
 
   @override
-  State<MusicSearchPage> createState() => _MusicSearchPageState();
+  ConsumerState<MusicSearchPage> createState() => _MusicSearchPageState();
 }
 
-class _MusicSearchPageState extends State<MusicSearchPage> {
+class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
   final TextEditingController _searchController = TextEditingController();
-
-  List<_MockMusicResult> _searchResults = const [];
-
-  static const List<_MockMusicResult> _mockMusicResults = [
-    _MockMusicResult(
-      musicTitle: 'WISH',
-      artist: 'nct wish',
-      imageUrl:
-          'https://image.utoimage.com/preview/cp872722/2022/12/202212008462_500.jpg',
-    ),
-    _MockMusicResult(
-      musicTitle: 'Color',
-      artist: 'nct wish',
-      imageUrl:
-          'https://image.utoimage.com/preview/cp872722/2022/12/202212008462_500.jpg',
-    ),
-    _MockMusicResult(
-      musicTitle: '고양이 릴스',
-      artist: 'nct wish',
-      imageUrl:
-          'https://image.utoimage.com/preview/cp872722/2022/12/202212008462_500.jpg',
-    ),
-    _MockMusicResult(
-      musicTitle: 'Songbird',
-      artist: 'nct wish',
-      imageUrl:
-          'https://image.utoimage.com/preview/cp872722/2022/12/202212008462_500.jpg',
-    ),
-  ];
 
   @override
   void dispose() {
@@ -50,42 +24,21 @@ class _MusicSearchPageState extends State<MusicSearchPage> {
     super.dispose();
   }
 
-  void _handleSearch() {
+  Future<void> _handleSearch() async {
     FocusScope.of(context).unfocus();
-
-    final query = _searchController.text.trim().toLowerCase();
-
-    setState(() {
-      if (query.isEmpty) {
-        _searchResults = const [];
-        return;
-      }
-
-      _searchResults = _mockMusicResults.where((music) {
-        final title = music.musicTitle.toLowerCase();
-        final artist = music.artist.toLowerCase();
-
-        return title.contains(query) || artist.contains(query);
-      }).toList();
-    });
+    await ref.read(musicSearchProvider.notifier).search(_searchController.text);
   }
 
   void _handleSearchChanged(String value) {
-    if (value.trim().isNotEmpty) {
-      return;
+    if (value.trim().isEmpty) {
+      ref.read(musicSearchProvider.notifier).clear();
     }
-
-    setState(() {
-      _searchResults = const [];
-    });
-  }
-
-  void _handleMusicTap(_MockMusicResult music) {
-    // TODO: API 연동 시 선택한 음악 처리
   }
 
   @override
   Widget build(BuildContext context) {
+    final searchState = ref.watch(musicSearchProvider);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -103,7 +56,6 @@ class _MusicSearchPageState extends State<MusicSearchPage> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.x12),
-
                   Semantics(
                     button: true,
                     label: '이전 화면으로 이동',
@@ -129,24 +81,9 @@ class _MusicSearchPageState extends State<MusicSearchPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: AppSpacing.x8),
-
               Expanded(
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: _searchResults.length,
-                  itemBuilder: (context, index) {
-                    final music = _searchResults[index];
-
-                    return MusicResultWidget(
-                      musicTitle: music.musicTitle,
-                      artist: music.artist,
-                      imageUrl: music.imageUrl,
-                      onTap: () => _handleMusicTap(music),
-                    );
-                  },
-                ),
+                child: _buildSearchContent(searchState),
               ),
             ],
           ),
@@ -154,16 +91,42 @@ class _MusicSearchPageState extends State<MusicSearchPage> {
       ),
     );
   }
-}
 
-class _MockMusicResult {
-  const _MockMusicResult({
-    required this.musicTitle,
-    required this.artist,
-    required this.imageUrl,
-  });
+  Widget _buildSearchContent(MusicSearchState searchState) {
+    if (searchState.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  final String musicTitle;
-  final String artist;
-  final String imageUrl;
+    if (searchState.errorMessage != null) {
+      return Center(
+        child: Text(
+          searchState.errorMessage!,
+          textAlign: TextAlign.center,
+          style: FontStyles.med14.copyWith(color: context.grays.gray5),
+        ),
+      );
+    }
+
+    if (searchState.results.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: searchState.results.length,
+      itemBuilder: (context, index) {
+        final music = searchState.results[index];
+
+        return MusicResultWidget(
+          musicTitle: music.title,
+          artist: music.artist,
+          imageUrl: music.imageUrl ?? '',
+          isSelected: identical(searchState.selectedMusic, music),
+          onTap: () => ref
+              .read(musicSearchProvider.notifier)
+              .selectMusic(music),
+        );
+      },
+    );
+  }
 }

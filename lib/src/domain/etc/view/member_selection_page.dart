@@ -3,9 +3,11 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class MemberSelectionMember {
@@ -22,23 +24,26 @@ class MemberSelectionMember {
   final String? profileImageUrl;
 }
 
-class MemberSelectionPage extends StatefulWidget {
+class MemberSelectionPage extends ConsumerStatefulWidget {
   const MemberSelectionPage({
     super.key,
-    required this.members,
+    this.members = const <MemberSelectionMember>[],
     this.initialSelectedMemberIds = const <String>{},
     this.onConfirm,
   });
 
+  /// 기존 호출부 호환을 위해 유지한다.
+  /// 실제 화면 목록은 /teams/members API 응답을 사용한다.
   final List<MemberSelectionMember> members;
   final Set<String> initialSelectedMemberIds;
   final ValueChanged<List<MemberSelectionMember>>? onConfirm;
 
   @override
-  State<MemberSelectionPage> createState() => _MemberSelectionPageState();
+  ConsumerState<MemberSelectionPage> createState() =>
+      _MemberSelectionPageState();
 }
 
-class _MemberSelectionPageState extends State<MemberSelectionPage> {
+class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
   final TextEditingController _searchController = TextEditingController();
 
   late Set<String> _selectedMemberIds;
@@ -47,19 +52,29 @@ class _MemberSelectionPageState extends State<MemberSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _selectedMemberIds = widget.initialSelectedMemberIds
-        .where((id) => widget.members.any((member) => member.id == id))
-        .toSet();
+    _selectedMemberIds = Set<String>.from(widget.initialSelectedMemberIds);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMembers();
+    });
   }
 
-  @override
-  void didUpdateWidget(covariant MemberSelectionPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
+  Future<void> _loadMembers() async {
+    await ref.read(memberSelectionProvider.notifier).loadMembers();
 
-    if (oldWidget.members != widget.members) {
-      final validIds = widget.members.map((member) => member.id).toSet();
-      _selectedMemberIds = _selectedMemberIds.intersection(validIds);
+    if (!mounted) {
+      return;
     }
+
+    final validIds = ref
+        .read(memberSelectionProvider)
+        .members
+        .map((member) => member.userPublicId)
+        .toSet();
+
+    setState(() {
+      _selectedMemberIds = _selectedMemberIds.intersection(validIds);
+    });
   }
 
   @override
@@ -68,34 +83,49 @@ class _MemberSelectionPageState extends State<MemberSelectionPage> {
     super.dispose();
   }
 
-  List<MemberSelectionMember> get _visibleMembers {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return widget.members;
-
-    return widget.members.where((member) {
-      return member.name.toLowerCase().contains(query);
-    }).toList();
+  List<MemberSelectionMember> _toViewMembers(MemberSelectionState state) {
+    return state.members
+        .map(
+          (member) => MemberSelectionMember(
+            id: member.userPublicId,
+            name: member.userName,
+            role: MemberSelectionRole.fromApiValue(member.teamRole),
+            profileImageUrl: member.profileImageUrl,
+          ),
+        )
+        .toList(growable: false);
   }
 
-  bool get _isAllSelected {
-    if (widget.members.isEmpty) return false;
-    return widget.members.every(
+  List<MemberSelectionMember> _visibleMembers(
+    List<MemberSelectionMember> members,
+  ) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return members;
+    }
+
+    return members.where((member) {
+      return member.name.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  bool _isAllSelected(List<MemberSelectionMember> members) {
+    if (members.isEmpty) {
+      return false;
+    }
+
+    return members.every(
       (member) => _selectedMemberIds.contains(member.id),
     );
   }
 
   void _handleSearch() {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _searchQuery = _searchController.text;
-    });
   }
 
   void _handleSearchChanged(String value) {
-    if (value.trim().isNotEmpty || _searchQuery.isEmpty) return;
-
     setState(() {
-      _searchQuery = '';
+      _searchQuery = value;
     });
   }
 
@@ -109,18 +139,18 @@ class _MemberSelectionPageState extends State<MemberSelectionPage> {
     });
   }
 
-  void _toggleAll() {
+  void _toggleAll(List<MemberSelectionMember> members) {
     setState(() {
-      if (_isAllSelected) {
+      if (_isAllSelected(members)) {
         _selectedMemberIds.clear();
       } else {
-        _selectedMemberIds = widget.members.map((member) => member.id).toSet();
+        _selectedMemberIds = members.map((member) => member.id).toSet();
       }
     });
   }
 
-  void _handleConfirm() {
-    final selectedMembers = widget.members
+  void _handleConfirm(List<MemberSelectionMember> members) {
+    final selectedMembers = members
         .where((member) => _selectedMemberIds.contains(member.id))
         .toList(growable: false);
 
@@ -134,7 +164,10 @@ class _MemberSelectionPageState extends State<MemberSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleMembers = _visibleMembers;
+    final memberState = ref.watch(memberSelectionProvider);
+    final members = _toViewMembers(memberState);
+    final visibleMembers = _visibleMembers(members);
+    final isAllSelected = _isAllSelected(members);
 
     return Scaffold(
       backgroundColor: context.grays.white,
@@ -155,49 +188,74 @@ class _MemberSelectionPageState extends State<MemberSelectionPage> {
               ),
             ),
             const SizedBox(height: AppSpacing.x8),
-            _SelectAllRow(isSelected: _isAllSelected, onTap: _toggleAll),
+            _SelectAllRow(
+              isSelected: isAllSelected,
+              onTap: () => _toggleAll(members),
+            ),
             const SizedBox(height: AppSpacing.x8),
             Expanded(
-              child: visibleMembers.isEmpty
-                  ? Center(
-                      child: Text(
-                        '검색 결과가 없습니다.',
-                        style: FontStyles.med14.copyWith(
-                          color: context.grays.gray5,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: visibleMembers.length,
-                      itemBuilder: (context, index) {
-                        final member = visibleMembers[index];
-
-                        return Column(
-                          children: [
-                            MemberSelectionItem(
-                              name: member.name,
-                              role: member.role,
-                              profileImageUrl: member.profileImageUrl,
-                              isSelected: _selectedMemberIds.contains(
-                                member.id,
-                              ),
-                              onTap: () => _toggleMember(member.id),
-                            ),
-                            const SizedBox(height: AppSpacing.x8),
-                          ],
-                        );
-                      },
-                    ),
+              child: _buildMemberContent(
+                state: memberState,
+                visibleMembers: visibleMembers,
+              ),
             ),
             _BottomActions(
               canConfirm: _selectedMemberIds.isNotEmpty,
               onCancel: () => Navigator.of(context).maybePop(),
-              onConfirm: _handleConfirm,
+              onConfirm: () => _handleConfirm(members),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMemberContent({
+    required MemberSelectionState state,
+    required List<MemberSelectionMember> visibleMembers,
+  }) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.errorMessage != null) {
+      return Center(
+        child: Text(
+          state.errorMessage!,
+          textAlign: TextAlign.center,
+          style: FontStyles.med14.copyWith(color: context.grays.gray5),
+        ),
+      );
+    }
+
+    if (visibleMembers.isEmpty) {
+      return Center(
+        child: Text(
+          '검색 결과가 없습니다.',
+          style: FontStyles.med14.copyWith(color: context.grays.gray5),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: visibleMembers.length,
+      itemBuilder: (context, index) {
+        final member = visibleMembers[index];
+
+        return Column(
+          children: [
+            MemberSelectionItem(
+              name: member.name,
+              role: member.role,
+              profileImageUrl: member.profileImageUrl,
+              isSelected: _selectedMemberIds.contains(member.id),
+              onTap: () => _toggleMember(member.id),
+            ),
+            const SizedBox(height: AppSpacing.x8),
+          ],
+        );
+      },
     );
   }
 }

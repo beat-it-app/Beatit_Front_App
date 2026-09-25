@@ -9,70 +9,86 @@ class MusicResultWidget extends StatelessWidget {
     required this.musicTitle,
     required this.artist,
     required this.imageUrl,
+    this.isSelected = false,
     this.onTap,
   });
 
   final String musicTitle;
   final String artist;
   final String imageUrl;
+  final bool isSelected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.network(
-                imageUrl,
-                width: 64,
-                height: 64,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 64,
-                    height: 64,
-                    color: context.grays.gray7,
-                    alignment: Alignment.center,
-                    child: Icon(Icons.music_note, color: context.grays.gray5),
-                  );
-                },
+    return Material(
+      color: isSelected ? context.grays.gray8 : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: imageUrl.trim().isEmpty
+                    ? _MusicImageFallback()
+                    : Image.network(
+                        imageUrl,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const _MusicImageFallback();
+                        },
+                      ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.x12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    musicTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: FontStyles.med20.copyWith(
-                      color: context.grays.black,
+              const SizedBox(width: AppSpacing.x12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      musicTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: FontStyles.med20.copyWith(
+                        color: context.grays.black,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.x4),
-                  Text(
-                    artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
+                    const SizedBox(height: AppSpacing.x4),
+                    Text(
+                      artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: FontStyles.med16.copyWith(
+                        color: context.grays.gray5,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _MusicImageFallback extends StatelessWidget {
+  const _MusicImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      color: context.grays.gray7,
+      alignment: Alignment.center,
+      child: Icon(Icons.music_note, color: context.grays.gray5),
     );
   }
 }

@@ -12,6 +12,7 @@ class LocationReferenceWidget extends StatelessWidget {
     required this.isInputVisible,
     required this.controller,
     required this.onAddPressed,
+    required this.onSearchPressed,
     required this.onDeletePressed,
     this.onChanged,
   });
@@ -19,6 +20,7 @@ class LocationReferenceWidget extends StatelessWidget {
   final bool isInputVisible;
   final TextEditingController controller;
   final VoidCallback onAddPressed;
+  final VoidCallback onSearchPressed;
   final VoidCallback onDeletePressed;
   final ValueChanged<String>? onChanged;
 
@@ -34,24 +36,43 @@ class LocationReferenceWidget extends StatelessWidget {
       height: 45,
       textInputAction: TextInputAction.search,
       onChanged: onChanged,
-      suffixIcon: Semantics(
-        button: true,
-        label: '기준 위치 삭제',
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onDeletePressed,
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: SvgPicture.asset(
-              'assets/icons/etc/cancel.svg',
-              colorFilter: ColorFilter.mode(
-                context.grays.gray6,
-                BlendMode.srcIn,
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: true,
+            label: '기준 위치 검색',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onSearchPressed,
+              child: SvgPicture.asset(
+                'assets/icons/etc/search.svg',
+                width: 24,
+                height: 24,
               ),
             ),
           ),
-        ),
+          const SizedBox(width: AppSpacing.x16),
+          Semantics(
+            button: true,
+            label: '기준 위치 삭제',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDeletePressed,
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: SvgPicture.asset(
+                  'assets/icons/etc/cancel.svg',
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray6,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
