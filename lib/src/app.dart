@@ -1,3 +1,6 @@
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
 import 'package:flutter/material.dart';
 
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
@@ -17,14 +20,19 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _pages = const [
     // TODO: 실제 팀 메인 화면으로 교체
-    _TemporaryMainPage(title: '홈'),
+    LocationSearchPage(),
 
-    _TemporaryMainPage(title: '공지'),
+    MusicSearchPage(),
     CalMainPage(),
     _TemporaryMainPage(title: '채팅'),
 
     // TODO: 실제 마이페이지 화면으로 교체
-    _TemporaryMainPage(title: '마이페이지'),
+    MusicPreviewPage(
+      musicTitle: 'Test Music',
+      artist: 'Test Artist',
+      imageUrl: 'https://picsum.photos/600/600',
+      previewUrl: 'https://cdn.truefilesize.com/mp3/sample-500kb.mp3',
+    ),
   ];
 
   @override
