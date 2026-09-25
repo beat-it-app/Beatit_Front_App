@@ -29,16 +29,21 @@ $LoginResponseCopyWith<LoginResponse> get copyWith => _$LoginResponseCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
+  final _this = this as LoginResponse;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginResponse&&(identical(other.success, _this.success) || other.success == _this.success)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.message, _this.message) || other.message == _this.message)&&(identical(other.data, _this.data) || other.data == _this.data));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,success,status,message,data);
+int get hashCode {
+  final _this = this as LoginResponse;
+  return Object.hash(runtimeType,_this.success,_this.status,_this.message,_this.data);
+}
 
 @override
 String toString() {
-  return 'LoginResponse(success: $success, status: $status, message: $message, data: $data)';
+  final _this = this as LoginResponse;
+  return 'LoginResponse(success: ${_this.success}, status: ${_this.status}, message: ${_this.message}, data: ${_this.data})';
 }
 
 
@@ -243,16 +248,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,success,status,message,data);
+int get hashCode {
+    return Object.hash(runtimeType,success,status,message,data);
+}
 
 @override
 String toString() {
-  return 'LoginResponse(success: $success, status: $status, message: $message, data: $data)';
+    return 'LoginResponse(success: $success, status: $status, message: $message, data: $data)';
 }
 
 
@@ -319,16 +326,21 @@ $LoginDataCopyWith<LoginData> get copyWith => _$LoginDataCopyWithImpl<LoginData>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginData&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
+  final _this = this as LoginData;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginData&&(identical(other.userId, _this.userId) || other.userId == _this.userId)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.createdProfile, _this.createdProfile) || other.createdProfile == _this.createdProfile)&&(identical(other.socialProvider, _this.socialProvider) || other.socialProvider == _this.socialProvider));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,userId,role,createdProfile,socialProvider);
+int get hashCode {
+  final _this = this as LoginData;
+  return Object.hash(runtimeType,_this.userId,_this.role,_this.createdProfile,_this.socialProvider);
+}
 
 @override
 String toString() {
-  return 'LoginData(userId: $userId, role: $role, createdProfile: $createdProfile, socialProvider: $socialProvider)';
+  final _this = this as LoginData;
+  return 'LoginData(userId: ${_this.userId}, role: ${_this.role}, createdProfile: ${_this.createdProfile}, socialProvider: ${_this.socialProvider})';
 }
 
 
@@ -524,16 +536,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginData&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginData&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,userId,role,createdProfile,socialProvider);
+int get hashCode {
+    return Object.hash(runtimeType,userId,role,createdProfile,socialProvider);
+}
 
 @override
 String toString() {
-  return 'LoginData(userId: $userId, role: $role, createdProfile: $createdProfile, socialProvider: $socialProvider)';
+    return 'LoginData(userId: $userId, role: $role, createdProfile: $createdProfile, socialProvider: $socialProvider)';
 }
 
 

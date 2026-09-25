@@ -29,16 +29,21 @@ $LoginRequestCopyWith<LoginRequest> get copyWith => _$LoginRequestCopyWithImpl<L
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.rememberMe, rememberMe) || other.rememberMe == rememberMe));
+  final _this = this as LoginRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginRequest&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier)&&(identical(other.password, _this.password) || other.password == _this.password)&&(identical(other.rememberMe, _this.rememberMe) || other.rememberMe == _this.rememberMe));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,password,rememberMe);
+int get hashCode {
+  final _this = this as LoginRequest;
+  return Object.hash(runtimeType,_this.identifier,_this.password,_this.rememberMe);
+}
 
 @override
 String toString() {
-  return 'LoginRequest(identifier: $identifier, password: $password, rememberMe: $rememberMe)';
+  final _this = this as LoginRequest;
+  return 'LoginRequest(identifier: ${_this.identifier}, password: ${_this.password}, rememberMe: ${_this.rememberMe})';
 }
 
 
@@ -232,16 +237,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.rememberMe, rememberMe) || other.rememberMe == rememberMe));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.rememberMe, rememberMe) || other.rememberMe == rememberMe));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,password,rememberMe);
+int get hashCode {
+    return Object.hash(runtimeType,identifier,password,rememberMe);
+}
 
 @override
 String toString() {
-  return 'LoginRequest(identifier: $identifier, password: $password, rememberMe: $rememberMe)';
+    return 'LoginRequest(identifier: $identifier, password: $password, rememberMe: $rememberMe)';
 }
 
 
