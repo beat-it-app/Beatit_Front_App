@@ -29,16 +29,21 @@ $FindIdentifierResponseCopyWith<FindIdentifierResponse> get copyWith => _$FindId
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FindIdentifierResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
+  final _this = this as FindIdentifierResponse;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FindIdentifierResponse&&(identical(other.success, _this.success) || other.success == _this.success)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.message, _this.message) || other.message == _this.message)&&(identical(other.data, _this.data) || other.data == _this.data));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,success,status,message,data);
+int get hashCode {
+  final _this = this as FindIdentifierResponse;
+  return Object.hash(runtimeType,_this.success,_this.status,_this.message,_this.data);
+}
 
 @override
 String toString() {
-  return 'FindIdentifierResponse(success: $success, status: $status, message: $message, data: $data)';
+  final _this = this as FindIdentifierResponse;
+  return 'FindIdentifierResponse(success: ${_this.success}, status: ${_this.status}, message: ${_this.message}, data: ${_this.data})';
 }
 
 
@@ -243,16 +248,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FindIdentifierResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _FindIdentifierResponse&&(identical(other.success, success) || other.success == success)&&(identical(other.status, status) || other.status == status)&&(identical(other.message, message) || other.message == message)&&(identical(other.data, data) || other.data == data));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,success,status,message,data);
+int get hashCode {
+    return Object.hash(runtimeType,success,status,message,data);
+}
 
 @override
 String toString() {
-  return 'FindIdentifierResponse(success: $success, status: $status, message: $message, data: $data)';
+    return 'FindIdentifierResponse(success: $success, status: $status, message: $message, data: $data)';
 }
 
 
@@ -319,16 +326,21 @@ $FindIdentifierDataCopyWith<FindIdentifierData> get copyWith => _$FindIdentifier
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FindIdentifierData&&(identical(other.identifier, identifier) || other.identifier == identifier));
+  final _this = this as FindIdentifierData;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FindIdentifierData&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier);
+int get hashCode {
+  final _this = this as FindIdentifierData;
+  return Object.hash(runtimeType,_this.identifier);
+}
 
 @override
 String toString() {
-  return 'FindIdentifierData(identifier: $identifier)';
+  final _this = this as FindIdentifierData;
+  return 'FindIdentifierData(identifier: ${_this.identifier})';
 }
 
 
@@ -518,16 +530,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FindIdentifierData&&(identical(other.identifier, identifier) || other.identifier == identifier));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _FindIdentifierData&&(identical(other.identifier, identifier) || other.identifier == identifier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier);
+int get hashCode {
+    return Object.hash(runtimeType,identifier);
+}
 
 @override
 String toString() {
-  return 'FindIdentifierData(identifier: $identifier)';
+    return 'FindIdentifierData(identifier: $identifier)';
 }
 
 

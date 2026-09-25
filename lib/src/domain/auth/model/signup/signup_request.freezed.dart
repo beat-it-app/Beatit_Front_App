@@ -29,16 +29,21 @@ $SignupRequestCopyWith<SignupRequest> get copyWith => _$SignupRequestCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SignupRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.email, email) || other.email == email));
+  final _this = this as SignupRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SignupRequest&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier)&&(identical(other.password, _this.password) || other.password == _this.password)&&(identical(other.email, _this.email) || other.email == _this.email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,password,email);
+int get hashCode {
+  final _this = this as SignupRequest;
+  return Object.hash(runtimeType,_this.identifier,_this.password,_this.email);
+}
 
 @override
 String toString() {
-  return 'SignupRequest(identifier: $identifier, password: $password, email: $email)';
+  final _this = this as SignupRequest;
+  return 'SignupRequest(identifier: ${_this.identifier}, password: ${_this.password}, email: ${_this.email})';
 }
 
 
@@ -232,16 +237,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SignupRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.email, email) || other.email == email));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SignupRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.email, email) || other.email == email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,identifier,password,email);
+int get hashCode {
+    return Object.hash(runtimeType,identifier,password,email);
+}
 
 @override
 String toString() {
-  return 'SignupRequest(identifier: $identifier, password: $password, email: $email)';
+    return 'SignupRequest(identifier: $identifier, password: $password, email: $email)';
 }
 
 

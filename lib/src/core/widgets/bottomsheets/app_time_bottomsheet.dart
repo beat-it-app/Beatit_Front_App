@@ -285,7 +285,6 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
                       } else {
                         widget.onConfirmDate?.call(_getSelectedDate());
                       }
-                      Navigator.of(context).pop();
                     },
                   ),
                 ),

@@ -42,16 +42,6 @@ class _TeamSelectPageState extends State<TeamSelectPage> {
             ? _buildTeamExistBody(context)
             : _buildTeamEmptyBody(context),
       ),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          print('네비게이션 탭 이동: $index');
-          //TODO: 각 탭별 페이지 이동 로직
-        },
-      ),
     );
   }
 

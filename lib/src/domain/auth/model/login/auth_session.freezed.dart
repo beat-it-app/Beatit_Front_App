@@ -26,16 +26,21 @@ $AuthSessionCopyWith<AuthSession> get copyWith => _$AuthSessionCopyWithImpl<Auth
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthSession&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
+  final _this = this as AuthSession;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthSession&&(identical(other.userId, _this.userId) || other.userId == _this.userId)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.createdProfile, _this.createdProfile) || other.createdProfile == _this.createdProfile)&&(identical(other.accessToken, _this.accessToken) || other.accessToken == _this.accessToken)&&(identical(other.socialProvider, _this.socialProvider) || other.socialProvider == _this.socialProvider));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,userId,role,createdProfile,accessToken,socialProvider);
+int get hashCode {
+  final _this = this as AuthSession;
+  return Object.hash(runtimeType,_this.userId,_this.role,_this.createdProfile,_this.accessToken,_this.socialProvider);
+}
 
 @override
 String toString() {
-  return 'AuthSession(userId: $userId, role: $role, createdProfile: $createdProfile, accessToken: $accessToken, socialProvider: $socialProvider)';
+  final _this = this as AuthSession;
+  return 'AuthSession(userId: ${_this.userId}, role: ${_this.role}, createdProfile: ${_this.createdProfile}, accessToken: ${_this.accessToken}, socialProvider: ${_this.socialProvider})';
 }
 
 
@@ -230,16 +235,18 @@ _$AuthSessionCopyWith<_AuthSession> get copyWith => __$AuthSessionCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthSession&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthSession&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.role, role) || other.role == role)&&(identical(other.createdProfile, createdProfile) || other.createdProfile == createdProfile)&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.socialProvider, socialProvider) || other.socialProvider == socialProvider));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,userId,role,createdProfile,accessToken,socialProvider);
+int get hashCode {
+    return Object.hash(runtimeType,userId,role,createdProfile,accessToken,socialProvider);
+}
 
 @override
 String toString() {
-  return 'AuthSession(userId: $userId, role: $role, createdProfile: $createdProfile, accessToken: $accessToken, socialProvider: $socialProvider)';
+    return 'AuthSession(userId: $userId, role: $role, createdProfile: $createdProfile, accessToken: $accessToken, socialProvider: $socialProvider)';
 }
 
 
