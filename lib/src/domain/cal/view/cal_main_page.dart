@@ -12,6 +12,8 @@ import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_dropdown.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_month_view.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -27,6 +29,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   late final DateTime _today;
   late DateTime _focusedDay;
   late DateTime _selectedDay;
+  bool _isBootstrapping = true;
 
   static final DateTime _firstCalendarDay = DateTime(2020, 1, 1);
   static final DateTime _lastCalendarDay = DateTime(2035, 12, 31);
@@ -39,25 +42,52 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     _selectedDay = _today;
     _focusedDay = DateTime(_today.year, _today.month);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
         return;
       }
 
-      _loadMonth(_focusedDay);
-      _loadSelectedDate(_selectedDay);
+      await Future.wait(<Future<void>>[
+        _loadMonth(_focusedDay),
+        _loadSelectedDate(_selectedDay),
+      ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isBootstrapping = false;
+      });
     });
   }
 
-  void _loadMonth(DateTime month) {
-    ref.read(calMainProvider.notifier).loadMonth(
+  Future<void> _loadMonth(DateTime month) {
+    return ref.read(calMainProvider.notifier).loadMonth(
       year: month.year,
       month: month.month,
     );
   }
 
-  void _loadSelectedDate(DateTime day) {
-    ref.read(calMainProvider.notifier).loadDate(day: day);
+  Future<void> _loadSelectedDate(DateTime day) {
+    return ref.read(calMainProvider.notifier).loadDate(day: day);
+  }
+
+  Future<void> _refreshCalendar({
+    required DateTime month,
+    required DateTime day,
+  }) async {
+    await Future.wait(<Future<void>>[
+      ref.read(calMainProvider.notifier).loadMonth(
+        year: month.year,
+        month: month.month,
+        force: true,
+      ),
+      ref.read(calMainProvider.notifier).loadDate(
+        day: day,
+        force: true,
+      ),
+    ]);
   }
 
   Future<void> _goToCalCreatePage() async {
@@ -77,20 +107,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
       _focusedDay = createdMonth;
     });
 
-    await ref.read(calMainProvider.notifier).loadMonth(
-      year: createdMonth.year,
-      month: createdMonth.month,
-      force: true,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    await ref.read(calMainProvider.notifier).loadDate(
-      day: createdDay,
-      force: true,
-    );
+    await _refreshCalendar(month: createdMonth, day: createdDay);
   }
 
   Future<void> _goToCalDetailPage(int scheduleId) async {
@@ -104,20 +121,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
       return;
     }
 
-    await ref.read(calMainProvider.notifier).loadMonth(
-      year: _focusedDay.year,
-      month: _focusedDay.month,
-      force: true,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    await ref.read(calMainProvider.notifier).loadDate(
-      day: _selectedDay,
-      force: true,
-    );
+    await _refreshCalendar(month: _focusedDay, day: _selectedDay);
   }
 
   void _handleDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -294,7 +298,12 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   @override
   Widget build(BuildContext context) {
     final calState = ref.watch(calMainProvider);
+    final locationCache = ref.watch(locationDetailCacheProvider);
     final selectedSchedules = calState.selectedDateSchedules;
+    final isInitialLoading =
+        _isBootstrapping ||
+        ((!calState.hasLoadedMonthOnce || !calState.hasLoadedDateOnce) &&
+            (calState.isMonthLoading || calState.isDateLoading));
 
     return Scaffold(
       appBar: AppTwoAppBar(
@@ -311,14 +320,16 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.x16,
-            AppSpacing.x12,
-            AppSpacing.x16,
-            0,
-          ),
-          child: SingleChildScrollView(
+        child: isInitialLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.x16,
+                  AppSpacing.x12,
+                  AppSpacing.x16,
+                  0,
+                ),
+                child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.only(bottom: AppSpacing.x30),
             child: Column(
@@ -389,7 +400,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                 else if (selectedSchedules.isEmpty)
                   _buildEmptySchedule(context)
                 else
-                  _buildScheduleList(selectedSchedules),
+                  _buildScheduleList(selectedSchedules, locationCache),
               ],
             ),
           ),
@@ -501,7 +512,24 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     );
   }
 
-  Widget _buildScheduleList(List<DateSchedule> schedules) {
+  String _locationText(
+    int? locationId,
+    Map<int, LocationData> locationCache,
+  ) {
+    if (locationId == null) {
+      return '장소 미등록';
+    }
+
+    final location = locationCache[locationId];
+    final name = location?.locationName?.trim();
+
+    return name == null || name.isEmpty ? '장소 ID $locationId' : name;
+  }
+
+  Widget _buildScheduleList(
+    List<DateSchedule> schedules,
+    Map<int, LocationData> locationCache,
+  ) {
     return Column(
       children: List.generate(schedules.length, (index) {
         final schedule = schedules[index];
@@ -511,9 +539,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
           padding: EdgeInsets.only(bottom: isLastItem ? 0 : AppSpacing.x30),
           child: ScheduleListItem(
             titleText: schedule.title,
-            locationText: schedule.locationId == null
-                ? '장소 미등록'
-                : '장소 ID ${schedule.locationId}',
+            locationText: _locationText(schedule.locationId, locationCache),
             timeText: _formatScheduleTimeRange(schedule),
             scheduleType: ScheduleType.mine,
             onTap: () {

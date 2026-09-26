@@ -19,6 +19,11 @@ class CalApi {
   static const String _calendarMonthPath = '/calendar/month';
   static const String _calendarDatePath = '/calendar/date';
 
+  // 공통 Dio의 sendTimeout(10초)은 파일이 포함된 multipart 업로드에는 짧습니다.
+  // 일정 생성/수정 요청에만 더 긴 timeout을 적용합니다.
+  static const Duration _multipartSendTimeout = Duration(minutes: 2);
+  static const Duration _multipartReceiveTimeout = Duration(minutes: 1);
+
   Future<CalendarMonthResponse> getCalendarSchedules({
     required int year,
     required int month,
@@ -92,16 +97,22 @@ class CalApi {
   Future<ScheduleCreateResponse> createSchedule({
     required ScheduleCreateRequest request,
     List<String> filePaths = const <String>[],
+    Map<String, String> fileNamesByPath = const <String, String>{},
   }) async {
     try {
       final formData = await _buildScheduleFormData(
         requestJson: request.toJson(),
         filePaths: filePaths,
+        fileNamesByPath: fileNamesByPath,
       );
 
       final response = await _dio.post<Map<String, dynamic>>(
         _calendarPath,
         data: formData,
+        options: Options(
+          sendTimeout: _multipartSendTimeout,
+          receiveTimeout: _multipartReceiveTimeout,
+        ),
       );
 
       final body = _requireSuccessBody(
@@ -119,16 +130,22 @@ class CalApi {
     required int scheduleId,
     required ScheduleUpdateRequest request,
     List<String> newFilePaths = const <String>[],
+    Map<String, String> newFileNamesByPath = const <String, String>{},
   }) async {
     try {
       final formData = await _buildScheduleFormData(
         requestJson: request.toJson(),
         filePaths: newFilePaths,
+        fileNamesByPath: newFileNamesByPath,
       );
 
       final response = await _dio.patch<Map<String, dynamic>>(
         '$_calendarPath/$scheduleId',
         data: formData,
+        options: Options(
+          sendTimeout: _multipartSendTimeout,
+          receiveTimeout: _multipartReceiveTimeout,
+        ),
       );
 
       final body = _requireSuccessBody(
@@ -160,6 +177,7 @@ class CalApi {
   Future<FormData> _buildScheduleFormData({
     required Map<String, dynamic> requestJson,
     required List<String> filePaths,
+    Map<String, String> fileNamesByPath = const <String, String>{},
   }) async {
     final formData = FormData();
 
@@ -182,13 +200,29 @@ class CalApi {
           'files',
           await MultipartFile.fromFile(
             path,
-            filename: _fileNameFromPath(path),
+            filename: _resolvedUploadFileName(
+              path: path,
+              fileNamesByPath: fileNamesByPath,
+            ),
           ),
         ),
       );
     }
 
     return formData;
+  }
+
+
+  String _resolvedUploadFileName({
+    required String path,
+    required Map<String, String> fileNamesByPath,
+  }) {
+    final editedName = fileNamesByPath[path]?.trim();
+    if (editedName != null && editedName.isNotEmpty) {
+      return editedName;
+    }
+
+    return _fileNameFromPath(path);
   }
 
   String _fileNameFromPath(String path) {
@@ -230,6 +264,18 @@ class CalApi {
   }
 
   CalApiException _mapDioException(DioException error) {
+    if (error.type == DioExceptionType.sendTimeout) {
+      return const CalApiException(
+        message: '파일 업로드 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.',
+      );
+    }
+
+    if (error.type == DioExceptionType.receiveTimeout) {
+      return const CalApiException(
+        message: '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.',
+      );
+    }
+
     final rawData = error.response?.data;
 
     if (rawData is Map) {

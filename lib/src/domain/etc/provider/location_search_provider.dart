@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/domain/etc/api/etc_api_exception.dart';
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/etc_api_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
 
 final locationSearchProvider =
     NotifierProvider.autoDispose<LocationSearchNotifier, LocationSearchState>(
@@ -165,8 +166,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(selectedLocation: location);
   }
 
-  Future<LocationData> registerLocation(LocationSearchResult location) {
-    return ref.read(locationApiProvider).createLocation(location);
+  Future<LocationData> registerLocation(LocationSearchResult location) async {
+    final registered = await ref.read(locationApiProvider).createLocation(location);
+    ref.read(locationDetailCacheProvider.notifier).cacheLocation(registered);
+    return registered;
   }
 
   void selectReferenceLocation(LocationSearchResult location) {

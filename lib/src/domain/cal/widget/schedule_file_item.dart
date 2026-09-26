@@ -102,7 +102,7 @@ class ScheduleFileItem extends StatelessWidget {
       return 'assets/icons/cloud/video.svg';
     }
     if (extension == 'jpg' || extension == 'jpeg' || extension == 'png') {
-      return 'assets/icons/cloud/image.svg';
+      return 'assets/icons/cal/image.svg';
     }
 
     return 'assets/icons/cloud/file.svg';

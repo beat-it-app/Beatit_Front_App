@@ -34,6 +34,7 @@ class MemberSelectionPage extends ConsumerStatefulWidget {
     super.key,
     this.members = const <MemberSelectionMember>[],
     this.initialSelectedMemberIds = const <String>{},
+    this.initialSelectedUserIds = const <int>{},
     this.onConfirm,
   });
 
@@ -41,6 +42,10 @@ class MemberSelectionPage extends ConsumerStatefulWidget {
   /// 실제 화면 목록은 /teams/members API 응답을 사용한다.
   final List<MemberSelectionMember> members;
   final Set<String> initialSelectedMemberIds;
+
+  /// 일정 상세 응답처럼 내부 userId만 알고 있는 경우의 초기 선택 복원용입니다.
+  final Set<int> initialSelectedUserIds;
+
   final ValueChanged<List<MemberSelectionMember>>? onConfirm;
 
   @override
@@ -71,14 +76,22 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
       return;
     }
 
-    final validIds = ref
-        .read(memberSelectionProvider)
-        .members
+    final members = ref.read(memberSelectionProvider).members;
+    final validIds = members.map((member) => member.userPublicId).toSet();
+    final idsSelectedByUserId = members
+        .where(
+          (member) =>
+              member.userId != null &&
+              widget.initialSelectedUserIds.contains(member.userId),
+        )
         .map((member) => member.userPublicId)
         .toSet();
 
     setState(() {
-      _selectedMemberIds = _selectedMemberIds.intersection(validIds);
+      _selectedMemberIds = <String>{
+        ..._selectedMemberIds.intersection(validIds),
+        ...idsSelectedByUserId,
+      };
     });
   }
 

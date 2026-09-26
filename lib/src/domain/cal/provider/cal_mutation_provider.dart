@@ -7,7 +7,7 @@ import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_write_da
 import 'package:beatit_front_app/src/domain/cal/provider/cal_api_provider.dart';
 
 final calMutationProvider =
-    NotifierProvider.autoDispose<CalMutationNotifier, CalMutationState>(
+    NotifierProvider<CalMutationNotifier, CalMutationState>(
       CalMutationNotifier.new,
     );
 
@@ -49,6 +49,7 @@ class CalMutationNotifier extends Notifier<CalMutationState> {
   Future<ScheduleWriteData?> createSchedule({
     required ScheduleCreateRequest request,
     List<String> filePaths = const <String>[],
+    Map<String, String> fileNamesByPath = const <String, String>{},
   }) async {
     state = state.copyWith(isCreating: true, clearError: true);
 
@@ -56,6 +57,7 @@ class CalMutationNotifier extends Notifier<CalMutationState> {
       final response = await ref.read(calApiProvider).createSchedule(
         request: request,
         filePaths: filePaths,
+        fileNamesByPath: fileNamesByPath,
       );
 
       state = state.copyWith(isCreating: false, clearError: true);
@@ -73,6 +75,7 @@ class CalMutationNotifier extends Notifier<CalMutationState> {
     required int scheduleId,
     required ScheduleUpdateRequest request,
     List<String> newFilePaths = const <String>[],
+    Map<String, String> newFileNamesByPath = const <String, String>{},
   }) async {
     state = state.copyWith(isUpdating: true, clearError: true);
 
@@ -81,6 +84,7 @@ class CalMutationNotifier extends Notifier<CalMutationState> {
         scheduleId: scheduleId,
         request: request,
         newFilePaths: newFilePaths,
+        newFileNamesByPath: newFileNamesByPath,
       );
 
       state = state.copyWith(isUpdating: false, clearError: true);

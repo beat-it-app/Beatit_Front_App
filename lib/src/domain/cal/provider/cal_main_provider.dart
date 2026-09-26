@@ -4,7 +4,10 @@ import 'package:beatit_front_app/src/domain/cal/api/cal_api.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_date_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_month_response.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_api_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
 
+/// 화면이 살아있는 동안 이미 조회한 월/날짜를 재사용합니다.
+/// 생성·수정·삭제 후에는 호출부에서 force=true로 필요한 범위만 갱신합니다.
 final calMainProvider =
     NotifierProvider.autoDispose<CalMainNotifier, CalMainState>(
       CalMainNotifier.new,
@@ -21,6 +24,8 @@ class CalMainState {
     this.loadedYear,
     this.loadedMonth,
     this.loadedDate,
+    this.hasLoadedMonthOnce = false,
+    this.hasLoadedDateOnce = false,
   });
 
   final List<CalendarSchedule> monthSchedules;
@@ -35,6 +40,8 @@ class CalMainState {
   final int? loadedYear;
   final int? loadedMonth;
   final DateTime? loadedDate;
+  final bool hasLoadedMonthOnce;
+  final bool hasLoadedDateOnce;
 
   CalMainState copyWith({
     List<CalendarSchedule>? monthSchedules,
@@ -48,6 +55,8 @@ class CalMainState {
     int? loadedYear,
     int? loadedMonth,
     DateTime? loadedDate,
+    bool? hasLoadedMonthOnce,
+    bool? hasLoadedDateOnce,
   }) {
     return CalMainState(
       monthSchedules: monthSchedules ?? this.monthSchedules,
@@ -60,11 +69,22 @@ class CalMainState {
       loadedYear: loadedYear ?? this.loadedYear,
       loadedMonth: loadedMonth ?? this.loadedMonth,
       loadedDate: loadedDate ?? this.loadedDate,
+      hasLoadedMonthOnce: hasLoadedMonthOnce ?? this.hasLoadedMonthOnce,
+      hasLoadedDateOnce: hasLoadedDateOnce ?? this.hasLoadedDateOnce,
     );
   }
 }
 
 class CalMainNotifier extends Notifier<CalMainState> {
+  final Map<String, List<CalendarSchedule>> _monthCache =
+      <String, List<CalendarSchedule>>{};
+  final Map<DateTime, List<DateSchedule>> _dateCache =
+      <DateTime, List<DateSchedule>>{};
+  final Map<String, Future<List<CalendarSchedule>>> _monthInFlight =
+      <String, Future<List<CalendarSchedule>>>{};
+  final Map<DateTime, Future<List<DateSchedule>>> _dateInFlight =
+      <DateTime, Future<List<DateSchedule>>>{};
+
   int _monthRequestId = 0;
   int _dateRequestId = 0;
 
@@ -78,40 +98,59 @@ class CalMainNotifier extends Notifier<CalMainState> {
     required int month,
     bool force = false,
   }) async {
-    final isAlreadyLoaded =
-        state.loadedYear == year &&
-        state.loadedMonth == month &&
-        state.monthError == null;
+    final key = _monthKey(year, month);
 
-    if (!force && isAlreadyLoaded) {
-      return;
+    if (!force) {
+      final cached = _monthCache[key];
+      if (cached != null) {
+        state = state.copyWith(
+          monthSchedules: cached,
+          isMonthLoading: false,
+          loadedYear: year,
+          loadedMonth: month,
+          hasLoadedMonthOnce: true,
+          clearMonthError: true,
+        );
+        return;
+      }
+
+      if (state.isMonthLoading &&
+          state.loadedYear == year &&
+          state.loadedMonth == month) {
+        return;
+      }
     }
 
     final requestId = ++_monthRequestId;
 
     state = state.copyWith(
       isMonthLoading: true,
+      loadedYear: year,
+      loadedMonth: month,
       clearMonthError: true,
     );
 
     try {
-      final response = await ref
-          .read(calApiProvider)
-          .getCalendarSchedules(year: year, month: month);
+      final items = await _getMonthItems(
+        year: year,
+        month: month,
+        force: force,
+      );
 
-      if (requestId != _monthRequestId) {
+      if (!ref.mounted || requestId != _monthRequestId) {
         return;
       }
 
       state = state.copyWith(
-        monthSchedules: response.data.items,
+        monthSchedules: items,
         isMonthLoading: false,
         loadedYear: year,
         loadedMonth: month,
+        hasLoadedMonthOnce: true,
         clearMonthError: true,
       );
     } catch (error) {
-      if (requestId != _monthRequestId) {
+      if (!ref.mounted || requestId != _monthRequestId) {
         return;
       }
 
@@ -127,11 +166,23 @@ class CalMainNotifier extends Notifier<CalMainState> {
     bool force = false,
   }) async {
     final targetDay = DateTime(day.year, day.month, day.day);
-    final isAlreadyLoaded =
-        state.loadedDate == targetDay && state.dateError == null;
 
-    if (!force && isAlreadyLoaded) {
-      return;
+    if (!force) {
+      final cached = _dateCache[targetDay];
+      if (cached != null) {
+        state = state.copyWith(
+          selectedDateSchedules: cached,
+          isDateLoading: false,
+          loadedDate: targetDay,
+          hasLoadedDateOnce: true,
+          clearDateError: true,
+        );
+        return;
+      }
+
+      if (state.isDateLoading && state.loadedDate == targetDay) {
+        return;
+      }
     }
 
     final requestId = ++_dateRequestId;
@@ -144,23 +195,22 @@ class CalMainNotifier extends Notifier<CalMainState> {
     );
 
     try {
-      final response = await ref.read(calApiProvider).getDateSchedules(
-        year: targetDay.year,
-        month: targetDay.month,
-        date: targetDay.day,
-      );
+      // 일정과 각 일정의 장소 상세가 모두 준비되어야 날짜 로딩을 종료합니다.
+      final items = await _getDateItems(targetDay, force: force);
 
-      if (requestId != _dateRequestId) {
+      if (!ref.mounted || requestId != _dateRequestId) {
         return;
       }
 
       state = state.copyWith(
-        selectedDateSchedules: response.data.items,
+        selectedDateSchedules: items,
         isDateLoading: false,
+        loadedDate: targetDay,
+        hasLoadedDateOnce: true,
         clearDateError: true,
       );
     } catch (error) {
-      if (requestId != _dateRequestId) {
+      if (!ref.mounted || requestId != _dateRequestId) {
         return;
       }
 
@@ -170,6 +220,122 @@ class CalMainNotifier extends Notifier<CalMainState> {
       );
     }
   }
+
+  Future<List<CalendarSchedule>> _getMonthItems({
+    required int year,
+    required int month,
+    required bool force,
+  }) async {
+    final key = _monthKey(year, month);
+
+    if (!force) {
+      final cached = _monthCache[key];
+      if (cached != null) {
+        return cached;
+      }
+
+      final pending = _monthInFlight[key];
+      if (pending != null) {
+        return pending;
+      }
+    }
+
+    final future = _fetchMonth(year: year, month: month);
+    _monthInFlight[key] = future;
+
+    try {
+      final items = await future;
+      _monthCache[key] = items;
+      return items;
+    } finally {
+      if (identical(_monthInFlight[key], future)) {
+        _monthInFlight.remove(key);
+      }
+    }
+  }
+
+  Future<List<CalendarSchedule>> _fetchMonth({
+    required int year,
+    required int month,
+  }) async {
+    final api = ref.read(calApiProvider);
+    final response = await api.getCalendarSchedules(year: year, month: month);
+
+    return response.data.items;
+  }
+
+  Future<List<DateSchedule>> _getDateItems(
+    DateTime targetDay, {
+    required bool force,
+  }) async {
+    if (!force) {
+      final cached = _dateCache[targetDay];
+      if (cached != null) {
+        return cached;
+      }
+
+      final pending = _dateInFlight[targetDay];
+      if (pending != null) {
+        return pending;
+      }
+    }
+
+    final future = _fetchDateReady(targetDay);
+    _dateInFlight[targetDay] = future;
+
+    try {
+      final items = await future;
+      _dateCache[targetDay] = items;
+      return items;
+    } finally {
+      if (identical(_dateInFlight[targetDay], future)) {
+        _dateInFlight.remove(targetDay);
+      }
+    }
+  }
+
+  Future<List<DateSchedule>> _fetchDateReady(DateTime targetDay) async {
+    final api = ref.read(calApiProvider);
+    final locationCache = ref.read(locationDetailCacheProvider.notifier);
+    final response = await api.getDateSchedules(
+      year: targetDay.year,
+      month: targetDay.month,
+      date: targetDay.day,
+    );
+
+    final items = response.data.items;
+    final locationIds = items
+        .map((schedule) => schedule.locationId)
+        .whereType<int>();
+
+    await locationCache.loadLocations(locationIds);
+
+    return items;
+  }
+
+  void removeScheduleLocally(int scheduleId) {
+    _monthCache.updateAll(
+      (_, schedules) => schedules
+          .where((schedule) => schedule.scheduleId != scheduleId)
+          .toList(growable: false),
+    );
+    _dateCache.updateAll(
+      (_, schedules) => schedules
+          .where((schedule) => schedule.scheduleId != scheduleId)
+          .toList(growable: false),
+    );
+
+    state = state.copyWith(
+      monthSchedules: state.monthSchedules
+          .where((schedule) => schedule.scheduleId != scheduleId)
+          .toList(growable: false),
+      selectedDateSchedules: state.selectedDateSchedules
+          .where((schedule) => schedule.scheduleId != scheduleId)
+          .toList(growable: false),
+    );
+  }
+
+  String _monthKey(int year, int month) => '$year-${month.toString().padLeft(2, '0')}';
 
   String _getErrorMessage(Object error) {
     if (error is CalApiException) {

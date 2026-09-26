@@ -15,6 +15,8 @@ import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/schedule_file_item.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/kakao_static_map_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,9 +94,6 @@ class _CalDetailPageState extends ConsumerState<CalDetailPage> {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('일정이 삭제되었습니다.')));
     Navigator.of(context).pop(true);
   }
 
@@ -369,6 +368,9 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     final hasMusics = schedule.musics.isNotEmpty;
     final hasParticipants = schedule.participants.isNotEmpty;
     final hasFiles = schedule.files.isNotEmpty;
+    final hasBeenUpdated = !schedule.createdAt.isAtSameMomentAs(
+      schedule.updatedAt,
+    );
 
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -390,8 +392,10 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
           ),
           const SizedBox(height: AppSpacing.x4),
           Text(
-            '${_formatDateTime(schedule.createdAt)}'
-            ' ｜ 최종수정일 ${_formatDateTime(schedule.updatedAt)}',
+            !hasBeenUpdated
+                ? '${_formatDateTime(schedule.createdAt)}'
+                      ' ｜ 최종수정일 ${_formatDateTime(schedule.updatedAt)}'
+                : _formatDateTime(schedule.createdAt),
             style: FontStyles.reg14.copyWith(color: context.grays.gray5),
           ),
           if (hasContent) ...[
@@ -423,7 +427,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
           if (hasParticipants) ...[
             const SizedBox(height: AppSpacing.x20),
             const LabelBox(
-              iconAddress: 'assets/icons/profile/profile1.svg',
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
               value: '참여자',
             ),
             const SizedBox(height: AppSpacing.x14),
@@ -442,7 +446,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
           if (hasFiles) ...[
             const SizedBox(height: AppSpacing.x20),
             const LabelBox(
-              iconAddress: 'assets/icons/cloud/file.svg',
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
               value: '파일',
             ),
             const SizedBox(height: AppSpacing.x8),
@@ -537,26 +541,170 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
   }
 }
 
-class _LocationInfo extends ConsumerWidget {
+class _LocationInfo extends ConsumerStatefulWidget {
   const _LocationInfo({required this.locationId});
 
   final int locationId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final locationAsync = ref.watch(locationDetailProvider(locationId));
+  ConsumerState<_LocationInfo> createState() => _LocationInfoState();
+}
 
-    final locationName = locationAsync.when(
-      loading: () => '장소 불러오는 중...',
-      error: (_, __) => '장소 ID $locationId',
+class _LocationInfoState extends ConsumerState<_LocationInfo> {
+  bool _isMapVisible = false;
+  bool _isMapReady = false;
+  String? _preloadKey;
+  Future<void>? _mapPreloadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prepareMapInBackground();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LocationInfo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.locationId != widget.locationId) {
+      _preloadKey = null;
+      _mapPreloadFuture = null;
+      _isMapReady = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _prepareMapInBackground();
+      });
+    }
+  }
+
+  Future<void> _prepareMapInBackground() async {
+    try {
+      final location = await ref.read(
+        locationDetailProvider(widget.locationId).future,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final latitude = location.latitude;
+      final longitude = location.longitude;
+      if (latitude == null || longitude == null) {
+        return;
+      }
+
+      final logicalWidth =
+          (MediaQuery.sizeOf(context).width - (AppSpacing.x16 * 2))
+              .clamp(1.0, double.infinity)
+              .toDouble();
+      final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+      final preloadKey =
+          '${location.locationId}:$latitude:$longitude:'
+          '$logicalWidth:$devicePixelRatio';
+
+      if (_preloadKey == preloadKey) {
+        return;
+      }
+
+      _preloadKey = preloadKey;
+      final preloadFuture = KakaoStaticMapWidget.precacheMap(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        logicalWidth: logicalWidth,
+        logicalHeight: 210,
+        level: 3,
+      );
+      _mapPreloadFuture = preloadFuture;
+
+      try {
+        await preloadFuture;
+      } catch (_) {
+        // 프리로드 실패는 상세 페이지 전체나 장소 정보 표시를 막지 않습니다.
+      }
+
+      if (!mounted || _mapPreloadFuture != preloadFuture) {
+        return;
+      }
+
+      setState(() {
+        _isMapReady = true;
+      });
+    } catch (_) {
+      // 장소 조회 실패도 상세 페이지 전체 로딩과 분리합니다.
+    }
+  }
+
+  void _toggleMapVisibility() {
+    setState(() {
+      _isMapVisible = !_isMapVisible;
+    });
+  }
+
+  void _openMapPreview() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocationMapPreviewPage(locationId: widget.locationId),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locationAsync = ref.watch(locationDetailProvider(widget.locationId));
+
+    return locationAsync.when(
+      loading: () =>
+          _buildHeader(locationName: '장소 불러오는 중...', canShowMap: false),
+      error: (_, __) => _buildHeader(
+        locationName: '장소 ID ${widget.locationId}',
+        canShowMap: false,
+      ),
       data: (location) {
         final name = location.locationName?.trim();
-        return name == null || name.isEmpty ? '장소 ID $locationId' : name;
+        final locationName = name == null || name.isEmpty
+            ? '장소 ID ${location.locationId}'
+            : name;
+        final latitude = location.latitude;
+        final longitude = location.longitude;
+        final canShowMap = latitude != null && longitude != null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(locationName: locationName, canShowMap: canShowMap),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _isMapVisible && canShowMap
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.x12),
+                      child: _isMapReady
+                          ? KakaoStaticMapWidget(
+                              latitude: latitude,
+                              longitude: longitude,
+                              height: 210,
+                              level: 3,
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: _openMapPreview,
+                            )
+                          : _InlineMapLoading(onReady: _prepareMapInBackground),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        );
       },
     );
+  }
 
+  Widget _buildHeader({
+    required String locationName,
+    required bool canShowMap,
+  }) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const LabelBox(
           iconAddress: 'assets/icons/cal/location.svg',
@@ -564,54 +712,89 @@ class _LocationInfo extends ConsumerWidget {
         ),
         const SizedBox(width: AppSpacing.x10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.x4),
-                child: Text(
-                  locationName,
+          child: Text(
+            locationName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: FontStyles.med16.copyWith(color: context.colors.onSurface),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.x8),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: canShowMap ? _toggleMapVisibility : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '지도보기',
                   style: FontStyles.med16.copyWith(
-                    color: context.colors.onSurface,
+                    color: canShowMap
+                        ? context.brands.beatOrange2
+                        : context.grays.gray5,
+                    decoration: canShowMap
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
+                    decorationColor: context.brands.beatOrange2,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.x8,
-                    vertical: AppSpacing.x4,
+                const SizedBox(width: AppSpacing.x4),
+                AnimatedRotation(
+                  turns: _isMapVisible ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  child: SvgPicture.asset(
+                    'assets/icons/cal/toggle_down.svg',
+                    width: 20,
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      canShowMap
+                          ? context.brands.beatOrange2
+                          : context.grays.gray5,
+                      BlendMode.srcIn,
+                    ),
                   ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '지도보기',
-                      style: FontStyles.med16.copyWith(
-                        color: context.brands.beatOrange2,
-                      ),
-                    ),
-                    SizedBox(width: AppSpacing.x4),
-                    RotatedBox(
-                      quarterTurns: 0,
-                      child: SvgPicture.asset(
-                        'assets/icons/cal/toggle_down.svg',
-                        width: 20,
-                        height: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InlineMapLoading extends StatefulWidget {
+  const _InlineMapLoading({required this.onReady});
+
+  final Future<void> Function() onReady;
+
+  @override
+  State<_InlineMapLoading> createState() => _InlineMapLoadingState();
+}
+
+class _InlineMapLoadingState extends State<_InlineMapLoading> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onReady();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 210,
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(),
     );
   }
 }
@@ -673,7 +856,7 @@ class _ParticipantItem extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.x4),
             Text(
-              '멤버 $userId',
+              '$userId',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: FontStyles.med14.copyWith(color: context.colors.onSurface),

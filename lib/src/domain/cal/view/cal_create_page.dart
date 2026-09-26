@@ -13,7 +13,6 @@ import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_r
 import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/view/schedule_file_preview_page.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/schedule_file_item.dart';
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
@@ -27,10 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class CalCreatePage extends ConsumerStatefulWidget {
-  const CalCreatePage({
-    super.key,
-    this.initialSchedule,
-  });
+  const CalCreatePage({super.key, this.initialSchedule});
 
   /// 값이 있으면 동일한 화면을 일정 수정 화면으로 사용한다.
   final ScheduleDetailData? initialSchedule;
@@ -64,6 +60,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   bool _showValidation = false;
   bool _isDirty = false;
+  bool _membersWereEdited = false;
 
   bool get _isEditMode => widget.initialSchedule != null;
 
@@ -153,7 +150,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   Future<void> _loadInitialLocationName(int locationId) async {
     try {
-      final location = await ref.read(locationDetailProvider(locationId).future);
+      final location = await ref.read(
+        locationDetailProvider(locationId).future,
+      );
       if (!mounted || _selectedLocationId != locationId) {
         return;
       }
@@ -337,9 +336,14 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
               content: _nullableTrimmedText(_contentController.text),
               startsAt: startsAt,
               endsAt: endsAt,
-              // 선택한 멤버의 내부 userId도 상태에 보관하지만,
-              // 백엔드 연동 전까지 수정 API에는 아직 전달하지 않는다.
-              participantUserIds: null,
+              // 수정 화면에서 참여자 선택을 직접 변경했을 때만 새 목록을 보냅니다.
+              // 변경하지 않았다면 null을 보내 기존 참여자를 그대로 유지합니다.
+              participantUserIds: _membersWereEdited
+                  ? _selectedMembers
+                        .map((member) => member.userId)
+                        .whereType<int>()
+                        .toList(growable: false)
+                  : null,
               retainMusicIds: _selectedMusics
                   .where((music) => music.existingMusicId != null)
                   .map((music) => music.existingMusicId!)
@@ -361,6 +365,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             newFilePaths: _selectedFiles
                 .map((file) => file.path)
                 .toList(growable: false),
+            newFileNamesByPath: <String, String>{
+              for (final file in _selectedFiles) file.path: file.uploadName,
+            },
           )
         : await notifier.createSchedule(
             request: ScheduleCreateRequest(
@@ -369,9 +376,10 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
               content: _nullableTrimmedText(_contentController.text),
               startsAt: startsAt,
               endsAt: endsAt,
-              // 선택한 멤버의 내부 userId도 상태에 보관하지만,
-              // 백엔드 연동 전까지 생성 API에는 아직 전달하지 않는다.
-              participantUserIds: const <int>[],
+              participantUserIds: _selectedMembers
+                  .map((member) => member.userId)
+                  .whereType<int>()
+                  .toList(growable: false),
               musics: _selectedMusics
                   .map(
                     (music) => ScheduleCreateMusicRequest(
@@ -385,6 +393,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             filePaths: _selectedFiles
                 .map((file) => file.path)
                 .toList(growable: false),
+            fileNamesByPath: <String, String>{
+              for (final file in _selectedFiles) file.path: file.uploadName,
+            },
           );
 
     if (!mounted) return;
@@ -410,9 +421,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   Future<void> _openLocationSelector() async {
     final selectedLocation = await Navigator.of(context).push<LocationData>(
       MaterialPageRoute(
-        builder: (_) => const LocationSearchPage(
-          returnRegisteredLocationOnSelect: true,
-        ),
+        builder: (_) =>
+            const LocationSearchPage(returnRegisteredLocationOnSelect: true),
       ),
     );
 
@@ -428,15 +438,25 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Future<void> _openMemberSelector() async {
-    final selected = await Navigator.of(context).push<List<MemberSelectionMember>>(
-      MaterialPageRoute(
-        builder: (_) => MemberSelectionPage(
-          initialSelectedMemberIds: _selectedMembers
-              .map((member) => member.userPublicId)
-              .toSet(),
-        ),
-      ),
-    );
+    final selected = await Navigator.of(context)
+        .push<List<MemberSelectionMember>>(
+          MaterialPageRoute(
+            builder: (_) => MemberSelectionPage(
+              initialSelectedMemberIds: _selectedMembers
+                  .map((member) => member.userPublicId)
+                  .toSet(),
+              initialSelectedUserIds: _membersWereEdited
+                  ? _selectedMembers
+                        .map((member) => member.userId)
+                        .whereType<int>()
+                        .toSet()
+                  : widget.initialSchedule?.participants
+                            .map((participant) => participant.userId)
+                            .toSet() ??
+                        const <int>{},
+            ),
+          ),
+        );
 
     if (!mounted || selected == null) {
       return;
@@ -456,6 +476,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             ),
           ),
         );
+      _membersWereEdited = true;
       _isDirty = true;
     });
   }
@@ -533,7 +554,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
       final byteLength = await file.length() ?? 0;
       addedFiles.add(
-        _SelectedFile(
+        _SelectedFile.fromFile(
           path: path,
           name: file.name,
           sizeText: _formatFileSize(byteLength),
@@ -560,14 +581,15 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   void _showLimitMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _removeMember(int index) {
     setState(() {
       _selectedMembers.removeAt(index);
+      _membersWereEdited = true;
       _isDirty = true;
     });
   }
@@ -582,6 +604,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   void _removeSelectedFile(int index) {
     setState(() {
       _selectedFiles.removeAt(index);
+      _isDirty = true;
+    });
+  }
+
+  void _renameSelectedFile(int index, String baseName) {
+    setState(() {
+      _selectedFiles[index] = _selectedFiles[index].copyWithBaseName(baseName);
       _isDirty = true;
     });
   }
@@ -803,7 +832,10 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         const SizedBox(height: AppSpacing.x8),
                         _buildMemberSection(),
                         const SizedBox(height: AppSpacing.x20),
-                        _SectionLabel(text: '음원 (${_selectedMusics.length}/$_maxMusicCount)'),
+                        _SectionLabel(
+                          text:
+                              '음원 (${_selectedMusics.length}/$_maxMusicCount)',
+                        ),
                         const SizedBox(height: AppSpacing.x8),
                         _buildMusicSection(),
                         const SizedBox(height: AppSpacing.x20),
@@ -834,10 +866,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   Widget _buildMemberSection() {
     if (_selectedMembers.isEmpty) {
-      return AddMemberButton(
-        text: '인원 선택하기',
-        onPressed: _openMemberSelector,
-      );
+      return AddMemberButton(text: '인원 선택하기', onPressed: _openMemberSelector);
     }
 
     return SingleChildScrollView(
@@ -891,43 +920,35 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
         ...List.generate(_retainedFiles.length, (index) {
           final file = _retainedFiles[index];
 
-          return Column(
-            children: [
-              ScheduleFileItem(
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.x8),
+            child: _RetainedFileRow(
+              fileName: file.originalFileName,
+              onTap: () => _openFilePreview(
                 fileName: file.originalFileName,
-                onTap: () => _openFilePreview(
-                  fileName: file.originalFileName,
-                  source: file.cdnUrl,
-                ),
-                onRemove: () => _removeRetainedFile(index),
+                source: file.cdnUrl,
               ),
-              Divider(color: context.grays.gray7, height: 1),
-            ],
+              onRemove: () => _removeRetainedFile(index),
+            ),
           );
         }),
         ...List.generate(_selectedFiles.length, (index) {
           final file = _selectedFiles[index];
 
-          return Column(
-            children: [
-              ScheduleFileItem(
-                fileName: file.name,
-                fileSize: file.sizeText,
-                onTap: () => _openFilePreview(
-                  fileName: file.name,
-                  source: file.path,
-                  fileSize: file.sizeText,
-                ),
-                onRemove: () => _removeSelectedFile(index),
-              ),
-              Divider(color: context.grays.gray7, height: 1),
-            ],
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.x8),
+            child: _EditableSelectedFileRow(
+              key: ValueKey(file.path),
+              baseName: file.baseName,
+              extension: file.extension,
+              fileSize: file.sizeText,
+              onNameChanged: (value) => _renameSelectedFile(index, value),
+              onRemove: () => _removeSelectedFile(index),
+            ),
           );
         }),
-        if (_fileCount < _maxFileCount) ...[
-          const SizedBox(height: AppSpacing.x8),
+        if (_fileCount < _maxFileCount)
           Center(child: _AddButton(onPressed: _openFileSelector)),
-        ],
       ],
     );
   }
@@ -1167,6 +1188,150 @@ class _SelectionRow extends StatelessWidget {
   }
 }
 
+class _RetainedFileRow extends StatelessWidget {
+  const _RetainedFileRow({
+    required this.fileName,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final String fileName;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+          decoration: BoxDecoration(
+            color: context.grays.gray8,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FontStyles.reg18.copyWith(
+                    color: context.colors.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x8),
+              _FileRemoveButton(fileName: fileName, onRemove: onRemove),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditableSelectedFileRow extends StatelessWidget {
+  const _EditableSelectedFileRow({
+    super.key,
+    required this.baseName,
+    required this.extension,
+    required this.fileSize,
+    required this.onNameChanged,
+    required this.onRemove,
+  });
+
+  final String baseName;
+  final String extension;
+  final String fileSize;
+  final ValueChanged<String> onNameChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 45),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x10),
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: TextFormField(
+              initialValue: baseName,
+              onChanged: onNameChanged,
+              maxLines: 1,
+              cursorColor: context.colors.primary,
+              style: FontStyles.reg18.copyWith(color: context.colors.onSurface),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            ),
+          ),
+          if (extension.isNotEmpty)
+            Text(
+              '.$extension',
+              style: FontStyles.reg18.copyWith(color: context.colors.onSurface),
+            ),
+          if (fileSize.trim().isNotEmpty) ...[
+            const SizedBox(width: AppSpacing.x8),
+            Text(
+              fileSize,
+              style: FontStyles.reg16.copyWith(color: context.grays.gray5),
+            ),
+          ],
+          const SizedBox(width: AppSpacing.x8),
+          _FileRemoveButton(
+            fileName: extension.isEmpty ? baseName : '$baseName.$extension',
+            onRemove: onRemove,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FileRemoveButton extends StatelessWidget {
+  const _FileRemoveButton({required this.fileName, required this.onRemove});
+
+  final String fileName;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '$fileName 삭제',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onRemove,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.x4),
+          child: SvgPicture.asset(
+            'assets/icons/cal/delete.svg',
+            width: 20,
+            height: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SelectedMember {
   const _SelectedMember({
     required this.userPublicId,
@@ -1204,11 +1369,61 @@ class _SelectedMusic {
 class _SelectedFile {
   const _SelectedFile({
     required this.path,
-    required this.name,
+    required this.originalName,
+    required this.baseName,
+    required this.extension,
     required this.sizeText,
   });
 
+  factory _SelectedFile.fromFile({
+    required String path,
+    required String name,
+    required String sizeText,
+  }) {
+    final dotIndex = name.lastIndexOf('.');
+    final hasExtension = dotIndex > 0 && dotIndex < name.length - 1;
+
+    return _SelectedFile(
+      path: path,
+      originalName: name,
+      baseName: hasExtension ? name.substring(0, dotIndex) : name,
+      extension: hasExtension ? name.substring(dotIndex + 1) : '',
+      sizeText: sizeText,
+    );
+  }
+
   final String path;
-  final String name;
+  final String originalName;
+  final String baseName;
+  final String extension;
   final String sizeText;
+
+  String get uploadName {
+    final trimmedBaseName = baseName.trim();
+    final resolvedBaseName = trimmedBaseName.isEmpty
+        ? _fallbackBaseName(originalName)
+        : trimmedBaseName;
+
+    return extension.isEmpty
+        ? resolvedBaseName
+        : '$resolvedBaseName.$extension';
+  }
+
+  _SelectedFile copyWithBaseName(String value) {
+    return _SelectedFile(
+      path: path,
+      originalName: originalName,
+      baseName: value,
+      extension: extension,
+      sizeText: sizeText,
+    );
+  }
+
+  static String _fallbackBaseName(String name) {
+    final dotIndex = name.lastIndexOf('.');
+    if (dotIndex <= 0) {
+      return name;
+    }
+    return name.substring(0, dotIndex);
+  }
 }
