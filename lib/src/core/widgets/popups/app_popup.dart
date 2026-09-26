@@ -142,7 +142,6 @@ class AppPopup extends StatelessWidget {
             children: [
               if (warningType != WarningType.none) ...[
                 _PopupWarningIcon(warningType: warningType),
-                const SizedBox(height: AppSpacing.x20),
               ],
 
               Padding(
@@ -157,7 +156,6 @@ class AppPopup extends StatelessWidget {
               ),
 
               if (_hasContent) ...[
-                const SizedBox(height: AppSpacing.x20),
                 Flexible(
                   fit: FlexFit.loose,
                   child: SingleChildScrollView(

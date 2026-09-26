@@ -1,9 +1,9 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/calendar_day_item.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 
 class CalendarMonthView extends StatelessWidget {
   const CalendarMonthView({
@@ -17,6 +17,7 @@ class CalendarMonthView extends StatelessWidget {
     required this.labelForDay,
     required this.onDaySelected,
     required this.onPageChanged,
+    this.isHoliday,
     this.weekGap = AppSpacing.x12,
   });
 
@@ -35,8 +36,13 @@ class CalendarMonthView extends StatelessWidget {
   /// 실제 오늘
   final DateTime today;
 
-  /// 해당 날짜에 일정이 있는지 반환
+  /// 해당 날짜에 내가 참여하는 일정이 있는지 반환
   final bool Function(DateTime day) hasSchedule;
+
+  /// 해당 날짜가 공휴일인지 반환
+  ///
+  /// 현재 공휴일 API/모델이 연결되어 있지 않으므로 optional로 유지합니다.
+  final bool Function(DateTime day)? isHoliday;
 
   /// 날짜 원 아래에 표시할 라벨
   final String? Function(DateTime day) labelForDay;
@@ -52,13 +58,14 @@ class CalendarMonthView extends StatelessWidget {
 
   /// 날짜 원 + 라벨이 실제로 사용하는 높이
   static const double _dayItemHeight = 60;
-  static const double _daysOfWeekHeight = 28;
 
   @override
   Widget build(BuildContext context) {
+    final normalizedToday = DateUtils.dateOnly(today);
+
     return Column(
       children: [
-        _CalendarWeekdayHeader(),
+        const _CalendarWeekdayHeader(),
 
         const SizedBox(height: AppSpacing.x12),
 
@@ -66,28 +73,20 @@ class CalendarMonthView extends StatelessWidget {
           firstDay: DateUtils.dateOnly(firstDay),
           lastDay: DateUtils.dateOnly(lastDay),
           focusedDay: DateUtils.dateOnly(focusedDay),
-
-          // TableCalendar 기본 오늘 계산 대신
-          // 화면에서 관리하는 오늘 값을 사용합니다.
-          currentDay: DateUtils.dateOnly(today),
+          currentDay: normalizedToday,
 
           calendarFormat: CalendarFormat.month,
           startingDayOfWeek: StartingDayOfWeek.sunday,
 
-          // Beatit 전용 월 헤더를 바깥에서 따로 구현합니다.
           headerVisible: false,
           daysOfWeekVisible: false,
           rowHeight: _dayItemHeight + weekGap,
 
-          // 세로 화면 스크롤과 충돌하지 않도록
-          // 캘린더에서는 가로 스와이프만 받습니다.
           availableGestures: AvailableGestures.horizontalSwipe,
 
-          // 5주짜리 달은 5주로, 6주짜리 달은 6주로 표시합니다.
           sixWeekMonthsEnforced: false,
           shouldFillViewport: false,
 
-          // Padding 부분까지 날짜 셀 전체를 터치 영역으로 사용
           dayHitTestBehavior: HitTestBehavior.opaque,
 
           selectedDayPredicate: (day) {
@@ -105,7 +104,6 @@ class CalendarMonthView extends StatelessWidget {
             onPageChanged(DateTime(focusedDay.year, focusedDay.month));
           },
 
-          // 기본 날짜 장식은 사용하지 않고 CalendarDayItem이 담당합니다.
           calendarStyle: const CalendarStyle(
             outsideDaysVisible: true,
             isTodayHighlighted: false,
@@ -123,23 +121,37 @@ class CalendarMonthView extends StatelessWidget {
               );
             },
 
-            // todayBuilder, selectedBuilder, outsideBuilder를
-            // 각각 중복 작성하지 않고 이곳에서 한 번에 처리합니다.
             prioritizedBuilder: (context, day, visibleMonth) {
+              final normalizedDay = DateUtils.dateOnly(day);
+
               final isCurrentMonth =
                   day.year == visibleMonth.year &&
                   day.month == visibleMonth.month;
 
-              final isToday = DateUtils.isSameDay(day, today);
-              final isSelected = DateUtils.isSameDay(day, selectedDay);
-              final hasDaySchedule = hasSchedule(day);
+              final isToday = DateUtils.isSameDay(
+                normalizedDay,
+                normalizedToday,
+              );
+
+              final isSelected = DateUtils.isSameDay(
+                normalizedDay,
+                selectedDay,
+              );
+
+              final hasDaySchedule = hasSchedule(normalizedDay);
+
+              final isPast = normalizedDay.isBefore(normalizedToday);
+
+              final isHolidayDay = isHoliday?.call(normalizedDay) ?? false;
 
               return Padding(
                 padding: EdgeInsets.symmetric(vertical: weekGap / 2),
                 child: CalendarDayItem(
                   day: day.day,
-                  label: labelForDay(day),
+                  label: labelForDay(normalizedDay),
                   isSelected: isSelected,
+                  isHoliday: isHolidayDay,
+                  isPast: isPast,
                   monthState: isCurrentMonth
                       ? CalendarMonthState.currentMonth
                       : CalendarMonthState.outsideMonth,
@@ -150,9 +162,6 @@ class CalendarMonthView extends StatelessWidget {
                   scheduleState: hasDaySchedule
                       ? CalendarScheduleState.hasSchedule
                       : CalendarScheduleState.none,
-
-                  // 날짜 터치는 TableCalendar.onDaySelected가 담당합니다.
-                  // CalendarDayItem에서는 중복 콜백을 연결하지 않습니다.
                   onTap: null,
                 ),
               );
@@ -185,15 +194,21 @@ class _CalendarWeekdayHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: weekdays.map((weekday) {
+      children: List.generate(weekdays.length, (index) {
+        final isSunday = index == 0;
+
         return Expanded(
           child: Text(
-            weekday,
+            weekdays[index],
             textAlign: TextAlign.center,
-            style: FontStyles.med12.copyWith(color: context.grays.gray5),
+            style: FontStyles.med12.copyWith(
+              color: isSunday
+                  ? context.brands.beatOrange1
+                  : context.grays.gray5,
+            ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 }

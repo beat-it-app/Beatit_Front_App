@@ -1,242 +1,135 @@
+import 'dart:async';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/calendar_day_item.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
-import 'package:beatit_front_app/src/domain/cal/widget/schedule_list_item.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
+import 'package:beatit_front_app/src/domain/cal/provider/cal_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_create_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/schedule_file_preview_page.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/schedule_file_item.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/kakao_static_map_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 
-class CalDetailPage extends StatefulWidget {
-  const CalDetailPage({super.key});
+class CalDetailPage extends ConsumerStatefulWidget {
+  const CalDetailPage({super.key, required this.scheduleId});
+
+  final int scheduleId;
 
   @override
-  State<CalDetailPage> createState() => _CalDetailPageState();
+  ConsumerState<CalDetailPage> createState() => _CalDetailPageState();
 }
 
-class _CalDetailPageState extends State<CalDetailPage> {
-  final idController = TextEditingController();
-  final passwordController = TextEditingController();
-  final passwordCheckController = TextEditingController();
-  final emailController = TextEditingController();
+class _CalDetailPageState extends ConsumerState<CalDetailPage> {
+  bool _didChange = false;
 
-  bool _isMapVisible = true;
-
-  void _toggleMapVisibility() {
-    setState(() {
-      _isMapVisible = !_isMapVisible;
-    });
+  Future<void> _handleBack() async {
+    Navigator.of(context).pop(_didChange);
   }
 
-  @override
-  void dispose() {
-    idController.dispose();
-    passwordController.dispose();
-    passwordCheckController.dispose();
-    emailController.dispose();
-    super.dispose();
+  Future<bool> _handleSystemBack() async {
+    Navigator.of(context).pop(_didChange);
+    return false;
+  }
+
+  Future<void> _openEditPage(ScheduleDetailData schedule) async {
+    final updated = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CalCreatePage(initialSchedule: schedule),
+      ),
+    );
+
+    if (!mounted || updated == null) {
+      return;
+    }
+
+    setState(() {
+      _didChange = true;
+    });
+    ref.invalidate(calDetailProvider(widget.scheduleId));
+  }
+
+  Future<void> _deleteSchedule() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '일정을 삭제하시겠습니까?',
+      content: '삭제된 일정은\n복구할 수 없습니다.',
+      warningType: WarningType.triangle,
+      contentType: ContentType.small,
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    final deleted = await ref
+        .read(calMutationProvider.notifier)
+        .deleteSchedule(scheduleId: widget.scheduleId);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!deleted) {
+      final error =
+          ref.read(calMutationProvider).errorMessage ?? '일정 삭제에 실패했습니다.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final detailAsync = ref.watch(calDetailProvider(widget.scheduleId));
+    final moreMenuItems = detailAsync.when(
+      loading: () => const <AppDropdownItem>[],
+      error: (_, __) => const <AppDropdownItem>[],
+      data: (schedule) => <AppDropdownItem>[
+        AppDropdownItem(
+          label: '일정 수정하기',
+          onPressed: () => _openEditPage(schedule),
+        ),
+        AppDropdownItem(label: '일정 삭제하기', onPressed: _deleteSchedule),
+      ],
+    );
 
-    return Scaffold(
-      appBar: AppTopAppBar.backOnly(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.x16,
-            AppSpacing.x24,
-            AppSpacing.x16,
-            0,
-          ),
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '4월 28일 합주',
-                  style: FontStyles.bold34.copyWith(
-                    color: colors.onSurface,
-                    letterSpacing: -0.68,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Text(
-                      '2026.07.22 15:47',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray4,
-                      ),
-                    ),
-                    Text(
-                      '｜최종수정일 2026.04.03 15:00',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.x16),
-
-                Text(
-                  '안녕하세요! 오늘 합주는 아래 두 곡 연습 예정입니다.\n파일에는 악보를 pdf로 첨부했으니 참고 부탁드려요 !\n합주는 약 3시간 진행 후 함께 점심식사 예정입니다.\n(메뉴는 아마도 닭갈비...)\n오늘은 악기 대여를 안 했으니, 본인이 지참해주세요~',
-                  style: FontStyles.reg14.copyWith(color: context.grays.black),
-                ),
-
-                const SizedBox(height: AppSpacing.x20),
-
-                Row(
-                  children: [
-                    LabelBox(
-                      iconAddress: 'assets/icons/cal/clock.svg',
-                      value: '시간',
-                    ),
-                    const SizedBox(width: AppSpacing.x10),
-                    Text(
-                      '2026.07.28 토요일 11:00-14:00',
-                      style: FontStyles.med16.copyWith(
-                        color: context.grays.black,
-                      ),
-                    ),
-                  ],
-                ),
-
-                Row(
-                  children: [
-                    LabelBox(
-                      iconAddress: 'assets/icons/cal/location.svg',
-                      value: '위치',
-                    ),
-                    const SizedBox(width: AppSpacing.x10),
-                    Text(
-                      '그라운드합주실 본점 A3',
-                      style: FontStyles.med16.copyWith(
-                        color: context.grays.black,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _toggleMapVisibility,
-                      style: TextButton.styleFrom(
-                        foregroundColor: context.colors.primary,
-                        backgroundColor: Colors.transparent,
-                        overlayColor: Colors.transparent,
-                        splashFactory: NoSplash.splashFactory,
-                        enableFeedback: false,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.x16,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '지도보기',
-                            style: FontStyles.med16.copyWith(
-                              color: context.colors.primary,
-                              decoration: TextDecoration.underline,
-                              decorationColor: context.colors.primary,
-                            ),
-                          ),
-                          RotatedBox(
-                            quarterTurns: _isMapVisible ? 2 : 0,
-                            child: SvgPicture.asset(
-                              'assets/icons/cal/toggle_down.svg',
-                              colorFilter: ColorFilter.mode(
-                                context.colors.primary,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.x10),
-
-                LabelBox(
-                  iconAddress: 'assets/icons/cal/music_symbol.svg',
-                  value: '연습곡',
-                ),
-
-                const SizedBox(height: AppSpacing.x4),
-
-                MusicListItem(
-                  trackText: 'Basket Case',
-                  artistText: 'Green Day',
-                  onTap: () {},
-                ),
-                Divider(color: context.grays.gray7, height: 1),
-                MusicListItem(trackText: '개화', artistText: '루시', onTap: () {}),
-
-                const SizedBox(height: AppSpacing.x20),
-
-                LabelBox(
-                  iconAddress: 'assets/icons/cal/music_symbol.svg',
-                  value: '참여자',
-                ),
-                const SizedBox(height: AppSpacing.x14),
-
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                      _MemberInfoButton(
-                        memberImage: 'assets/images/exProfile.jpg',
-                        memberName: '송하은',
-                        memberPart: '베이스',
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: AppSpacing.x20),
-              ],
+    return WillPopScope(
+      onWillPop: _handleSystemBack,
+      child: Scaffold(
+        appBar: AppTopAppBar.backMore(
+          onBackPressed: _handleBack,
+          moreMenuOffset: const Offset(-16, 56),
+          moreMenuItems: moreMenuItems,
+        ),
+        body: SafeArea(
+          child: detailAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => _ErrorView(
+              message: error.toString(),
+              onRetry: () {
+                ref.invalidate(calDetailProvider(widget.scheduleId));
+              },
             ),
+            data: (schedule) => _ScheduleDetailContent(schedule: schedule),
           ),
         ),
       ),
@@ -244,47 +137,760 @@ class _CalDetailPageState extends State<CalDetailPage> {
   }
 }
 
-class _MemberInfoButton extends StatelessWidget {
-  const _MemberInfoButton({
-    required this.memberName,
-    required this.memberPart,
-    required this.memberImage,
-  });
+class _ScheduleDetailContent extends StatefulWidget {
+  const _ScheduleDetailContent({required this.schedule});
 
-  final String memberName;
-  final String memberPart;
-  final String memberImage;
+  final ScheduleDetailData schedule;
+
+  @override
+  State<_ScheduleDetailContent> createState() => _ScheduleDetailContentState();
+}
+
+class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
+  final AudioPlayer _player = AudioPlayer();
+
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  int? _expandedMusicId;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  bool _isPlaying = false;
+  bool _isLoadingMusic = false;
+  String? _playbackErrorMessage;
+  int _loadRequestId = 0;
+
+  ScheduleDetailData get schedule => widget.schedule;
+
+  @override
+  void initState() {
+    super.initState();
+    _bindPlayerStreams();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScheduleDetailContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final expandedMusicId = _expandedMusicId;
+    if (expandedMusicId == null) {
+      return;
+    }
+
+    final stillExists = schedule.musics.any(
+      (music) => music.musicId == expandedMusicId,
+    );
+
+    if (!stillExists) {
+      unawaited(_closePlayer());
+    }
+  }
+
+  void _bindPlayerStreams() {
+    _positionSubscription = _player.positionStream.listen((position) {
+      if (!mounted || _expandedMusicId == null) {
+        return;
+      }
+
+      final nextPosition = _clampDuration(position, Duration.zero, _duration);
+
+      setState(() {
+        _position = nextPosition;
+      });
+    });
+
+    _durationSubscription = _player.durationStream.listen((duration) {
+      if (!mounted || _expandedMusicId == null || duration == null) {
+        return;
+      }
+
+      setState(() {
+        _duration = duration;
+      });
+    });
+
+    _playerStateSubscription = _player.playerStateStream.listen((state) {
+      if (!mounted || _expandedMusicId == null) {
+        return;
+      }
+
+      setState(() {
+        _isPlaying =
+            state.playing && state.processingState != ProcessingState.completed;
+
+        if (state.processingState == ProcessingState.completed) {
+          _position = _duration;
+        }
+      });
+    });
+  }
+
+  Future<void> _handleMusicTap(ScheduleDetailMusic music) async {
+    if (_expandedMusicId == music.musicId) {
+      await _closePlayer();
+      return;
+    }
+
+    await _openPlayer(music);
+  }
+
+  Future<void> _openPlayer(ScheduleDetailMusic music) async {
+    final requestId = ++_loadRequestId;
+    final previewUrl = music.musicPreviewUrl?.trim();
+
+    setState(() {
+      _expandedMusicId = music.musicId;
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      _isPlaying = false;
+      _isLoadingMusic = true;
+      _playbackErrorMessage = null;
+    });
+
+    await _player.stop();
+
+    if (!mounted || requestId != _loadRequestId) {
+      return;
+    }
+
+    if (previewUrl == null || previewUrl.isEmpty) {
+      setState(() {
+        _isLoadingMusic = false;
+        _playbackErrorMessage = '미리듣기 음원이 없습니다.';
+      });
+      return;
+    }
+
+    try {
+      final resolvedDuration = await _player.setUrl(previewUrl);
+
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
+
+      final duration = resolvedDuration ?? _player.duration;
+      if (duration == null || duration <= Duration.zero) {
+        setState(() {
+          _isLoadingMusic = false;
+          _playbackErrorMessage = '미리듣기 음원을 불러오지 못했습니다.';
+        });
+        return;
+      }
+
+      setState(() {
+        _duration = duration;
+        _position = Duration.zero;
+        _isLoadingMusic = false;
+      });
+
+      unawaited(_player.play());
+    } catch (error, stackTrace) {
+      debugPrint('[CalDetailPage] music preview load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingMusic = false;
+        _isPlaying = false;
+        _playbackErrorMessage = '미리듣기 음원을 불러오지 못했습니다.';
+      });
+    }
+  }
+
+  Future<void> _closePlayer() async {
+    ++_loadRequestId;
+
+    if (mounted) {
+      setState(() {
+        _expandedMusicId = null;
+        _position = Duration.zero;
+        _duration = Duration.zero;
+        _isPlaying = false;
+        _isLoadingMusic = false;
+        _playbackErrorMessage = null;
+      });
+    }
+
+    await _player.stop();
+  }
+
+  Future<void> _seek(Duration target) async {
+    if (_expandedMusicId == null ||
+        _isLoadingMusic ||
+        _playbackErrorMessage != null ||
+        _duration <= Duration.zero) {
+      return;
+    }
+
+    final clamped = _clampDuration(target, Duration.zero, _duration);
+    final shouldResume =
+        _isPlaying || _player.processingState == ProcessingState.completed;
+
+    setState(() {
+      _position = clamped;
+    });
+
+    await _player.seek(clamped);
+
+    if (shouldResume && clamped < _duration && !_player.playing) {
+      unawaited(_player.play());
+    }
+  }
+
+  Duration _clampDuration(Duration value, Duration minimum, Duration maximum) {
+    if (value < minimum) {
+      return minimum;
+    }
+    if (value > maximum) {
+      return maximum;
+    }
+    return value;
+  }
+
+  @override
+  void dispose() {
+    ++_loadRequestId;
+    unawaited(_positionSubscription?.cancel());
+    unawaited(_durationSubscription?.cancel());
+    unawaited(_playerStateSubscription?.cancel());
+    unawaited(_player.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasContent = schedule.content?.trim().isNotEmpty ?? false;
+    final hasLocation = schedule.locationId != null;
+    final hasMusics = schedule.musics.isNotEmpty;
+    final hasParticipants = schedule.participants.isNotEmpty;
+    final hasFiles = schedule.files.isNotEmpty;
+    final hasBeenUpdated = !schedule.createdAt.isAtSameMomentAs(
+      schedule.updatedAt,
+    );
+
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.x16,
+        AppSpacing.x24,
+        AppSpacing.x16,
+        AppSpacing.x30,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            schedule.title,
+            style: FontStyles.bold34.copyWith(
+              color: context.colors.onSurface,
+              letterSpacing: -0.68,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x4),
+          Text(
+            !hasBeenUpdated
+                ? '${_formatDateTime(schedule.createdAt)}'
+                      ' ｜ 최종수정일 ${_formatDateTime(schedule.updatedAt)}'
+                : _formatDateTime(schedule.createdAt),
+            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          ),
+          if (hasContent) ...[
+            const SizedBox(height: AppSpacing.x16),
+            Text(
+              schedule.content!.trim(),
+              style: FontStyles.reg14.copyWith(color: context.colors.onSurface),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.x20),
+          _InfoRow(
+            iconAddress: 'assets/icons/cal/clock.svg',
+            label: '시간',
+            value: _formatScheduleTime(schedule.startsAt, schedule.endsAt),
+          ),
+          if (hasLocation) ...[
+            const SizedBox(height: AppSpacing.x10),
+            _LocationInfo(locationId: schedule.locationId!),
+          ],
+          if (hasMusics) ...[
+            const SizedBox(height: AppSpacing.x20),
+            const LabelBox(
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
+              value: '연습곡',
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            ..._buildMusicItems(context, schedule.musics),
+          ],
+          if (hasParticipants) ...[
+            const SizedBox(height: AppSpacing.x20),
+            const LabelBox(
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
+              value: '참여자',
+            ),
+            const SizedBox(height: AppSpacing.x14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: schedule.participants
+                    .map(
+                      (participant) =>
+                          _ParticipantItem(userId: participant.userId),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+          ],
+          if (hasFiles) ...[
+            const SizedBox(height: AppSpacing.x20),
+            const LabelBox(
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
+              value: '파일',
+            ),
+            const SizedBox(height: AppSpacing.x8),
+            ..._buildFileItems(context, schedule.files),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildMusicItems(
+    BuildContext context,
+    List<ScheduleDetailMusic> musics,
+  ) {
+    return List.generate(musics.length, (index) {
+      final music = musics[index];
+      final isLast = index == musics.length - 1;
+      final isExpanded = _expandedMusicId == music.musicId;
+
+      return Column(
+        children: [
+          MusicListItem(
+            trackText: _displayText(music.musicTitle, fallback: '제목 없음'),
+            artistText: _displayText(music.musicArtist, fallback: '아티스트 정보 없음'),
+            isExpanded: isExpanded,
+            isPlaying: isExpanded && _isPlaying,
+            isLoading: isExpanded && _isLoadingMusic,
+            position: isExpanded ? _position : Duration.zero,
+            duration: isExpanded ? _duration : Duration.zero,
+            errorMessage: isExpanded ? _playbackErrorMessage : null,
+            onTap: () => unawaited(_handleMusicTap(music)),
+            onSeek: (position) => unawaited(_seek(position)),
+          ),
+          if (!isLast) Divider(color: context.grays.gray7, height: 1),
+        ],
+      );
+    });
+  }
+
+  List<Widget> _buildFileItems(
+    BuildContext context,
+    List<ScheduleDetailFile> files,
+  ) {
+    return List.generate(files.length, (index) {
+      final file = files[index];
+      final isLast = index == files.length - 1;
+
+      return Column(
+        children: [
+          ScheduleFileItem(
+            fileName: file.originalFileName,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ScheduleFilePreviewPage(
+                    fileName: file.originalFileName,
+                    source: file.cdnUrl,
+                  ),
+                ),
+              );
+            },
+          ),
+          if (!isLast) Divider(color: context.grays.gray7, height: 1),
+        ],
+      );
+    });
+  }
+
+  static String _formatScheduleTime(DateTime startsAt, DateTime endsAt) {
+    final start = startsAt.toLocal();
+    final end = endsAt.toLocal();
+    const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[start.weekday - 1];
+
+    return '${start.year}.${_two(start.month)}.${_two(start.day)} '
+        '$weekday요일 ${_two(start.hour)}:${_two(start.minute)}'
+        '-${_two(end.hour)}:${_two(end.minute)}';
+  }
+
+  static String _formatDateTime(DateTime dateTime) {
+    final value = dateTime.toLocal();
+
+    return '${value.year}.${_two(value.month)}.${_two(value.day)} '
+        '${_two(value.hour)}:${_two(value.minute)}';
+  }
+
+  static String _two(int value) => value.toString().padLeft(2, '0');
+
+  static String _displayText(String? value, {required String fallback}) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? fallback : trimmed;
+  }
+}
+
+class _LocationInfo extends ConsumerStatefulWidget {
+  const _LocationInfo({required this.locationId});
+
+  final int locationId;
+
+  @override
+  ConsumerState<_LocationInfo> createState() => _LocationInfoState();
+}
+
+class _LocationInfoState extends ConsumerState<_LocationInfo> {
+  bool _isMapVisible = false;
+  bool _isMapReady = false;
+  String? _preloadKey;
+  Future<void>? _mapPreloadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prepareMapInBackground();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LocationInfo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.locationId != widget.locationId) {
+      _preloadKey = null;
+      _mapPreloadFuture = null;
+      _isMapReady = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _prepareMapInBackground();
+      });
+    }
+  }
+
+  Future<void> _prepareMapInBackground() async {
+    try {
+      final location = await ref.read(
+        locationDetailProvider(widget.locationId).future,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final latitude = location.latitude;
+      final longitude = location.longitude;
+      if (latitude == null || longitude == null) {
+        return;
+      }
+
+      final logicalWidth =
+          (MediaQuery.sizeOf(context).width - (AppSpacing.x16 * 2))
+              .clamp(1.0, double.infinity)
+              .toDouble();
+      final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+      final preloadKey =
+          '${location.locationId}:$latitude:$longitude:'
+          '$logicalWidth:$devicePixelRatio';
+
+      if (_preloadKey == preloadKey) {
+        return;
+      }
+
+      _preloadKey = preloadKey;
+      final preloadFuture = KakaoStaticMapWidget.precacheMap(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        logicalWidth: logicalWidth,
+        logicalHeight: 210,
+        level: 3,
+      );
+      _mapPreloadFuture = preloadFuture;
+
+      try {
+        await preloadFuture;
+      } catch (_) {
+        // 프리로드 실패는 상세 페이지 전체나 장소 정보 표시를 막지 않습니다.
+      }
+
+      if (!mounted || _mapPreloadFuture != preloadFuture) {
+        return;
+      }
+
+      setState(() {
+        _isMapReady = true;
+      });
+    } catch (_) {
+      // 장소 조회 실패도 상세 페이지 전체 로딩과 분리합니다.
+    }
+  }
+
+  void _toggleMapVisibility() {
+    setState(() {
+      _isMapVisible = !_isMapVisible;
+    });
+  }
+
+  void _openMapPreview() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocationMapPreviewPage(locationId: widget.locationId),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locationAsync = ref.watch(locationDetailProvider(widget.locationId));
+
+    return locationAsync.when(
+      loading: () =>
+          _buildHeader(locationName: '장소 불러오는 중...', canShowMap: false),
+      error: (_, __) => _buildHeader(
+        locationName: '장소 ID ${widget.locationId}',
+        canShowMap: false,
+      ),
+      data: (location) {
+        final name = location.locationName?.trim();
+        final locationName = name == null || name.isEmpty
+            ? '장소 ID ${location.locationId}'
+            : name;
+        final latitude = location.latitude;
+        final longitude = location.longitude;
+        final canShowMap = latitude != null && longitude != null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(locationName: locationName, canShowMap: canShowMap),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _isMapVisible && canShowMap
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.x12),
+                      child: _isMapReady
+                          ? KakaoStaticMapWidget(
+                              latitude: latitude,
+                              longitude: longitude,
+                              height: 210,
+                              level: 3,
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: _openMapPreview,
+                            )
+                          : _InlineMapLoading(onReady: _prepareMapInBackground),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader({
+    required String locationName,
+    required bool canShowMap,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const LabelBox(
+          iconAddress: 'assets/icons/cal/location.svg',
+          value: '위치',
+        ),
+        const SizedBox(width: AppSpacing.x10),
+        Expanded(
+          child: Text(
+            locationName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: FontStyles.med16.copyWith(color: context.colors.onSurface),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.x8),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: canShowMap ? _toggleMapVisibility : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '지도보기',
+                  style: FontStyles.med16.copyWith(
+                    color: canShowMap
+                        ? context.brands.beatOrange2
+                        : context.grays.gray5,
+                    decoration: canShowMap
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
+                    decorationColor: context.brands.beatOrange2,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.x4),
+                AnimatedRotation(
+                  turns: _isMapVisible ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  child: SvgPicture.asset(
+                    'assets/icons/cal/toggle_down.svg',
+                    width: 20,
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      canShowMap
+                          ? context.brands.beatOrange2
+                          : context.grays.gray5,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InlineMapLoading extends StatefulWidget {
+  const _InlineMapLoading({required this.onReady});
+
+  final Future<void> Function() onReady;
+
+  @override
+  State<_InlineMapLoading> createState() => _InlineMapLoadingState();
+}
+
+class _InlineMapLoadingState extends State<_InlineMapLoading> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onReady();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 60.0,
-            width: 60.0,
-            decoration: ShapeDecoration(
-              image: DecorationImage(
-                image: AssetImage(memberImage),
-                fit: BoxFit.cover,
-              ),
-              shape: OvalBorder(),
+      width: double.infinity,
+      height: 210,
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.iconAddress,
+    required this.label,
+    required this.value,
+  });
+
+  final String iconAddress;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LabelBox(iconAddress: iconAddress, value: label),
+        const SizedBox(width: AppSpacing.x10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.x4),
+            child: Text(
+              value,
+              style: FontStyles.med16.copyWith(color: context.colors.onSurface),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
 
-          const SizedBox(height: AppSpacing.x4),
+class _ParticipantItem extends StatelessWidget {
+  const _ParticipantItem({required this.userId});
 
-          Text(
-            memberName,
-            style: FontStyles.semi18.copyWith(color: context.grays.gray1),
-          ),
-          Text(
-            memberPart,
-            style: FontStyles.reg14.copyWith(color: context.grays.gray4),
-          ),
-        ],
+  final int userId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.x16),
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.grays.gray8,
+              ),
+              alignment: Alignment.center,
+              child: Icon(Icons.person, color: context.grays.gray5),
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            Text(
+              '$userId',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: FontStyles.med14.copyWith(color: context.colors.onSurface),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+            ),
+            const SizedBox(height: AppSpacing.x16),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ),
       ),
     );
   }
