@@ -48,15 +48,13 @@ class _MusicPreviewPageState extends State<MusicPreviewPage> {
 
   _MusicPreviewLoadState _loadState = _MusicPreviewLoadState.loading;
   Duration _previewDuration = _maxPreviewDuration;
-  Duration _position = const Duration(seconds: 15);
+  Duration _position = Duration.zero;
   Waveform? _waveform;
   double _waveformProgress = 0.0;
   bool _isPlaying = false;
   int _loadRequestId = 0;
 
-  Duration get _initialPosition {
-    return Duration(microseconds: _previewDuration.inMicroseconds ~/ 2);
-  }
+  Duration get _initialPosition => Duration.zero;
 
   @override
   void initState() {
@@ -105,7 +103,7 @@ class _MusicPreviewPageState extends State<MusicPreviewPage> {
     setState(() {
       _loadState = _MusicPreviewLoadState.loading;
       _previewDuration = _maxPreviewDuration;
-      _position = const Duration(seconds: 15);
+      _position = Duration.zero;
       _waveform = null;
       _waveformProgress = 0.0;
       _isPlaying = false;
@@ -139,9 +137,7 @@ class _MusicPreviewPageState extends State<MusicPreviewPage> {
 
       await _player.setClip(start: Duration.zero, end: previewDuration);
 
-      final initialPosition = Duration(
-        microseconds: previewDuration.inMicroseconds ~/ 2,
-      );
+      const initialPosition = Duration.zero;
       await _player.seek(initialPosition);
 
       if (!mounted || requestId != _loadRequestId) return;
@@ -450,19 +446,9 @@ class _MusicPreviewPageState extends State<MusicPreviewPage> {
             ),
             ColoredBox(color: context.grays.black.withValues(alpha: 0.40)),
             Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.x12,
-                  vertical: AppSpacing.x8,
-                ),
-                decoration: BoxDecoration(
-                  color: context.grays.black.withValues(alpha: 0.28),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  '30초 미리듣기',
-                  style: FontStyles.med12.copyWith(color: context.grays.white),
-                ),
+              child: Text(
+                '30초 미리듣기',
+                style: FontStyles.med16.copyWith(color: context.grays.white),
               ),
             ),
           ],

@@ -26,26 +26,25 @@ class MusicPreviewWaveform extends StatefulWidget {
 }
 
 class _MusicPreviewWaveformState extends State<MusicPreviewWaveform> {
-  static const double _minVisibleSeconds = 10.0;
-  static const double _maxVisibleSeconds = 30.0;
+  static const double _minVisibleFraction = 1 / 3;
+  static const double _maxVisibleFraction = 1.0;
   static const double _containerHeight = 60.0;
   static const double _playheadExtension = 4.0;
 
-  double _visibleSeconds = _minVisibleSeconds;
-  double _scaleStartVisibleSeconds = _minVisibleSeconds;
+  double _visibleFraction = _minVisibleFraction;
+  double _scaleStartVisibleFraction = _minVisibleFraction;
   double _dragStartX = 0.0;
   Duration _dragStartPosition = Duration.zero;
   int _lastPointerCount = 0;
 
-  double get _effectiveMaxVisibleSeconds {
-    final seconds =
-        widget.duration.inMicroseconds / Duration.microsecondsPerSecond;
-    if (seconds <= 0) return _maxVisibleSeconds;
-    return math.min(_maxVisibleSeconds, math.max(_minVisibleSeconds, seconds));
+  double get _visibleSeconds {
+    final durationSeconds = _durationInSeconds(widget.duration);
+    if (durationSeconds <= 0) return 0.0;
+    return durationSeconds * _visibleFraction;
   }
 
   void _handleScaleStart(ScaleStartDetails details) {
-    _scaleStartVisibleSeconds = _visibleSeconds;
+    _scaleStartVisibleFraction = _visibleFraction;
     _dragStartX = details.localFocalPoint.dx;
     _dragStartPosition = widget.position;
     _lastPointerCount = details.pointerCount;
@@ -53,13 +52,14 @@ class _MusicPreviewWaveformState extends State<MusicPreviewWaveform> {
 
   void _handleScaleUpdate(ScaleUpdateDetails details, double width) {
     if (details.pointerCount >= 2) {
-      final nextVisibleSeconds = (_scaleStartVisibleSeconds / details.scale)
-          .clamp(_minVisibleSeconds, _effectiveMaxVisibleSeconds)
-          .toDouble();
+      final nextVisibleFraction =
+          (_scaleStartVisibleFraction / details.scale)
+              .clamp(_minVisibleFraction, _maxVisibleFraction)
+              .toDouble();
 
-      if (nextVisibleSeconds != _visibleSeconds) {
+      if (nextVisibleFraction != _visibleFraction) {
         setState(() {
-          _visibleSeconds = nextVisibleSeconds;
+          _visibleFraction = nextVisibleFraction;
         });
       }
 
