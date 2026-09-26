@@ -1208,7 +1208,7 @@ class _RetainedFileRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         child: Container(
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 64),
+          constraints: const BoxConstraints(minHeight: 45),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
           decoration: BoxDecoration(
             color: context.grays.gray8,
