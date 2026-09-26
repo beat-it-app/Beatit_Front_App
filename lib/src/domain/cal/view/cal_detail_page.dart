@@ -11,10 +11,7 @@ import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
 
 class CalDetailPage extends ConsumerWidget {
-  const CalDetailPage({
-    super.key,
-    required this.scheduleId,
-  });
+  const CalDetailPage({super.key, required this.scheduleId});
 
   final int scheduleId;
 
@@ -23,10 +20,11 @@ class CalDetailPage extends ConsumerWidget {
     final detailAsync = ref.watch(calDetailProvider(scheduleId));
 
     return Scaffold(
-      appBar: AppTopAppBar.backOnly(
+      appBar: AppTopAppBar.backMore(
         onBackPressed: () {
           Navigator.of(context).maybePop();
         },
+        onMorePressed: () {},
       ),
       body: SafeArea(
         child: detailAsync.when(
@@ -88,9 +86,7 @@ class _ScheduleDetailContent extends StatelessWidget {
             const SizedBox(height: AppSpacing.x16),
             Text(
               schedule.content!.trim(),
-              style: FontStyles.reg14.copyWith(
-                color: context.colors.onSurface,
-              ),
+              style: FontStyles.reg14.copyWith(color: context.colors.onSurface),
             ),
           ],
 
@@ -135,9 +131,8 @@ class _ScheduleDetailContent extends StatelessWidget {
               child: Row(
                 children: schedule.participants
                     .map(
-                      (participant) => _ParticipantItem(
-                        userId: participant.userId,
-                      ),
+                      (participant) =>
+                          _ParticipantItem(userId: participant.userId),
                     )
                     .toList(growable: false),
               ),
@@ -173,11 +168,7 @@ class _ScheduleDetailContent extends StatelessWidget {
             artistText: _displayText(music.musicArtist, fallback: '아티스트 정보 없음'),
             onTap: () {},
           ),
-          if (!isLast)
-            Divider(
-              color: context.grays.gray7,
-              height: 1,
-            ),
+          if (!isLast) Divider(color: context.grays.gray7, height: 1),
         ],
       );
     });
@@ -194,11 +185,7 @@ class _ScheduleDetailContent extends StatelessWidget {
       return Column(
         children: [
           _FileItem(file: file),
-          if (!isLast)
-            Divider(
-              color: context.grays.gray7,
-              height: 1,
-            ),
+          if (!isLast) Divider(color: context.grays.gray7, height: 1),
         ],
       );
     });
@@ -253,9 +240,7 @@ class _InfoRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.x4),
             child: Text(
               value,
-              style: FontStyles.med16.copyWith(
-                color: context.colors.onSurface,
-              ),
+              style: FontStyles.med16.copyWith(color: context.colors.onSurface),
             ),
           ),
         ),
@@ -285,19 +270,14 @@ class _ParticipantItem extends StatelessWidget {
                 color: context.grays.gray8,
               ),
               alignment: Alignment.center,
-              child: Icon(
-                Icons.person,
-                color: context.grays.gray5,
-              ),
+              child: Icon(Icons.person, color: context.grays.gray5),
             ),
             const SizedBox(height: AppSpacing.x4),
             Text(
               '멤버 $userId',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.med14.copyWith(
-                color: context.colors.onSurface,
-              ),
+              style: FontStyles.med14.copyWith(color: context.colors.onSurface),
             ),
           ],
         ),
@@ -328,9 +308,7 @@ class _FileItem extends StatelessWidget {
               file.originalFileName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.med14.copyWith(
-                color: context.colors.onSurface,
-              ),
+              style: FontStyles.med14.copyWith(color: context.colors.onSurface),
             ),
           ),
         ],
@@ -340,10 +318,7 @@ class _FileItem extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -362,10 +337,7 @@ class _ErrorView extends StatelessWidget {
               style: FontStyles.reg14.copyWith(color: context.grays.gray5),
             ),
             const SizedBox(height: AppSpacing.x16),
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('다시 시도'),
-            ),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
           ],
         ),
       ),
