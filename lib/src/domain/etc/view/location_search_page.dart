@@ -120,7 +120,6 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: AppSpacing.x20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
