@@ -2,7 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -30,49 +30,30 @@ class LocationReferenceWidget extends StatelessWidget {
       return _AddReferenceButton(onPressed: onAddPressed);
     }
 
-    return AppTextField(
+    return SearchInputWidget(
       controller: controller,
       hintText: '기준 위치를 입력하세요.',
-      height: 45,
-      textInputAction: TextInputAction.search,
+      onSearchPressed: onSearchPressed,
       onChanged: onChanged,
-      suffixIcon: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            label: '기준 위치 검색',
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onSearchPressed,
-              child: SvgPicture.asset(
-                'assets/icons/etc/search.svg',
-                width: 24,
-                height: 24,
+      showSearchIcon: false,
+      suffixIcon: Semantics(
+        button: true,
+        label: '기준 위치 삭제',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onDeletePressed,
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: SvgPicture.asset(
+              'assets/icons/etc/cancel.svg',
+              colorFilter: ColorFilter.mode(
+                context.grays.gray6,
+                BlendMode.srcIn,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.x16),
-          Semantics(
-            button: true,
-            label: '기준 위치 삭제',
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onDeletePressed,
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: SvgPicture.asset(
-                  'assets/icons/etc/cancel.svg',
-                  colorFilter: ColorFilter.mode(
-                    context.grays.gray6,
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
