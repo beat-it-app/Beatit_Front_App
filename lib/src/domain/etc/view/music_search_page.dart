@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/music_search_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/music_result_widget.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
@@ -9,7 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class MusicSearchPage extends ConsumerStatefulWidget {
-  const MusicSearchPage({super.key});
+  const MusicSearchPage({
+    super.key,
+    this.returnOnSelect = false,
+  });
+
+  /// 일정 생성처럼 한 곡을 누르는 즉시 선택 결과를 이전 화면에 반환할 때 사용한다.
+  final bool returnOnSelect;
 
   @override
   ConsumerState<MusicSearchPage> createState() => _MusicSearchPageState();
@@ -32,6 +39,14 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
   void _handleSearchChanged(String value) {
     if (value.trim().isEmpty) {
       ref.read(musicSearchProvider.notifier).clear();
+    }
+  }
+
+  void _handleMusicSelected(MusicSearchResult music) {
+    ref.read(musicSearchProvider.notifier).selectMusic(music);
+
+    if (widget.returnOnSelect) {
+      Navigator.of(context).pop<MusicSearchResult>(music);
     }
   }
 
@@ -82,9 +97,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
                 ],
               ),
               const SizedBox(height: AppSpacing.x8),
-              Expanded(
-                child: _buildSearchContent(searchState),
-              ),
+              Expanded(child: _buildSearchContent(searchState)),
             ],
           ),
         ),
@@ -122,9 +135,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
           artist: music.artist,
           imageUrl: music.imageUrl ?? '',
           isSelected: identical(searchState.selectedMusic, music),
-          onTap: () => ref
-              .read(musicSearchProvider.notifier)
-              .selectMusic(music),
+          onTap: () => _handleMusicSelected(music),
         );
       },
     );

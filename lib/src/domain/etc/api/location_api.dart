@@ -8,6 +8,7 @@ class LocationApi {
 
   final Dio _dio;
 
+  static const String _locationsPath = '/locations';
   static const String _searchPath = '/locations/search';
 
   Future<List<LocationSearchResult>> searchLocations({
@@ -43,6 +44,51 @@ class LocationApi {
             ),
           )
           .toList(growable: false);
+    } on DioException catch (error) {
+      throw mapEtcDioException(error);
+    }
+  }
+
+  Future<LocationData> createLocation(LocationSearchResult location) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _locationsPath,
+        data: location.toLocationRequestJson(),
+      );
+
+      final body = requireEtcSuccessBody(
+        response: response,
+        fallbackMessage: '장소 등록에 실패했습니다.',
+      );
+
+      final rawData = body['data'];
+      if (rawData is! Map) {
+        throw const EtcApiException(message: '장소 등록 결과 형식이 올바르지 않습니다.');
+      }
+
+      return LocationData.fromJson(Map<String, dynamic>.from(rawData));
+    } on DioException catch (error) {
+      throw mapEtcDioException(error);
+    }
+  }
+
+  Future<LocationData> getLocation(int locationId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_locationsPath/$locationId',
+      );
+
+      final body = requireEtcSuccessBody(
+        response: response,
+        fallbackMessage: '장소 정보를 불러오지 못했습니다.',
+      );
+
+      final rawData = body['data'];
+      if (rawData is! Map) {
+        throw const EtcApiException(message: '장소 상세 정보 형식이 올바르지 않습니다.');
+      }
+
+      return LocationData.fromJson(Map<String, dynamic>.from(rawData));
     } on DioException catch (error) {
       throw mapEtcDioException(error);
     }

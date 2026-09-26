@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -145,35 +147,53 @@ class _PicturePreviewPageState extends State<PicturePreviewPage> {
     );
   }
 
-  Widget _buildImage(BuildContext context, String imageUrl) {
-    return Center(
-      child: Image.network(
-        imageUrl,
-        width: double.infinity,
-        fit: BoxFit.contain,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          }
+  Widget _buildImage(BuildContext context, String imageSource) {
+    final uri = Uri.tryParse(imageSource);
+    final isRemote = uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https');
+    final isFileUri = uri != null && uri.scheme == 'file';
 
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes == null
-                  ? null
-                  : loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!,
-            ),
+    final image = isRemote
+        ? Image.network(
+            imageSource,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) {
+                return child;
+              }
+
+              return Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes == null
+                      ? null
+                      : loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!,
+                ),
+              );
+            },
+            errorBuilder: _buildImageError,
+          )
+        : Image.file(
+            File(isFileUri ? uri.toFilePath() : imageSource),
+            width: double.infinity,
+            fit: BoxFit.contain,
+            errorBuilder: _buildImageError,
           );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Center(
-            child: Icon(
-              Icons.broken_image_outlined,
-              size: 48,
-              color: context.grays.gray5,
-            ),
-          );
-        },
+
+    return Center(child: image);
+  }
+
+  Widget _buildImageError(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+  ) {
+    return Center(
+      child: Icon(
+        Icons.broken_image_outlined,
+        size: 48,
+        color: context.grays.gray5,
       ),
     );
   }

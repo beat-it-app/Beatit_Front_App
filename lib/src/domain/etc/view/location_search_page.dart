@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/domain/etc/api/etc_api_exception.dart';
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/location_search_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/location_reference_widget.dart';
@@ -11,7 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class LocationSearchPage extends ConsumerStatefulWidget {
-  const LocationSearchPage({super.key});
+  const LocationSearchPage({
+    super.key,
+    this.returnRegisteredLocationOnSelect = false,
+  });
+
+  /// 일정 생성처럼 검색 결과를 고르는 즉시 장소를 등록하고 이전 화면으로
+  /// 등록 결과를 반환해야 할 때 사용한다. 기본값은 기존 화면 동작을 유지한다.
+  final bool returnRegisteredLocationOnSelect;
 
   @override
   ConsumerState<LocationSearchPage> createState() => _LocationSearchPageState();
@@ -22,6 +30,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
   final _referenceController = TextEditingController();
 
   bool _isReferenceInputVisible = false;
+  bool _isRegisteringLocation = false;
 
   @override
   void dispose() {
@@ -98,6 +107,52 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
     }
   }
 
+  Future<void> _handleLocationSelected(LocationSearchResult location) async {
+    if (_isRegisteringLocation) {
+      return;
+    }
+
+    ref.read(locationSearchProvider.notifier).selectLocation(location);
+
+    if (!widget.returnRegisteredLocationOnSelect) {
+      return;
+    }
+
+    setState(() {
+      _isRegisteringLocation = true;
+    });
+
+    try {
+      final registered = await ref
+          .read(locationSearchProvider.notifier)
+          .registerLocation(location);
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop<LocationData>(registered);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = error is EtcApiException
+          ? error.message
+          : '장소 등록에 실패했습니다.';
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRegisteringLocation = false;
+        });
+      }
+    }
+  }
+
   void _refreshMainSearchWithoutReferenceIfNeeded() {
     final mainQuery = _searchController.text.trim();
     if (mainQuery.isEmpty) {
@@ -117,80 +172,89 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            IgnorePointer(
+              ignoring: _isRegisteringLocation,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SearchInputWidget(
-                          controller: _searchController,
-                          onSearchPressed: _handleSearch,
-                          onChanged: _handleSearchChanged,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.x12),
-                      Semantics(
-                        button: true,
-                        label: '이전 화면으로 이동',
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => Navigator.of(context).maybePop(),
-                          child: SizedBox(
-                            width: 32,
-                            height: 54,
-                            child: Center(
-                              child: SvgPicture.asset(
-                                'assets/icons/etc/delete.svg',
-                                width: 24,
-                                height: 24,
-                                colorFilter: ColorFilter.mode(
-                                  context.grays.gray1,
-                                  BlendMode.srcIn,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SearchInputWidget(
+                                controller: _searchController,
+                                onSearchPressed: _handleSearch,
+                                onChanged: _handleSearchChanged,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.x12),
+                            Semantics(
+                              button: true,
+                              label: '이전 화면으로 이동',
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => Navigator.of(context).maybePop(),
+                                child: SizedBox(
+                                  width: 32,
+                                  height: 54,
+                                  child: Center(
+                                    child: SvgPicture.asset(
+                                      'assets/icons/etc/delete.svg',
+                                      width: 24,
+                                      height: 24,
+                                      colorFilter: ColorFilter.mode(
+                                        context.grays.gray1,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.x4),
+                        LocationReferenceWidget(
+                          isInputVisible: _isReferenceInputVisible,
+                          controller: _referenceController,
+                          onAddPressed: _handleAddReference,
+                          onSearchPressed: _handleReferenceSearch,
+                          onDeletePressed: _handleDeleteReference,
+                          onChanged: _handleReferenceChanged,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.x4),
-                  LocationReferenceWidget(
-                    isInputVisible: _isReferenceInputVisible,
-                    controller: _referenceController,
-                    onAddPressed: _handleAddReference,
-                    onSearchPressed: _handleReferenceSearch,
-                    onDeletePressed: _handleDeleteReference,
-                    onChanged: _handleReferenceChanged,
+                  const SizedBox(height: AppSpacing.x10),
+                  Expanded(
+                    child: showReferenceResults
+                        ? _LocationResultList(
+                            isLoading: searchState.isReferenceLoading,
+                            errorMessage: searchState.referenceErrorMessage,
+                            results: searchState.referenceResults,
+                            onTap: _handleReferenceSelected,
+                          )
+                        : _LocationResultList(
+                            isLoading: searchState.isLoading,
+                            errorMessage: searchState.errorMessage,
+                            results: searchState.results,
+                            selectedLocation: searchState.selectedLocation,
+                            onTap: _handleLocationSelected,
+                          ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.x10),
-            Expanded(
-              child: showReferenceResults
-                  ? _LocationResultList(
-                      isLoading: searchState.isReferenceLoading,
-                      errorMessage: searchState.referenceErrorMessage,
-                      results: searchState.referenceResults,
-                      onTap: _handleReferenceSelected,
-                    )
-                  : _LocationResultList(
-                      isLoading: searchState.isLoading,
-                      errorMessage: searchState.errorMessage,
-                      results: searchState.results,
-                      selectedLocation: searchState.selectedLocation,
-                      onTap: ref
-                          .read(locationSearchProvider.notifier)
-                          .selectLocation,
-                    ),
-            ),
+            if (_isRegisteringLocation)
+              const Positioned.fill(
+                child: Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
       ),

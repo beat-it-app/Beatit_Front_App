@@ -93,11 +93,30 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     );
   }
 
-  void _goToCalDetailPage(int scheduleId) {
-    Navigator.of(context).push(
+  Future<void> _goToCalDetailPage(int scheduleId) async {
+    final didChange = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => CalDetailPage(scheduleId: scheduleId),
       ),
+    );
+
+    if (!mounted || didChange != true) {
+      return;
+    }
+
+    await ref.read(calMainProvider.notifier).loadMonth(
+      year: _focusedDay.year,
+      month: _focusedDay.month,
+      force: true,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await ref.read(calMainProvider.notifier).loadDate(
+      day: _selectedDay,
+      force: true,
     );
   }
 

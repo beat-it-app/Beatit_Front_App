@@ -165,6 +165,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(selectedLocation: location);
   }
 
+  Future<LocationData> registerLocation(LocationSearchResult location) {
+    return ref.read(locationApiProvider).createLocation(location);
+  }
+
   void selectReferenceLocation(LocationSearchResult location) {
     _referenceSearchRequestId++;
     state = state.copyWith(

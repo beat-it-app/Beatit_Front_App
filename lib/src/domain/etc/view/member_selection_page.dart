@@ -15,13 +15,18 @@ class MemberSelectionMember {
     required this.id,
     required this.name,
     required this.role,
+    this.userId,
     this.profileImageUrl,
+    this.position,
   });
 
+  /// 현재 선택 복원에는 UUID(id)를 사용하고, 추후 일정 API에는 userId를 사용한다.
+  final int? userId;
   final String id;
   final String name;
   final MemberSelectionRole role;
   final String? profileImageUrl;
+  final String? position;
 }
 
 class MemberSelectionPage extends ConsumerStatefulWidget {
@@ -88,9 +93,11 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
         .map(
           (member) => MemberSelectionMember(
             id: member.userPublicId,
+            userId: member.userId,
             name: member.userName,
             role: MemberSelectionRole.fromApiValue(member.teamRole),
             profileImageUrl: member.profileImageUrl,
+            position: member.position,
           ),
         )
         .toList(growable: false);
@@ -200,7 +207,7 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
               ),
             ),
             _BottomActions(
-              canConfirm: _selectedMemberIds.isNotEmpty,
+              canConfirm: !memberState.isLoading && memberState.errorMessage == null,
               onCancel: () => Navigator.of(context).maybePop(),
               onConfirm: () => _handleConfirm(members),
             ),

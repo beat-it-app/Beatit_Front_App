@@ -1,44 +1,137 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
-
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_create_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/schedule_file_preview_page.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
+import 'package:beatit_front_app/src/domain/cal/widget/schedule_file_item.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 
-class CalDetailPage extends ConsumerWidget {
+class CalDetailPage extends ConsumerStatefulWidget {
   const CalDetailPage({super.key, required this.scheduleId});
 
   final int scheduleId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(calDetailProvider(scheduleId));
+  ConsumerState<CalDetailPage> createState() => _CalDetailPageState();
+}
 
-    return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
+class _CalDetailPageState extends ConsumerState<CalDetailPage> {
+  bool _didChange = false;
+
+  Future<void> _handleBack() async {
+    Navigator.of(context).pop(_didChange);
+  }
+
+  Future<bool> _handleSystemBack() async {
+    Navigator.of(context).pop(_didChange);
+    return false;
+  }
+
+  Future<void> _openEditPage(ScheduleDetailData schedule) async {
+    final updated = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CalCreatePage(initialSchedule: schedule),
       ),
-      body: SafeArea(
-        child: detailAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _ErrorView(
-            message: error.toString(),
-            onRetry: () {
-              ref.invalidate(calDetailProvider(scheduleId));
-            },
+    );
+
+    if (!mounted || updated == null) {
+      return;
+    }
+
+    setState(() {
+      _didChange = true;
+    });
+    ref.invalidate(calDetailProvider(widget.scheduleId));
+  }
+
+  Future<void> _deleteSchedule() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '일정을 삭제하시겠습니까?',
+      content: '삭제된 일정은\n복구할 수 없습니다.',
+      warningType: WarningType.triangle,
+      contentType: ContentType.small,
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    final deleted = await ref
+        .read(calMutationProvider.notifier)
+        .deleteSchedule(scheduleId: widget.scheduleId);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!deleted) {
+      final error =
+          ref.read(calMutationProvider).errorMessage ?? '일정 삭제에 실패했습니다.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('일정이 삭제되었습니다.')));
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(calDetailProvider(widget.scheduleId));
+    final moreMenuItems = detailAsync.when(
+      loading: () => const <AppDropdownItem>[],
+      error: (_, __) => const <AppDropdownItem>[],
+      data: (schedule) => <AppDropdownItem>[
+        AppDropdownItem(
+          label: '일정 수정하기',
+          onPressed: () => _openEditPage(schedule),
+        ),
+        AppDropdownItem(label: '일정 삭제하기', onPressed: _deleteSchedule),
+      ],
+    );
+
+    return WillPopScope(
+      onWillPop: _handleSystemBack,
+      child: Scaffold(
+        appBar: AppTopAppBar.backMore(
+          onBackPressed: _handleBack,
+          moreMenuOffset: const Offset(-16, 56),
+          moreMenuItems: moreMenuItems,
+        ),
+        body: SafeArea(
+          child: detailAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => _ErrorView(
+              message: error.toString(),
+              onRetry: () {
+                ref.invalidate(calDetailProvider(widget.scheduleId));
+              },
+            ),
+            data: (schedule) => _ScheduleDetailContent(schedule: schedule),
           ),
-          data: (schedule) => _ScheduleDetailContent(schedule: schedule),
         ),
       ),
     );
@@ -51,8 +144,7 @@ class _ScheduleDetailContent extends StatefulWidget {
   final ScheduleDetailData schedule;
 
   @override
-  State<_ScheduleDetailContent> createState() =>
-      _ScheduleDetailContentState();
+  State<_ScheduleDetailContent> createState() => _ScheduleDetailContentState();
 }
 
 class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
@@ -102,11 +194,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
         return;
       }
 
-      final nextPosition = _clampDuration(
-        position,
-        Duration.zero,
-        _duration,
-      );
+      final nextPosition = _clampDuration(position, Duration.zero, _duration);
 
       setState(() {
         _position = nextPosition;
@@ -254,11 +342,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     }
   }
 
-  Duration _clampDuration(
-    Duration value,
-    Duration minimum,
-    Duration maximum,
-  ) {
+  Duration _clampDuration(Duration value, Duration minimum, Duration maximum) {
     if (value < minimum) {
       return minimum;
     }
@@ -325,13 +409,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
           ),
           if (hasLocation) ...[
             const SizedBox(height: AppSpacing.x10),
-            _InfoRow(
-              iconAddress: 'assets/icons/cal/location.svg',
-              label: '위치',
-              // 현재 상세 API는 locationId만 내려주므로 실제 장소명은
-              // location API 연결 후 교체합니다.
-              value: '장소 ID ${schedule.locationId}',
-            ),
+            _LocationInfo(locationId: schedule.locationId!),
           ],
           if (hasMusics) ...[
             const SizedBox(height: AppSpacing.x20),
@@ -388,10 +466,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
         children: [
           MusicListItem(
             trackText: _displayText(music.musicTitle, fallback: '제목 없음'),
-            artistText: _displayText(
-              music.musicArtist,
-              fallback: '아티스트 정보 없음',
-            ),
+            artistText: _displayText(music.musicArtist, fallback: '아티스트 정보 없음'),
             isExpanded: isExpanded,
             isPlaying: isExpanded && _isPlaying,
             isLoading: isExpanded && _isLoadingMusic,
@@ -407,7 +482,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     });
   }
 
-  static List<Widget> _buildFileItems(
+  List<Widget> _buildFileItems(
     BuildContext context,
     List<ScheduleDetailFile> files,
   ) {
@@ -417,7 +492,19 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
 
       return Column(
         children: [
-          _FileItem(file: file),
+          ScheduleFileItem(
+            fileName: file.originalFileName,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ScheduleFilePreviewPage(
+                    fileName: file.originalFileName,
+                    source: file.cdnUrl,
+                  ),
+                ),
+              );
+            },
+          ),
           if (!isLast) Divider(color: context.grays.gray7, height: 1),
         ],
       );
@@ -447,6 +534,85 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
   static String _displayText(String? value, {required String fallback}) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? fallback : trimmed;
+  }
+}
+
+class _LocationInfo extends ConsumerWidget {
+  const _LocationInfo({required this.locationId});
+
+  final int locationId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locationAsync = ref.watch(locationDetailProvider(locationId));
+
+    final locationName = locationAsync.when(
+      loading: () => '장소 불러오는 중...',
+      error: (_, __) => '장소 ID $locationId',
+      data: (location) {
+        final name = location.locationName?.trim();
+        return name == null || name.isEmpty ? '장소 ID $locationId' : name;
+      },
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const LabelBox(
+          iconAddress: 'assets/icons/cal/location.svg',
+          value: '위치',
+        ),
+        const SizedBox(width: AppSpacing.x10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.x4),
+                child: Text(
+                  locationName,
+                  style: FontStyles.med16.copyWith(
+                    color: context.colors.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextButton(
+                onPressed: () {},
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.x8,
+                    vertical: AppSpacing.x4,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '지도보기',
+                      style: FontStyles.med16.copyWith(
+                        color: context.brands.beatOrange2,
+                      ),
+                    ),
+                    SizedBox(width: AppSpacing.x4),
+                    RotatedBox(
+                      quarterTurns: 0,
+                      child: SvgPicture.asset(
+                        'assets/icons/cal/toggle_down.svg',
+                        width: 20,
+                        height: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -514,37 +680,6 @@ class _ParticipantItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FileItem extends StatelessWidget {
-  const _FileItem({required this.file});
-
-  final ScheduleDetailFile file;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x12),
-      child: Row(
-        children: [
-          Icon(
-            Icons.insert_drive_file_rounded,
-            size: 22,
-            color: context.colors.primary,
-          ),
-          const SizedBox(width: AppSpacing.x10),
-          Expanded(
-            child: Text(
-              file.originalFileName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: FontStyles.med14.copyWith(color: context.colors.onSurface),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -3,10 +3,14 @@ class TeamMemberSearchResult {
     required this.userPublicId,
     required this.userName,
     required this.teamRole,
+    this.userId,
     this.profileImageUrl,
     this.position,
   });
 
+  /// 일정 API의 participantUserIds에 사용할 내부 사용자 ID.
+  /// 백엔드가 아직 내려주지 않는 동안에는 null이다.
+  final int? userId;
   final String userPublicId;
   final String userName;
   final String? profileImageUrl;
@@ -15,12 +19,21 @@ class TeamMemberSearchResult {
 
   factory TeamMemberSearchResult.fromJson(Map<String, dynamic> json) {
     return TeamMemberSearchResult(
+      userId: _toNullableInt(json['id'] ?? json['userId']),
       userPublicId: json['userPublicId']?.toString() ?? '',
       userName: json['userName']?.toString() ?? '',
       profileImageUrl: json['profileImageUrl']?.toString(),
       teamRole: json['teamRole']?.toString() ?? 'MEMBER',
       position: json['position']?.toString(),
     );
+  }
+
+  static int? _toNullableInt(Object? value) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '');
   }
 }
 
