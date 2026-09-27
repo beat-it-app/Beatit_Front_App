@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PostComment {
 
- int get commentId; int? get parentCommentId; String get writerName; String get content; DateTime get createdAt; String? get profileImageUrl;@JsonKey(name: 'writer') bool get isWriter;@JsonKey(name: 'mine') bool get isMine; List<PostComment> get replies;
+ int get commentId; int? get parentCommentId; String get writerName; String get content; DateTime get createdAt; String? get profileImageUrl;@JsonKey(name: 'writer') bool get isWriter;@JsonKey(name: 'mine') bool get isMine; List<PostMentionUser> get mentionedUsers; List<PostComment> get replies;
 /// Create a copy of PostComment
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $PostCommentCopyWith<PostComment> get copyWith => _$PostCommentCopyWithImpl<Post
 @override
 bool operator ==(Object other) {
   final _this = this as PostComment;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PostComment&&(identical(other.commentId, _this.commentId) || other.commentId == _this.commentId)&&(identical(other.parentCommentId, _this.parentCommentId) || other.parentCommentId == _this.parentCommentId)&&(identical(other.writerName, _this.writerName) || other.writerName == _this.writerName)&&(identical(other.content, _this.content) || other.content == _this.content)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.profileImageUrl, _this.profileImageUrl) || other.profileImageUrl == _this.profileImageUrl)&&(identical(other.isWriter, _this.isWriter) || other.isWriter == _this.isWriter)&&(identical(other.isMine, _this.isMine) || other.isMine == _this.isMine)&&const DeepCollectionEquality().equals(other.replies, _this.replies));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PostComment&&(identical(other.commentId, _this.commentId) || other.commentId == _this.commentId)&&(identical(other.parentCommentId, _this.parentCommentId) || other.parentCommentId == _this.parentCommentId)&&(identical(other.writerName, _this.writerName) || other.writerName == _this.writerName)&&(identical(other.content, _this.content) || other.content == _this.content)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.profileImageUrl, _this.profileImageUrl) || other.profileImageUrl == _this.profileImageUrl)&&(identical(other.isWriter, _this.isWriter) || other.isWriter == _this.isWriter)&&(identical(other.isMine, _this.isMine) || other.isMine == _this.isMine)&&const DeepCollectionEquality().equals(other.mentionedUsers, _this.mentionedUsers)&&const DeepCollectionEquality().equals(other.replies, _this.replies));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as PostComment;
-  return Object.hash(runtimeType,_this.commentId,_this.parentCommentId,_this.writerName,_this.content,_this.createdAt,_this.profileImageUrl,_this.isWriter,_this.isMine,const DeepCollectionEquality().hash(_this.replies));
+  return Object.hash(runtimeType,_this.commentId,_this.parentCommentId,_this.writerName,_this.content,_this.createdAt,_this.profileImageUrl,_this.isWriter,_this.isMine,const DeepCollectionEquality().hash(_this.mentionedUsers),const DeepCollectionEquality().hash(_this.replies));
 }
 
 @override
 String toString() {
   final _this = this as PostComment;
-  return 'PostComment(commentId: ${_this.commentId}, parentCommentId: ${_this.parentCommentId}, writerName: ${_this.writerName}, content: ${_this.content}, createdAt: ${_this.createdAt}, profileImageUrl: ${_this.profileImageUrl}, isWriter: ${_this.isWriter}, isMine: ${_this.isMine}, replies: ${_this.replies})';
+  return 'PostComment(commentId: ${_this.commentId}, parentCommentId: ${_this.parentCommentId}, writerName: ${_this.writerName}, content: ${_this.content}, createdAt: ${_this.createdAt}, profileImageUrl: ${_this.profileImageUrl}, isWriter: ${_this.isWriter}, isMine: ${_this.isMine}, mentionedUsers: ${_this.mentionedUsers}, replies: ${_this.replies})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $PostCommentCopyWith<$Res>  {
   factory $PostCommentCopyWith(PostComment value, $Res Function(PostComment) _then) = _$PostCommentCopyWithImpl;
 @useResult
 $Res call({
- int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostComment> replies
+ int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
 });
 
 
@@ -71,7 +71,7 @@ class _$PostCommentCopyWithImpl<$Res>
 
 /// Create a copy of PostComment
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? commentId = null,Object? parentCommentId = freezed,Object? writerName = null,Object? content = null,Object? createdAt = null,Object? profileImageUrl = freezed,Object? isWriter = null,Object? isMine = null,Object? replies = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? commentId = null,Object? parentCommentId = freezed,Object? writerName = null,Object? content = null,Object? createdAt = null,Object? profileImageUrl = freezed,Object? isWriter = null,Object? isMine = null,Object? mentionedUsers = null,Object? replies = null,}) {
   return _then(PostComment(
 commentId: null == commentId ? _self.commentId : commentId // ignore: cast_nullable_to_non_nullable
 as int,parentCommentId: freezed == parentCommentId ? _self.parentCommentId : parentCommentId // ignore: cast_nullable_to_non_nullable
@@ -81,7 +81,8 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as DateTime,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
 as String?,isWriter: null == isWriter ? _self.isWriter : isWriter // ignore: cast_nullable_to_non_nullable
 as bool,isMine: null == isMine ? _self.isMine : isMine // ignore: cast_nullable_to_non_nullable
-as bool,replies: null == replies ? _self.replies : replies // ignore: cast_nullable_to_non_nullable
+as bool,mentionedUsers: null == mentionedUsers ? _self.mentionedUsers : mentionedUsers // ignore: cast_nullable_to_non_nullable
+as List<PostMentionUser>,replies: null == replies ? _self.replies : replies // ignore: cast_nullable_to_non_nullable
 as List<PostComment>,
   ));
 }
@@ -167,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostComment> replies)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PostComment() when $default != null:
-return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.replies);case _:
+return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
   return orElse();
 
 }
@@ -188,10 +189,10 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostComment> replies)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)  $default,) {final _that = this;
 switch (_that) {
 case _PostComment():
-return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.replies);case _:
+return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -208,10 +209,10 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostComment> replies)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,) {final _that = this;
 switch (_that) {
 case _PostComment() when $default != null:
-return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.replies);case _:
+return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
   return null;
 
 }
@@ -223,7 +224,7 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 @JsonSerializable()
 
 class _PostComment implements PostComment {
-  const _PostComment({required this.commentId, this.parentCommentId, required this.writerName, required this.content, required this.createdAt, this.profileImageUrl, @JsonKey(name: 'writer') this.isWriter = false, @JsonKey(name: 'mine') this.isMine = false,  List<PostComment> replies = const <PostComment>[]}): _replies = replies;
+  const _PostComment({required this.commentId, this.parentCommentId, required this.writerName, required this.content, required this.createdAt, this.profileImageUrl, @JsonKey(name: 'writer') this.isWriter = false, @JsonKey(name: 'mine') this.isMine = false,  List<PostMentionUser> mentionedUsers = const <PostMentionUser>[],  List<PostComment> replies = const <PostComment>[]}): _mentionedUsers = mentionedUsers,_replies = replies;
   factory _PostComment.fromJson(Map<String, dynamic> json) => _$PostCommentFromJson(json);
 
 @override final  int commentId;
@@ -234,6 +235,13 @@ class _PostComment implements PostComment {
 @override final  String? profileImageUrl;
 @override@JsonKey(name: 'writer') final  bool isWriter;
 @override@JsonKey(name: 'mine') final  bool isMine;
+ final  List<PostMentionUser> _mentionedUsers;
+@override@JsonKey() List<PostMentionUser> get mentionedUsers {
+  if (_mentionedUsers is EqualUnmodifiableListView) return _mentionedUsers;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_mentionedUsers);
+}
+
  final  List<PostComment> _replies;
 @override@JsonKey() List<PostComment> get replies {
   if (_replies is EqualUnmodifiableListView) return _replies;
@@ -255,18 +263,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PostComment&&(identical(other.commentId, commentId) || other.commentId == commentId)&&(identical(other.parentCommentId, parentCommentId) || other.parentCommentId == parentCommentId)&&(identical(other.writerName, writerName) || other.writerName == writerName)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.isWriter, isWriter) || other.isWriter == isWriter)&&(identical(other.isMine, isMine) || other.isMine == isMine)&&const DeepCollectionEquality().equals(other.replies, _replies));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PostComment&&(identical(other.commentId, commentId) || other.commentId == commentId)&&(identical(other.parentCommentId, parentCommentId) || other.parentCommentId == parentCommentId)&&(identical(other.writerName, writerName) || other.writerName == writerName)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.isWriter, isWriter) || other.isWriter == isWriter)&&(identical(other.isMine, isMine) || other.isMine == isMine)&&const DeepCollectionEquality().equals(other.mentionedUsers, _mentionedUsers)&&const DeepCollectionEquality().equals(other.replies, _replies));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,commentId,parentCommentId,writerName,content,createdAt,profileImageUrl,isWriter,isMine,const DeepCollectionEquality().hash(_replies));
+    return Object.hash(runtimeType,commentId,parentCommentId,writerName,content,createdAt,profileImageUrl,isWriter,isMine,const DeepCollectionEquality().hash(_mentionedUsers),const DeepCollectionEquality().hash(_replies));
 }
 
 @override
 String toString() {
-    return 'PostComment(commentId: $commentId, parentCommentId: $parentCommentId, writerName: $writerName, content: $content, createdAt: $createdAt, profileImageUrl: $profileImageUrl, isWriter: $isWriter, isMine: $isMine, replies: $replies)';
+    return 'PostComment(commentId: $commentId, parentCommentId: $parentCommentId, writerName: $writerName, content: $content, createdAt: $createdAt, profileImageUrl: $profileImageUrl, isWriter: $isWriter, isMine: $isMine, mentionedUsers: $mentionedUsers, replies: $replies)';
 }
 
 
@@ -277,7 +285,7 @@ abstract mixin class _$PostCommentCopyWith<$Res> implements $PostCommentCopyWith
   factory _$PostCommentCopyWith(_PostComment value, $Res Function(_PostComment) _then) = __$PostCommentCopyWithImpl;
 @override @useResult
 $Res call({
- int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostComment> replies
+ int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
 });
 
 
@@ -294,7 +302,7 @@ class __$PostCommentCopyWithImpl<$Res>
 
 /// Create a copy of PostComment
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? commentId = null,Object? parentCommentId = freezed,Object? writerName = null,Object? content = null,Object? createdAt = null,Object? profileImageUrl = freezed,Object? isWriter = null,Object? isMine = null,Object? replies = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? commentId = null,Object? parentCommentId = freezed,Object? writerName = null,Object? content = null,Object? createdAt = null,Object? profileImageUrl = freezed,Object? isWriter = null,Object? isMine = null,Object? mentionedUsers = null,Object? replies = null,}) {
   return _then(_PostComment(
 commentId: null == commentId ? _self.commentId : commentId // ignore: cast_nullable_to_non_nullable
 as int,parentCommentId: freezed == parentCommentId ? _self.parentCommentId : parentCommentId // ignore: cast_nullable_to_non_nullable
@@ -304,8 +312,285 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as DateTime,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
 as String?,isWriter: null == isWriter ? _self.isWriter : isWriter // ignore: cast_nullable_to_non_nullable
 as bool,isMine: null == isMine ? _self.isMine : isMine // ignore: cast_nullable_to_non_nullable
-as bool,replies: null == replies ? _self._replies : replies // ignore: cast_nullable_to_non_nullable
+as bool,mentionedUsers: null == mentionedUsers ? _self._mentionedUsers : mentionedUsers // ignore: cast_nullable_to_non_nullable
+as List<PostMentionUser>,replies: null == replies ? _self._replies : replies // ignore: cast_nullable_to_non_nullable
 as List<PostComment>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$PostMentionUser {
+
+ int get userId; String get name; String? get profileImageUrl;
+/// Create a copy of PostMentionUser
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PostMentionUserCopyWith<PostMentionUser> get copyWith => _$PostMentionUserCopyWithImpl<PostMentionUser>(this as PostMentionUser, _$identity);
+
+  /// Serializes this PostMentionUser to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as PostMentionUser;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PostMentionUser&&(identical(other.userId, _this.userId) || other.userId == _this.userId)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.profileImageUrl, _this.profileImageUrl) || other.profileImageUrl == _this.profileImageUrl));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as PostMentionUser;
+  return Object.hash(runtimeType,_this.userId,_this.name,_this.profileImageUrl);
+}
+
+@override
+String toString() {
+  final _this = this as PostMentionUser;
+  return 'PostMentionUser(userId: ${_this.userId}, name: ${_this.name}, profileImageUrl: ${_this.profileImageUrl})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PostMentionUserCopyWith<$Res>  {
+  factory $PostMentionUserCopyWith(PostMentionUser value, $Res Function(PostMentionUser) _then) = _$PostMentionUserCopyWithImpl;
+@useResult
+$Res call({
+ int userId, String name, String? profileImageUrl
+});
+
+
+
+
+}
+/// @nodoc
+class _$PostMentionUserCopyWithImpl<$Res>
+    implements $PostMentionUserCopyWith<$Res> {
+  _$PostMentionUserCopyWithImpl(this._self, this._then);
+
+  final PostMentionUser _self;
+  final $Res Function(PostMentionUser) _then;
+
+/// Create a copy of PostMentionUser
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? userId = null,Object? name = null,Object? profileImageUrl = freezed,}) {
+  return _then(PostMentionUser(
+userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [PostMentionUser].
+extension PostMentionUserPatterns on PostMentionUser {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _PostMentionUser value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _PostMentionUser() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _PostMentionUser value)  $default,){
+final _that = this;
+switch (_that) {
+case _PostMentionUser():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _PostMentionUser value)?  $default,){
+final _that = this;
+switch (_that) {
+case _PostMentionUser() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int userId,  String name,  String? profileImageUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _PostMentionUser() when $default != null:
+return $default(_that.userId,_that.name,_that.profileImageUrl);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int userId,  String name,  String? profileImageUrl)  $default,) {final _that = this;
+switch (_that) {
+case _PostMentionUser():
+return $default(_that.userId,_that.name,_that.profileImageUrl);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int userId,  String name,  String? profileImageUrl)?  $default,) {final _that = this;
+switch (_that) {
+case _PostMentionUser() when $default != null:
+return $default(_that.userId,_that.name,_that.profileImageUrl);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _PostMentionUser implements PostMentionUser {
+  const _PostMentionUser({required this.userId, required this.name, this.profileImageUrl});
+  factory _PostMentionUser.fromJson(Map<String, dynamic> json) => _$PostMentionUserFromJson(json);
+
+@override final  int userId;
+@override final  String name;
+@override final  String? profileImageUrl;
+
+/// Create a copy of PostMentionUser
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$PostMentionUserCopyWith<_PostMentionUser> get copyWith => __$PostMentionUserCopyWithImpl<_PostMentionUser>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$PostMentionUserToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PostMentionUser&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.name, name) || other.name == name)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,userId,name,profileImageUrl);
+}
+
+@override
+String toString() {
+    return 'PostMentionUser(userId: $userId, name: $name, profileImageUrl: $profileImageUrl)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$PostMentionUserCopyWith<$Res> implements $PostMentionUserCopyWith<$Res> {
+  factory _$PostMentionUserCopyWith(_PostMentionUser value, $Res Function(_PostMentionUser) _then) = __$PostMentionUserCopyWithImpl;
+@override @useResult
+$Res call({
+ int userId, String name, String? profileImageUrl
+});
+
+
+
+
+}
+/// @nodoc
+class __$PostMentionUserCopyWithImpl<$Res>
+    implements _$PostMentionUserCopyWith<$Res> {
+  __$PostMentionUserCopyWithImpl(this._self, this._then);
+
+  final _PostMentionUser _self;
+  final $Res Function(_PostMentionUser) _then;
+
+/// Create a copy of PostMentionUser
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? userId = null,Object? name = null,Object? profileImageUrl = freezed,}) {
+  return _then(_PostMentionUser(
+userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1846,7 +2131,7 @@ as List<PostComment>,
 /// @nodoc
 mixin _$PollDetailItem {
 
- int get itemId; int get voteCount;@JsonKey(name: 'voted') bool get isVoted; String? get content; String? get title; String? get artist; String? get previewUrl; String? get location; int? get locationId; String? get locationName;
+ int get itemId; int get voteCount;@JsonKey(name: 'voted') bool get isVoted; String? get content; String? get title; String? get artist; String? get previewUrl; String? get location; int? get locationId; String? get locationName; String? get roadAddress;
 /// Create a copy of PollDetailItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1860,20 +2145,20 @@ $PollDetailItemCopyWith<PollDetailItem> get copyWith => _$PollDetailItemCopyWith
 @override
 bool operator ==(Object other) {
   final _this = this as PollDetailItem;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PollDetailItem&&(identical(other.itemId, _this.itemId) || other.itemId == _this.itemId)&&(identical(other.voteCount, _this.voteCount) || other.voteCount == _this.voteCount)&&(identical(other.isVoted, _this.isVoted) || other.isVoted == _this.isVoted)&&(identical(other.content, _this.content) || other.content == _this.content)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.artist, _this.artist) || other.artist == _this.artist)&&(identical(other.previewUrl, _this.previewUrl) || other.previewUrl == _this.previewUrl)&&(identical(other.location, _this.location) || other.location == _this.location)&&(identical(other.locationId, _this.locationId) || other.locationId == _this.locationId)&&(identical(other.locationName, _this.locationName) || other.locationName == _this.locationName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PollDetailItem&&(identical(other.itemId, _this.itemId) || other.itemId == _this.itemId)&&(identical(other.voteCount, _this.voteCount) || other.voteCount == _this.voteCount)&&(identical(other.isVoted, _this.isVoted) || other.isVoted == _this.isVoted)&&(identical(other.content, _this.content) || other.content == _this.content)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.artist, _this.artist) || other.artist == _this.artist)&&(identical(other.previewUrl, _this.previewUrl) || other.previewUrl == _this.previewUrl)&&(identical(other.location, _this.location) || other.location == _this.location)&&(identical(other.locationId, _this.locationId) || other.locationId == _this.locationId)&&(identical(other.locationName, _this.locationName) || other.locationName == _this.locationName)&&(identical(other.roadAddress, _this.roadAddress) || other.roadAddress == _this.roadAddress));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as PollDetailItem;
-  return Object.hash(runtimeType,_this.itemId,_this.voteCount,_this.isVoted,_this.content,_this.title,_this.artist,_this.previewUrl,_this.location,_this.locationId,_this.locationName);
+  return Object.hash(runtimeType,_this.itemId,_this.voteCount,_this.isVoted,_this.content,_this.title,_this.artist,_this.previewUrl,_this.location,_this.locationId,_this.locationName,_this.roadAddress);
 }
 
 @override
 String toString() {
   final _this = this as PollDetailItem;
-  return 'PollDetailItem(itemId: ${_this.itemId}, voteCount: ${_this.voteCount}, isVoted: ${_this.isVoted}, content: ${_this.content}, title: ${_this.title}, artist: ${_this.artist}, previewUrl: ${_this.previewUrl}, location: ${_this.location}, locationId: ${_this.locationId}, locationName: ${_this.locationName})';
+  return 'PollDetailItem(itemId: ${_this.itemId}, voteCount: ${_this.voteCount}, isVoted: ${_this.isVoted}, content: ${_this.content}, title: ${_this.title}, artist: ${_this.artist}, previewUrl: ${_this.previewUrl}, location: ${_this.location}, locationId: ${_this.locationId}, locationName: ${_this.locationName}, roadAddress: ${_this.roadAddress})';
 }
 
 
@@ -1884,7 +2169,7 @@ abstract mixin class $PollDetailItemCopyWith<$Res>  {
   factory $PollDetailItemCopyWith(PollDetailItem value, $Res Function(PollDetailItem) _then) = _$PollDetailItemCopyWithImpl;
 @useResult
 $Res call({
- int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName
+ int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
 });
 
 
@@ -1901,7 +2186,7 @@ class _$PollDetailItemCopyWithImpl<$Res>
 
 /// Create a copy of PollDetailItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? itemId = null,Object? voteCount = null,Object? isVoted = null,Object? content = freezed,Object? title = freezed,Object? artist = freezed,Object? previewUrl = freezed,Object? location = freezed,Object? locationId = freezed,Object? locationName = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? itemId = null,Object? voteCount = null,Object? isVoted = null,Object? content = freezed,Object? title = freezed,Object? artist = freezed,Object? previewUrl = freezed,Object? location = freezed,Object? locationId = freezed,Object? locationName = freezed,Object? roadAddress = freezed,}) {
   return _then(PollDetailItem(
 itemId: null == itemId ? _self.itemId : itemId // ignore: cast_nullable_to_non_nullable
 as int,voteCount: null == voteCount ? _self.voteCount : voteCount // ignore: cast_nullable_to_non_nullable
@@ -1913,6 +2198,7 @@ as String?,previewUrl: freezed == previewUrl ? _self.previewUrl : previewUrl // 
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,locationName: freezed == locationName ? _self.locationName : locationName // ignore: cast_nullable_to_non_nullable
+as String?,roadAddress: freezed == roadAddress ? _self.roadAddress : roadAddress // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -1998,10 +2284,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PollDetailItem() when $default != null:
-return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName);case _:
+return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
   return orElse();
 
 }
@@ -2019,10 +2305,10 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailItem():
-return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName);case _:
+return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2039,10 +2325,10 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailItem() when $default != null:
-return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName);case _:
+return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
   return null;
 
 }
@@ -2054,7 +2340,7 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 @JsonSerializable()
 
 class _PollDetailItem implements PollDetailItem {
-  const _PollDetailItem({required this.itemId, required this.voteCount, @JsonKey(name: 'voted') this.isVoted = false, this.content, this.title, this.artist, this.previewUrl, this.location, this.locationId, this.locationName});
+  const _PollDetailItem({required this.itemId, required this.voteCount, @JsonKey(name: 'voted') this.isVoted = false, this.content, this.title, this.artist, this.previewUrl, this.location, this.locationId, this.locationName, this.roadAddress});
   factory _PollDetailItem.fromJson(Map<String, dynamic> json) => _$PollDetailItemFromJson(json);
 
 @override final  int itemId;
@@ -2067,6 +2353,7 @@ class _PollDetailItem implements PollDetailItem {
 @override final  String? location;
 @override final  int? locationId;
 @override final  String? locationName;
+@override final  String? roadAddress;
 
 /// Create a copy of PollDetailItem
 /// with the given fields replaced by the non-null parameter values.
@@ -2081,18 +2368,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PollDetailItem&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.voteCount, voteCount) || other.voteCount == voteCount)&&(identical(other.isVoted, isVoted) || other.isVoted == isVoted)&&(identical(other.content, content) || other.content == content)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.previewUrl, previewUrl) || other.previewUrl == previewUrl)&&(identical(other.location, location) || other.location == location)&&(identical(other.locationId, locationId) || other.locationId == locationId)&&(identical(other.locationName, locationName) || other.locationName == locationName));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PollDetailItem&&(identical(other.itemId, itemId) || other.itemId == itemId)&&(identical(other.voteCount, voteCount) || other.voteCount == voteCount)&&(identical(other.isVoted, isVoted) || other.isVoted == isVoted)&&(identical(other.content, content) || other.content == content)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.previewUrl, previewUrl) || other.previewUrl == previewUrl)&&(identical(other.location, location) || other.location == location)&&(identical(other.locationId, locationId) || other.locationId == locationId)&&(identical(other.locationName, locationName) || other.locationName == locationName)&&(identical(other.roadAddress, roadAddress) || other.roadAddress == roadAddress));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,itemId,voteCount,isVoted,content,title,artist,previewUrl,location,locationId,locationName);
+    return Object.hash(runtimeType,itemId,voteCount,isVoted,content,title,artist,previewUrl,location,locationId,locationName,roadAddress);
 }
 
 @override
 String toString() {
-    return 'PollDetailItem(itemId: $itemId, voteCount: $voteCount, isVoted: $isVoted, content: $content, title: $title, artist: $artist, previewUrl: $previewUrl, location: $location, locationId: $locationId, locationName: $locationName)';
+    return 'PollDetailItem(itemId: $itemId, voteCount: $voteCount, isVoted: $isVoted, content: $content, title: $title, artist: $artist, previewUrl: $previewUrl, location: $location, locationId: $locationId, locationName: $locationName, roadAddress: $roadAddress)';
 }
 
 
@@ -2103,7 +2390,7 @@ abstract mixin class _$PollDetailItemCopyWith<$Res> implements $PollDetailItemCo
   factory _$PollDetailItemCopyWith(_PollDetailItem value, $Res Function(_PollDetailItem) _then) = __$PollDetailItemCopyWithImpl;
 @override @useResult
 $Res call({
- int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName
+ int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
 });
 
 
@@ -2120,7 +2407,7 @@ class __$PollDetailItemCopyWithImpl<$Res>
 
 /// Create a copy of PollDetailItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? itemId = null,Object? voteCount = null,Object? isVoted = null,Object? content = freezed,Object? title = freezed,Object? artist = freezed,Object? previewUrl = freezed,Object? location = freezed,Object? locationId = freezed,Object? locationName = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? itemId = null,Object? voteCount = null,Object? isVoted = null,Object? content = freezed,Object? title = freezed,Object? artist = freezed,Object? previewUrl = freezed,Object? location = freezed,Object? locationId = freezed,Object? locationName = freezed,Object? roadAddress = freezed,}) {
   return _then(_PollDetailItem(
 itemId: null == itemId ? _self.itemId : itemId // ignore: cast_nullable_to_non_nullable
 as int,voteCount: null == voteCount ? _self.voteCount : voteCount // ignore: cast_nullable_to_non_nullable
@@ -2132,6 +2419,7 @@ as String?,previewUrl: freezed == previewUrl ? _self.previewUrl : previewUrl // 
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,locationName: freezed == locationName ? _self.locationName : locationName // ignore: cast_nullable_to_non_nullable
+as String?,roadAddress: freezed == roadAddress ? _self.roadAddress : roadAddress // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

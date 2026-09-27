@@ -9,6 +9,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 enum PollStatus { inProgress, completed }
 
+enum PollOptionDisplayType { text, music, location }
+
 enum PollSelectionMode {
   /// 조건 문구는 표시하지 않되, 선택 동작은 단일 선택으로 처리합니다.
   unspecified,
@@ -32,6 +34,8 @@ class PollSelectionBox extends StatefulWidget {
     this.initialHasVoted = false,
     this.onVoteSubmitted,
     this.onMapTap,
+    this.optionType = PollOptionDisplayType.text,
+    this.onPreviewTap,
     this.onParticipantTap,
   });
 
@@ -66,10 +70,12 @@ class PollSelectionBox extends StatefulWidget {
   final bool initialHasVoted;
 
   /// 실제 API 연결 지점입니다. 현재 선택된 option index들을 전달합니다.
-  final ValueChanged<Set<int>>? onVoteSubmitted;
+  final Future<bool> Function(Set<int>)? onVoteSubmitted;
 
   /// `지도보기`를 눌렀을 때 option index를 전달합니다.
   final ValueChanged<int>? onMapTap;
+  final PollOptionDisplayType optionType;
+  final VoidCallback? onPreviewTap;
 
   /// 결과 화면의 인원수 widget을 눌렀을 때 option index를 전달합니다.
   final ValueChanged<int>? onParticipantTap;
@@ -85,6 +91,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
   late int _participantCount;
   late bool _hasVoted;
   late bool _showResults;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -241,40 +248,32 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
     });
   }
 
-  void _submitVote() {
+  Future<void> _submitVote() async {
     if (!widget.enabled ||
         widget.status != PollStatus.inProgress ||
-        _selectedIndexes.isEmpty) {
+        _selectedIndexes.isEmpty ||
+        _submitting ||
+        widget.onVoteSubmitted == null) {
       return;
     }
 
     final submittedIndexes = Set<int>.from(_selectedIndexes);
-
-    setState(() {
-      if (_hasVoted) {
-        for (final index in _submittedIndexes) {
-          if (index >= 0 &&
-              index < _voteCounts.length &&
-              _voteCounts[index] > 0) {
-            _voteCounts[index] -= 1;
-          }
-        }
-      } else {
-        _participantCount += 1;
-      }
-
-      for (final index in submittedIndexes) {
-        if (index >= 0 && index < _voteCounts.length) {
-          _voteCounts[index] += 1;
-        }
-      }
-
-      _submittedIndexes = submittedIndexes;
-      _hasVoted = true;
-      _showResults = true;
-    });
-
-    widget.onVoteSubmitted?.call(Set<int>.unmodifiable(submittedIndexes));
+    final hadVoted = _hasVoted;
+    setState(() => _submitting = true);
+    try {
+      final succeeded = await widget.onVoteSubmitted!(
+        Set<int>.unmodifiable(submittedIndexes),
+      );
+      if (!mounted || !succeeded) return;
+      setState(() {
+        if (!hadVoted) _participantCount += 1;
+        _submittedIndexes = submittedIndexes;
+        _hasVoted = true;
+        _showResults = true;
+      });
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   void _startRevote() {
@@ -299,112 +298,147 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
     final inputBackgroundColor =
         inputTheme.fillColor ?? colors.surfaceContainerHighest;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.x16,
-        vertical: AppSpacing.x16,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: context.grays.gray7, width: 1),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.x16,
+            vertical: AppSpacing.x16,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            border: Border.all(color: context.grays.gray7, width: 1),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Column(
             children: [
-              Wrap(
-                spacing: AppSpacing.x8,
-                runSpacing: AppSpacing.x4,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 15,
-                    height: 15,
-                    decoration: BoxDecoration(
-                      color: context.brands.beatOrange2,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: SvgPicture.asset(
-                      'assets/icons/check/check.svg',
-                      colorFilter: ColorFilter.mode(
-                        context.grays.white,
-                        BlendMode.srcIn,
+                  Wrap(
+                    spacing: AppSpacing.x8,
+                    runSpacing: AppSpacing.x4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        width: 15,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: context.brands.beatOrange2,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/icons/check/check.svg',
+                          colorFilter: ColorFilter.mode(
+                            context.grays.white,
+                            BlendMode.srcIn,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Text(
-                    _statusText,
-                    style: FontStyles.bold14.copyWith(
-                      color: context.brands.beatOrange2,
-                    ),
-                  ),
-                ],
-              ),
-              Wrap(
-                spacing: AppSpacing.x4,
-                runSpacing: AppSpacing.x4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  for (var i = 0; i < _pollMetaTexts.length; i++) ...[
-                    Text(
-                      _pollMetaTexts[i],
-                      style: FontStyles.med12.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                    if (i != _pollMetaTexts.length - 1)
                       Text(
-                        '•',
-                        style: FontStyles.med12.copyWith(
-                          color: context.grays.gray5,
+                        _statusText,
+                        style: FontStyles.bold14.copyWith(
+                          color: context.brands.beatOrange2,
                         ),
                       ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: AppSpacing.x4,
+                    runSpacing: AppSpacing.x4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (var i = 0; i < _pollMetaTexts.length; i++) ...[
+                        Text(
+                          _pollMetaTexts[i],
+                          style: FontStyles.med12.copyWith(
+                            color: context.grays.gray5,
+                          ),
+                        ),
+                        if (i != _pollMetaTexts.length - 1)
+                          Text(
+                            '•',
+                            style: FontStyles.med12.copyWith(
+                              color: context.grays.gray5,
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.x16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < widget.options.length; i++) ...[
+                    _PollOptionButton(
+                      text: widget.options[i],
+                      isSelected: _selectedIndexes.contains(i),
+                      enabled: _canEditVote,
+                      backgroundColor: inputBackgroundColor,
+                      onPressed: () => _toggleOption(i),
+                      trailing: _showResults
+                          ? _PollNumWidget(
+                              text: '${_voteCounts[i]}명',
+                              onTap: () => widget.onParticipantTap?.call(i),
+                              color:
+                                  _maxVoteCount > 0 &&
+                                      _voteCounts[i] == _maxVoteCount
+                                  ? colors.primary
+                                  : context.grays.black,
+                            )
+                          : widget.optionType == PollOptionDisplayType.text
+                          ? const SizedBox.shrink()
+                          : SvgPicture.asset(
+                              widget.optionType == PollOptionDisplayType.music
+                                  ? 'assets/icons/post/music_symbol.svg'
+                                  : 'assets/icons/post/gps.svg',
+                              width: 24,
+                              height: 24,
+                              colorFilter: ColorFilter.mode(
+                                context.brands.beatOrange1,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: AppSpacing.x8),
                   ],
+                  if (widget.status == PollStatus.inProgress)
+                    PollButton(
+                      text: _showResults ? '다시 투표하기' : '투표하기',
+                      onPressed: _showResults ? _startRevote : _submitVote,
+                    ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.x16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < widget.options.length; i++) ...[
-                _PollOptionButton(
-                  text: widget.options[i],
-                  isSelected: _selectedIndexes.contains(i),
-                  enabled: _canEditVote,
-                  backgroundColor: inputBackgroundColor,
-                  onPressed: () => _toggleOption(i),
-                  trailing: _showResults
-                      ? _PollNumWidget(
-                          text: '${_voteCounts[i]}명',
-                          onTap: () => widget.onParticipantTap?.call(i),
-                          color:
-                              _maxVoteCount > 0 &&
-                                  _voteCounts[i] == _maxVoteCount
-                              ? colors.primary
-                              : context.grays.black,
-                        )
-                      : _TextLinkButton(
-                          text: '지도보기',
-                          onTap: () => widget.onMapTap?.call(i),
-                          color: context.brands.beatOrange1,
-                        ),
-                ),
-                const SizedBox(height: AppSpacing.x8),
-              ],
-              if (widget.status == PollStatus.inProgress)
-                PollButton(
-                  text: _showResults ? '다시 투표하기' : '투표하기',
-                  onPressed: _showResults ? _startRevote : _submitVote,
-                ),
-            ],
+        ),
+        const SizedBox(height: AppSpacing.x12),
+
+        if (!_showResults && widget.onPreviewTap != null) ...[
+          Container(
+            height: 28.0,
+            alignment: Alignment.centerRight,
+            child: _TextLinkButton(
+              text: widget.optionType == PollOptionDisplayType.music
+                  ? '음악 미리듣기'
+                  : '장소 미리보기',
+              iconLink: widget.optionType == PollOptionDisplayType.music
+                  ? 'assets/icons/post/play.svg'
+                  : 'assets/icons/etc/search.svg',
+              iconSize: widget.optionType == PollOptionDisplayType.music
+                  ? 8.0
+                  : 11.0,
+              onTap: widget.onPreviewTap!,
+              color: context.brands.beatOrange1,
+            ),
           ),
+        ] else ...[
+          SizedBox(height: 28.0),
         ],
-      ),
+      ],
     );
   }
 }
@@ -514,11 +548,15 @@ class _PollOptionButton extends StatelessWidget {
 class _TextLinkButton extends StatelessWidget {
   const _TextLinkButton({
     required this.text,
+    required this.iconLink,
+    required this.iconSize,
     required this.onTap,
     required this.color,
   });
 
   final String text;
+  final String iconLink;
+  final double iconSize;
   final VoidCallback onTap;
   final Color color;
 
@@ -531,14 +569,39 @@ class _TextLinkButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-          child: Text(
-            text,
-            style: FontStyles.reg14.copyWith(
-              color: color,
-              decoration: TextDecoration.underline,
-              decorationColor: color,
-              decorationThickness: 1,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Center(
+                  child: SvgPicture.asset(
+                    iconLink,
+                    width: iconSize,
+                    height: iconSize,
+                    colorFilter: ColorFilter.mode(
+                      context.grays.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6.0),
+              Text(
+                text,
+                style: FontStyles.semi14.copyWith(
+                  color: context.grays.gray1,
+                  decorationThickness: 1,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -565,12 +628,12 @@ class _PollNumWidget extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               SvgPicture.asset(
-                'assets/icons/post/person.svg',
+                'assets/icons/post/people.svg',
                 colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
               ),
               const SizedBox(width: AppSpacing.x4),

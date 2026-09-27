@@ -15,6 +15,11 @@ _PostComment _$PostCommentFromJson(Map<String, dynamic> json) => _PostComment(
   profileImageUrl: json['profileImageUrl'] as String?,
   isWriter: json['writer'] as bool? ?? false,
   isMine: json['mine'] as bool? ?? false,
+  mentionedUsers:
+      (json['mentionedUsers'] as List<dynamic>?)
+          ?.map((e) => PostMentionUser.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <PostMentionUser>[],
   replies:
       (json['replies'] as List<dynamic>?)
           ?.map((e) => PostComment.fromJson(e as Map<String, dynamic>))
@@ -32,7 +37,22 @@ Map<String, dynamic> _$PostCommentToJson(_PostComment instance) =>
       'profileImageUrl': instance.profileImageUrl,
       'writer': instance.isWriter,
       'mine': instance.isMine,
+      'mentionedUsers': instance.mentionedUsers,
       'replies': instance.replies,
+    };
+
+_PostMentionUser _$PostMentionUserFromJson(Map<String, dynamic> json) =>
+    _PostMentionUser(
+      userId: (json['userId'] as num).toInt(),
+      name: json['name'] as String,
+      profileImageUrl: json['profileImageUrl'] as String?,
+    );
+
+Map<String, dynamic> _$PostMentionUserToJson(_PostMentionUser instance) =>
+    <String, dynamic>{
+      'userId': instance.userId,
+      'name': instance.name,
+      'profileImageUrl': instance.profileImageUrl,
     };
 
 _NoticeDetailResponse _$NoticeDetailResponseFromJson(
@@ -184,6 +204,7 @@ _PollDetailItem _$PollDetailItemFromJson(Map<String, dynamic> json) =>
       location: json['location'] as String?,
       locationId: (json['locationId'] as num?)?.toInt(),
       locationName: json['locationName'] as String?,
+      roadAddress: json['roadAddress'] as String?,
     );
 
 Map<String, dynamic> _$PollDetailItemToJson(_PollDetailItem instance) =>
@@ -198,6 +219,7 @@ Map<String, dynamic> _$PollDetailItemToJson(_PollDetailItem instance) =>
       'location': instance.location,
       'locationId': instance.locationId,
       'locationName': instance.locationName,
+      'roadAddress': instance.roadAddress,
     };
 
 _PollCreateRequest _$PollCreateRequestFromJson(Map<String, dynamic> json) =>

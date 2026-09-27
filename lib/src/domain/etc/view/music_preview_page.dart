@@ -429,21 +429,26 @@ class _MusicPreviewPageState extends State<MusicPreviewPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              widget.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: context.grays.gray7,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.music_note,
-                    size: 48.0,
-                    color: context.grays.gray5,
-                  ),
-                );
-              },
-            ),
+            if (widget.imageUrl.trim().isEmpty)
+              Container(
+                color: context.grays.gray7,
+                alignment: Alignment.center,
+                child: Icon(Icons.music_note, size: 48.0,
+                  color: context.grays.gray5),
+              )
+            else
+              Image.network(
+                widget.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: context.grays.gray7,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.music_note, size: 48.0,
+                      color: context.grays.gray5),
+                  );
+                },
+              ),
             ColoredBox(color: context.grays.black.withValues(alpha: 0.40)),
             Center(
               child: Text(

@@ -18,7 +18,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 enum _MeetingTimeFilter { everyone, mostAvailable }
 
 class MeetitDetailPage extends ConsumerStatefulWidget {
-  const MeetitDetailPage({super.key, this.meetitId, this.detail, this.currentUserId});
+  const MeetitDetailPage({
+    super.key,
+    this.meetitId,
+    this.detail,
+    this.currentUserId,
+  });
 
   final int? meetitId;
 
@@ -64,8 +69,14 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       return;
     }
     try {
-      final detail = await ref.read(postApiProvider).getMeetit(widget.meetitId!);
-      if (mounted) setState(() { _loadedDetail = detail; _error = null; });
+      final detail = await ref
+          .read(postApiProvider)
+          .getMeetit(widget.meetitId!);
+      if (mounted)
+        setState(() {
+          _loadedDetail = detail;
+          _error = null;
+        });
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
@@ -80,9 +91,11 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   }
 
   TimeOfDay get _startTime => _data.dateOnly
-      ? const TimeOfDay(hour: 0, minute: 0) : _parseTimeOfDay(_data.startTime);
+      ? const TimeOfDay(hour: 0, minute: 0)
+      : _parseTimeOfDay(_data.startTime);
   TimeOfDay get _endTime => _data.dateOnly
-      ? const TimeOfDay(hour: 0, minute: 30) : _parseTimeOfDay(_data.endTime);
+      ? const TimeOfDay(hour: 0, minute: 30)
+      : _parseTimeOfDay(_data.endTime);
 
   MeetitTimeGridSummaryFilter get _summaryFilter {
     return switch (_selectedTimeFilter) {
@@ -96,8 +109,13 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   @override
   Widget build(BuildContext context) {
     if (_loadedDetail == null && widget.detail == null) {
-      return Scaffold(body: Center(child: _error == null
-          ? const CircularProgressIndicator() : Text(_error!)));
+      return Scaffold(
+        body: Center(
+          child: _error == null
+              ? const CircularProgressIndicator()
+              : Text(_error!),
+        ),
+      );
     }
     final colors = Theme.of(context).colorScheme;
     final data = _data;
@@ -114,9 +132,9 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.'),
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.')),
+              );
             },
           ),
         ],
@@ -145,7 +163,13 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                           letterSpacing: -0.68,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.x16),
+                      const SizedBox(height: AppSpacing.x10),
+                      _SectionLabel(
+                        text: '우리 모임 날짜',
+                        iconPath: 'assets/icons/meetit/clock.svg',
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(height: AppSpacing.x10),
                       _buildMeetingSummary(context, data),
                       const SizedBox(height: AppSpacing.x16),
                       _buildTimeFilter(context, data),
@@ -174,8 +198,6 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   }
 
   Widget _buildMeetingSummary(BuildContext context, MeetitDetailData data) {
-    /// 여기서는 timetableGrid를 보고 최적 시간을 다시 계산하지 않습니다.
-    /// 서버가 내려준 maxMemberOptimalSlots의 순서와 범위를 그대로 표시합니다.
     final suggestions = data.maxMemberOptimalSlots;
     final visibleSuggestions = _isMeetingSummaryExpanded
         ? suggestions
@@ -198,35 +220,10 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 20.0,
-              child: Center(
-                child: SvgPicture.asset(
-                  'assets/icons/meetit/clock.svg',
-                  height: 16.0,
-                  width: 16.0,
-                  colorFilter: ColorFilter.mode(
-                    context.grays.gray1,
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.x8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 20.0,
-                    child: Text(
-                      '우리 모임 날짜',
-                      style: FontStyles.semi14.copyWith(
-                        color: context.grays.black,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.x8),
                   if (visibleSuggestions.isEmpty)
                     Text(
                       '아직 모두가 가능한 시간이 없어요.',
@@ -479,10 +476,12 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
 
   Future<void> _openEditPage() async {
     final data = _data;
-    final currentUserId = widget.currentUserId ?? ref.read(authProvider).value?.userId;
+    final currentUserId =
+        widget.currentUserId ?? ref.read(authProvider).value?.userId;
     if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사용자 정보를 불러올 수 없습니다.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('사용자 정보를 불러올 수 없습니다.')));
       return;
     }
 
@@ -502,11 +501,15 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
 
     if (selected == null || !mounted || widget.meetitId == null) return;
     try {
-      await ref.read(postApiProvider).submitMeetitResponse(widget.meetitId!, selected);
+      await ref
+          .read(postApiProvider)
+          .submitMeetitResponse(widget.meetitId!, selected);
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 

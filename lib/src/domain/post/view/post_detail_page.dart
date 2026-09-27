@@ -4,7 +4,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
-import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
+import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:flutter/material.dart';
@@ -22,10 +22,8 @@ class PostDetailPage extends ConsumerStatefulWidget {
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   NoticeDetailData? _data;
   String? _error;
-  final TextEditingController _commentController = TextEditingController();
-  final FocusNode _commentFocusNode = FocusNode();
+  final _composerKey = GlobalKey<PostCommentComposerState>();
   final ScrollController _scrollController = ScrollController();
-  List<_PostComment> _comments = [];
   bool _reactionPending = false;
   int get _commentCount => _data?.reaction.commentCount ?? 0;
   List<String> get imageUrls => _data?.images ?? const [];
@@ -40,12 +38,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       setState(() {
         _data = data;
         _error = null;
-        _comments = data.commentList.map((comment) => _PostComment(
-          name: comment.writerName,
-          time: _formatDateTime(comment.createdAt.toLocal()),
-          comment: comment.content,
-          imageUrl: comment.profileImageUrl,
-        )).toList();
       });
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -89,12 +81,20 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<void> _addComment(String message) async {
-    if (message.trim().isEmpty) return;
+  Future<bool> _addComment(String message, int? parentId, List<int> mentions) async {
+    if (message.trim().isEmpty) return false;
     try {
-      await ref.read(postApiProvider).commentNotice(widget.noticeId, message.trim());
-      _commentController.clear();
-      await _load();
+      await ref.read(postApiProvider).commentNotice(widget.noticeId, message.trim(),
+        parentCommentId: parentId, mentionedUserIds: mentions);
+      if (mounted) await _load();
+      return true;
+    } catch (error) { _showError(error); return false; }
+  }
+
+  Future<void> _deleteComment(int id) async {
+    try {
+      await ref.read(postApiProvider).deleteNoticeComment(widget.noticeId, id);
+      if (mounted) await _load();
     } catch (error) { _showError(error); }
   }
 
@@ -124,8 +124,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   @override
   void dispose() {
-    _commentController.dispose();
-    _commentFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -456,21 +454,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                         AppSpacing.x16,
                         AppSpacing.x24,
                       ),
-                      child: _comments.isEmpty
-                          ? const _EmptyCommentWidget()
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < _comments.length;
-                                  index++
-                                ) ...[
-                                  _CommentTile(comment: _comments[index]),
-                                  if (index != _comments.length - 1)
-                                    const SizedBox(height: AppSpacing.x20),
-                                ],
-                              ],
-                            ),
+                      child: PostCommentList(
+                        comments: _data!.commentList,
+                        canModerate: _data!.isWriter,
+                        onReply: (comment) => _composerKey.currentState?.replyTo(comment),
+                        onDelete: _deleteComment,
+                      ),
                     ),
                   ],
                 ),
@@ -478,71 +467,14 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             ),
             ColoredBox(
               color: colors.surface,
-              child: AppCommentInput(
-                controller: _commentController,
-                focusNode: _commentFocusNode,
-                hintText: '댓글을 입력해주세요.',
-                sendButtonSemanticLabel: '댓글 등록하기',
+              child: PostCommentComposer(
+                key: _composerKey,
                 onSend: _addComment,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _PostComment {
-  const _PostComment({
-    required this.name,
-    required this.time,
-    required this.comment,
-    this.imageUrl,
-  });
-
-  final String name;
-  final String time;
-  final String comment;
-  final String? imageUrl;
-}
-
-class _CommentTile extends StatelessWidget {
-  const _CommentTile({required this.comment});
-
-  final _PostComment comment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ProfileAvatar(imageUrl: comment.imageUrl),
-        const SizedBox(width: AppSpacing.x8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                comment.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: FontStyles.semi14.copyWith(color: context.grays.gray1),
-              ),
-              Text(
-                comment.time,
-                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-              ),
-              const SizedBox(height: AppSpacing.x8),
-              Text(
-                comment.comment,
-                softWrap: true,
-                style: FontStyles.reg14.copyWith(color: context.grays.gray1),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -591,33 +523,6 @@ class _ProfileAvatar extends StatelessWidget {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyCommentWidget extends StatelessWidget {
-  const _EmptyCommentWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '아직 단 댓글이 없어요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-          const SizedBox(height: AppSpacing.x4),
-          Text(
-            '가장 먼저 댓글을 남겨보세요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-        ],
       ),
     );
   }

@@ -81,8 +81,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
   }
 
   Future<void> _loadSelected({String? keyword}) async {
-    final query =
-        keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
+    final query = keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
     final notifier = ref.read(postMainProvider.notifier);
 
     switch (_selectedType) {
@@ -111,21 +110,17 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
   }
 
   void _handleSearchPressed() {
-    Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => PostMainPage(
-              searchOnly: true,
-              initialType: _selectedType,
-              noticeDetailPageBuilder: widget.noticeDetailPageBuilder,
-              pollDetailPageBuilder: widget.pollDetailPageBuilder,
-              meetitDetailPageBuilder: widget.meetitDetailPageBuilder,
-            ),
-          ),
-        )
-        .then((_) {
-          if (mounted) _loadSelected(keyword: '');
-        });
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PostMainPage(
+          searchOnly: true,
+          initialType: _selectedType,
+          noticeDetailPageBuilder: widget.noticeDetailPageBuilder,
+          pollDetailPageBuilder: widget.pollDetailPageBuilder,
+          meetitDetailPageBuilder: widget.meetitDetailPageBuilder,
+        ),
+      ),
+    ).then((_) { if (mounted) _loadSelected(keyword: ''); });
   }
 
   Future<void> _submitSearch() async {
@@ -139,18 +134,15 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
       PostMainType.poll => widget.onCreatePoll,
       PostMainType.meetit => widget.onCreateMeetit,
     };
-    if (callback != null) {
-      callback();
-      return;
-    }
+    if (callback != null) { callback(); return; }
     final page = switch (type) {
       PostMainType.notice => const PostCreatePage(),
       PostMainType.poll => const PollCreatePage(),
       PostMainType.meetit => const MeetitCreatePage(),
     };
-    final created = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => page));
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => page),
+    );
     if (mounted && created == true) _loadSelected(keyword: '');
   }
 
@@ -160,22 +152,20 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
     required PostDetailPageBuilder? pageBuilder,
     int? pollCount,
   }) async {
-    final page =
-        pageBuilder?.call(context, postId) ??
-        switch (type) {
-          PostMainType.notice => PostDetailPage(noticeId: postId),
-          PostMainType.poll => PollDetailPage(
-            pollId: postId,
-            participantCount: pollCount,
-          ),
-          PostMainType.meetit => MeetitDetailPage(meetitId: postId),
-        };
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-    if (mounted)
-      _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
+    final page = pageBuilder?.call(context, postId) ?? switch (type) {
+      PostMainType.notice => PostDetailPage(noticeId: postId),
+      PostMainType.poll => PollDetailPage(pollId: postId, participantCount: pollCount),
+      PostMainType.meetit => MeetitDetailPage(meetitId: postId),
+    };
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => page),
+    );
+    if (mounted) _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
   }
 
   void _handleMeetitDelete(MeetitListItem item) {
+    // 제공된 백엔드 MeetitController에는 DELETE API가 없습니다.
+    // 존재하지 않는 endpoint를 추정해서 호출하지 않고 사용자에게 현재 상태를 알립니다.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('밋잇 삭제 API가 아직 제공되지 않아 삭제할 수 없습니다.')),
     );
@@ -189,7 +179,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
           errorMessage: state.noticeError,
           isEmpty: state.notices.isEmpty,
           emptyMessage: state.noticeKeyword.isEmpty
-              ? '등록된 공지가 없습니다.'
+              ? '작성된 공지가 없습니다.'
               : '검색된 공지가 없습니다.',
           onRetry: _loadSelected,
           child: _NoticeContent(
@@ -205,9 +195,10 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
         return _PostLoadState(
           isLoading: state.isPollLoading,
           errorMessage: state.pollError,
-          isEmpty: state.pollsInProgress.isEmpty && state.pollsClosed.isEmpty,
+          isEmpty:
+              state.pollsInProgress.isEmpty && state.pollsClosed.isEmpty,
           emptyMessage: state.pollKeyword.isEmpty
-              ? '등록된 투표가 없습니다.'
+              ? '작성된 투표가 없습니다.'
               : '검색된 투표가 없습니다.',
           onRetry: _loadSelected,
           child: _PollContent(
@@ -216,10 +207,9 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
             onItemTap: (postId) => _openDetailPage(
               postId: postId,
               type: PostMainType.poll,
-              pollCount: [
-                ...state.pollsInProgress,
-                ...state.pollsClosed,
-              ].where((item) => item.pollId == postId).firstOrNull?.pollCount,
+              pollCount: [...state.pollsInProgress, ...state.pollsClosed]
+                  .where((item) => item.pollId == postId)
+                  .firstOrNull?.pollCount,
               pageBuilder: widget.pollDetailPageBuilder,
             ),
           ),
@@ -230,7 +220,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
           errorMessage: state.meetitError,
           isEmpty: state.meetits.isEmpty,
           emptyMessage: state.meetitKeyword.isEmpty
-              ? '등록된 밋잇이 없습니다.'
+              ? '작성된 밋잇이 없습니다.'
               : '검색된 밋잇이 없습니다.',
           onRetry: _loadSelected,
           child: _MeetitContent(
@@ -252,69 +242,63 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
 
     return Scaffold(
       appBar: widget.searchOnly
-          ? AppTopAppBar.backTitle(
-              title: '${_selectedType.title} 검색',
-              onBackPressed: () => Navigator.of(context).pop(),
-            )
+          ? AppTopAppBar.backTitle(title: '${_selectedType.title} 검색', onBackPressed: () => Navigator.of(context).pop())
           : AppTwoAppBar(
-              trailing: AppTwoAppBarTrailing.all,
-              onSearchPressed: _handleSearchPressed,
-              addMenuAlignment: AppDropdownAlignment.right,
-              addMenuOffset: const Offset(0, 68),
-              addMenuItems: [
-                AppDropdownItem(
-                  label: PostMainType.notice.createMenuLabel,
-                  onPressed: () => _handleCreatePressed(PostMainType.notice),
-                ),
-                AppDropdownItem(
-                  label: PostMainType.poll.createMenuLabel,
-                  onPressed: () => _handleCreatePressed(PostMainType.poll),
-                ),
-                AppDropdownItem(
-                  label: PostMainType.meetit.createMenuLabel,
-                  onPressed: () => _handleCreatePressed(PostMainType.meetit),
-                ),
-              ],
-            ),
+        trailing: AppTwoAppBarTrailing.all,
+        onSearchPressed: _handleSearchPressed,
+        addMenuAlignment: AppDropdownAlignment.right,
+        addMenuOffset: const Offset(0, 68),
+        addMenuItems: [
+          AppDropdownItem(
+            label: PostMainType.notice.createMenuLabel,
+            onPressed: () => _handleCreatePressed(PostMainType.notice),
+          ),
+          AppDropdownItem(
+            label: PostMainType.poll.createMenuLabel,
+            onPressed: () => _handleCreatePressed(PostMainType.poll),
+          ),
+          AppDropdownItem(
+            label: PostMainType.meetit.createMenuLabel,
+            onPressed: () => _handleCreatePressed(PostMainType.meetit),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.x16,
-            0.0,
+            AppSpacing.x16,
             AppSpacing.x16,
             AppSpacing.x30,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!widget.searchOnly)
-                _PostTypeDropdown(
-                  selectedType: _selectedType,
-                  onChanged: _changePostType,
-                ),
-              if (widget.searchOnly)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: _isSearchOpen
-                      ? Padding(
-                          key: const ValueKey('post-search-field'),
-                          padding: const EdgeInsets.only(top: AppSpacing.x16),
-                          child: SearchInputWidget(
-                            controller: _searchController,
-                            focusNode: _searchFocusNode,
-                            hintText: '${_selectedType.title} 검색',
-                            onSearchPressed: _submitSearch,
-                            onChanged: (value) {
-                              if (value.trim().isEmpty)
-                                _loadSelected(keyword: '');
-                            },
-                          ),
-                        )
-                      : const SizedBox.shrink(
-                          key: ValueKey('post-search-field-hidden'),
+              if (!widget.searchOnly) _PostTypeDropdown(
+                selectedType: _selectedType,
+                onChanged: _changePostType,
+              ),
+              if (widget.searchOnly) AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: _isSearchOpen
+                    ? Padding(
+                        key: const ValueKey('post-search-field'),
+                        padding: const EdgeInsets.only(top: AppSpacing.x16),
+                        child: SearchInputWidget(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          hintText: '${_selectedType.title} 검색',
+                          onSearchPressed: _submitSearch,
+                          onChanged: (value) {
+                            if (value.trim().isEmpty) _loadSelected(keyword: '');
+                          },
                         ),
-                ),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('post-search-field-hidden'),
+                      ),
+              ),
               const SizedBox(height: AppSpacing.x24),
               AnimatedSize(
                 duration: const Duration(milliseconds: 240),
@@ -485,12 +469,24 @@ class _PostLoadState extends StatelessWidget {
     }
 
     if (isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x40),
+      final isSearchEmpty = emptyMessage.startsWith('검색된');
+      final itemName = emptyMessage.contains('공지') ? '공지'
+          : emptyMessage.contains('투표') ? '투표' : '밋잇';
+      return SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.64,
         child: Center(
-          child: Text(
-            emptyMessage,
-            style: FontStyles.med14.copyWith(color: context.grays.gray5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(emptyMessage, textAlign: TextAlign.center,
+                style: FontStyles.bold20.copyWith(color: colors.onSurface)),
+              if (!isSearchEmpty) ...[
+                const SizedBox(height: AppSpacing.x8),
+                Text('+ 버튼을 눌러 ${itemName == '투표' ? '투표를' : '$itemName을'} ${itemName == '공지' ? '작성' : '생성'}해보세요.',
+                  textAlign: TextAlign.center,
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray5)),
+              ],
+            ],
           ),
         ),
       );
@@ -505,7 +501,10 @@ class _PostLoadState extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _NoticeContent extends StatelessWidget {
-  const _NoticeContent({required this.items, required this.onItemTap});
+  const _NoticeContent({
+    required this.items,
+    required this.onItemTap,
+  });
 
   final List<NoticeListItem> items;
   final ValueChanged<int> onItemTap;

@@ -169,18 +169,46 @@ class PostApi {
     _requireSuccessBody(response: response, fallbackMessage: '투표에 실패했습니다.');
   }
 
-  Future<void> commentNotice(int id, String content) async {
+  Future<void> commentNotice(int id, String content, {
+    int? parentCommentId,
+    List<int> mentionedUserIds = const [],
+  }) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '$_noticePath/$id/comments', data: {'content': content},
+      '$_noticePath/$id/comments', data: {
+        'content': content,
+        'parentCommentId': parentCommentId,
+        'mentionedUserIds': mentionedUserIds,
+      },
     );
     _requireSuccessBody(response: response, fallbackMessage: '댓글 작성에 실패했습니다.');
   }
 
-  Future<void> commentPoll(int id, String content) async {
+  Future<void> commentPoll(int id, String content, {
+    int? parentCommentId,
+    List<int> mentionedUserIds = const [],
+  }) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '$_pollPath/$id/comments', data: {'content': content},
+      '$_pollPath/$id/comments', data: {
+        'content': content,
+        'parentCommentId': parentCommentId,
+        'mentionedUserIds': mentionedUserIds,
+      },
     );
     _requireSuccessBody(response: response, fallbackMessage: '댓글 작성에 실패했습니다.');
+  }
+
+  Future<void> deleteNoticeComment(int noticeId, int commentId) async {
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '$_noticePath/$noticeId/comments/$commentId',
+    );
+    _requireSuccessBody(response: response, fallbackMessage: '댓글 삭제에 실패했습니다.');
+  }
+
+  Future<void> deletePollComment(int pollId, int commentId) async {
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '$_pollPath/$pollId/comments/$commentId',
+    );
+    _requireSuccessBody(response: response, fallbackMessage: '댓글 삭제에 실패했습니다.');
   }
 
   Future<void> toggleNoticeLike(int id) async {

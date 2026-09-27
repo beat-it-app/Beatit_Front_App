@@ -332,7 +332,9 @@ class _PollOptionRow extends StatelessWidget {
           child: PostTextField(
             hintText: type.hintText,
             controller: controller,
-            onChanged: onChanged,
+            readOnly: type != PollOptionType.text,
+            onTap: type == PollOptionType.text ? null : onTrailingPressed,
+            onChanged: type == PollOptionType.text ? onChanged : null,
             height: 45,
             suffixIconPath: trailingIconPath,
           ),

@@ -14,11 +14,24 @@ abstract class PostComment with _$PostComment {
     String? profileImageUrl,
     @JsonKey(name: 'writer') @Default(false) bool isWriter,
     @JsonKey(name: 'mine') @Default(false) bool isMine,
+    @Default(<PostMentionUser>[]) List<PostMentionUser> mentionedUsers,
     @Default(<PostComment>[]) List<PostComment> replies,
   }) = _PostComment;
 
   factory PostComment.fromJson(Map<String, dynamic> json) =>
       _$PostCommentFromJson(json);
+}
+
+@freezed
+abstract class PostMentionUser with _$PostMentionUser {
+  const factory PostMentionUser({
+    required int userId,
+    required String name,
+    String? profileImageUrl,
+  }) = _PostMentionUser;
+
+  factory PostMentionUser.fromJson(Map<String, dynamic> json) =>
+      _$PostMentionUserFromJson(json);
 }
 
 @freezed
@@ -118,6 +131,7 @@ abstract class PollDetailItem with _$PollDetailItem {
     String? location,
     int? locationId,
     String? locationName,
+    String? roadAddress,
   }) = _PollDetailItem;
 
   factory PollDetailItem.fromJson(Map<String, dynamic> json) =>
