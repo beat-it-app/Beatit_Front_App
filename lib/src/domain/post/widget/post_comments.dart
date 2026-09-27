@@ -1,10 +1,14 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/domain/etc/view/member_selection_page.dart';
+import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class PostCommentList extends StatelessWidget {
@@ -98,21 +102,25 @@ class _SwipeCommentState extends State<_SwipeComment> {
 
   Future<void> _delete() async {
     if (_deleting) return;
+
     setState(() => _deleting = true);
     try {
       await widget.onDelete();
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _deleting = false;
           _opened = false;
         });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final comment = widget.comment;
+    final colors = Theme.of(context).colorScheme;
+
     return ClipRect(
       child: Stack(
         children: [
@@ -131,9 +139,7 @@ class _SwipeCommentState extends State<_SwipeComment> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : SvgPicture.asset(
                                 'assets/icons/post/waste.svg',
@@ -153,24 +159,29 @@ class _SwipeCommentState extends State<_SwipeComment> {
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onHorizontalDragStart: (_) => _dragDistance = 0,
-            onHorizontalDragUpdate: (details) =>
-                _dragDistance += details.delta.dx,
+            onHorizontalDragUpdate: (details) {
+              _dragDistance += details.delta.dx;
+            },
             onHorizontalDragEnd: (_) {
               if (!widget.canDelete || _deleting) return;
-              if (_dragDistance > 48) {
+
+              if (_dragDistance < -48) {
                 if (_opened) {
                   _delete();
                 } else {
                   setState(() => _opened = true);
                 }
-              } else if (_dragDistance < -32) {
+                return;
+              }
+
+              if (_dragDistance > 32 && _opened) {
                 setState(() => _opened = false);
               }
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               transform: Matrix4.translationValues(_opened ? -80 : 0, 0, 0),
-              color: context.grays.white,
+              color: colors.surface,
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +203,7 @@ class _SwipeCommentState extends State<_SwipeComment> {
                         Text(
                           comment.writerName,
                           style: FontStyles.semi14.copyWith(
-                            color: context.grays.gray1,
+                            color: colors.onSurface,
                           ),
                         ),
                         Text(
@@ -234,27 +245,38 @@ class _SwipeCommentState extends State<_SwipeComment> {
   }
 
   static String _formatDate(DateTime date) =>
-      '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+      '${date.year}.${date.month.toString().padLeft(2, '0')}.'
+      '${date.day.toString().padLeft(2, '0')}';
 
   static TextSpan _mentionText(BuildContext context, String content) {
     final spans = <TextSpan>[];
     final pattern = RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
     var cursor = 0;
+
     for (final match in pattern.allMatches(content)) {
-      if (match.start > cursor)
+      if (match.start > cursor) {
         spans.add(TextSpan(text: content.substring(cursor, match.start)));
+      }
+
       spans.add(
         TextSpan(
-          text: '${match.group(1) ?? match.group(2)}',
-          style: TextStyle(color: context.brands.beatOrange1),
+          text: match.group(1) ?? match.group(2),
+          style: FontStyles.reg14.copyWith(
+            color: context.brands.beatOrange1,
+          ),
         ),
       );
       cursor = match.end;
     }
-    if (cursor < content.length)
+
+    if (cursor < content.length) {
       spans.add(TextSpan(text: content.substring(cursor)));
+    }
+
     return TextSpan(
-      style: FontStyles.reg14.copyWith(color: context.grays.gray1),
+      style: FontStyles.reg14.copyWith(
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       children: spans,
     );
   }
@@ -267,21 +289,26 @@ typedef SendPostComment =
       List<int> mentionedUserIds,
     );
 
-class PostCommentComposer extends StatefulWidget {
+class PostCommentComposer extends ConsumerStatefulWidget {
   const PostCommentComposer({super.key, required this.onSend});
+
   final SendPostComment onSend;
 
   @override
-  State<PostCommentComposer> createState() => PostCommentComposerState();
+  ConsumerState<PostCommentComposer> createState() =>
+      PostCommentComposerState();
 }
 
-class PostCommentComposerState extends State<PostCommentComposer> {
+class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
-  final _selectedMembers = <MemberSelectionMember>[];
+  final _selectedMembers = <TeamMemberSearchResult>[];
+
   int? _parentId;
   String? _replyName;
   bool _sending = false;
+  int? _mentionStart;
+  String? _mentionQuery;
 
   void replyTo(PostComment comment) {
     setState(() {
@@ -291,54 +318,107 @@ class PostCommentComposerState extends State<PostCommentComposer> {
     _focusNode.requestFocus();
   }
 
-  Future<void> _selectMentions() async {
-    final selected = await Navigator.of(context)
-        .push<List<MemberSelectionMember>>(
-          MaterialPageRoute(
-            builder: (_) => MemberSelectionPage(
-              initialSelectedMemberIds: _selectedMembers
-                  .map((member) => member.id)
-                  .toSet(),
-              initialSelectedUserIds: _selectedMembers
-                  .map((member) => member.userId)
-                  .whereType<int>()
-                  .toSet(),
-            ),
-          ),
-        );
-    if (!mounted || selected == null) return;
+  void _handleInputChanged(String value) {
+    final selection = _controller.selection;
+    final cursor = selection.baseOffset;
+    if (cursor < 0 || cursor > value.length) {
+      _hideMentionSuggestions();
+      return;
+    }
+
+    final beforeCursor = value.substring(0, cursor);
+    final atIndex = beforeCursor.lastIndexOf('@');
+    if (atIndex < 0) {
+      _hideMentionSuggestions();
+      return;
+    }
+
+    if (atIndex > 0 && !RegExp(r'\s').hasMatch(beforeCursor[atIndex - 1])) {
+      _hideMentionSuggestions();
+      return;
+    }
+
+    final query = beforeCursor.substring(atIndex + 1);
+    if (query.contains(RegExp(r'[\s{}]'))) {
+      _hideMentionSuggestions();
+      return;
+    }
+
     setState(() {
-      final selectedIds = selected.map((member) => member.id).toSet();
-      for (final member in _selectedMembers) {
-        if (!selectedIds.contains(member.id)) {
-          _controller.text = _controller.text
-              .replaceAll('@{${member.name}}', '')
-              .trim();
-        }
-      }
-      _selectedMembers
-        ..clear()
-        ..addAll(selected);
-      for (final member in selected) {
-        final token = '@{${member.name}}';
-        if (!_controller.text.contains(token)) {
-          _controller.text += '${_controller.text.isEmpty ? '' : ' '}$token ';
-        }
-      }
+      _mentionStart = atIndex;
+      _mentionQuery = query;
+    });
+
+    final memberState = ref.read(memberSelectionProvider);
+    if (!memberState.isLoading && memberState.members.isEmpty) {
+      ref.read(memberSelectionProvider.notifier).loadMembers();
+    }
+  }
+
+  void _hideMentionSuggestions() {
+    if (_mentionQuery == null && _mentionStart == null) return;
+
+    setState(() {
+      _mentionStart = null;
+      _mentionQuery = null;
+    });
+  }
+
+  List<TeamMemberSearchResult> _visibleMentionMembers(
+    MemberSelectionState state,
+  ) {
+    final query = (_mentionQuery ?? '').trim().toLowerCase();
+    final members = query.isEmpty
+        ? state.members
+        : state.members.where(
+            (member) => member.userName.toLowerCase().contains(query),
+          );
+
+    return members.take(5).toList(growable: false);
+  }
+
+  void _selectMention(TeamMemberSearchResult member) {
+    final start = _mentionStart;
+    final cursor = _controller.selection.baseOffset;
+    if (start == null || cursor < start || cursor > _controller.text.length) {
+      return;
+    }
+
+    final token = '@{${member.userName}} ';
+    final updated = _controller.text.replaceRange(start, cursor, token);
+    final nextCursor = start + token.length;
+
+    _controller.value = TextEditingValue(
+      text: updated,
+      selection: TextSelection.collapsed(offset: nextCursor),
+    );
+
+    if (!_selectedMembers.any(
+      (selected) => selected.userPublicId == member.userPublicId,
+    )) {
+      _selectedMembers.add(member);
+    }
+
+    setState(() {
+      _mentionStart = null;
+      _mentionQuery = null;
     });
     _focusNode.requestFocus();
   }
 
   Future<void> _send(String content) async {
     if (_sending) return;
+
     final ids = _selectedMembers
         .where(
           (member) =>
-              member.userId != null && content.contains('@{${member.name}}'),
+              member.userId != null &&
+              content.contains('@{${member.userName}}'),
         )
         .map((member) => member.userId!)
         .toSet()
         .toList();
+
     setState(() => _sending = true);
     try {
       final sent = await widget.onSend(content, _parentId, ids);
@@ -348,6 +428,8 @@ class PostCommentComposerState extends State<PostCommentComposer> {
           _selectedMembers.clear();
           _parentId = null;
           _replyName = null;
+          _mentionStart = null;
+          _mentionQuery = null;
         });
       }
     } finally {
@@ -364,44 +446,122 @@ class PostCommentComposerState extends State<PostCommentComposer> {
 
   @override
   Widget build(BuildContext context) {
+    final memberState = ref.watch(memberSelectionProvider);
+    final mentionMembers = _visibleMentionMembers(memberState);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            if (_replyName != null) ...[
-              const SizedBox(width: AppSpacing.x16),
-              Expanded(
-                child: Text(
-                  '$_replyName님에게 답글',
-                  style: FontStyles.med12.copyWith(color: context.grays.gray4),
-                ),
-              ),
-              IconButton(
-                onPressed: () => setState(() {
-                  _parentId = null;
-                  _replyName = null;
-                }),
-                icon: const Icon(Icons.close, size: 18),
-              ),
-            ] else
-              const Spacer(),
-            TextButton(
-              onPressed: _sending ? null : _selectMentions,
-              child: const Text('@ 언급'),
+        if (_mentionQuery != null)
+          _MentionSuggestionList(
+            state: memberState,
+            members: mentionMembers,
+            onSelected: _selectMention,
+          ),
+        if (_replyName != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.x16,
+              right: AppSpacing.x8,
             ),
-            const SizedBox(width: AppSpacing.x8),
-          ],
-        ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$_replyName님에게 답글',
+                    style: FontStyles.med12.copyWith(
+                      color: context.grays.gray4,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => setState(() {
+                    _parentId = null;
+                    _replyName = null;
+                  }),
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+              ],
+            ),
+          ),
         AppCommentInput(
           controller: _controller,
           focusNode: _focusNode,
           enabled: !_sending,
-          onSend: (message) {
-            _send(message);
-          },
+          onChanged: _handleInputChanged,
+          onSend: _send,
         ),
       ],
+    );
+  }
+}
+
+class _MentionSuggestionList extends StatelessWidget {
+  const _MentionSuggestionList({
+    required this.state,
+    required this.members,
+    required this.onSelected,
+  });
+
+  final MemberSelectionState state;
+  final List<TeamMemberSearchResult> members;
+  final ValueChanged<TeamMemberSearchResult> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 240),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border.all(color: context.grays.gray7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: state.isLoading
+          ? const SizedBox(
+              height: 56,
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          : state.errorMessage != null
+              ? const SizedBox.shrink()
+              : members.isEmpty
+                  ? SizedBox(
+                      height: 56,
+                      child: Center(
+                        child: Text(
+                          '검색된 멤버가 없습니다.',
+                          style: FontStyles.med14.copyWith(
+                            color: context.grays.gray5,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: members.length,
+                      itemBuilder: (context, index) {
+                        final member = members[index];
+                        return MemberSelectionItem(
+                          name: member.userName,
+                          role: MemberSelectionRole.fromApiValue(
+                            member.teamRole,
+                          ),
+                          profileImageUrl: member.profileImageUrl,
+                          isSelected: false,
+                          onTap: () => onSelected(member),
+                        );
+                      },
+                    ),
     );
   }
 }

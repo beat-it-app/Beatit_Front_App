@@ -1,18 +1,21 @@
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/toggles/app_switch.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
-import 'package:beatit_front_app/src/domain/post/widget/poll_add_box.dart';
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
-import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
-import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
-import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
-import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:beatit_front_app/src/domain/post/widget/poll_add_box.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class PollCreatePage extends ConsumerStatefulWidget {
@@ -30,10 +33,12 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   final _optionKey = GlobalKey<PollAddBoxState>();
   final Map<int, MusicSearchResult> _musicChoices = {};
   final Map<int, LocationData> _placeChoices = {};
-  DateTime? _closeAt;
-  bool _submitting = false;
   final Set<String> _voteSelectedOptions = {};
   final List<String> _voteOptions = ['익명 투표', '중복 투표'];
+
+  DateTime? _closeAt;
+  bool _remindBeforeClose = false;
+  bool _submitting = false;
 
   PollOptionType _pollOptionType = PollOptionType.text;
   List<PollOptionValue> _pollOptions = const [];
@@ -46,7 +51,10 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     super.dispose();
   }
 
-  void _handlePollOptionsChanged(PollOptionType type, List<PollOptionValue> options) {
+  void _handlePollOptionsChanged(
+    PollOptionType type,
+    List<PollOptionValue> options,
+  ) {
     if (type != _pollOptionType) {
       _musicChoices.clear();
       _placeChoices.clear();
@@ -58,86 +66,183 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   Future<void> _handleMusicPressed(int index) async {
     final id = _pollOptions[index].id;
     final chosen = await Navigator.of(context).push<MusicSearchResult>(
-      MaterialPageRoute(builder: (_) => const MusicSearchPage(returnOnSelect: true)));
+      MaterialPageRoute(
+        builder: (_) => const MusicSearchPage(returnOnSelect: true),
+      ),
+    );
     if (chosen == null || !mounted) return;
+
     _musicChoices[id] = chosen;
-    _optionKey.currentState?.setOptionById(id, '${chosen.title} - ${chosen.artist}');
+    _optionKey.currentState?.setOptionById(
+      id,
+      '${chosen.title} - ${chosen.artist}',
+    );
   }
 
   Future<void> _handlePlacePressed(int index) async {
     final id = _pollOptions[index].id;
     final chosen = await Navigator.of(context).push<LocationData>(
-      MaterialPageRoute(builder: (_) => const LocationSearchPage(returnRegisteredLocationOnSelect: true)));
+      MaterialPageRoute(
+        builder: (_) =>
+            const LocationSearchPage(returnRegisteredLocationOnSelect: true),
+      ),
+    );
     if (chosen == null || !mounted) return;
+
     _placeChoices[id] = chosen;
-    _optionKey.currentState?.setOptionById(id, chosen.locationName ?? chosen.roadAddress ?? '장소');
+    _optionKey.currentState?.setOptionById(
+      id,
+      chosen.locationName ?? chosen.roadAddress ?? '장소',
+    );
   }
 
   Future<void> _pickDeadline() async {
     final now = DateTime.now();
-    final date = await showDatePicker(context: context,
-      firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: _closeAt ?? now);
+    final initialDate = _closeAt ?? now;
+    final date = await AppTimeBottomSheet.showDatePicker(
+      context,
+      title: '투표 마감 날짜',
+      initialDate: initialDate,
+      startYear: now.year,
+      maxDate: now.add(const Duration(days: 365)),
+    );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context,
-      initialTime: _closeAt == null ? TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))) : TimeOfDay.fromDateTime(_closeAt!));
+
+    final initialTime = _closeAt == null
+        ? TimeOfDay.fromDateTime(now.add(const Duration(hours: 1)))
+        : TimeOfDay.fromDateTime(_closeAt!);
+    final time = await AppTimeBottomSheet.showTimePicker(
+      context,
+      title: '투표 마감 시간',
+      initialTime: initialTime,
+    );
     if (time == null || !mounted) return;
-    final deadline = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+    final deadline = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     if (!deadline.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후로 선택해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후로 선택해주세요.')),
+      );
       return;
     }
+
     setState(() {
       _closeAt = deadline;
-      _deadlineController.text = '${deadline.year}-${deadline.month.toString().padLeft(2, '0')}-${deadline.day.toString().padLeft(2, '0')} ${time.format(context)}';
+      _deadlineController.text = _formatDeadline(deadline);
     });
+  }
+
+  String _formatDeadline(DateTime dateTime) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    return '${dateTime.year}.${twoDigits(dateTime.month)}.'
+        '${twoDigits(dateTime.day)} '
+        '${twoDigits(dateTime.hour)}:${twoDigits(dateTime.minute)}';
+  }
+
+  Future<void> _handleClose() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).maybePop();
+    }
   }
 
   Future<void> _submitPoll() async {
     if (_submitting) return;
+
     final title = _titleController.text.trim();
     if (title.isEmpty || _pollOptions.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('제목과 투표 항목을 두 개 이상 입력해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('제목과 투표 항목을 두 개 이상 입력해주세요.')),
+      );
       return;
     }
+
     if (_closeAt == null || !_closeAt!.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후여야 합니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후여야 합니다.')),
+      );
       return;
     }
+
     final type = switch (_pollOptionType) {
       PollOptionType.music => 'MUSIC',
       PollOptionType.place => 'LOCATION',
       PollOptionType.text => 'TEXT',
     };
+
     final options = <PollCreateItem>[];
     for (final option in _pollOptions) {
       final text = option.value.trim();
-      if (text.isEmpty || (type == 'MUSIC' && !_musicChoices.containsKey(option.id)) ||
+      if (text.isEmpty ||
+          (type == 'MUSIC' && !_musicChoices.containsKey(option.id)) ||
           (type == 'LOCATION' && !_placeChoices.containsKey(option.id))) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('모든 투표 항목을 선택하거나 입력해주세요.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('모든 투표 항목을 선택하거나 입력해주세요.')),
+        );
         return;
       }
+
       final music = _musicChoices[option.id];
       final place = _placeChoices[option.id];
-      options.add(PollCreateItem(
-        content: type == 'TEXT' ? text : null,
-        music: type == 'MUSIC' && music != null ? PollCreateMusic(
-          title: music.title, artist: music.artist, previewUrl: music.previewUrl) : null,
-        location: type == 'LOCATION' ? text : null,
-        locationId: type == 'LOCATION' ? place?.locationId : null,
-      ));
+      options.add(
+        PollCreateItem(
+          content: type == 'TEXT' ? text : null,
+          music: type == 'MUSIC' && music != null
+              ? PollCreateMusic(
+                  title: music.title,
+                  artist: music.artist,
+                  previewUrl: music.previewUrl,
+                )
+              : null,
+          location: type == 'LOCATION' ? text : null,
+          locationId: type == 'LOCATION' ? place?.locationId : null,
+        ),
+      );
     }
+
     setState(() => _submitting = true);
     try {
-      await ref.read(postApiProvider).createPoll(PollCreateRequest(
-        title: title, content: _contentController.text.trim(), pollType: type,
-        pollList: options, allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
-        isAnonymous: _voteSelectedOptions.contains('익명 투표'),
-        remindBeforeClose: false, closeAt: _closeAt,
-      ));
+      await ref
+          .read(postApiProvider)
+          .createPoll(
+            PollCreateRequest(
+              title: title,
+              content: _contentController.text.trim(),
+              pollType: type,
+              pollList: options,
+              allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
+              isAnonymous: _voteSelectedOptions.contains('익명 투표'),
+              remindBeforeClose: _remindBeforeClose,
+              closeAt: _closeAt,
+            ),
+          );
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally { if (mounted) setState(() => _submitting = false); }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -145,11 +250,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppTopAppBar.closeOnly(
-        onClosePressed: () {
-          Navigator.of(context).maybePop();
-        },
-      ),
+      appBar: AppTopAppBar.closeOnly(onClosePressed: _handleClose),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -173,9 +274,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         controller: _titleController,
                         onChanged: (_) {},
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '내용',
                         color: colors.onSurface,
@@ -188,9 +287,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         maxLength: 500,
                         fieldHeight: 200,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '투표란',
                         color: colors.onSurface,
@@ -203,9 +300,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '투표 마감 시간 설정',
                         color: colors.onSurface,
@@ -221,13 +316,25 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         ),
                         onChanged: (_) {},
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '투표 옵션',
-                        color: colors.onSurface,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _RequiredLabel(
+                              text: '투표 마감 알림 설정',
+                              color: colors.onSurface,
+                            ),
+                          ),
+                          AppSwitch(
+                            value: _remindBeforeClose,
+                            onChanged: (value) {
+                              setState(() => _remindBeforeClose = value);
+                            },
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: AppSpacing.x20),
+                      _RequiredLabel(text: '투표 옵션', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
                       Wrap(
                         spacing: AppSpacing.x8,
@@ -249,7 +356,6 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                           );
                         }).toList(),
                       ),
-
                       const SizedBox(height: AppSpacing.x16),
                     ],
                   ),
@@ -261,7 +367,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitPoll,
+                onPressed: _submitting ? null : _submitPoll,
               ),
             ],
           ),
@@ -296,9 +402,9 @@ class _RequiredLabel extends StatelessWidget {
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: requiredColor,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: requiredColor),
               ),
           ],
         ),

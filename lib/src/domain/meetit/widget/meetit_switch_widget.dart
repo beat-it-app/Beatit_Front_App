@@ -37,6 +37,16 @@ class MeetitSwitchWidgetState extends State<MeetitSwitchWidget> {
     isChecked = widget.initialValue;
   }
 
+  @override
+  void didUpdateWidget(covariant MeetitSwitchWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.initialValue != widget.initialValue &&
+        isChecked != widget.initialValue) {
+      isChecked = widget.initialValue;
+    }
+  }
+
   void _updateSwitchState(BuildContext context) {
     if (isChecked) {
       switchColor = context.brands.beatOrange6;

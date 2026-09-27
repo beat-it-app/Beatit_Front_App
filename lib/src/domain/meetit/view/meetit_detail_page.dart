@@ -184,11 +184,14 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
               ),
               const SizedBox(height: AppSpacing.x16),
               AppButton(
-                text: '수정하기',
+                text: data.isParticipant
+                    ? (_hasCurrentUserResponded(data) ? '수정하기' : '응답하기')
+                    : '응답할 수 없음',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _openEditPage,
+                isDisabled: !data.isParticipant,
+                onPressed: data.isParticipant ? _openEditPage : null,
               ),
             ],
           ),
@@ -209,85 +212,112 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       alignment: Alignment.topCenter,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x16,
-          vertical: AppSpacing.x14,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 28),
         decoration: BoxDecoration(
           color: context.grays.gray8,
           borderRadius: BorderRadius.circular(AppRadius.xl),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (visibleSuggestions.isEmpty)
-                    Text(
-                      '아직 모두가 가능한 시간이 없어요.',
-                      style: FontStyles.med14.copyWith(
-                        color: context.grays.gray3,
-                      ),
-                    )
-                  else
-                    for (
-                      var index = 0;
-                      index < visibleSuggestions.length;
-                      index++
-                    ) ...[
-                      if (index > 0) const SizedBox(height: AppSpacing.x20),
-                      _buildMeetingSuggestion(
-                        context,
-                        suggestion: visibleSuggestions[index],
-                        totalInvitedCount: data.totalInvitedCount,
-                        availableCount: data.maxOverlappingCount,
-                      ),
-                    ],
-                  if (suggestions.length > 1) ...[
-                    const SizedBox(height: AppSpacing.x8),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: 4.0,
-                        bottom: 4.0,
-                        right: 40.0,
-                      ),
-                      child: Center(
-                        child: Semantics(
-                          button: true,
-                          label: _isMeetingSummaryExpanded
-                              ? '모임 날짜 목록 접기'
-                              : '모임 날짜 목록 펼치기',
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              setState(() {
-                                _isMeetingSummaryExpanded =
-                                    !_isMeetingSummaryExpanded;
-                              });
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(AppSpacing.x8),
-                              child: AnimatedRotation(
-                                turns: _isMeetingSummaryExpanded ? 0.5 : 0,
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeInOutCubic,
-                                child: SvgPicture.asset(
-                                  'assets/icons/meetit/back.svg',
-                                ),
-                              ),
-                            ),
-                          ),
+            _buildAvailabilityBadge(
+              context,
+              totalInvitedCount: data.totalInvitedCount,
+              availableCount: data.maxOverlappingCount,
+            ),
+            const SizedBox(height: AppSpacing.x14),
+            if (visibleSuggestions.isEmpty)
+              Text(
+                '아직 가능한 시간이 없어요.',
+                style: FontStyles.med14.copyWith(color: context.grays.gray3),
+              )
+            else
+              for (
+                var index = 0;
+                index < visibleSuggestions.length;
+                index++
+              ) ...[
+                if (index > 0) const SizedBox(height: AppSpacing.x20),
+                _buildMeetingSuggestion(
+                  context,
+                  suggestion: visibleSuggestions[index],
+                  dateOnly: data.dateOnly,
+                ),
+              ],
+            if (suggestions.length > 1) ...[
+              const SizedBox(height: AppSpacing.x8),
+              Center(
+                child: Semantics(
+                  button: true,
+                  label: _isMeetingSummaryExpanded
+                      ? '모임 날짜 목록 접기'
+                      : '모임 날짜 목록 펼치기',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      setState(() {
+                        _isMeetingSummaryExpanded = !_isMeetingSummaryExpanded;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.x8),
+                      child: AnimatedRotation(
+                        turns: _isMeetingSummaryExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOutCubic,
+                        child: SvgPicture.asset(
+                          'assets/icons/meetit/back.svg',
+                          width: 22,
+                          height: 22,
                         ),
                       ),
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAvailabilityBadge(
+    BuildContext context, {
+    required int totalInvitedCount,
+    required int availableCount,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.x10,
+        vertical: 6.0,
+      ),
+      decoration: BoxDecoration(
+        color: context.grays.white,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            'assets/icons/meetit/people.svg',
+            height: 14.0,
+            width: 14.0,
+          ),
+          const SizedBox(width: AppSpacing.x8),
+          Text(
+            '$totalInvitedCount명',
+            style: FontStyles.med12.copyWith(color: context.grays.gray2),
+          ),
+          Text(
+            ' • ',
+            style: FontStyles.med12.copyWith(color: context.grays.gray2),
+          ),
+          Text(
+            '$availableCount명 가능',
+            style: FontStyles.med12.copyWith(color: context.brands.beatOrange1),
+          ),
+        ],
       ),
     );
   }
@@ -295,53 +325,11 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   Widget _buildMeetingSuggestion(
     BuildContext context, {
     required MeetitOptimalSlot suggestion,
-    required int totalInvitedCount,
-    required int availableCount,
+    required bool dateOnly,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _formatOptimalSlot(suggestion),
-          style: FontStyles.semi20.copyWith(color: context.grays.black),
-        ),
-        const SizedBox(height: AppSpacing.x10),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x10,
-            vertical: 6.0,
-          ),
-          decoration: BoxDecoration(
-            color: context.grays.white,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SvgPicture.asset(
-                'assets/icons/meetit/people.svg',
-                height: 14.0,
-                width: 14.0,
-              ),
-              const SizedBox(width: AppSpacing.x8),
-              Text(
-                '$totalInvitedCount명',
-                style: FontStyles.med12.copyWith(color: context.grays.gray2),
-              ),
-              Text(
-                ' • ',
-                style: FontStyles.med12.copyWith(color: context.grays.gray2),
-              ),
-              Text(
-                '$availableCount명 가능',
-                style: FontStyles.med12.copyWith(
-                  color: context.brands.beatOrange1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return Text(
+      _formatOptimalSlot(suggestion, dateOnly: dateOnly),
+      style: FontStyles.semi20.copyWith(color: context.grays.black),
     );
   }
 
@@ -476,8 +464,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
 
   Future<void> _openEditPage() async {
     final data = _data;
-    final currentUserId =
-        widget.currentUserId ?? ref.read(authProvider).value?.userId;
+    final currentUserId = _currentUserId;
     if (currentUserId == null) {
       ScaffoldMessenger.of(
         context,
@@ -495,15 +482,16 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           timetableGrid: data.timetableGrid,
           totalInvitedCount: data.totalInvitedCount,
           currentUserId: currentUserId,
+          dateOnly: data.dateOnly,
         ),
       ),
     );
 
-    if (selected == null || !mounted || widget.meetitId == null) return;
+    if (selected == null || !mounted) return;
     try {
       await ref
           .read(postApiProvider)
-          .submitMeetitResponse(widget.meetitId!, selected);
+          .submitMeetitResponse(data.meetitId, selected);
       await _load();
     } catch (error) {
       if (mounted)
@@ -513,8 +501,20 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     }
   }
 
-  TimeOfDay _parseTimeOfDay(String value) {
-    final parts = value.split(':');
+  int? get _currentUserId =>
+      widget.currentUserId ?? ref.read(authProvider).value?.userId;
+
+  bool _hasCurrentUserResponded(MeetitDetailData data) {
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) return false;
+
+    return data.respondedParticipants.any(
+      (participant) => participant.userId == currentUserId,
+    );
+  }
+
+  TimeOfDay _parseTimeOfDay(String? value) {
+    final parts = (value ?? '').split(':');
     if (parts.length < 2) return const TimeOfDay(hour: 0, minute: 0);
 
     return TimeOfDay(
@@ -523,17 +523,21 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     );
   }
 
-  String _formatOptimalSlot(MeetitOptimalSlot slot) {
-    final date = DateTime.tryParse(slot.date);
-    if (date == null) {
-      return '${slot.date} ${slot.startTime} - ${slot.endTime}';
+  String _formatOptimalSlot(MeetitOptimalSlot slot, {required bool dateOnly}) {
+    final start = slot.wallClockStart;
+    final end = slot.wallClockEnd;
+    if (start == null || end == null) {
+      return '${slot.startDateTime} - ${slot.endDateTime}';
     }
 
     const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
-    final weekday = weekdays[date.weekday - 1];
-    return '${date.month}/${date.day} $weekday요일 '
-        '${_formatTime(_parseTimeOfDay(slot.startTime))} - '
-        '${_formatTime(_parseTimeOfDay(slot.endTime))}';
+    final weekday = weekdays[start.weekday - 1];
+    final dateText = '${start.month}/${start.day} $weekday요일';
+
+    if (dateOnly) return dateText;
+
+    return '$dateText ${_formatTime(TimeOfDay.fromDateTime(start))} - '
+        '${_formatTime(TimeOfDay.fromDateTime(end))}';
   }
 
   String _formatTime(TimeOfDay time) {

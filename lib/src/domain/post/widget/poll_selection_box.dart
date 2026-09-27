@@ -195,7 +195,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
       case PollStatus.inProgress:
         return '진행 중인 투표';
       case PollStatus.completed:
-        return '투표 완료';
+        return '종료한 투표';
     }
   }
 
@@ -297,6 +297,10 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
 
     final inputBackgroundColor =
         inputTheme.fillColor ?? colors.surfaceContainerHighest;
+    final isCompleted = widget.status == PollStatus.completed;
+    final statusColor = isCompleted
+        ? context.grays.gray4
+        : context.brands.beatOrange2;
 
     return Column(
       children: [
@@ -325,7 +329,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                         width: 15,
                         height: 15,
                         decoration: BoxDecoration(
-                          color: context.brands.beatOrange2,
+                          color: statusColor,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: SvgPicture.asset(
@@ -338,9 +342,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                       ),
                       Text(
                         _statusText,
-                        style: FontStyles.bold14.copyWith(
-                          color: context.brands.beatOrange2,
-                        ),
+                        style: FontStyles.bold14.copyWith(color: statusColor),
                       ),
                     ],
                   ),
@@ -409,7 +411,9 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                     PollButton(
                       text: _showResults ? '다시 투표하기' : '투표하기',
                       onPressed: _showResults ? _startRevote : _submitVote,
-                    ),
+                    )
+                  else
+                    PollButton(text: '투표 마감', enabled: false, onPressed: () {}),
                 ],
               ),
             ],
@@ -527,9 +531,13 @@ class _PollOptionButton extends StatelessWidget {
                       ),
                       Text(
                         text,
-                        style: FontStyles.reg14.copyWith(
-                          color: context.grays.black,
-                        ),
+                        style: isSelected
+                            ? FontStyles.med14.copyWith(
+                                color: context.brands.beatOrange1,
+                              )
+                            : FontStyles.reg14.copyWith(
+                                color: context.grays.black,
+                              ),
                       ),
                     ],
                   ),

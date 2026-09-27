@@ -20,6 +20,7 @@ class MeetitEditPage extends StatefulWidget {
     required this.timetableGrid,
     required this.totalInvitedCount,
     required this.currentUserId,
+    required this.dateOnly,
   });
 
   final String title;
@@ -29,6 +30,7 @@ class MeetitEditPage extends StatefulWidget {
   final List<MeetitTimetableSlot> timetableGrid;
   final int totalInvitedCount;
   final int currentUserId;
+  final bool dateOnly;
 
   @override
   State<MeetitEditPage> createState() => _MeetitEditPageState();
@@ -127,7 +129,7 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _SectionLabel(
-              text: '시간표',
+              text: widget.dateOnly ? '날짜' : '시간표',
               iconPath: 'assets/icons/meetit/calendar.svg',
               color: Theme.of(context).colorScheme.onSurface,
             ),
@@ -169,7 +171,9 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
             Expanded(
               child: Text(
                 _showAllSchedule
-                    ? '현재 수정 내용과 전체 시간표를 함께 표시하며, 이 상태에서는 수정할 수 없어요.'
+                    ? '현재 수정 내용과 전체 응답을 함께 표시하며, 이 상태에서는 수정할 수 없어요.'
+                    : widget.dateOnly
+                    ? '참여 가능한 날짜를 선택해주세요.'
                     : '아래 시간표를 드래그하여 참여 가능한 시간을 체크해주세요.',
                 style: FontStyles.med14.copyWith(color: context.grays.gray5),
               ),

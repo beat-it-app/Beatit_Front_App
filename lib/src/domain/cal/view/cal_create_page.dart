@@ -238,6 +238,16 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     return null;
   }
 
+  String? get _locationErrorText {
+    if (!_showValidation || _selectedLocationId != null) return null;
+    return '장소를 선택해주세요.';
+  }
+
+  String? get _membersErrorText {
+    if (!_showValidation || _selectedMembers.isNotEmpty) return null;
+    return '참여 인원을 선택해주세요.';
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -336,8 +346,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
               content: _nullableTrimmedText(_contentController.text),
               startsAt: startsAt,
               endsAt: endsAt,
-              // 수정 화면에서 참여자 선택을 직접 변경했을 때만 새 목록을 보냅니다.
-              // 변경하지 않았다면 null을 보내 기존 참여자를 그대로 유지합니다.
               participantUserIds: _membersWereEdited
                   ? _selectedMembers
                         .map((member) => member.userId)
@@ -755,9 +763,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         const SizedBox(height: AppSpacing.x20),
                         AppTextField(
                           label: '장소',
+                          requiredMark: true,
                           hintText: '모임 장소를 검색하세요.',
                           controller: _locationController,
                           readOnly: true,
+                          errorText: _locationErrorText,
                           onTap: _openLocationSelector,
                           suffixIcon: SvgPicture.asset(
                             'assets/icons/cal/search.svg',
@@ -828,6 +838,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           text: _selectedMembers.isEmpty
                               ? '참여 인원'
                               : '참여 인원 (${_selectedMembers.length})',
+                          requiredMark: true,
                         ),
                         const SizedBox(height: AppSpacing.x8),
                         _buildMemberSection(),

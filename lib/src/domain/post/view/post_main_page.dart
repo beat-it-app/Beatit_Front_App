@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -6,7 +8,6 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_main_provider.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_detail_page.dart';
@@ -58,12 +59,18 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
 
   late PostMainType _selectedType;
   late bool _isSearchOpen;
+  Timer? _pollClockTimer;
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType;
     _isSearchOpen = widget.searchOnly;
+    _pollClockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted && _selectedType == PostMainType.poll) {
+        setState(() {});
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -75,13 +82,15 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
 
   @override
   void dispose() {
+    _pollClockTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _loadSelected({String? keyword}) async {
-    final query = keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
+    final query =
+        keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
     final notifier = ref.read(postMainProvider.notifier);
 
     switch (_selectedType) {
@@ -110,17 +119,21 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
   }
 
   void _handleSearchPressed() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PostMainPage(
-          searchOnly: true,
-          initialType: _selectedType,
-          noticeDetailPageBuilder: widget.noticeDetailPageBuilder,
-          pollDetailPageBuilder: widget.pollDetailPageBuilder,
-          meetitDetailPageBuilder: widget.meetitDetailPageBuilder,
-        ),
-      ),
-    ).then((_) { if (mounted) _loadSelected(keyword: ''); });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => PostMainPage(
+              searchOnly: true,
+              initialType: _selectedType,
+              noticeDetailPageBuilder: widget.noticeDetailPageBuilder,
+              pollDetailPageBuilder: widget.pollDetailPageBuilder,
+              meetitDetailPageBuilder: widget.meetitDetailPageBuilder,
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) _loadSelected(keyword: '');
+        });
   }
 
   Future<void> _submitSearch() async {
@@ -134,15 +147,18 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
       PostMainType.poll => widget.onCreatePoll,
       PostMainType.meetit => widget.onCreateMeetit,
     };
-    if (callback != null) { callback(); return; }
+    if (callback != null) {
+      callback();
+      return;
+    }
     final page = switch (type) {
       PostMainType.notice => const PostCreatePage(),
       PostMainType.poll => const PollCreatePage(),
       PostMainType.meetit => const MeetitCreatePage(),
     };
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => page),
-    );
+    final created = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => page));
     if (mounted && created == true) _loadSelected(keyword: '');
   }
 
@@ -152,15 +168,19 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
     required PostDetailPageBuilder? pageBuilder,
     int? pollCount,
   }) async {
-    final page = pageBuilder?.call(context, postId) ?? switch (type) {
-      PostMainType.notice => PostDetailPage(noticeId: postId),
-      PostMainType.poll => PollDetailPage(pollId: postId, participantCount: pollCount),
-      PostMainType.meetit => MeetitDetailPage(meetitId: postId),
-    };
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => page),
-    );
-    if (mounted) _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
+    final page =
+        pageBuilder?.call(context, postId) ??
+        switch (type) {
+          PostMainType.notice => PostDetailPage(noticeId: postId),
+          PostMainType.poll => PollDetailPage(
+            pollId: postId,
+            participantCount: pollCount,
+          ),
+          PostMainType.meetit => MeetitDetailPage(meetitId: postId),
+        };
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    if (mounted)
+      _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
   }
 
   void _handleMeetitDelete(MeetitListItem item) {
@@ -192,24 +212,42 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
           ),
         );
       case PostMainType.poll:
+        final now = DateTime.now();
+        final serverClosedIds = state.pollsClosed
+            .map((item) => item.pollId)
+            .toSet();
+        final uniquePolls = <int, PollListItem>{
+          for (final item in state.pollsInProgress) item.pollId: item,
+          for (final item in state.pollsClosed) item.pollId: item,
+        };
+        final activePolls = <PollListItem>[];
+        final completedPolls = <PollListItem>[];
+
+        for (final item in uniquePolls.values) {
+          final isExpired =
+              item.closeAt != null && !item.closeAt!.toLocal().isAfter(now);
+          if (serverClosedIds.contains(item.pollId) || isExpired) {
+            completedPolls.add(item);
+          } else {
+            activePolls.add(item);
+          }
+        }
+
         return _PostLoadState(
           isLoading: state.isPollLoading,
           errorMessage: state.pollError,
-          isEmpty:
-              state.pollsInProgress.isEmpty && state.pollsClosed.isEmpty,
+          isEmpty: activePolls.isEmpty && completedPolls.isEmpty,
           emptyMessage: state.pollKeyword.isEmpty
               ? '작성된 투표가 없습니다.'
               : '검색된 투표가 없습니다.',
           onRetry: _loadSelected,
           child: _PollContent(
-            activePolls: state.pollsInProgress,
-            completedPolls: state.pollsClosed,
+            activePolls: activePolls,
+            completedPolls: completedPolls,
             onItemTap: (postId) => _openDetailPage(
               postId: postId,
               type: PostMainType.poll,
-              pollCount: [...state.pollsInProgress, ...state.pollsClosed]
-                  .where((item) => item.pollId == postId)
-                  .firstOrNull?.pollCount,
+              pollCount: uniquePolls[postId]?.pollCount,
               pageBuilder: widget.pollDetailPageBuilder,
             ),
           ),
@@ -240,10 +278,77 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(postMainProvider);
 
+    if (widget.searchOnly) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.x12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SearchInputWidget(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        hintText: '${_selectedType.title} 검색',
+                        onSearchPressed: _submitSearch,
+                        onChanged: (value) {
+                          _loadSelected(keyword: value.trim());
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.x12),
+                    Semantics(
+                      button: true,
+                      label: '검색 닫기',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: SizedBox(
+                          width: 32,
+                          height: 54,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/etc/delete.svg',
+                              width: 24,
+                              height: 24,
+                              colorFilter: ColorFilter.mode(
+                                context.grays.gray1,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.x16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.only(bottom: AppSpacing.x30),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: KeyedSubtree(
+                        key: ValueKey<PostMainType>(_selectedType),
+                        child: _buildSelectedContent(state),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: widget.searchOnly
-          ? AppTopAppBar.backTitle(title: '${_selectedType.title} 검색', onBackPressed: () => Navigator.of(context).pop())
-          : AppTwoAppBar(
+      appBar: AppTwoAppBar(
         trailing: AppTwoAppBarTrailing.all,
         onSearchPressed: _handleSearchPressed,
         addMenuAlignment: AppDropdownAlignment.right,
@@ -275,29 +380,9 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!widget.searchOnly) _PostTypeDropdown(
+              _PostTypeDropdown(
                 selectedType: _selectedType,
                 onChanged: _changePostType,
-              ),
-              if (widget.searchOnly) AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: _isSearchOpen
-                    ? Padding(
-                        key: const ValueKey('post-search-field'),
-                        padding: const EdgeInsets.only(top: AppSpacing.x16),
-                        child: SearchInputWidget(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          hintText: '${_selectedType.title} 검색',
-                          onSearchPressed: _submitSearch,
-                          onChanged: (value) {
-                            if (value.trim().isEmpty) _loadSelected(keyword: '');
-                          },
-                        ),
-                      )
-                    : const SizedBox.shrink(
-                        key: ValueKey('post-search-field-hidden'),
-                      ),
               ),
               const SizedBox(height: AppSpacing.x24),
               AnimatedSize(
@@ -470,21 +555,29 @@ class _PostLoadState extends StatelessWidget {
 
     if (isEmpty) {
       final isSearchEmpty = emptyMessage.startsWith('검색된');
-      final itemName = emptyMessage.contains('공지') ? '공지'
-          : emptyMessage.contains('투표') ? '투표' : '밋잇';
+      final itemName = emptyMessage.contains('공지')
+          ? '공지'
+          : emptyMessage.contains('투표')
+          ? '투표'
+          : '밋잇';
       return SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.64,
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(emptyMessage, textAlign: TextAlign.center,
-                style: FontStyles.bold20.copyWith(color: colors.onSurface)),
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: FontStyles.bold20.copyWith(color: colors.onSurface),
+              ),
               if (!isSearchEmpty) ...[
                 const SizedBox(height: AppSpacing.x8),
-                Text('+ 버튼을 눌러 ${itemName == '투표' ? '투표를' : '$itemName을'} ${itemName == '공지' ? '작성' : '생성'}해보세요.',
+                Text(
+                  '+ 버튼을 눌러 ${itemName == '투표' ? '투표를' : '$itemName을'} ${itemName == '공지' ? '작성' : '생성'}해보세요.',
                   textAlign: TextAlign.center,
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray5)),
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                ),
               ],
             ],
           ),
@@ -501,10 +594,7 @@ class _PostLoadState extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _NoticeContent extends StatelessWidget {
-  const _NoticeContent({
-    required this.items,
-    required this.onItemTap,
-  });
+  const _NoticeContent({required this.items, required this.onItemTap});
 
   final List<NoticeListItem> items;
   final ValueChanged<int> onItemTap;

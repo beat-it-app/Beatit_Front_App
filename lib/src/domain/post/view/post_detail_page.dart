@@ -4,6 +4,8 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/etc/view/picture_preview_page.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
@@ -99,19 +101,36 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) =>
-      AlertDialog(title: const Text('삭제하기'), content: const Text('삭제한 내용은 복구할 수 없습니다.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('삭제')),
-        ],
-      ),
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
     );
     if (confirmed != true || !mounted) return;
+
     try {
       await ref.read(postApiProvider).deleteNotice(widget.noticeId);
       if (mounted) Navigator.of(context).pop(true);
-    } catch (error) { _showError(error); }
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  void _openImagePreview(int initialIndex) {
+    if (imageUrls.isEmpty) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PicturePreviewPage(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -246,48 +265,53 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 for (int i = 0; i < imageUrls.length; i++) ...[
-                                  SizedBox(
-                                    width: 190,
-                                    height: 190,
-                                    // Container 대신 ClipRRect를 사용하여 자식 위젯을 둥글게 자릅니다.
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.lg,
-                                      ),
-                                      child: Image.network(
-                                        imageUrls[i],
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
+                                  Semantics(
+                                    button: true,
+                                    label: '${i + 1}번째 사진 크게 보기',
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => _openImagePreview(i),
+                                      child: SizedBox(
+                                        width: 190,
+                                        height: 190,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.lg,
+                                          ),
+                                          child: Image.network(
+                                            imageUrls[i],
+                                            fit: BoxFit.cover,
+                                            loadingBuilder:
+                                                (context, child, loadingProgress) {
                                               if (loadingProgress == null) {
                                                 return child;
                                               }
 
                                               return ColoredBox(
-                                                color: colors
-                                                    .surfaceContainerHighest,
+                                                color: colors.surfaceContainerHighest,
                                                 child: const Center(
                                                   child: SizedBox(
                                                     width: 18,
                                                     height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
                                                   ),
                                                 ),
                                               );
                                             },
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return ColoredBox(
-                                            color: colors.errorContainer,
-                                            child: Icon(
-                                              Icons
-                                                  .image_not_supported_outlined, // 프로필이 아닌 일반 이미지 오류 아이콘으로 변경 추천
-                                              color: colors.onErrorContainer,
-                                            ),
-                                          );
-                                        },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return ColoredBox(
+                                                color: colors.errorContainer,
+                                                child: Icon(
+                                                  Icons.image_not_supported_outlined,
+                                                  color: colors.onErrorContainer,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),

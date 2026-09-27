@@ -1,4 +1,5 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
@@ -260,7 +261,7 @@ class _PollTypeSelector extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.x10,
+                      horizontal: AppSpacing.x12,
                       vertical: AppSpacing.x4,
                     ),
                     decoration: BoxDecoration(
@@ -276,7 +277,7 @@ class _PollTypeSelector extends StatelessWidget {
                     ),
                     child: Text(
                       type.label,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      style: FontStyles.reg14.copyWith(
                         color: isSelected
                             ? colors.primary
                             : colors.onSurfaceVariant,

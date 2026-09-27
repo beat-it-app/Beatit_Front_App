@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
@@ -196,24 +197,17 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('삭제하기'),
-        content: const Text('삭제한 내용은 복구할 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
     );
     if (confirmed != true || !mounted) return;
+
     try {
       await ref.read(postApiProvider).deletePoll(widget.pollId);
       if (mounted) Navigator.of(context).pop(true);

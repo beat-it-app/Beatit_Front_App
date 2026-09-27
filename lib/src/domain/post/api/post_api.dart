@@ -145,21 +145,52 @@ class PostApi {
   }
 
   Future<void> createMeetit(MeetitCreateRequest request) async {
+    final payload = <String, dynamic>{
+      'title': request.title,
+      'candidateDates': request.candidateDates,
+      'dateOnly': request.dateOnly,
+      'participantUserIds': request.participantUserIds,
+      'startTime': request.dateOnly ? null : request.startTime,
+      'endTime': request.dateOnly ? null : request.endTime,
+    };
+
     final response = await _dio.post<Map<String, dynamic>>(
-      _meetitPath, data: request.toJson(),
+      _meetitPath,
+      data: payload,
     );
-    _requireSuccessBody(response: response, fallbackMessage: '밋잇 생성에 실패했습니다.');
+    _requireSuccessBody(
+      response: response,
+      fallbackMessage: '밋잇 생성에 실패했습니다.',
+    );
   }
 
   Future<void> submitMeetitResponse(int id, Iterable<DateTime> selected) async {
+    final normalized = selected
+        .map(
+          (time) => DateTime(
+            time.year,
+            time.month,
+            time.day,
+            time.hour,
+            time.minute,
+          ),
+        )
+        .toSet()
+        .toList()
+      ..sort();
+
     final response = await _dio.post<Map<String, dynamic>>(
       '$_meetitPath/$id/responses',
-      data: {'slotStartTimes': selected.map((time) {
-        final local = time.toLocal();
-        return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}T${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}:00';
-      }).toList()},
+      data: {
+        'slotStartTimes': normalized.map((time) {
+          return '${time.year.toString().padLeft(4, '0')}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+        }).toList(),
+      },
     );
-    _requireSuccessBody(response: response, fallbackMessage: '밋잇 응답에 실패했습니다.');
+    _requireSuccessBody(
+      response: response,
+      fallbackMessage: '밋잇 응답에 실패했습니다.',
+    );
   }
 
   Future<void> votePoll(int id, List<int> optionIds) async {

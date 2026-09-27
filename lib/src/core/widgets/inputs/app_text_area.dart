@@ -179,9 +179,7 @@ class _AppTextAreaState extends State<AppTextArea> {
                   builder: (context, value, _) {
                     return Text(
                       '${value.text.length}/${widget.maxLength}',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colors.onSurface,
-                      ),
+                      style: FontStyles.med12.copyWith(color: colors.onSurface),
                     );
                   },
                 ),

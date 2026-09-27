@@ -232,7 +232,6 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
   }
 
   bool _shouldShowTimeLabel(int boundary, int slotCount) {
-    if (boundary == 0 || boundary == slotCount) return true;
     return _minutesForBoundary(boundary) % 60 == 0;
   }
 
@@ -475,29 +474,22 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     List<MeetitOptimalSlot> optimalSlots,
   ) {
     for (final range in optimalSlots) {
-      final date = DateTime.tryParse(range.date);
-      final start = _parseDateAndTime(range.date, range.startTime);
-      final end = _parseDateAndTime(range.date, range.endTime);
-      if (date == null || start == null || end == null) continue;
+      final start = range.wallClockStart;
+      final end = range.wallClockEnd;
+      if (start == null || end == null) continue;
 
-      if (DateUtils.isSameDay(target, date) &&
-          !target.isBefore(start) &&
-          target.isBefore(end)) {
+      if (!target.isBefore(start) && target.isBefore(end)) {
         return true;
       }
     }
     return false;
   }
 
-  /// `+09:00` offset을 UTC로 변환하지 않고, 서버가 표현한 달력상의
-  /// 날짜/시각 자체를 그대로 사용하기 위한 파싱입니다.
+  /// `+09:00` 또는 `Z`를 기기 timezone으로 변환하지 않고, 서버가 표현한
+  /// 달력상의 날짜/시각 자체를 그대로 사용하기 위한 파싱입니다.
   DateTime? _parseSlotStartTime(String value) {
     if (value.length < 16) return null;
     return DateTime.tryParse(value.substring(0, 16));
-  }
-
-  DateTime? _parseDateAndTime(String date, String time) {
-    return DateTime.tryParse('${date}T$time');
   }
 
   bool _sameMinute(DateTime left, DateTime right) {

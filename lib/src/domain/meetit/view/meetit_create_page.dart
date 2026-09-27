@@ -46,7 +46,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
 
   bool _isCalendarExpanded = false;
   bool _dateOnly = false;
-  List<MemberSelectionMember> _members = [];
+  final List<MemberSelectionMember> _members = <MemberSelectionMember>[];
   bool _submitting = false;
 
   @override
@@ -86,6 +86,16 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     });
   }
 
+  void _setDateOnly(bool selected) {
+    setState(() {
+      _dateOnly = selected;
+      if (selected) {
+        _startTimeController.clear();
+        _endTimeController.clear();
+      }
+    });
+  }
+
   Future<void> _chooseMembers() async {
     final selected = await Navigator.of(context).push<List<MemberSelectionMember>>(
       MaterialPageRoute(builder: (_) => MemberSelectionPage(
@@ -93,7 +103,13 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
         initialSelectedUserIds: _members.map((member) => member.userId).whereType<int>().toSet(),
       )),
     );
-    if (mounted && selected != null) setState(() => _members = selected);
+    if (!mounted || selected == null) return;
+
+    setState(() {
+      _members
+        ..clear()
+        ..addAll(selected);
+    });
   }
 
   Future<void> _chooseTime(TextEditingController controller) async {
@@ -228,7 +244,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                           const SizedBox(width: AppSpacing.x8),
                           MeetitSwitchWidget(
                             initialValue: _dateOnly,
-                            onCheckChange: (selected) => setState(() => _dateOnly = selected),
+                            onCheckChange: _setDateOnly,
                           ),
                         ],
                       ),
@@ -320,16 +336,22 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            for (final member in _members)
-                              _MemberInfoButton(
+                            ...List.generate(_members.length, (index) {
+                              final member = _members[index];
+                              return _MemberInfoButton(
                                 memberImage: member.profileImageUrl,
                                 memberName: member.name,
                                 memberPart: member.position ?? '',
-                                onRemove: () => setState(() => _members.remove(member)),
-                              ),
-                            _AddButton(
-                              onPressed: _chooseMembers,
-                            ),
+                                onRemove: () {
+                                  setState(() {
+                                    _members.removeAt(index);
+                                  });
+                                },
+                              );
+                            }),
+                            const SizedBox(width: AppSpacing.x8),
+                            _AddButton(onPressed: _chooseMembers),
+                            const SizedBox(width: AppSpacing.x8),
                           ],
                         ),
                       ),
@@ -505,9 +527,8 @@ class _MemberInfoButton extends StatelessWidget {
                 top: -6,
                 right: -6,
                 child: GestureDetector(
-                  onTap: () {
-                    onRemove();
-                  },
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onRemove,
                   child: SizedBox(
                     width: 26.0,
                     height: 26.0,
