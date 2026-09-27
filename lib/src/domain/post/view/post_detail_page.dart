@@ -5,87 +5,113 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PostDetailPage extends StatefulWidget {
-  const PostDetailPage({super.key});
+class PostDetailPage extends ConsumerStatefulWidget {
+  const PostDetailPage({super.key, required this.noticeId});
+  final int noticeId;
 
   @override
-  State<PostDetailPage> createState() => _PostDetailPageState();
+  ConsumerState<PostDetailPage> createState() => _PostDetailPageState();
 }
 
-class _PostDetailPageState extends State<PostDetailPage> {
-  static const String _currentUserName = '송하은';
-  static const int _initialLikedCount = 100;
-  static const int _initialDislikedCount = 90;
-
-  final List<String> imageUrls = [
-    'https://picsum.photos/id/237/200/200',
-    'https://picsum.photos/id/238/200/200',
-    'https://picsum.photos/id/239/200/200',
-  ];
-
+class _PostDetailPageState extends ConsumerState<PostDetailPage> {
+  NoticeDetailData? _data;
+  String? _error;
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-  final List<_PostComment> _comments = [
-    const _PostComment(
-      name: '송하은',
-      time: '2026.07.22 15:47',
-      comment: '안녕하세요?안녕하세요?안녕하세요?안녕하세요?',
-    ),
-  ];
+  List<_PostComment> _comments = [];
+  bool _reactionPending = false;
+  int get _commentCount => _data?.reaction.commentCount ?? 0;
+  List<String> get imageUrls => _data?.images ?? const [];
 
-  bool _isLiked = false;
-  bool _isDisliked = false;
+  @override
+  void initState() { super.initState(); Future.microtask(_load); }
 
-  int get _likedCount => _initialLikedCount + (_isLiked ? 1 : 0);
-  int get _dislikedCount => _initialDislikedCount + (_isDisliked ? 1 : 0);
-  int get _commentCount => _comments.length;
-
-  void _toggleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-    });
-  }
-
-  void _toggleDislike() {
-    setState(() {
-      _isDisliked = !_isDisliked;
-    });
-  }
-
-  void _addComment(String message) {
-    final comment = message.trim();
-
-    if (comment.isEmpty) {
-      return;
+  Future<void> _load() async {
+    try {
+      final data = await ref.read(postApiProvider).getNotice(widget.noticeId);
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+        _comments = data.commentList.map((comment) => _PostComment(
+          name: comment.writerName,
+          time: _formatDateTime(comment.createdAt.toLocal()),
+          comment: comment.content,
+          imageUrl: comment.profileImageUrl,
+        )).toList();
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     }
+  }
 
-    setState(() {
-      _comments.add(
-        _PostComment(
-          name: _currentUserName,
-          time: _formatDateTime(DateTime.now()),
-          comment: comment,
-        ),
-      );
-    });
+  void _showError(Object error) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+  }
 
-    _commentController.clear();
+  bool get _isLiked => _data?.reaction.isLiked ?? false;
+  bool get _isDisliked => _data?.reaction.isDisliked ?? false;
+  int get _likedCount => _data?.reaction.likeCount ?? 0;
+  int get _dislikedCount => _data?.reaction.dislikeCount ?? 0;
+  Future<void> _toggleLike() async {
+    if (_reactionPending || _data == null) return;
+    _reactionPending = true;
+    try {
+      final api = ref.read(postApiProvider);
+      if (_isDisliked) await api.toggleNoticeDislike(widget.noticeId);
+      await api.toggleNoticeLike(widget.noticeId);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) await _load();
+      _reactionPending = false;
+    }
+  }
+  Future<void> _toggleDislike() async {
+    if (_reactionPending || _data == null) return;
+    _reactionPending = true;
+    try {
+      final api = ref.read(postApiProvider);
+      if (_isLiked) await api.toggleNoticeLike(widget.noticeId);
+      await api.toggleNoticeDislike(widget.noticeId);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) await _load();
+      _reactionPending = false;
+    }
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) {
-        return;
-      }
+  Future<void> _addComment(String message) async {
+    if (message.trim().isEmpty) return;
+    try {
+      await ref.read(postApiProvider).commentNotice(widget.noticeId, message.trim());
+      _commentController.clear();
+      await _load();
+    } catch (error) { _showError(error); }
+  }
 
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-      );
-    });
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) =>
+      AlertDialog(title: const Text('삭제하기'), content: const Text('삭제한 내용은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('삭제')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(postApiProvider).deleteNotice(widget.noticeId);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) { _showError(error); }
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -109,6 +135,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
+    if (_data == null) return Scaffold(body: Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!)));
     return Scaffold(
       appBar: AppTopAppBar.backMore(
         onBackPressed: () {
@@ -120,13 +147,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
           AppDropdownItem(
             label: '수정하기',
             onPressed: () {
-              debugPrint('수정');
+              _showError('수정 화면은 아직 연결되지 않았습니다.');
             },
           ),
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              debugPrint('삭제');
+              _confirmDelete();
             },
           ),
         ],
@@ -152,7 +179,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '4월 28일 합주',
+                            _data!.title,
                             softWrap: true,
                             style: FontStyles.bold34.copyWith(
                               color: colors.onSurface,
@@ -163,14 +190,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _ProfileAvatar(),
+                              _ProfileAvatar(imageUrl: _data!.writerProfileImageUrl),
                               const SizedBox(width: AppSpacing.x8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '송하은',
+                                      _data!.writerName,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: FontStyles.semi14.copyWith(
@@ -182,13 +209,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                       TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: '2026.07.22 15:47',
+                                            text: _formatDateTime(_data!.createdAt.toLocal()),
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray4,
                                             ),
                                           ),
                                           TextSpan(
-                                            text: ' ｜최종수정일 2026.04.03 15:00',
+                                            text: ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray5,
                                             ),
@@ -206,11 +233,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           SizedBox(
                             width: double.infinity,
                             child: Text(
-                              '안녕하세요! 오늘 합주는 아래 두 곡 연습 예정입니다.\n\n'
-                              '파일에는 악보를 pdf로 첨부했으니 참고 부탁드려요 !\n'
-                              '합주는 약 3시간 진행 후 함께 점심식사 예정입니다.\n'
-                              '(메뉴는 아마도 닭갈비...)\n\n'
-                              '오늘은 악기 대여를 안 했으니, 본인이 지참해주세요~',
+                              _data!.content,
                               softWrap: true,
                               style: FontStyles.reg14.copyWith(
                                 color: context.grays.black,
@@ -475,13 +498,13 @@ class _PostComment {
     required this.name,
     required this.time,
     required this.comment,
-    this.imageUrl = 'https://picsum.photos/80/80',
+    this.imageUrl,
   });
 
   final String name;
   final String time;
   final String comment;
-  final String imageUrl;
+  final String? imageUrl;
 }
 
 class _CommentTile extends StatelessWidget {
@@ -525,9 +548,9 @@ class _CommentTile extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({this.imageUrl = 'https://picsum.photos/80/80'});
+  const _ProfileAvatar({this.imageUrl});
 
-  final String imageUrl;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -537,8 +560,10 @@ class _ProfileAvatar extends StatelessWidget {
       width: 40,
       height: 40,
       child: ClipOval(
-        child: Image.network(
-          imageUrl,
+        child: imageUrl == null || imageUrl!.isEmpty
+            ? const Icon(Icons.person_outline_rounded)
+            : Image.network(
+          imageUrl!,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) {

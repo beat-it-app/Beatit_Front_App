@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/domain/etc/view/member_selection_page.dart'
 import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_main_page.dart';
 import 'package:flutter/material.dart';
 
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
@@ -22,47 +23,15 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _pages = const [
     // TODO: 실제 팀 메인 화면으로 교체
-    LocationSearchPage(),
+    _TemporaryMainPage(title: '팀'),
 
-    MusicSearchPage(),
+    PostMainPage(),
     CalMainPage(),
 
-    MemberSelectionPage(
-      members: const [
-        MemberSelectionMember(
-          id: '1',
-          name: '권우혁',
-          role: MemberSelectionRole.manager,
-          profileImageUrl: 'https://...',
-        ),
-        MemberSelectionMember(
-          id: '2',
-          name: '박소연',
-          role: MemberSelectionRole.member,
-          profileImageUrl: 'https://...',
-        ),
-        MemberSelectionMember(
-          id: '3',
-          name: '이기주',
-          role: MemberSelectionRole.leader,
-          profileImageUrl: 'https://...',
-        ),
-        MemberSelectionMember(
-          id: '4',
-          name: '이희빈',
-          role: MemberSelectionRole.member,
-          profileImageUrl: 'https://...',
-        ),
-      ],
-    ),
+    _TemporaryMainPage(title: '채팅'),
 
     // TODO: 실제 마이페이지 화면으로 교체
-    MusicPreviewPage(
-      musicTitle: 'Test Music',
-      artist: 'Test Artist',
-      imageUrl: 'https://picsum.photos/600/600',
-      previewUrl: 'https://cdn.truefilesize.com/mp3/sample-500kb.mp3',
-    ),
+    _TemporaryMainPage(title: '마이페이지'),
   ];
 
   @override

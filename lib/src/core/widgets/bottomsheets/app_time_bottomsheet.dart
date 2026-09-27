@@ -13,6 +13,7 @@ class AppTimeBottomSheet extends StatefulWidget {
     required this.mode,
     this.title,
     this.initialTime,
+    this.minuteInterval = 1,
     this.initialDate,
     this.startYear = 2000,
     this.maxDate,
@@ -23,6 +24,8 @@ class AppTimeBottomSheet extends StatefulWidget {
   final AppTimePickerMode mode;
   final String? title;
   final TimeOfDay? initialTime;
+  /// 시간 선택 간격입니다. 기본값은 기존 동작과 같은 1분입니다.
+  final int minuteInterval;
   final DateTime? initialDate;
   final int startYear;
   final DateTime? maxDate;
@@ -34,7 +37,9 @@ class AppTimeBottomSheet extends StatefulWidget {
     BuildContext context, {
     String? title,
     TimeOfDay? initialTime,
+    int minuteInterval = 1,
   }) {
+    assert(minuteInterval > 0 && 60 % minuteInterval == 0);
     return showModalBottomSheet<TimeOfDay>(
       context: context,
       isScrollControlled: true,
@@ -43,6 +48,7 @@ class AppTimeBottomSheet extends StatefulWidget {
         mode: AppTimePickerMode.time,
         title: title,
         initialTime: initialTime,
+        minuteInterval: minuteInterval,
         onConfirmTime: (selectedTime) {
           Navigator.of(context).pop(selectedTime);
         },
@@ -103,7 +109,7 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
       int hour12 = initial.hourOfPeriod;
       if (hour12 == 0) hour12 = 12;
       _selectedHourIndex = hour12 - 1;
-      _selectedMinuteIndex = initial.minute;
+      _selectedMinuteIndex = initial.minute ~/ widget.minuteInterval;
       _selectedYear = DateTime.now().year;
       _selectedMonth = DateTime.now().month;
       _selectedDay = DateTime.now().day;
@@ -127,7 +133,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
     } else {
       hour24 = hour12 == 12 ? 0 : hour12;
     }
-    return TimeOfDay(hour: hour24, minute: _selectedMinuteIndex);
+    return TimeOfDay(
+      hour: hour24,
+      minute: _selectedMinuteIndex * widget.minuteInterval,
+    );
   }
 
   DateTime _getSelectedDate() {
@@ -354,8 +363,8 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             ),
             onSelectedItemChanged: (index) =>
                 setState(() => _selectedMinuteIndex = index),
-            children: List.generate(60, (index) {
-              final minute = index.toString().padLeft(2, '0');
+            children: List.generate(60 ~/ widget.minuteInterval, (index) {
+              final minute = (index * widget.minuteInterval).toString().padLeft(2, '0');
               return Center(
                 child: Text(
                   minute,

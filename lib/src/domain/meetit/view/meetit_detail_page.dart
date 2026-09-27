@@ -7,43 +7,69 @@ import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/meetit/view/meetit_edit_page.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/meetit_time_grid.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 enum _MeetingTimeFilter { everyone, mostAvailable }
 
-class MeetitDetailPage extends StatefulWidget {
-  const MeetitDetailPage({super.key, this.detail, this.currentUserId = 5});
+class MeetitDetailPage extends ConsumerStatefulWidget {
+  const MeetitDetailPage({super.key, this.meetitId, this.detail, this.currentUserId});
 
-  /// 실제 API 연결 후에는 response.data를 그대로 전달합니다.
-  /// null이면 명세와 동일한 sample 응답으로 화면을 확인합니다.
+  final int? meetitId;
+
   final MeetitDetailData? detail;
-  final int currentUserId;
+  final int? currentUserId;
 
   factory MeetitDetailPage.fromResponse({
     Key? key,
     required Map<String, dynamic> response,
     required int currentUserId,
   }) {
+    final detail = MeetitDetailResponse.fromJson(response).data;
     return MeetitDetailPage(
       key: key,
-      detail: MeetitDetailResponse.fromJson(response).data,
+      meetitId: detail.meetitId,
+      detail: detail,
       currentUserId: currentUserId,
     );
   }
 
   @override
-  State<MeetitDetailPage> createState() => _MeetitDetailPageState();
+  ConsumerState<MeetitDetailPage> createState() => _MeetitDetailPageState();
 }
 
-class _MeetitDetailPageState extends State<MeetitDetailPage> {
+class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   _MeetingTimeFilter? _selectedTimeFilter;
   final Set<int> _selectedParticipantIds = <int>{};
   bool _isMeetingSummaryExpanded = false;
 
-  MeetitDetailData get _data => widget.detail ?? MeetitDetailData.sample;
+  MeetitDetailData? _loadedDetail;
+  String? _error;
+  MeetitDetailData get _data => _loadedDetail ?? widget.detail!;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.detail == null) Future.microtask(_load);
+  }
+
+  Future<void> _load() async {
+    if (widget.meetitId == null) {
+      setState(() => _error = '밋잇 ID가 없습니다.');
+      return;
+    }
+    try {
+      final detail = await ref.read(postApiProvider).getMeetit(widget.meetitId!);
+      if (mounted) setState(() { _loadedDetail = detail; _error = null; });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
 
   List<DateTime> get _dates {
     return _data.candidateDates
@@ -53,8 +79,10 @@ class _MeetitDetailPageState extends State<MeetitDetailPage> {
         .toList(growable: false);
   }
 
-  TimeOfDay get _startTime => _parseTimeOfDay(_data.startTime);
-  TimeOfDay get _endTime => _parseTimeOfDay(_data.endTime);
+  TimeOfDay get _startTime => _data.dateOnly
+      ? const TimeOfDay(hour: 0, minute: 0) : _parseTimeOfDay(_data.startTime);
+  TimeOfDay get _endTime => _data.dateOnly
+      ? const TimeOfDay(hour: 0, minute: 30) : _parseTimeOfDay(_data.endTime);
 
   MeetitTimeGridSummaryFilter get _summaryFilter {
     return switch (_selectedTimeFilter) {
@@ -67,6 +95,10 @@ class _MeetitDetailPageState extends State<MeetitDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadedDetail == null && widget.detail == null) {
+      return Scaffold(body: Center(child: _error == null
+          ? const CircularProgressIndicator() : Text(_error!)));
+    }
     final colors = Theme.of(context).colorScheme;
     final data = _data;
 
@@ -82,7 +114,9 @@ class _MeetitDetailPageState extends State<MeetitDetailPage> {
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              debugPrint('삭제');
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.'),
+              ));
             },
           ),
         ],
@@ -445,8 +479,14 @@ class _MeetitDetailPageState extends State<MeetitDetailPage> {
 
   Future<void> _openEditPage() async {
     final data = _data;
+    final currentUserId = widget.currentUserId ?? ref.read(authProvider).value?.userId;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정보를 불러올 수 없습니다.')));
+      return;
+    }
 
-    await Navigator.of(context).push<Set<DateTime>>(
+    final selected = await Navigator.of(context).push<Set<DateTime>>(
       MaterialPageRoute<Set<DateTime>>(
         builder: (_) => MeetitEditPage(
           title: data.title,
@@ -455,13 +495,19 @@ class _MeetitDetailPageState extends State<MeetitDetailPage> {
           endTime: _endTime,
           timetableGrid: data.timetableGrid,
           totalInvitedCount: data.totalInvitedCount,
-          currentUserId: widget.currentUserId,
+          currentUserId: currentUserId,
         ),
       ),
     );
 
-    // 상세 화면은 서버 응답을 Source of Truth로 사용합니다.
-    // 실제 API 연결 후에는 수정 저장 성공 시 상세 API를 재조회해 새 응답으로 갱신합니다.
+    if (selected == null || !mounted || widget.meetitId == null) return;
+    try {
+      await ref.read(postApiProvider).submitMeetitResponse(widget.meetitId!, selected);
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())));
+    }
   }
 
   TimeOfDay _parseTimeOfDay(String value) {

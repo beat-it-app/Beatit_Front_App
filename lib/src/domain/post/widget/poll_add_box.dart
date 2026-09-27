@@ -6,26 +6,23 @@ import 'package:beatit_front_app/src/domain/post/widget/post_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-enum PollOptionType { text, date, music, place }
+enum PollOptionType { text, music, place }
 
 extension PollOptionTypeX on PollOptionType {
   String get label => switch (this) {
     PollOptionType.text => '텍스트',
-    PollOptionType.date => '날짜',
     PollOptionType.music => '음악',
     PollOptionType.place => '장소',
   };
 
   String get hintText => switch (this) {
     PollOptionType.text => '보기를 입력하세요.',
-    PollOptionType.date => '날짜를 선택하세요.',
     PollOptionType.music => '음원을 선택하세요.',
     PollOptionType.place => '장소를 선택하세요.',
   };
 
   String? get trailingIconPath => switch (this) {
     PollOptionType.text => null,
-    PollOptionType.date => 'assets/icons/post/calendar.svg',
     PollOptionType.music => 'assets/icons/post/music_symbol.svg',
     PollOptionType.place => 'assets/icons/post/search.svg',
   };
@@ -53,16 +50,12 @@ class PollAddBox extends StatefulWidget {
     super.key,
     this.initialOptionCount = 3,
     this.onChanged,
-    this.onDatePressed,
     this.onMusicPressed,
     this.onPlacePressed,
   });
 
   final int initialOptionCount;
   final PollOptionsChanged? onChanged;
-
-  /// 실제 날짜 선택 BottomSheet/DatePicker 연결 지점.
-  final ValueChanged<int>? onDatePressed;
 
   /// 실제 음원 선택 화면 연결 지점.
   final ValueChanged<int>? onMusicPressed;
@@ -71,14 +64,23 @@ class PollAddBox extends StatefulWidget {
   final ValueChanged<int>? onPlacePressed;
 
   @override
-  State<PollAddBox> createState() => _PollAddBoxState();
+  State<PollAddBox> createState() => PollAddBoxState();
 }
 
-class _PollAddBoxState extends State<PollAddBox> {
+class PollAddBoxState extends State<PollAddBox> {
   PollOptionType _selectedType = PollOptionType.text;
 
   final List<_PollOptionDraft> _items = [];
   int _nextId = 0;
+
+  void setOptionById(int id, String value) {
+    for (final item in _items) {
+      if (item.id != id) continue;
+      setState(() => item.controller.text = value);
+      _notifyChanged();
+      return;
+    }
+  }
 
   @override
   void initState() {
@@ -161,9 +163,6 @@ class _PollAddBoxState extends State<PollAddBox> {
   void _handleTrailingPressed(int index) {
     switch (_selectedType) {
       case PollOptionType.text:
-        return;
-      case PollOptionType.date:
-        widget.onDatePressed?.call(index);
         return;
       case PollOptionType.music:
         widget.onMusicPressed?.call(index);

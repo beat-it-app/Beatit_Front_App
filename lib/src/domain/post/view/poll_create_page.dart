@@ -5,21 +5,33 @@ import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_add_box.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PollCreatePage extends StatefulWidget {
+class PollCreatePage extends ConsumerStatefulWidget {
   const PollCreatePage({super.key});
 
   @override
-  State<PollCreatePage> createState() => _PollCreatePageState();
+  ConsumerState<PollCreatePage> createState() => _PollCreatePageState();
 }
 
-class _PollCreatePageState extends State<PollCreatePage> {
+class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _deadlineController = TextEditingController();
 
+  final _optionKey = GlobalKey<PollAddBoxState>();
+  final Map<int, MusicSearchResult> _musicChoices = {};
+  final Map<int, LocationData> _placeChoices = {};
+  DateTime? _closeAt;
+  bool _submitting = false;
   final Set<String> _voteSelectedOptions = {};
   final List<String> _voteOptions = ['익명 투표', '중복 투표'];
 
@@ -34,40 +46,98 @@ class _PollCreatePageState extends State<PollCreatePage> {
     super.dispose();
   }
 
-  void _handlePollOptionsChanged(
-    PollOptionType type,
-    List<PollOptionValue> options,
-  ) {
+  void _handlePollOptionsChanged(PollOptionType type, List<PollOptionValue> options) {
+    if (type != _pollOptionType) {
+      _musicChoices.clear();
+      _placeChoices.clear();
+    }
     _pollOptionType = type;
     _pollOptions = options;
   }
 
-  void _handleDatePressed(int index) {
-    debugPrint('$index 번째 날짜 선택 버튼 클릭');
-    // TODO: DatePicker/BottomSheet 연결 후 해당 항목의 값을 반영한다.
+  Future<void> _handleMusicPressed(int index) async {
+    final id = _pollOptions[index].id;
+    final chosen = await Navigator.of(context).push<MusicSearchResult>(
+      MaterialPageRoute(builder: (_) => const MusicSearchPage(returnOnSelect: true)));
+    if (chosen == null || !mounted) return;
+    _musicChoices[id] = chosen;
+    _optionKey.currentState?.setOptionById(id, '${chosen.title} - ${chosen.artist}');
   }
 
-  void _handleMusicPressed(int index) {
-    debugPrint('$index 번째 음원 선택 버튼 클릭');
-    // TODO: 음원 선택 화면/BottomSheet 연결.
+  Future<void> _handlePlacePressed(int index) async {
+    final id = _pollOptions[index].id;
+    final chosen = await Navigator.of(context).push<LocationData>(
+      MaterialPageRoute(builder: (_) => const LocationSearchPage(returnRegisteredLocationOnSelect: true)));
+    if (chosen == null || !mounted) return;
+    _placeChoices[id] = chosen;
+    _optionKey.currentState?.setOptionById(id, chosen.locationName ?? chosen.roadAddress ?? '장소');
   }
 
-  void _handlePlacePressed(int index) {
-    debugPrint('$index 번째 장소 선택 버튼 클릭');
-    // TODO: 장소 검색 화면/BottomSheet 연결.
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(context: context,
+      firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: _closeAt ?? now);
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(context: context,
+      initialTime: _closeAt == null ? TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))) : TimeOfDay.fromDateTime(_closeAt!));
+    if (time == null || !mounted) return;
+    final deadline = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (!deadline.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후로 선택해주세요.')));
+      return;
+    }
+    setState(() {
+      _closeAt = deadline;
+      _deadlineController.text = '${deadline.year}-${deadline.month.toString().padLeft(2, '0')}-${deadline.day.toString().padLeft(2, '0')} ${time.format(context)}';
+    });
   }
 
-  void _submitPoll() {
-    debugPrint('투표 제목: ${_titleController.text}');
-    debugPrint('투표 내용: ${_contentController.text}');
-    debugPrint('투표 타입: ${_pollOptionType.name}');
-    debugPrint(
-      '투표 항목: ${_pollOptions.map((option) => option.value).toList()}',
-    );
-    debugPrint('마감 시간: ${_deadlineController.text}');
-    debugPrint('투표 옵션: $_voteSelectedOptions');
-
-    // TODO: 투표 생성 API 연결.
+  Future<void> _submitPoll() async {
+    if (_submitting) return;
+    final title = _titleController.text.trim();
+    if (title.isEmpty || _pollOptions.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('제목과 투표 항목을 두 개 이상 입력해주세요.')));
+      return;
+    }
+    if (_closeAt == null || !_closeAt!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('투표 마감 시간은 현재 시간 이후여야 합니다.')));
+      return;
+    }
+    final type = switch (_pollOptionType) {
+      PollOptionType.music => 'MUSIC',
+      PollOptionType.place => 'LOCATION',
+      PollOptionType.text => 'TEXT',
+    };
+    final options = <PollCreateItem>[];
+    for (final option in _pollOptions) {
+      final text = option.value.trim();
+      if (text.isEmpty || (type == 'MUSIC' && !_musicChoices.containsKey(option.id)) ||
+          (type == 'LOCATION' && !_placeChoices.containsKey(option.id))) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('모든 투표 항목을 선택하거나 입력해주세요.')));
+        return;
+      }
+      final music = _musicChoices[option.id];
+      final place = _placeChoices[option.id];
+      options.add(PollCreateItem(
+        content: type == 'TEXT' ? text : null,
+        music: type == 'MUSIC' && music != null ? PollCreateMusic(
+          title: music.title, artist: music.artist, previewUrl: music.previewUrl) : null,
+        location: type == 'LOCATION' ? text : null,
+        locationId: type == 'LOCATION' ? place?.locationId : null,
+      ));
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(postApiProvider).createPoll(PollCreateRequest(
+        title: title, content: _contentController.text.trim(), pollType: type,
+        pollList: options, allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
+        isAnonymous: _voteSelectedOptions.contains('익명 투표'),
+        remindBeforeClose: false, closeAt: _closeAt,
+      ));
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally { if (mounted) setState(() => _submitting = false); }
   }
 
   @override
@@ -128,8 +198,8 @@ class _PollCreatePageState extends State<PollCreatePage> {
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       PollAddBox(
+                        key: _optionKey,
                         onChanged: _handlePollOptionsChanged,
-                        onDatePressed: _handleDatePressed,
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
                       ),
@@ -144,6 +214,8 @@ class _PollCreatePageState extends State<PollCreatePage> {
                       AppTextField(
                         hintText: '투표 마감 시간을 설정하세요.',
                         controller: _deadlineController,
+                        readOnly: true,
+                        onTap: _pickDeadline,
                         suffixIcon: SvgPicture.asset(
                           'assets/icons/post/clock.svg',
                         ),

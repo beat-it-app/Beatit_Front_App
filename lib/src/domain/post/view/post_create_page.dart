@@ -2,6 +2,9 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -10,34 +13,84 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 
-class PostCreatePage extends StatefulWidget {
+class PostCreatePage extends ConsumerStatefulWidget {
   const PostCreatePage({super.key});
 
   @override
-  State<PostCreatePage> createState() => _PostCreatePageState();
+  ConsumerState<PostCreatePage> createState() => _PostCreatePageState();
 }
 
-class _PostCreatePageState extends State<PostCreatePage> {
-  final idController = TextEditingController();
-  final passwordController = TextEditingController();
-  final passwordCheckController = TextEditingController();
-  final emailController = TextEditingController();
+class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+  final _dateController = TextEditingController();
+  final _startController = TextEditingController();
+  final _endController = TextEditingController();
+  final _musicController = TextEditingController();
+  final _fileController = TextEditingController();
+  final List<XFile> _images = [];
+  bool _submitting = false;
 
-  bool _isEmailCodeSent = false;
+  void _unsupported() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('공지 API는 날짜·시간·음원·파일 저장을 지원하지 않습니다.')),
+    );
+  }
 
-  void _sendEmailCode() {
-    setState(() {
-      // TODO: API 연결 전 테스트용.
-      _isEmailCodeSent = true;
-    });
+  Future<void> _pickImages() async {
+    final selected = await ImagePicker().pickMultiImage();
+    if (mounted) {
+      setState(() {
+        _images
+          ..clear()
+          ..addAll(selected);
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    if (title.isEmpty || content.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요.')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref
+          .read(postApiProvider)
+          .createNotice(
+            title: title,
+            content: content,
+            imagePaths: _images.map((image) => image.path).toList(),
+          );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   void dispose() {
-    idController.dispose();
-    passwordController.dispose();
-    passwordCheckController.dispose();
-    emailController.dispose();
+    for (final controller in [
+      _titleController,
+      _contentController,
+      _dateController,
+      _startController,
+      _endController,
+      _musicController,
+      _fileController,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -71,89 +124,10 @@ class _PostCreatePageState extends State<PostCreatePage> {
                         label: '공지 제목',
                         requiredMark: true,
                         hintText: '제목',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '제목은 한 글자 이상 작성되어야 합니다.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
+                        controller: _titleController,
                         onChanged: (_) {
                           setState(() {});
                         },
-                      ),
-
-                      const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '날짜',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      AppTextField(
-                        hintText: '날짜를 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/calendar.svg',
-                        ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-
-                      const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '시간',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              hintText: '시작 시간',
-                              controller: emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              messageText: _isEmailCodeSent
-                                  ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                                  : null,
-                              messageColor: colors.onSurfaceVariant,
-                              suffixIcon: SvgPicture.asset(
-                                'assets/icons/cal/clock.svg',
-                              ),
-                              onChanged: (_) {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.x10),
-                          Text('-'),
-                          const SizedBox(width: AppSpacing.x10),
-                          Expanded(
-                            child: AppTextField(
-                              hintText: '끝나는 시간',
-                              controller: emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              messageText: _isEmailCodeSent
-                                  ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                                  : null,
-                              messageColor: colors.onSurfaceVariant,
-                              suffixIcon: SvgPicture.asset(
-                                'assets/icons/cal/clock.svg',
-                              ),
-                              onChanged: (_) {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ],
                       ),
 
                       const SizedBox(height: AppSpacing.x20),
@@ -166,7 +140,7 @@ class _PostCreatePageState extends State<PostCreatePage> {
                       const SizedBox(height: AppSpacing.x8),
                       AppTextArea(
                         hintText: '공지 글을 작성해주세요.',
-                        controller: emailController,
+                        controller: _contentController,
                         maxLength: 500,
                         fieldHeight: 200,
                       ),
@@ -175,51 +149,12 @@ class _PostCreatePageState extends State<PostCreatePage> {
 
                       _RequiredLabel(text: '사진 등록', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
-                      AppUploadButton(onPressed: () {}, text: '사진 등록하기'),
-
-                      _RequiredLabel(
-                        text: '음원',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
+                      AppUploadButton(
+                        onPressed: _pickImages,
+                        text: _images.isEmpty
+                            ? '사진 등록하기'
+                            : '사진 ${_images.length}장 선택됨',
                       ),
-                      const SizedBox(height: AppSpacing.x8),
-                      AppTextField(
-                        hintText: '음원을 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/delete.svg',
-                        ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Center(child: _AddButton(onPressed: () {})),
-                      const SizedBox(height: AppSpacing.x16),
-
-                      AppTextField(
-                        label: '파일',
-                        hintText: '음원을 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/delete.svg',
-                        ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Center(child: _AddButton(onPressed: () {})),
 
                       const SizedBox(height: AppSpacing.x16),
                     ],
@@ -233,9 +168,7 @@ class _PostCreatePageState extends State<PostCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: () {
-                  // TODO: 회원가입 API 연결
-                },
+                onPressed: _submit,
               ),
             ],
           ),
@@ -253,9 +186,7 @@ class _AddButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        print('추가 버튼 선택됨.');
-      },
+      onTap: onPressed,
       child: Container(
         height: 34.0,
         width: 34.0,

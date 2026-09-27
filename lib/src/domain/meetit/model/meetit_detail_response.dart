@@ -33,6 +33,7 @@ class MeetitDetailData {
     required this.meetitId,
     required this.title,
     required this.creatorId,
+    this.dateOnly = false,
     required this.startTime,
     required this.endTime,
     required this.candidateDates,
@@ -49,6 +50,7 @@ class MeetitDetailData {
   final int meetitId;
   final String title;
   final int creatorId;
+  final bool dateOnly;
   final String startTime;
   final String endTime;
   final List<String> candidateDates;
@@ -66,6 +68,7 @@ class MeetitDetailData {
       meetitId: json['meetitId'] as int? ?? 0,
       title: json['title'] as String? ?? '',
       creatorId: json['creatorId'] as int? ?? 0,
+      dateOnly: json['dateOnly'] as bool? ?? false,
       startTime: json['startTime'] as String? ?? '09:00',
       endTime: json['endTime'] as String? ?? '16:00',
       candidateDates: (json['candidateDates'] as List? ?? const <dynamic>[])

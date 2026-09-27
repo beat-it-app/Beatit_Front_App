@@ -60,7 +60,9 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              debugPrint('삭제');
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.'),
+              ));
             },
           ),
         ],
