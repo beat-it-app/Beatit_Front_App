@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provide
 import 'package:beatit_front_app/src/domain/etc/widget/kakao_static_map_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LocationMapPreviewPage extends ConsumerWidget {
@@ -57,6 +58,7 @@ class _LocationMapPreviewContent extends StatelessWidget {
                   latitude: latitude,
                   longitude: longitude,
                   level: 3,
+                  markerLabel: location.locationName,
                 )
               : Container(
                   color: context.grays.gray8,
@@ -154,10 +156,18 @@ class _LocationInfoCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.x16),
-          _InfoLine(label: '장소', value: roadAddress),
+          _InfoLine(
+            label: '장소',
+            iconLink: 'assets/icons/etc/location.svg',
+            value: roadAddress,
+          ),
           if (phone != null && phone.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.x8),
-            _InfoLine(label: '전화', value: phone),
+            _InfoLine(
+              label: '전화',
+              iconLink: 'assets/icons/etc/call.svg',
+              value: phone,
+            ),
           ],
         ],
       ),
@@ -171,9 +181,14 @@ class _LocationInfoCard extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.label, required this.value});
+  const _InfoLine({
+    required this.label,
+    required this.value,
+    required this.iconLink,
+  });
 
   final String label;
+  final String iconLink;
   final String value;
 
   @override
@@ -190,9 +205,23 @@ class _InfoLine extends StatelessWidget {
             color: context.grays.gray8,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Text(
-            label,
-            style: FontStyles.semi12.copyWith(color: context.grays.gray1),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                iconLink,
+                width: 16,
+                height: 16,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray1,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x4),
+              Text(
+                label,
+                style: FontStyles.semi12.copyWith(color: context.grays.gray1),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: AppSpacing.x8),

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 const String _kakaoRestApiKey = String.fromEnvironment('KAKAO_REST_API_KEY');
@@ -15,6 +17,7 @@ class KakaoStaticMapWidget extends StatelessWidget {
     this.level = 3,
     this.borderRadius = BorderRadius.zero,
     this.onTap,
+    this.markerLabel,
   });
 
   final double latitude;
@@ -23,6 +26,7 @@ class KakaoStaticMapWidget extends StatelessWidget {
   final int level;
   final BorderRadius borderRadius;
   final VoidCallback? onTap;
+  final String? markerLabel;
 
   static const Map<String, String> _headers = <String, String>{
     'Authorization': 'KakaoAK $_kakaoRestApiKey',
@@ -45,15 +49,11 @@ class KakaoStaticMapWidget extends StatelessWidget {
       math.max(1, (logicalHeight * devicePixelRatio).round()),
     );
 
-    return Uri.https(
-      'dapi.kakao.com',
-      '/v2/maps/staticmap',
-      <String, String>{
-        'center': '$longitude,$latitude',
-        'size': '${requestWidth}x$requestHeight',
-        'lv': '$level',
-      },
-    );
+    return Uri.https('dapi.kakao.com', '/v2/maps/staticmap', <String, String>{
+      'center': '$longitude,$latitude',
+      'size': '${requestWidth}x$requestHeight',
+      'lv': '$level',
+    });
   }
 
   static NetworkImage _imageProvider({
@@ -119,7 +119,8 @@ class KakaoStaticMapWidget extends StatelessWidget {
           final logicalWidth = constraints.maxWidth.isFinite
               ? constraints.maxWidth
               : 512.0;
-          final logicalHeight = height ??
+          final logicalHeight =
+              height ??
               (constraints.maxHeight.isFinite ? constraints.maxHeight : 210.0);
           final imageProvider = _imageProvider(
             latitude: latitude,
@@ -151,11 +152,75 @@ class KakaoStaticMapWidget extends StatelessWidget {
                     IgnorePointer(
                       child: Center(
                         child: Transform.translate(
-                          offset: const Offset(0, -18),
-                          child: Icon(
-                            Icons.location_on,
-                            size: 44,
-                            color: context.brands.beatOrange2,
+                          offset: const Offset(0, -50),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (markerLabel?.trim().isNotEmpty == true)
+                                Stack(
+                                  alignment: Alignment.bottomCenter,
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 250,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.x24,
+                                        vertical: AppSpacing.x8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.grays.gray1,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.pill,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        markerLabel!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: FontStyles.med16.copyWith(
+                                          color: context.grays.white,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: -20,
+                                      child: Icon(
+                                        Icons.arrow_drop_down,
+                                        color: context.grays.gray1,
+                                        size: 60,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Stack(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 44,
+                                      color: context.brands.beatOrange2,
+                                    ),
+                                    Positioned(
+                                      top: 10,
+                                      left: 15,
+                                      child: Container(
+                                        width: 14,
+                                        height: 14,
+                                        decoration: BoxDecoration(
+                                          color: context.grays.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -164,10 +229,7 @@ class KakaoStaticMapWidget extends StatelessWidget {
                 );
               },
               errorBuilder: (_, __, ___) {
-                return _MapFallback(
-                  height: height,
-                  message: '지도를 불러오지 못했습니다.',
-                );
+                return _MapFallback(height: height, message: '지도를 불러오지 못했습니다.');
               },
             ),
           );

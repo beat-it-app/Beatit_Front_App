@@ -1,57 +1,225 @@
+import 'dart:io';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
 
-class PostCreatePage extends StatefulWidget {
-  const PostCreatePage({super.key});
+class PostCreatePage extends ConsumerStatefulWidget {
+  const PostCreatePage({
+    super.key,
+    this.initialNotice,
+  });
+
+  final NoticeDetailData? initialNotice;
+
+  bool get isEditMode => initialNotice != null;
 
   @override
-  State<PostCreatePage> createState() => _PostCreatePageState();
+  ConsumerState<PostCreatePage> createState() => _PostCreatePageState();
 }
 
-class _PostCreatePageState extends State<PostCreatePage> {
-  final idController = TextEditingController();
-  final passwordController = TextEditingController();
-  final passwordCheckController = TextEditingController();
-  final emailController = TextEditingController();
+class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _contentController;
+  late final List<String> _existingImageUrls;
 
-  bool _isEmailCodeSent = false;
+  final List<XFile> _images = [];
 
-  void _sendEmailCode() {
+  int? _pendingDeleteExistingImageIndex;
+  int? _pendingDeleteImageIndex;
+  String? _titleError;
+  String? _contentError;
+  bool _imagesChanged = false;
+  bool _submitting = false;
+
+  bool get _isEditMode => widget.isEditMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: widget.initialNotice?.title ?? '',
+    );
+    _contentController = TextEditingController(
+      text: widget.initialNotice?.content ?? '',
+    );
+    _existingImageUrls = List<String>.of(
+      widget.initialNotice?.images ?? const <String>[],
+    );
+  }
+
+  Future<void> _pickImages() async {
+    final selected = await ImagePicker().pickMultiImage();
+    if (!mounted || selected.isEmpty) return;
+
     setState(() {
-      // TODO: API 연결 전 테스트용.
-      _isEmailCodeSent = true;
+      final existingPaths = _images.map((image) => image.path).toSet();
+      for (final image in selected) {
+        if (existingPaths.add(image.path)) {
+          _images.add(image);
+        }
+      }
+      _pendingDeleteExistingImageIndex = null;
+      _pendingDeleteImageIndex = null;
+      _refreshImagesChanged();
     });
+  }
+
+  void _handleExistingImageTap(int index) {
+    if (_pendingDeleteExistingImageIndex == index) {
+      setState(() {
+        _existingImageUrls.removeAt(index);
+        _pendingDeleteExistingImageIndex = null;
+        _refreshImagesChanged();
+      });
+      return;
+    }
+
+    setState(() {
+      _pendingDeleteExistingImageIndex = index;
+      _pendingDeleteImageIndex = null;
+    });
+  }
+
+  void _handleImageTap(int index) {
+    if (_pendingDeleteImageIndex == index) {
+      setState(() {
+        _images.removeAt(index);
+        _pendingDeleteImageIndex = null;
+        _refreshImagesChanged();
+      });
+      return;
+    }
+
+    setState(() {
+      _pendingDeleteImageIndex = index;
+      _pendingDeleteExistingImageIndex = null;
+    });
+  }
+
+  void _refreshImagesChanged() {
+    if (!_isEditMode) {
+      _imagesChanged = false;
+      return;
+    }
+
+    final initialImages = widget.initialNotice!.images;
+    final existingImagesAreSame =
+        initialImages.length == _existingImageUrls.length &&
+        List.generate(
+          initialImages.length,
+          (index) => initialImages[index] == _existingImageUrls[index],
+        ).every((isSame) => isSame);
+
+    _imagesChanged = !existingImagesAreSame || _images.isNotEmpty;
+  }
+
+  Future<void> _handleClose() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: _isEditMode ? '수정을 중단하시겠습니까?' : '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  bool _validateRequiredFields() {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    setState(() {
+      _titleError = title.isEmpty ? '공지 제목을 입력해주세요.' : null;
+      _contentError = content.isEmpty ? '공지 내용을 입력해주세요.' : null;
+    });
+
+    return _titleError == null && _contentError == null;
+  }
+
+  void _handleTitleChanged(String value) {
+    if (_titleError != null && value.trim().isNotEmpty) {
+      setState(() => _titleError = null);
+    }
+  }
+
+  void _handleContentChanged(String value) {
+    if (_contentError != null && value.trim().isNotEmpty) {
+      setState(() => _contentError = null);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_submitting || !_validateRequiredFields()) return;
+
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    setState(() => _submitting = true);
+    try {
+      final api = ref.read(postApiProvider);
+
+      if (_isEditMode) {
+        await api.editNotice(
+          noticeId: widget.initialNotice!.noticeId,
+          title: title,
+          content: content,
+          imagesChanged: _imagesChanged,
+          retainedImageUrls: _existingImageUrls,
+          newImagePaths: _images.map((image) => image.path).toList(),
+        );
+      } else {
+        await api.createNotice(
+          title: title,
+          content: content,
+          imagePaths: _images.map((image) => image.path).toList(),
+        );
+      }
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   void dispose() {
-    idController.dispose();
-    passwordController.dispose();
-    passwordCheckController.dispose();
-    emailController.dispose();
+    _titleController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppTopAppBar.closeOnly(
-        onClosePressed: () {
-          Navigator.of(context).maybePop();
-        },
-      ),
+      appBar: AppTopAppBar.closeOnly(onClosePressed: _handleClose),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -71,171 +239,74 @@ class _PostCreatePageState extends State<PostCreatePage> {
                         label: '공지 제목',
                         requiredMark: true,
                         hintText: '제목',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '제목은 한 글자 이상 작성되어야 합니다.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        onChanged: (_) {
-                          setState(() {});
-                        },
+                        controller: _titleController,
+                        errorText: _titleError,
+                        onChanged: _handleTitleChanged,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '날짜',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      AppTextField(
-                        hintText: '날짜를 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/calendar.svg',
-                        ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-
-                      const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '시간',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              hintText: '시작 시간',
-                              controller: emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              messageText: _isEmailCodeSent
-                                  ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                                  : null,
-                              messageColor: colors.onSurfaceVariant,
-                              suffixIcon: SvgPicture.asset(
-                                'assets/icons/cal/clock.svg',
-                              ),
-                              onChanged: (_) {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.x10),
-                          Text('-'),
-                          const SizedBox(width: AppSpacing.x10),
-                          Expanded(
-                            child: AppTextField(
-                              hintText: '끝나는 시간',
-                              controller: emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              messageText: _isEmailCodeSent
-                                  ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                                  : null,
-                              messageColor: colors.onSurfaceVariant,
-                              suffixIcon: SvgPicture.asset(
-                                'assets/icons/cal/clock.svg',
-                              ),
-                              onChanged: (_) {
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '내용',
                         color: colors.onSurface,
-                        requiredColor: colors.primary,
+                        requiredColor: colors.error,
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       AppTextArea(
                         hintText: '공지 글을 작성해주세요.',
-                        controller: emailController,
+                        controller: _contentController,
+                        errorText: _contentError,
+                        onChanged: _handleContentChanged,
                         maxLength: 500,
                         fieldHeight: 200,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(text: '사진 등록', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
-                      AppUploadButton(onPressed: () {}, text: '사진 등록하기'),
-
-                      _RequiredLabel(
-                        text: '음원',
-                        color: colors.onSurface,
-                        requiredColor: colors.primary,
+                      AppUploadButton(
+                        onPressed: _pickImages,
+                        text: '사진 등록하기',
                       ),
-                      const SizedBox(height: AppSpacing.x8),
-                      AppTextField(
-                        hintText: '음원을 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/delete.svg',
+                      if (_existingImageUrls.isNotEmpty || _images.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.x12),
+                        ...List.generate(
+                          _existingImageUrls.length,
+                          (index) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.x8),
+                            child: _ExistingPostImagePreview(
+                              imageUrl: _existingImageUrls[index],
+                              pendingDelete:
+                                  _pendingDeleteExistingImageIndex == index,
+                              onTap: () => _handleExistingImageTap(index),
+                            ),
+                          ),
                         ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Center(child: _AddButton(onPressed: () {})),
-                      const SizedBox(height: AppSpacing.x16),
-
-                      AppTextField(
-                        label: '파일',
-                        hintText: '음원을 선택하세요.',
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        messageText: _isEmailCodeSent
-                            ? '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.'
-                            : null,
-                        messageColor: colors.onSurfaceVariant,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/cal/delete.svg',
+                        ...List.generate(
+                          _images.length,
+                          (index) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == _images.length - 1
+                                  ? 0
+                                  : AppSpacing.x8,
+                            ),
+                            child: _PostImagePreview(
+                              image: _images[index],
+                              pendingDelete: _pendingDeleteImageIndex == index,
+                              onTap: () => _handleImageTap(index),
+                            ),
+                          ),
                         ),
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Center(child: _AddButton(onPressed: () {})),
-
+                      ],
                       const SizedBox(height: AppSpacing.x16),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.x16),
-
               AppButton(
-                text: '생성하기',
+                text: _isEditMode ? '수정하기' : '생성하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: () {
-                  // TODO: 회원가입 API 연결
-                },
+                onPressed: _submitting ? null : _submit,
               ),
             ],
           ),
@@ -245,33 +316,152 @@ class _PostCreatePageState extends State<PostCreatePage> {
   }
 }
 
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed});
+class _ExistingPostImagePreview extends StatelessWidget {
+  const _ExistingPostImagePreview({
+    required this.imageUrl,
+    required this.pendingDelete,
+    required this.onTap,
+  });
 
-  final VoidCallback onPressed;
+  final String imageUrl;
+  final bool pendingDelete;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        print('추가 버튼 선택됨.');
-      },
-      child: Container(
-        height: 34.0,
-        width: 34.0,
-        decoration: ShapeDecoration(
-          color: context.grays.gray8,
-          shape: OvalBorder(),
-        ),
-        child: Center(
-          child: SvgPicture.asset(
-            'assets/icons/cal/plus.svg',
-            width: 24.0,
-            height: 24.0,
-            fit: BoxFit.contain,
+    final colors = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: pendingDelete ? '사진 삭제' : '사진 삭제 선택',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.network(
+                imageUrl,
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: 180,
+                    color: colors.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: double.infinity,
+                  height: 180,
+                  color: colors.errorContainer,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: colors.onErrorContainer,
+                  ),
+                ),
+              ),
+              if (pendingDelete) const _DeleteImageOverlay(),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PostImagePreview extends StatelessWidget {
+  const _PostImagePreview({
+    required this.image,
+    required this.pendingDelete,
+    required this.onTap,
+  });
+
+  final XFile image;
+  final bool pendingDelete;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: pendingDelete ? '사진 삭제' : '사진 삭제 선택',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.file(
+                File(image.path),
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: double.infinity,
+                  height: 180,
+                  color: colors.errorContainer,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: colors.onErrorContainer,
+                  ),
+                ),
+              ),
+              if (pendingDelete) const _DeleteImageOverlay(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteImageOverlay extends StatelessWidget {
+  const _DeleteImageOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          child: ColoredBox(
+            color: context.grays.white.withValues(alpha: 0.4),
+          ),
+        ),
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: context.grays.gray3,
+          ),
+          alignment: Alignment.center,
+          child: SvgPicture.asset(
+            'assets/icons/post/waste.svg',
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(
+              context.grays.white,
+              BlendMode.srcIn,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -280,12 +470,12 @@ class _RequiredLabel extends StatelessWidget {
   const _RequiredLabel({
     required this.text,
     required this.color,
-    this.requiredColor = Colors.transparent,
+    this.requiredColor,
   });
 
   final String text;
   final Color color;
-  final Color requiredColor;
+  final Color? requiredColor;
 
   @override
   Widget build(BuildContext context) {
@@ -293,15 +483,15 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.semi16.copyWith(color: color),
           children: [
             TextSpan(text: text),
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: TextStyle(color: requiredColor),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: requiredColor),
               ),
           ],
         ),

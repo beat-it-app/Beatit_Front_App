@@ -45,7 +45,10 @@ class AppToggle extends StatelessWidget {
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOutCubic,
             style: FontStyles.reg12.copyWith(color: colors.text),
-            child: Text(text),
+            child: Text(
+              text,
+              style: FontStyles.reg14.copyWith(color: colors.text),
+            ),
           ),
         ),
       ),
