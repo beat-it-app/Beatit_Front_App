@@ -1,6 +1,5 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
@@ -139,7 +138,9 @@ class _SwipeCommentState extends State<_SwipeComment> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : SvgPicture.asset(
                                 'assets/icons/post/waste.svg',
@@ -214,7 +215,11 @@ class _SwipeCommentState extends State<_SwipeComment> {
                         ),
                         const SizedBox(height: AppSpacing.x8),
                         Text.rich(
-                          _mentionText(context, comment.content),
+                          _mentionText(
+                            context,
+                            comment.content,
+                            comment.mentionedUsers,
+                          ),
                           softWrap: true,
                         ),
                         const SizedBox(height: AppSpacing.x4),
@@ -248,29 +253,58 @@ class _SwipeCommentState extends State<_SwipeComment> {
       '${date.year}.${date.month.toString().padLeft(2, '0')}.'
       '${date.day.toString().padLeft(2, '0')}';
 
-  static TextSpan _mentionText(BuildContext context, String content) {
+  static TextSpan _mentionText(
+    BuildContext context,
+    String content,
+    List<PostMentionUser> mentionedUsers,
+  ) {
+    final legacyMentionPattern = RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
+    final legacyNames = legacyMentionPattern
+        .allMatches(content)
+        .map((match) => match.group(1) ?? match.group(2) ?? '')
+        .where((name) => name.isNotEmpty);
+
+    final visibleText = content.replaceAllMapped(
+      legacyMentionPattern,
+      (match) => match.group(1) ?? match.group(2) ?? '',
+    );
+
+    final mentionNames =
+        <String>{
+            ...mentionedUsers.map((user) => user.name.trim()),
+            ...legacyNames,
+          }.where((name) => name.isNotEmpty).toList()
+          ..sort((a, b) => b.length.compareTo(a.length));
+
+    if (mentionNames.isEmpty) {
+      return TextSpan(
+        text: visibleText,
+        style: FontStyles.reg14.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      );
+    }
+
+    final pattern = RegExp(mentionNames.map(RegExp.escape).join('|'));
     final spans = <TextSpan>[];
-    final pattern = RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
     var cursor = 0;
 
-    for (final match in pattern.allMatches(content)) {
+    for (final match in pattern.allMatches(visibleText)) {
       if (match.start > cursor) {
-        spans.add(TextSpan(text: content.substring(cursor, match.start)));
+        spans.add(TextSpan(text: visibleText.substring(cursor, match.start)));
       }
 
       spans.add(
         TextSpan(
-          text: match.group(1) ?? match.group(2),
-          style: FontStyles.reg14.copyWith(
-            color: context.brands.beatOrange1,
-          ),
+          text: match.group(0),
+          style: FontStyles.reg14.copyWith(color: context.brands.beatOrange1),
         ),
       );
       cursor = match.end;
     }
 
-    if (cursor < content.length) {
-      spans.add(TextSpan(text: content.substring(cursor)));
+    if (cursor < visibleText.length) {
+      spans.add(TextSpan(text: visibleText.substring(cursor)));
     }
 
     return TextSpan(
@@ -300,7 +334,7 @@ class PostCommentComposer extends ConsumerStatefulWidget {
 }
 
 class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
-  final _controller = TextEditingController();
+  final _controller = _MentionCommentController();
   final _focusNode = FocusNode();
   final _selectedMembers = <TeamMemberSearchResult>[];
 
@@ -384,9 +418,15 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
       return;
     }
 
-    final token = '@{${member.userName}} ';
-    final updated = _controller.text.replaceRange(start, cursor, token);
-    final nextCursor = start + token.length;
+    // 화면에는 @나 @{...} 문법을 남기지 않고 이름만 표시한다.
+    // 실제 멘션 대상은 mentionedUserIds로 별도 전달한다.
+    final visibleMention = '${member.userName} ';
+    final updated = _controller.text.replaceRange(
+      start,
+      cursor,
+      visibleMention,
+    );
+    final nextCursor = start + visibleMention.length;
 
     _controller.value = TextEditingValue(
       text: updated,
@@ -398,6 +438,7 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
     )) {
       _selectedMembers.add(member);
     }
+    _syncMentionTextStyle();
 
     setState(() {
       _mentionStart = null;
@@ -406,14 +447,19 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
     _focusNode.requestFocus();
   }
 
+  void _syncMentionTextStyle() {
+    _controller.setMentionNames(
+      _selectedMembers.map((member) => member.userName),
+    );
+  }
+
   Future<void> _send(String content) async {
     if (_sending) return;
 
     final ids = _selectedMembers
         .where(
           (member) =>
-              member.userId != null &&
-              content.contains('@{${member.userName}}'),
+              member.userId != null && content.contains(member.userName),
         )
         .map((member) => member.userId!)
         .toSet()
@@ -426,6 +472,7 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
         setState(() {
           _controller.clear();
           _selectedMembers.clear();
+          _controller.setMentionNames(const <String>[]);
           _parentId = null;
           _replyName = null;
           _mentionStart = null;
@@ -435,6 +482,13 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _parentId = null;
+      _replyName = null;
+    });
   }
 
   @override
@@ -459,31 +513,7 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
             onSelected: _selectMention,
           ),
         if (_replyName != null)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.x16,
-              right: AppSpacing.x8,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$_replyName님에게 답글',
-                    style: FontStyles.med12.copyWith(
-                      color: context.grays.gray4,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => setState(() {
-                    _parentId = null;
-                    _replyName = null;
-                  }),
-                  icon: const Icon(Icons.close, size: 18),
-                ),
-              ],
-            ),
-          ),
+          _ReplyTargetBar(replyName: _replyName!, onClose: _cancelReply),
         AppCommentInput(
           controller: _controller,
           focusNode: _focusNode,
@@ -512,14 +542,12 @@ class _MentionSuggestionList extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Container(
+      width: double.infinity,
       constraints: const BoxConstraints(maxHeight: 240),
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
       decoration: BoxDecoration(
         color: colors.surface,
-        border: Border.all(color: context.grays.gray7),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border(top: BorderSide(color: context.grays.gray7)),
       ),
-      clipBehavior: Clip.antiAlias,
       child: state.isLoading
           ? const SizedBox(
               height: 56,
@@ -532,36 +560,153 @@ class _MentionSuggestionList extends StatelessWidget {
               ),
             )
           : state.errorMessage != null
-              ? const SizedBox.shrink()
-              : members.isEmpty
-                  ? SizedBox(
-                      height: 56,
-                      child: Center(
-                        child: Text(
-                          '검색된 멤버가 없습니다.',
-                          style: FontStyles.med14.copyWith(
-                            color: context.grays.gray5,
-                          ),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      itemCount: members.length,
-                      itemBuilder: (context, index) {
-                        final member = members[index];
-                        return MemberSelectionItem(
-                          name: member.userName,
-                          role: MemberSelectionRole.fromApiValue(
-                            member.teamRole,
-                          ),
-                          profileImageUrl: member.profileImageUrl,
-                          isSelected: false,
-                          onTap: () => onSelected(member),
-                        );
-                      },
-                    ),
+          ? const SizedBox.shrink()
+          : members.isEmpty
+          ? SizedBox(
+              height: 56,
+              child: Center(
+                child: Text(
+                  '검색된 멤버가 없습니다.',
+                  style: FontStyles.med14.copyWith(color: context.grays.gray5),
+                ),
+              ),
+            )
+          : ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: members.length,
+              itemBuilder: (context, index) {
+                final member = members[index];
+                return MemberSelectionItem(
+                  name: member.userName,
+                  role: MemberSelectionRole.fromApiValue(member.teamRole),
+                  profileImageUrl: member.profileImageUrl,
+                  isSelected: false,
+                  onTap: () => onSelected(member),
+                );
+              },
+            ),
     );
+  }
+}
+
+class _ReplyTargetBar extends StatelessWidget {
+  const _ReplyTargetBar({required this.replyName, required this.onClose});
+
+  final String replyName;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(
+        left: AppSpacing.x16,
+        right: AppSpacing.x8,
+        top: AppSpacing.x8,
+        bottom: AppSpacing.x4,
+      ),
+      decoration: BoxDecoration(
+        color: context.grays.white,
+        border: Border(top: BorderSide(color: context.grays.gray5)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.subdirectory_arrow_right_rounded,
+            size: 18,
+            color: context.grays.gray4,
+          ),
+          const SizedBox(width: AppSpacing.x8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: FontStyles.med14.copyWith(color: context.grays.gray4),
+                children: [
+                  TextSpan(
+                    text: replyName,
+                    style: FontStyles.med14.copyWith(
+                      color: context.brands.beatOrange1,
+                    ),
+                  ),
+                  const TextSpan(text: ' 님에게 답글 작성 중'),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: '답글 작성 취소',
+            child: IconButton(
+              onPressed: onClose,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: context.grays.gray4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MentionCommentController extends TextEditingController {
+  List<String> _mentionNames = const <String>[];
+
+  void setMentionNames(Iterable<String> names) {
+    final nextNames =
+        names
+            .map((name) => name.trim())
+            .where((name) => name.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.length.compareTo(a.length));
+
+    _mentionNames = nextNames;
+    notifyListeners();
+  }
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    if (_mentionNames.isEmpty || text.isEmpty) {
+      return TextSpan(style: style, text: text);
+    }
+
+    final pattern = RegExp(_mentionNames.map(RegExp.escape).join('|'));
+    final spans = <TextSpan>[];
+    var cursor = 0;
+
+    for (final match in pattern.allMatches(text)) {
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, match.start)));
+      }
+
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style:
+              style?.copyWith(color: context.brands.beatOrange1) ??
+              TextStyle(color: context.brands.beatOrange1),
+        ),
+      );
+      cursor = match.end;
+    }
+
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+
+    return TextSpan(style: style, children: spans);
   }
 }

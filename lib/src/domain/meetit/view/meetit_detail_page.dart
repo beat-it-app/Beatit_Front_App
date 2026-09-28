@@ -164,14 +164,16 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.x10),
-                      _SectionLabel(
-                        text: '우리 모임 날짜',
-                        iconPath: 'assets/icons/meetit/clock.svg',
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      const SizedBox(height: AppSpacing.x10),
-                      _buildMeetingSummary(context, data),
-                      const SizedBox(height: AppSpacing.x16),
+                      if (data.maxMemberOptimalSlots.isNotEmpty) ...[
+                        _SectionLabel(
+                          text: '우리 모임 날짜',
+                          iconPath: 'assets/icons/meetit/clock.svg',
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        const SizedBox(height: AppSpacing.x10),
+                        _buildMeetingSummary(context, data),
+                        const SizedBox(height: AppSpacing.x16),
+                      ],
                       _buildTimeFilter(context, data),
                       const SizedBox(height: AppSpacing.x24),
                       _buildParticipantFilter(context, data),
@@ -212,7 +214,10 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       alignment: Alignment.topCenter,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 28),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.x16,
+          vertical: AppSpacing.x14,
+        ),
         decoration: BoxDecoration(
           color: context.grays.gray8,
           borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -232,11 +237,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                 style: FontStyles.med14.copyWith(color: context.grays.gray3),
               )
             else
-              for (
-                var index = 0;
-                index < visibleSuggestions.length;
-                index++
-              ) ...[
+              for (var index = 0; index < visibleSuggestions.length; index++) ...[
                 if (index > 0) const SizedBox(height: AppSpacing.x20),
                 _buildMeetingSuggestion(
                   context,
@@ -315,7 +316,9 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           ),
           Text(
             '$availableCount명 가능',
-            style: FontStyles.med12.copyWith(color: context.brands.beatOrange1),
+            style: FontStyles.med12.copyWith(
+              color: context.brands.beatOrange1,
+            ),
           ),
         ],
       ),
@@ -488,10 +491,14 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     );
 
     if (selected == null || !mounted) return;
+    final hadExistingResponse = _hasCurrentUserResponded(data);
     try {
-      await ref
-          .read(postApiProvider)
-          .submitMeetitResponse(data.meetitId, selected);
+      await ref.read(postApiProvider).submitMeetitResponse(
+        data.meetitId,
+        selected,
+        dateOnly: data.dateOnly,
+        replaceExisting: hadExistingResponse,
+      );
       await _load();
     } catch (error) {
       if (mounted)
@@ -523,7 +530,10 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     );
   }
 
-  String _formatOptimalSlot(MeetitOptimalSlot slot, {required bool dateOnly}) {
+  String _formatOptimalSlot(
+    MeetitOptimalSlot slot, {
+    required bool dateOnly,
+  }) {
     final start = slot.wallClockStart;
     final end = slot.wallClockEnd;
     if (start == null || end == null) {

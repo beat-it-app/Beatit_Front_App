@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/etc/view/picture_preview_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
@@ -100,6 +101,21 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     } catch (error) { _showError(error); }
   }
 
+  Future<void> _openEditPage() async {
+    final data = _data;
+    if (data == null) return;
+
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PostCreatePage(initialNotice: data),
+      ),
+    );
+
+    if (updated == true && mounted) {
+      await _load();
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final confirmed = await AppPopup.show(
       context,
@@ -163,9 +179,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         moreMenuItems: [
           AppDropdownItem(
             label: '수정하기',
-            onPressed: () {
-              _showError('수정 화면은 아직 연결되지 않았습니다.');
-            },
+            onPressed: _openEditPage,
           ),
           AppDropdownItem(
             label: '삭제하기',

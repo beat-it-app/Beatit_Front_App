@@ -6,34 +6,43 @@ class AppSwitch extends StatefulWidget {
     super.key,
     required this.value,
     required this.onChanged,
-  });
+    this.width = 44.0,
+    this.height = 24.0,
+    this.ballPadding = 4.0,
+    this.duration = const Duration(milliseconds: 100),
+  }) : assert(width > 0),
+       assert(height > 0),
+       assert(ballPadding >= 0),
+       assert(ballPadding * 2 < height);
 
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  final double width;
+  final double height;
+  final double ballPadding;
+  final Duration duration;
 
   @override
   State<AppSwitch> createState() => _AppSwitchState();
 }
 
 class _AppSwitchState extends State<AppSwitch> {
-  static const Duration _duration = Duration(milliseconds: 100);
-  static const double _width = 44.0;
-  static const double _height = 24.0;
-  static const double _ballPadding = 4.0;
-
-  double get _ballSize => _height - (_ballPadding * 2);
+  double get _ballSize => widget.height - (widget.ballPadding * 2);
 
   @override
   Widget build(BuildContext context) {
     final switchColor = widget.value
         ? context.brands.beatOrange6
         : context.grays.gray7;
+
     final switchBallColor = widget.value
         ? context.brands.beatOrange1
         : context.grays.white;
+
     final switchLeft = widget.value
-        ? _width - _ballSize - _ballPadding
-        : _ballPadding;
+        ? widget.width - _ballSize - widget.ballPadding
+        : widget.ballPadding;
 
     return Semantics(
       button: true,
@@ -42,22 +51,22 @@ class _AppSwitchState extends State<AppSwitch> {
         behavior: HitTestBehavior.opaque,
         onTap: () => widget.onChanged(!widget.value),
         child: SizedBox(
-          width: _width,
-          height: _height,
+          width: widget.width,
+          height: widget.height,
           child: Stack(
             children: [
               AnimatedContainer(
-                duration: _duration,
-                width: _width,
-                height: _height,
+                duration: widget.duration,
+                width: widget.width,
+                height: widget.height,
                 decoration: BoxDecoration(
                   color: switchColor,
-                  borderRadius: BorderRadius.circular(_height / 2),
+                  borderRadius: BorderRadius.circular(widget.height / 2),
                 ),
               ),
               AnimatedPositioned(
-                duration: _duration,
-                top: _ballPadding,
+                duration: widget.duration,
+                top: widget.ballPadding,
                 left: switchLeft,
                 child: Container(
                   width: _ballSize,
@@ -67,10 +76,9 @@ class _AppSwitchState extends State<AppSwitch> {
                     color: switchBallColor,
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .shadow
-                            .withValues(alpha: 0.12),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.shadow.withValues(alpha: 0.12),
                         offset: const Offset(0, 2),
                         blurRadius: 4,
                       ),

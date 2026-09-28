@@ -111,7 +111,10 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
                 variant: ButtonVariant.primary,
                 isDisabled: _showAllSchedule,
                 onPressed: () {
-                  Navigator.of(context).pop(Set<DateTime>.of(_mySelection));
+                  final result = widget.dateOnly
+                      ? _mySelection.map(DateUtils.dateOnly).toSet()
+                      : Set<DateTime>.of(_mySelection);
+                  Navigator.of(context).pop(result);
                 },
               ),
             ],

@@ -134,6 +134,82 @@ class PostApi {
     _requireSuccessBody(response: response, fallbackMessage: '공지 작성에 실패했습니다.');
   }
 
+  Future<void> editNotice({
+    required int noticeId,
+    required String title,
+    required String content,
+    bool imagesChanged = false,
+    List<String> retainedImageUrls = const [],
+    List<String> newImagePaths = const [],
+  }) async {
+    final formData = FormData.fromMap({
+      'title': title,
+      'content': content,
+    });
+
+    if (imagesChanged) {
+      for (final url in retainedImageUrls) {
+        final image = await _multipartFromRemoteImage(url);
+        if (image != null) {
+          formData.files.add(MapEntry('images', image));
+        }
+      }
+
+      for (final path in newImagePaths) {
+        formData.files.add(
+          MapEntry('images', await MultipartFile.fromFile(path)),
+        );
+      }
+
+      // 백엔드는 images == null이면 기존 이미지를 그대로 유지하고,
+      // images가 전달되면 기존 이미지를 전부 교체한다. 모든 이미지를 삭제하는
+      // 경우에도 images 파트 자체가 존재해야 하므로 0바이트 파일을 전달한다.
+      if (retainedImageUrls.isEmpty && newImagePaths.isEmpty) {
+        formData.files.add(
+          MapEntry(
+            'images',
+            MultipartFile.fromBytes(const <int>[], filename: 'empty'),
+          ),
+        );
+      }
+    }
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '$_noticePath/$noticeId',
+        data: formData,
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '공지 수정에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<MultipartFile?> _multipartFromRemoteImage(String url) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        return null;
+      }
+
+      final uri = Uri.tryParse(url);
+      final filename = uri != null && uri.pathSegments.isNotEmpty
+          ? uri.pathSegments.last
+          : 'image.jpg';
+
+      return MultipartFile.fromBytes(bytes, filename: filename);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> createPoll(PollCreateRequest request) async {
     final response = await _dio.post<Map<String, dynamic>>(
       _pollPath, data: {
@@ -154,35 +230,68 @@ class PostApi {
       'endTime': request.dateOnly ? null : request.endTime,
     };
 
-    final response = await _dio.post<Map<String, dynamic>>(
-      _meetitPath,
-      data: payload,
-    );
-    _requireSuccessBody(
-      response: response,
-      fallbackMessage: '밋잇 생성에 실패했습니다.',
-    );
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _meetitPath,
+        data: payload,
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '밋잇 생성에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
-  Future<void> submitMeetitResponse(int id, Iterable<DateTime> selected) async {
+  Future<void> submitMeetitResponse(
+    int id,
+    Iterable<DateTime> selected, {
+    bool dateOnly = false,
+    bool replaceExisting = false,
+  }) async {
     final normalized = selected
-        .map(
-          (time) => DateTime(
+        .map((time) {
+          if (dateOnly) {
+            return DateTime(time.year, time.month, time.day);
+          }
+          return DateTime(
             time.year,
             time.month,
             time.day,
             time.hour,
             time.minute,
-          ),
-        )
+          );
+        })
         .toSet()
         .toList()
       ..sort();
 
+    try {
+      // 백엔드는 응답 수정 전용 API가 없고 같은 POST에서 기존 응답을 삭제 후
+      // 재저장합니다. 기존 슬롯과 새 슬롯이 겹칠 때 DB unique 제약과 flush
+      // 순서에 따라 500이 날 수 있어, 수정 시에는 먼저 빈 응답으로 기존 값을
+      // 확정 삭제한 다음 새 선택을 저장합니다. 백엔드 코드는 변경하지 않습니다.
+      if (replaceExisting) {
+        await _postMeetitResponse(id, const <DateTime>[]);
+      }
+
+      if (normalized.isNotEmpty || !replaceExisting) {
+        await _postMeetitResponse(id, normalized);
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> _postMeetitResponse(
+    int id,
+    Iterable<DateTime> selected,
+  ) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '$_meetitPath/$id/responses',
       data: {
-        'slotStartTimes': normalized.map((time) {
+        'slotStartTimes': selected.map((time) {
           return '${time.year.toString().padLeft(4, '0')}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
         }).toList(),
       },

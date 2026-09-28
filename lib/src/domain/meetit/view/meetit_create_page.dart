@@ -4,7 +4,9 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/calendar_month_dropdown.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/calendar_month_view.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/add_member_button.dart';
@@ -49,6 +51,11 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   final List<MemberSelectionMember> _members = <MemberSelectionMember>[];
   bool _submitting = false;
 
+  String? _meetingNameError;
+  String? _candidateDatesError;
+  String? _timeError;
+  String? _membersError;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +84,9 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       _selectedCandidateDates
         ..clear()
         ..addAll(selectedDates.map(DateUtils.dateOnly));
+      if (_candidateDatesError != null && _selectedCandidateDates.isNotEmpty) {
+        _candidateDatesError = null;
+      }
     });
   }
 
@@ -92,6 +102,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       if (selected) {
         _startTimeController.clear();
         _endTimeController.clear();
+        _timeError = null;
       }
     });
   }
@@ -109,7 +120,27 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       _members
         ..clear()
         ..addAll(selected);
+      if (_membersError != null) {
+        _membersError = _membersValidationMessage();
+      }
     });
+  }
+
+  Future<void> _confirmClose() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _chooseTime(TextEditingController controller) async {
@@ -125,26 +156,102 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       minuteInterval: 30,
     );
     if (time == null || !mounted) return;
-    setState(() => controller.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
+    setState(() {
+      controller.text =
+          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      if (_timeError != null) {
+        _timeError = _timeValidationMessage();
+      }
+    });
+  }
+
+  String? _timeValidationMessage() {
+    if (_dateOnly) return null;
+
+    final start = _startTimeController.text.trim();
+    final end = _endTimeController.text.trim();
+
+    if (start.isEmpty && end.isEmpty) {
+      return '시작 시간과 종료 시간을 모두 입력해주세요.';
+    }
+    if (start.isEmpty) {
+      return '시작 시간을 입력해주세요.';
+    }
+    if (end.isEmpty) {
+      return '종료 시간을 입력해주세요.';
+    }
+
+    final timePattern = RegExp(r'^(?:[01]\d|2[0-3]):(?:00|30)$');
+    if (!timePattern.hasMatch(start) || !timePattern.hasMatch(end)) {
+      return '시간은 30분 단위로 선택해주세요.';
+    }
+    if (start.compareTo(end) >= 0) {
+      return '종료 시간은 시작 시간보다 늦게 설정해주세요.';
+    }
+
+    return null;
+  }
+
+  String? _membersValidationMessage() {
+    final userIds = _members
+        .map((member) => member.userId)
+        .whereType<int>()
+        .toSet();
+    return userIds.length < 2 ? '참여 인원을 2명 이상 선택해주세요.' : null;
+  }
+
+  bool _validateRequiredFields() {
+    final name = _meetingNameController.text.trim();
+
+    setState(() {
+      _meetingNameError = name.isEmpty ? '모임 이름을 입력해주세요.' : null;
+      _candidateDatesError = _selectedCandidateDates.isEmpty
+          ? '후보 날짜를 1개 이상 선택해주세요.'
+          : null;
+      _timeError = _timeValidationMessage();
+      _membersError = _membersValidationMessage();
+    });
+
+    return _meetingNameError == null &&
+        _candidateDatesError == null &&
+        _timeError == null &&
+        _membersError == null;
+  }
+
+  bool get _startTimeHasError {
+    if (_timeError == null || _dateOnly) return false;
+    final start = _startTimeController.text.trim();
+    final end = _endTimeController.text.trim();
+    return start.isEmpty || (start.isNotEmpty && end.isNotEmpty);
+  }
+
+  bool get _endTimeHasError {
+    if (_timeError == null || _dateOnly) return false;
+    final start = _startTimeController.text.trim();
+    final end = _endTimeController.text.trim();
+    return end.isEmpty || (start.isNotEmpty && end.isNotEmpty);
+  }
+
+  void _handleMeetingNameChanged(String value) {
+    if (_meetingNameError != null && value.trim().isNotEmpty) {
+      setState(() => _meetingNameError = null);
+    }
   }
 
   Future<void> _submit() async {
-    if (_submitting) return;
+    if (_submitting || !_validateRequiredFields()) return;
+
     final name = _meetingNameController.text.trim();
     final dates = _selectedCandidateDates.toList()..sort();
-    final userIds = _members.map((member) => member.userId).whereType<int>().toSet().toList();
+    final userIds = _members
+        .map((member) => member.userId)
+        .whereType<int>()
+        .toSet()
+        .toList();
     final start = _startTimeController.text.trim();
     final end = _endTimeController.text.trim();
     final dateOnly = _dateOnly;
-    final timePattern = RegExp(r'^(?:[01]\d|2[0-3]):(?:00|30)$');
-    if (name.isEmpty || dates.isEmpty || userIds.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이름, 후보 날짜, 참여자 2명 이상을 선택해주세요.')));
-      return;
-    }
-    if (!dateOnly && (!timePattern.hasMatch(start) || !timePattern.hasMatch(end) || start.compareTo(end) >= 0)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('시작·종료 시간을 30분 단위로 선택하고 종료 시간을 더 늦게 설정해주세요.')));
-      return;
-    }
+
     setState(() => _submitting = true);
     try {
       await ref.read(postApiProvider).createMeetit(MeetitCreateRequest(
@@ -172,9 +279,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     return Scaffold(
       appBar: AppTopAppBar.closeOnly(
         title: '밋잇 생성하기',
-        onClosePressed: () {
-          Navigator.of(context).maybePop();
-        },
+        onClosePressed: _confirmClose,
       ),
       body: SafeArea(
         child: Padding(
@@ -200,9 +305,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                       AppTextField(
                         hintText: '이름',
                         controller: _meetingNameController,
-                        onChanged: (_) {
-                          setState(() {});
-                        },
+                        errorText: _meetingNameError,
+                        onChanged: _handleMeetingNameChanged,
                       ),
 
                       const SizedBox(height: AppSpacing.x20),
@@ -227,6 +331,13 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
 
                       const SizedBox(height: AppSpacing.x4),
                       _buildCalendarExpandButton(context),
+                      if (_candidateDatesError != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: _candidateDatesError!,
+                          isError: true,
+                        ),
+                      ],
 
                       const SizedBox(height: AppSpacing.x20),
 
@@ -267,6 +378,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                                   hintText: '시작 시간',
                                   controller: _startTimeController,
                                   readOnly: true,
+                                  isError: _startTimeHasError,
                                   onTap: () => _chooseTime(_startTimeController),
                                   suffixIcon: SvgPicture.asset(
                                     'assets/icons/cal/clock.svg',
@@ -306,6 +418,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                                   hintText: '끝나는 시간',
                                   controller: _endTimeController,
                                   readOnly: true,
+                                  isError: _endTimeHasError,
                                   onTap: () => _chooseTime(_endTimeController),
                                   suffixIcon: SvgPicture.asset(
                                     'assets/icons/cal/clock.svg',
@@ -319,6 +432,13 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                           ),
                         ],
                       ),
+                      if (!_dateOnly && _timeError != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: _timeError!,
+                          isError: true,
+                        ),
+                      ],
 
                       const SizedBox(height: AppSpacing.x30),
 
@@ -329,32 +449,47 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       if (_members.isEmpty)
-                        AddMemberButton(text: '인원 선택하기', onPressed: _chooseMembers)
-                      else SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.only(top: AppSpacing.x8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ...List.generate(_members.length, (index) {
-                              final member = _members[index];
-                              return _MemberInfoButton(
-                                memberImage: member.profileImageUrl,
-                                memberName: member.name,
-                                memberPart: member.position ?? '',
-                                onRemove: () {
-                                  setState(() {
-                                    _members.removeAt(index);
-                                  });
-                                },
-                              );
-                            }),
-                            const SizedBox(width: AppSpacing.x8),
-                            _AddButton(onPressed: _chooseMembers),
-                            const SizedBox(width: AppSpacing.x8),
-                          ],
+                        AddMemberButton(
+                          text: '인원 선택하기',
+                          onPressed: _chooseMembers,
+                        )
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.only(top: AppSpacing.x8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ...List.generate(_members.length, (index) {
+                                final member = _members[index];
+                                return _MemberInfoButton(
+                                  memberImage: member.profileImageUrl,
+                                  memberName: member.name,
+                                  memberPart: member.position ?? '',
+                                  onRemove: () {
+                                    setState(() {
+                                      _members.removeAt(index);
+                                      if (_membersError != null) {
+                                        _membersError =
+                                            _membersValidationMessage();
+                                      }
+                                    });
+                                  },
+                                );
+                              }),
+                              const SizedBox(width: AppSpacing.x8),
+                              _AddButton(onPressed: _chooseMembers),
+                              const SizedBox(width: AppSpacing.x8),
+                            ],
+                          ),
                         ),
-                      ),
+                      if (_membersError != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: _membersError!,
+                          isError: true,
+                        ),
+                      ],
                     ],
                   ),
                 ),
