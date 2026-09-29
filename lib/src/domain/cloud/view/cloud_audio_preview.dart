@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_audio_waveform.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
@@ -422,87 +423,108 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         _playerPosition = absolutePosition;
       });
     } else {
-      await _player.setClip(start: Duration.zero, end: _sourceDuration);
-      await _player.seek(absolutePosition);
+      final sourceUs = _sourceDuration.inMicroseconds;
+      final spanUs = math.max(1, sourceUs ~/ 6).toInt();
+      final halfSpanUs = spanUs ~/ 2;
+      final currentUs = absolutePosition.inMicroseconds;
+      final maxStartUs = math.max(0, sourceUs - spanUs).toInt();
+      final selectionStartUs = (currentUs - halfSpanUs)
+          .clamp(0, maxStartUs)
+          .toInt();
+      final selectionEndUs = math
+          .min(sourceUs, selectionStartUs + spanUs)
+          .toInt();
+      final selectionStart = Duration(microseconds: selectionStartUs);
+      final selectionEnd = Duration(microseconds: selectionEndUs);
+      final clampedPosition = _clampDuration(
+        absolutePosition,
+        selectionStart,
+        selectionEnd,
+      );
+
+      await _player.setClip(start: selectionStart, end: selectionEnd);
+      await _player.seek(clampedPosition - selectionStart);
 
       if (!mounted) return;
       setState(() {
         _isSelectionMode = true;
         _isClipApplied = true;
-        _clipStart = Duration.zero;
+        _clipStart = selectionStart;
         _repeatMode = _AudioRepeatMode.off;
-        _selectionStart = Duration.zero;
-        _selectionEnd = _sourceDuration;
-        _playerPosition = absolutePosition;
+        _selectionStart = selectionStart;
+        _selectionEnd = selectionEnd;
+        _playerPosition = clampedPosition - selectionStart;
       });
     }
 
     if (wasPlaying) unawaited(_player.play());
   }
 
-  void _updateSelection(RangeValues values) {
+  void _updateSelection(Duration start, Duration end) {
+    if (!_isSelectionMode) return;
+
     setState(() {
-      _selectionStart = _durationFromFraction(values.start);
-      _selectionEnd = _durationFromFraction(values.end);
+      _selectionStart = start;
+      _selectionEnd = end;
     });
   }
 
-  Future<void> _applySelection() async {
+  Future<void> _applySelection(Duration start, Duration end) async {
     if (!_isSelectionMode || _sourceDuration == Duration.zero) return;
 
+    final safeStart = _clampDuration(start, Duration.zero, _sourceDuration);
+    final safeEnd = _clampDuration(end, safeStart, _sourceDuration);
+    if (safeEnd <= safeStart) return;
+
     final wasPlaying = _player.playing;
+    final absolutePosition = _clampDuration(
+      _displayPosition,
+      safeStart,
+      safeEnd,
+    );
 
     await _player.pause();
-    await _player.setClip(start: _selectionStart, end: _selectionEnd);
+    await _player.setClip(start: safeStart, end: safeEnd);
     await _player.setLoopMode(
       _repeatMode == _AudioRepeatMode.selection ? LoopMode.one : LoopMode.off,
     );
-    await _player.seek(Duration.zero);
+    await _player.seek(absolutePosition - safeStart);
 
     if (!mounted) return;
     setState(() {
-      _clipStart = _selectionStart;
+      _selectionStart = safeStart;
+      _selectionEnd = safeEnd;
+      _clipStart = safeStart;
       _isClipApplied = true;
-      _playerPosition = Duration.zero;
+      _playerPosition = absolutePosition - safeStart;
     });
 
     if (wasPlaying) unawaited(_player.play());
   }
 
-  Future<void> _seekToFraction(double fraction) async {
-    if (_sourceDuration == Duration.zero) return;
-
-    var target = _durationFromFraction(fraction.clamp(0.0, 1.0));
-
-    if (_isSelectionMode) {
-      target = _clampDuration(target, _selectionStart, _selectionEnd);
-      await _player.seek(target - _clipStart);
+  Future<void> _seek(Duration target) async {
+    if (_loadState != _AudioLoadState.ready ||
+        _sourceDuration == Duration.zero) {
       return;
     }
 
-    await _player.seek(target);
-  }
-
-  RangeValues get _selectionValues => RangeValues(
-    _durationFraction(_selectionStart),
-    _durationFraction(_selectionEnd),
-  );
-
-  double _durationFraction(Duration duration) {
-    if (_sourceDuration == Duration.zero) return 0.0;
-
-    return (duration.inMicroseconds / _sourceDuration.inMicroseconds).clamp(
-      0.0,
-      1.0,
+    final absoluteTarget = _clampDuration(
+      target,
+      Duration.zero,
+      _sourceDuration,
     );
-  }
 
-  Duration _durationFromFraction(double fraction) {
-    if (_sourceDuration == Duration.zero) return Duration.zero;
+    if (_isClipApplied) {
+      final clippedTarget = _clampDuration(
+        absoluteTarget,
+        _selectionStart,
+        _selectionEnd,
+      );
+      await _player.seek(clippedTarget - _clipStart);
+      return;
+    }
 
-    return Duration(
-      microseconds: (_sourceDuration.inMicroseconds * fraction).round(),
-    );
+    await _player.seek(absoluteTarget);
   }
 
   Duration _clampDuration(Duration value, Duration minimum, Duration maximum) {
@@ -529,7 +551,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       case _AudioLoadState.error:
         return _AudioErrorView(onRetry: () => unawaited(_loadCurrentFile()));
       case _AudioLoadState.ready:
-        return _buildPlayer();
+        return Center(child: _buildPlayer());
     }
   }
 
@@ -539,10 +561,10 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         AppSpacing.x20,
         AppSpacing.x24,
         AppSpacing.x20,
-        0,
+        100.0,
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Column(
             children: [
@@ -648,50 +670,39 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _formatDuration(_displayPosition),
+                    _formatDuration(
+                      _isSelectionMode ? _selectionStart : _displayPosition,
+                    ),
                     style: FontStyles.med16.copyWith(
                       color: context.grays.gray5,
                     ),
                   ),
                   Text(
-                    _formatDuration(_sourceDuration),
+                    _formatDuration(
+                      _isSelectionMode ? _selectionEnd : _sourceDuration,
+                    ),
                     style: FontStyles.med16.copyWith(
                       color: context.grays.gray5,
                     ),
                   ),
                 ],
               ),
-              _AudioWaveform(
+              CloudAudioWaveform(
                 waveform: _waveform,
                 loadingProgress: _waveformProgress,
                 duration: _sourceDuration,
                 position: _displayPosition,
+                isSelectionMode: _isSelectionMode,
                 selectionStart: _selectionStart,
                 selectionEnd: _selectionEnd,
-                selectionValues: _selectionValues,
-                isSelectionMode: _isSelectionMode,
-                onSeek: (fraction) => unawaited(_seekToFraction(fraction)),
+                onSeek: (position) => unawaited(_seek(position)),
                 onSelectionChanged: _updateSelection,
-                onSelectionChangeEnd: (_) => unawaited(_applySelection()),
+                onSelectionChangeEnd: (start, end) {
+                  unawaited(_applySelection(start, end));
+                },
               ),
             ],
           ),
-          if (_isSelectionMode) ...[
-            const SizedBox(height: AppSpacing.x8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '시작 ${_formatDuration(_selectionStart)}',
-                  style: FontStyles.med12.copyWith(color: context.grays.gray4),
-                ),
-                Text(
-                  '끝 ${_formatDuration(_selectionEnd)}',
-                  style: FontStyles.med12.copyWith(color: context.grays.gray4),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -798,232 +809,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         ),
       ),
     );
-  }
-}
-
-class _AudioWaveform extends StatelessWidget {
-  const _AudioWaveform({
-    required this.waveform,
-    required this.loadingProgress,
-    required this.duration,
-    required this.position,
-    required this.selectionStart,
-    required this.selectionEnd,
-    required this.selectionValues,
-    required this.isSelectionMode,
-    required this.onSeek,
-    required this.onSelectionChanged,
-    required this.onSelectionChangeEnd,
-  });
-
-  final Waveform? waveform;
-  final double loadingProgress;
-  final Duration duration;
-  final Duration position;
-  final Duration selectionStart;
-  final Duration selectionEnd;
-  final RangeValues selectionValues;
-  final bool isSelectionMode;
-
-  final ValueChanged<double> onSeek;
-  final ValueChanged<RangeValues> onSelectionChanged;
-  final ValueChanged<RangeValues> onSelectionChangeEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    if (waveform == null) {
-      final failed = loadingProgress >= 1.0;
-
-      return SizedBox(
-        height: 116.0,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            LinearProgressIndicator(
-              value: failed ? null : loadingProgress,
-              minHeight: 2.0,
-              backgroundColor: context.grays.gray7,
-              color: context.brands.beatOrange1,
-            ),
-            const SizedBox(height: AppSpacing.x8),
-            Text(
-              failed ? '파형을 표시할 수 없습니다.' : '파형을 불러오는 중입니다.',
-              style: FontStyles.med12.copyWith(color: context.grays.gray4),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 116.0,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: isSelectionMode
-                    ? null
-                    : (details) {
-                        final fraction = constraints.maxWidth == 0
-                            ? 0.0
-                            : details.localPosition.dx / constraints.maxWidth;
-                        onSeek(fraction.clamp(0.0, 1.0));
-                      },
-                child: CustomPaint(
-                  painter: _AudioWaveformPainter(
-                    waveform: waveform!,
-                    sourceDuration: duration,
-                    position: position,
-                    selectionStart: selectionStart,
-                    selectionEnd: selectionEnd,
-                    isSelectionMode: isSelectionMode,
-                    playedColor: context.brands.beatOrange1,
-                    unplayedColor: context.grays.gray5,
-                    selectionFillColor: context.brands.beatOrange1.withValues(
-                      alpha: 0.08,
-                    ),
-                  ),
-                ),
-              ),
-              if (isSelectionMode)
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 0.0,
-                    activeTrackColor: context.grays.white.withValues(
-                      alpha: 0.0,
-                    ),
-                    inactiveTrackColor: context.grays.white.withValues(
-                      alpha: 0.0,
-                    ),
-                    thumbColor: context.brands.beatOrange1,
-                    minThumbSeparation: 8.0,
-                    overlayColor: context.brands.beatOrange1.withValues(
-                      alpha: 0.12,
-                    ),
-                  ),
-                  child: RangeSlider(
-                    values: selectionValues,
-                    min: 0.0,
-                    max: 1.0,
-                    onChanged: onSelectionChanged,
-                    onChangeEnd: onSelectionChangeEnd,
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _AudioWaveformPainter extends CustomPainter {
-  _AudioWaveformPainter({
-    required this.waveform,
-    required this.sourceDuration,
-    required this.position,
-    required this.selectionStart,
-    required this.selectionEnd,
-    required this.isSelectionMode,
-    required this.playedColor,
-    required this.unplayedColor,
-    required this.selectionFillColor,
-  });
-
-  final Waveform waveform;
-  final Duration sourceDuration;
-  final Duration position;
-  final Duration selectionStart;
-  final Duration selectionEnd;
-  final bool isSelectionMode;
-  final Color playedColor;
-  final Color unplayedColor;
-  final Color selectionFillColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 ||
-        size.height <= 0 ||
-        sourceDuration == Duration.zero ||
-        waveform.duration == Duration.zero) {
-      return;
-    }
-
-    final playedFraction = _fraction(position);
-    final selectionStartFraction = _fraction(selectionStart);
-    final selectionEndFraction = _fraction(selectionEnd);
-
-    if (isSelectionMode) {
-      canvas.drawRect(
-        Rect.fromLTRB(
-          size.width * selectionStartFraction,
-          0,
-          size.width * selectionEndFraction,
-          size.height,
-        ),
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = selectionFillColor,
-      );
-    }
-
-    final waveformWidth = waveform.positionToPixel(waveform.duration).toInt();
-    if (waveformWidth <= 0) return;
-
-    final waveformPerDevicePixel = waveformWidth / size.width;
-    final waveformStep = waveformPerDevicePixel * 6.0;
-
-    for (double sampleX = 0; sampleX < waveformWidth; sampleX += waveformStep) {
-      final sampleIndex = sampleX.toInt().clamp(0, waveformWidth - 1);
-      final x = sampleX / waveformPerDevicePixel;
-      final fraction = (x / size.width).clamp(0.0, 1.0);
-
-      final minY = _normalize(waveform.getPixelMin(sampleIndex), size.height);
-      final maxY = _normalize(waveform.getPixelMax(sampleIndex), size.height);
-
-      canvas.drawLine(
-        Offset(x, math.max(3.0, minY)),
-        Offset(x, math.min(size.height - 3.0, maxY)),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.0
-          ..strokeCap = StrokeCap.round
-          ..color = fraction <= playedFraction ? playedColor : unplayedColor,
-      );
-    }
-  }
-
-  double _fraction(Duration value) {
-    return (value.inMicroseconds / sourceDuration.inMicroseconds).clamp(
-      0.0,
-      1.0,
-    );
-  }
-
-  double _normalize(int sample, double height) {
-    if (waveform.flags == 0) {
-      final value = 32768 + sample.clamp(-32768, 32767);
-      return height - 1 - value * height / 65536;
-    }
-
-    final value = 128 + sample.clamp(-128, 127);
-    return height - 1 - value * height / 256;
-  }
-
-  @override
-  bool shouldRepaint(covariant _AudioWaveformPainter oldDelegate) {
-    return oldDelegate.waveform != waveform ||
-        oldDelegate.sourceDuration != sourceDuration ||
-        oldDelegate.position != position ||
-        oldDelegate.selectionStart != selectionStart ||
-        oldDelegate.selectionEnd != selectionEnd ||
-        oldDelegate.isSelectionMode != isSelectionMode ||
-        oldDelegate.playedColor != playedColor ||
-        oldDelegate.unplayedColor != unplayedColor ||
-        oldDelegate.selectionFillColor != selectionFillColor;
   }
 }
 
