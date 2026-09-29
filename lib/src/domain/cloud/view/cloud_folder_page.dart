@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_rename_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
@@ -404,7 +405,19 @@ class _CloudFolderPageState extends State<CloudFolderPage> {
     ];
   }
 
-  void _handleMenuAction(_CloudFileEntry file, String action) {
+  Future<void> _handleMenuAction(_CloudFileEntry file, String action) async {
+    if (action == '이름 수정하기' || action == '링크 수정하기') {
+      final renamedFile = await showCloudFileRenamePopup(
+        context,
+        initialFileName: file.fileName,
+      );
+
+      if (renamedFile != null) {
+        debugPrint('${file.fileName} -> $renamedFile');
+      }
+      return;
+    }
+
     debugPrint('${file.fileName}: $action');
     // TODO: 형식별 팝업, 다운로드, 삭제 기능을 여기에 연결한다.
   }

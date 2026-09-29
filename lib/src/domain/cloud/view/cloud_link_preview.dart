@@ -1,15 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_link_confirm_popup.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_link_preview_card.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:metadata_fetch/metadata_fetch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -175,11 +177,17 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
       return;
     }
 
+    final confirmed = await showCloudLinkConfirmPopup(
+      context,
+      url: uri.toString(),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
     try {
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
       if (!opened && mounted) {
         _showOpenLinkError();
@@ -197,9 +205,7 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
   void _showOpenLinkError() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('링크를 열 수 없습니다. 다시 시도해주세요.')),
-      );
+      ..showSnackBar(const SnackBar(content: Text('링크를 열 수 없습니다. 다시 시도해주세요.')));
   }
 
   Uri? _metadataDisplayUri() {
@@ -290,11 +296,14 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
               horizontal: AppSpacing.x20,
               vertical: AppSpacing.x24,
             ),
-            child: _LinkPreviewCard(
-              title: _titleLabel(displayUri),
-              domain: _domainLabel(displayUri),
-              imageUri: _metadataImageUri(),
-              onPressed: _openCurrentLink,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.x50),
+              child: CloudLinkPreviewCard(
+                title: _titleLabel(displayUri),
+                domain: _domainLabel(displayUri),
+                imageUri: _metadataImageUri(),
+                onPressed: _openCurrentLink,
+              ),
             ),
           ),
         );
@@ -333,150 +342,6 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LinkPreviewCard extends StatelessWidget {
-  const _LinkPreviewCard({
-    required this.title,
-    required this.domain,
-    required this.imageUri,
-    required this.onPressed,
-  });
-
-  final String title;
-  final String domain;
-  final Uri? imageUri;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$title 링크 열기',
-      child: Material(
-        color: context.grays.white,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: Ink(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: context.grays.gray7),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: _LinkPreviewThumbnail(imageUri: imageUri),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.x16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: FontStyles.semi18.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      Row(
-                        children: [
-                          SvgPicture.asset(
-                            'assets/icons/cloud/link.svg',
-                            width: 20.0,
-                            height: 20.0,
-                            colorFilter: ColorFilter.mode(
-                              context.grays.gray4,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.x8),
-                          Expanded(
-                            child: Text(
-                              domain,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: FontStyles.med14.copyWith(
-                                color: context.grays.gray4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LinkPreviewThumbnail extends StatelessWidget {
-  const _LinkPreviewThumbnail({required this.imageUri});
-
-  final Uri? imageUri;
-
-  @override
-  Widget build(BuildContext context) {
-    final uri = imageUri;
-
-    if (uri == null) {
-      return const _LinkPreviewThumbnailFallback();
-    }
-
-    return Image.network(
-      uri.toString(),
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        }
-
-        return const _LinkPreviewThumbnailFallback(showLoading: true);
-      },
-      errorBuilder: (context, error, stackTrace) {
-        return const _LinkPreviewThumbnailFallback();
-      },
-    );
-  }
-}
-
-class _LinkPreviewThumbnailFallback extends StatelessWidget {
-  const _LinkPreviewThumbnailFallback({this.showLoading = false});
-
-  final bool showLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: context.grays.gray8,
-      child: Center(
-        child: showLoading
-            ? const CircularProgressIndicator()
-            : SvgPicture.asset(
-                'assets/icons/cloud/link.svg',
-                width: 24.0,
-                height: 24.0,
-                colorFilter: ColorFilter.mode(
-                  context.grays.gray4,
-                  BlendMode.srcIn,
-                ),
-              ),
       ),
     );
   }

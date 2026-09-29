@@ -3,8 +3,10 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_audio_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_rename_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_folder_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_link_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
@@ -121,9 +123,7 @@ class _CloudMainPageState extends State<CloudMainPage> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   Widget? _buildPreviewPage({
@@ -217,19 +217,16 @@ class _CloudMainPageState extends State<CloudMainPage> {
       return;
     }
 
-    final page = _buildPreviewPage(
-      files: files,
-      initialIndex: selectedIndex,
-    );
+    final page = _buildPreviewPage(files: files, initialIndex: selectedIndex);
 
     if (page == null) {
       debugPrint('[TEST] 아직 구현되지 않은 미리보기: ${selectedFile.name}');
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   int get _selectedCount => _selectedEntryIds.length;
@@ -536,7 +533,19 @@ class _CloudMainPageState extends State<CloudMainPage> {
     ];
   }
 
-  void _handleMenuAction(_CloudFileEntry file, String action) {
+  Future<void> _handleMenuAction(_CloudFileEntry file, String action) async {
+    if (action == '이름 수정하기' || action == '링크 수정하기') {
+      final renamedFile = await showCloudFileRenamePopup(
+        context,
+        initialFileName: file.fileName,
+      );
+
+      if (renamedFile != null) {
+        debugPrint('${file.fileName} -> $renamedFile');
+      }
+      return;
+    }
+
     debugPrint('${file.fileName}: $action');
     // TODO: 형식별 팝업, 다운로드, 삭제 기능을 여기에 연결한다.
   }
@@ -653,3 +662,54 @@ class _CloudFileEntry extends _CloudEntry {
   final String uploaderName;
   final String? previewUrl;
 }
+
+//TODO: 2,3째 팝업 수정 필요
+// AppPopup(
+//               title: '정말 삭제하시겠습니까?',
+//               content: '삭제된 폴더에 있는 파일들은\n복구할 수 없습니다.',
+//               buttonSymmetric: ButtonSymmetric.horizontal,
+//               buttonNum: ButtonNum.two,
+//               warningType: WarningType.folder,
+//               confirmText: '확인',
+//               cancelText: '취소',
+//               onCancel: () {
+//                 debugPrint('취소하기');
+//                 _setSelectionMode(false);
+//               },
+//               onConfirm: () {
+//                 debugPrint('삭제하기');
+//                 _setSelectionMode(false);
+//               },
+//             ),
+//             AppPopup(
+//               title: '선택하신 링크로\n이동하시겠습니까?',
+//               content: 'https://www.youtube.com/watch?v=ob...',
+//               buttonSymmetric: ButtonSymmetric.vertical,
+//               buttonNum: ButtonNum.two,
+//               confirmText: '예',
+//               cancelText: '아니요',
+//               onCancel: () {
+//                 debugPrint('아니요');
+//                 _setSelectionMode(false);
+//               },
+//               onConfirm: () {
+//                 debugPrint('예');
+//                 _setSelectionMode(false);
+//               },
+//             ),
+//             AppPopup(
+//               title: '이름 수정하기',
+//               content: 'https://www.youtube.com/watch?v=ob...',
+//               buttonSymmetric: ButtonSymmetric.horizontal,
+//               buttonNum: ButtonNum.two,
+//               confirmText: '취소',
+//               cancelText: '확인',
+//               onCancel: () {
+//                 debugPrint('취소');
+//                 _setSelectionMode(false);
+//               },
+//               onConfirm: () {
+//                 debugPrint('확인');
+//                 _setSelectionMode(false);
+//               },
+//             ),

@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -7,7 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 enum ButtonNum { one, two }
 
-enum WarningType { none, circle, triangle }
+enum WarningType { none, circle, triangle, folder }
 
 enum ContentType { none, small, large }
 
@@ -196,9 +197,24 @@ class _PopupWarningIcon extends StatelessWidget {
       case WarningType.none:
         return null;
       case WarningType.circle:
-        return 'assets/icons/popup/circle_warning.svg';
+        return 'assets/icons/popup/circle.svg';
       case WarningType.triangle:
-        return 'assets/icons/popup/triangle_warning.svg';
+        return 'assets/icons/popup/triangle.svg';
+      case WarningType.folder:
+        return 'assets/icons/popup/folder.svg';
+    }
+  }
+
+  Alignment get _pointAlignment {
+    switch (warningType) {
+      case WarningType.circle:
+        return Alignment.center;
+      case WarningType.triangle:
+        return const Alignment(-0.01, 0.1);
+      case WarningType.folder:
+        return const Alignment(0.0, 0.15);
+      default:
+        return Alignment.center;
     }
   }
 
@@ -210,7 +226,37 @@ class _PopupWarningIcon extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Center(child: SvgPicture.asset(assetPath, width: 60, height: 60));
+    return SizedBox(
+      width: 60,
+      height: 60,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: SvgPicture.asset(
+              assetPath,
+              width: 60,
+              height: 60,
+              colorFilter: ColorFilter.mode(
+                context.grays.gray7,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+          Align(
+            alignment: _pointAlignment,
+            child: SvgPicture.asset(
+              'assets/icons/popup/point.svg',
+              width: 23,
+              height: 23,
+              colorFilter: ColorFilter.mode(
+                context.grays.white,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

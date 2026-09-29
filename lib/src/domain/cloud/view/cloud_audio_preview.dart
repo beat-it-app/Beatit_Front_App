@@ -9,9 +9,10 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_audio_waveform.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_playback_button.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -622,38 +623,12 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                     onPressed: () => unawaited(_toggleRepeat()),
                   ),
                   const SizedBox(width: AppSpacing.x30),
-                  //FIXME: 박스 둥글기를 조절해야 함. -> 플로팅 버튼처럼.
-                  Semantics(
-                    button: true,
-                    label: _isPlaying ? '음원 일시정지' : '음원 재생',
-                    child: Material(
-                      color: context.grays.white,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        onTap: () => unawaited(_togglePlayPause()),
-                        customBorder: BoxBorder.all(
-                          color: context.grays.gray6,
-                          width: 2.0,
-                        ),
-                        radius: AppRadius.md,
-                        child: SizedBox(
-                          width: 70.0,
-                          height: 60.0,
-                          child: Center(
-                            child: SvgPicture.asset(
-                              _isPlaying
-                                  ? 'assets/icons/cloud/pause.svg'
-                                  : 'assets/icons/cloud/play.svg',
-                              width: 27.0,
-                              colorFilter: ColorFilter.mode(
-                                context.grays.gray1,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  CloudPlaybackButton(
+                    semanticLabel: _isPlaying ? '음원 일시정지' : '음원 재생',
+                    iconPath: _isPlaying
+                        ? 'assets/icons/cloud/pause.svg'
+                        : 'assets/icons/cloud/play.svg',
+                    onPressed: () => unawaited(_togglePlayPause()),
                   ),
                   const SizedBox(width: AppSpacing.x24),
                   _buildSideControl(
