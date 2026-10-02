@@ -86,6 +86,19 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     final selection = await showCloudFileUploadBottomSheet(context: context);
     if (!mounted || selection == null) return;
 
+    final storage = await ref.read(cloudStorageProvider.future);
+    if (!mounted) return;
+    if (selection.size > storage.remainingStorageBytes) {
+      await AppPopup.show(
+        context,
+        title: '저장 공간이 부족합니다.',
+        content: '팀 클라우드의 남은 용량을 초과하는 파일은 업로드할 수 없습니다.',
+        warningType: WarningType.triangle,
+        confirmText: '확인',
+      );
+      return;
+    }
+
     final success = await ref.read(cloudMutationProvider.notifier).uploadFile(
       folderId: widget.folderId,
       filePath: selection.path,

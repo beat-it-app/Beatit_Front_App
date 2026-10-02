@@ -92,3 +92,21 @@ abstract class ChatMessageSendData with _$ChatMessageSendData {
   factory ChatMessageSendData.fromJson(Map<String, dynamic> json) =>
       _$ChatMessageSendDataFromJson(json);
 }
+enum ChatPendingAttachmentStatus { uploading, failed }
+
+@freezed
+abstract class ChatPendingAttachment with _$ChatPendingAttachment {
+  const factory ChatPendingAttachment({
+    required String localId,
+    required String filePath,
+    required String fileName,
+    required int fileSizeBytes,
+    required ChatMessageType messageType,
+    required DateTime createdAt,
+    @Default(0) double progress,
+    @Default(ChatPendingAttachmentStatus.uploading)
+    ChatPendingAttachmentStatus status,
+    String? errorMessage,
+  }) = _ChatPendingAttachment;
+}
+

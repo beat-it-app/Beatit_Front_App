@@ -220,7 +220,7 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxWidth: isMine ? 254 : 234),
+      constraints: const BoxConstraints(maxWidth: 280),
       padding: const EdgeInsets.symmetric(
         vertical: AppSpacing.x8,
         horizontal: AppSpacing.x12,

@@ -171,12 +171,14 @@ class ChatApi {
     required ChatMessageType messageType,
     required String filePath,
     required String fileName,
+    ProgressCallback? onSendProgress,
   }) {
     return _sendMessage(
       chatId: chatId,
       request: ChatMessageSendRequest(messageType: messageType),
       filePath: filePath,
       fileName: fileName,
+      onSendProgress: onSendProgress,
     );
   }
 
@@ -225,6 +227,7 @@ class ChatApi {
     required ChatMessageSendRequest request,
     String? filePath,
     String? fileName,
+    ProgressCallback? onSendProgress,
   }) async {
     try {
       final formData = FormData();
@@ -255,6 +258,7 @@ class ChatApi {
         '$_chatRoomsPath/$chatId/messages',
         data: formData,
         options: Options(contentType: Headers.multipartFormDataContentType),
+        onSendProgress: onSendProgress,
       );
       final body = _requireSuccessBody(
         response: response,

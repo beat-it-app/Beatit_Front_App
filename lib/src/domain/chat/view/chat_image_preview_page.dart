@@ -62,24 +62,31 @@ class _ChatImagePreviewPageState extends State<ChatImagePreviewPage> {
               onPageChanged: (index) => setState(() => _currentIndex = index),
               itemBuilder: (context, index) {
                 final message = widget.images[index];
-                return InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 5,
-                  child: Center(
-                    child: Image.network(
-                      message.content,
-                      fit: BoxFit.contain,
-                      loadingBuilder: (context, child, progress) =>
-                          progress == null
-                          ? child
-                          : const Center(child: CircularProgressIndicator()),
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.broken_image_outlined,
-                        size: 48,
-                        color: context.grays.gray5,
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 5,
+                      child: Center(
+                        child: Image.network(
+                          message.content,
+                          width: constraints.maxWidth,
+                          fit: BoxFit.fitWidth,
+                          loadingBuilder: (context, child, progress) =>
+                              progress == null
+                              ? child
+                              : const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.broken_image_outlined,
+                            size: 48,
+                            color: context.grays.gray5,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),

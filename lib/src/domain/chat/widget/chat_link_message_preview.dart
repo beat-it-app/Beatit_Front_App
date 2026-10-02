@@ -51,7 +51,7 @@ class _ChatLinkMessagePreviewState extends State<ChatLinkMessagePreview> {
         : widget.uri.resolveUri(parsedImage);
 
     return SizedBox(
-      width: 250,
+      width: 280,
       child: CloudLinkPreviewCard(
         title: title == null || title.isEmpty ? host : title,
         domain: host,

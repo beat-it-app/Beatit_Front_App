@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
@@ -15,6 +14,8 @@ import 'package:beatit_front_app/src/domain/chat/view/chat_image_preview_page.da
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_message_composer.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_message_item.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_pending_attachment_item.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_room_app_bar.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_room_name_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/group_chat_profile.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
@@ -190,7 +191,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final file = pickedFiles.first;
     final extension = _extensionOf(file.name);
     if (!_mediaExtensions.contains(extension)) {
-      _showMessage('이미지 또는 영상 파일만 전송할 수 있습니다.');
+      await _showUploadBlockedPopup('이미지 또는 영상 파일만 전송할 수 있습니다.');
       return;
     }
 
@@ -218,17 +219,24 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       _showMessage('선택한 파일을 불러올 수 없습니다.');
       return;
     }
+
+    final extension = _extensionOf(file.name);
+    if (!_allowedUploadExtensions.contains(extension)) {
+      await _showUploadBlockedPopup('지원하지 않는 파일 형식입니다.');
+      return;
+    }
+
     final fileSizeBytes = await file.length() ?? 0;
     if (fileSizeBytes <= 0) {
       _showMessage('빈 파일은 전송할 수 없습니다.');
       return;
     }
     if (fileSizeBytes > _maxAttachmentBytes) {
-      _showMessage('파일은 최대 50MB까지 전송할 수 있습니다.');
+      await _showUploadBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
       return;
     }
 
-    final success = await ref
+    final uploadFuture = ref
         .read(chatRoomProvider.notifier)
         .sendAttachmentMessage(
           messageType: messageType,
@@ -236,13 +244,22 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
           fileName: file.name,
           fileSizeBytes: fileSizeBytes,
         );
-
-    if (!mounted) return;
-    if (!success) {
-      _showCurrentError();
-      return;
-    }
     _scrollToBottom();
+
+    await uploadFuture;
+    if (!mounted) return;
+    _scrollToBottom();
+  }
+
+  Future<void> _showUploadBlockedPopup(String content) async {
+    if (!mounted) return;
+    await AppPopup.show(
+      context,
+      title: '업로드할 수 없는 파일입니다.',
+      content: content,
+      warningType: WarningType.triangle,
+      confirmText: '확인',
+    );
   }
 
   Future<void> _handleRenameRoom() async {
@@ -399,10 +416,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   static const Set<String> _videoExtensions = {
     'mp4',
     'mov',
-    'm4v',
     'avi',
-    'mkv',
-    'webm',
   };
   static const Set<String> _imageExtensions = {
     'jpg',
@@ -411,9 +425,6 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     'gif',
     'webp',
     'heic',
-    'heif',
-    'bmp',
-    'tiff',
   };
   static const Set<String> _mediaExtensions = {
     ..._imageExtensions,
@@ -426,7 +437,15 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     'aac',
     'flac',
     'ogg',
-    'wma',
+  };
+  static const Set<String> _allowedUploadExtensions = {
+    ..._imageExtensions,
+    ..._audioExtensions,
+    ..._videoExtensions,
+    'pdf',
+    'zip',
+    'hwp',
+    'docx',
   };
 
   void _showCurrentError() {
@@ -462,18 +481,17 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     });
 
     final state = ref.watch(chatRoomProvider);
-    final title = _roomTitle(state);
+    final roomName = _resolvedRoomName(state);
+    final participantCount = _resolvedParticipantCount(state);
     final menuEnabled = !state.isDraft && state.chatId != null;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppTopAppBar.backMore(
-        title: title,
+      appBar: ChatRoomAppBar(
+        roomName: roomName,
+        participantCount: participantCount,
         onBackPressed: () => Navigator.of(context).maybePop(),
-
-        onMorePressed: () {},
         moreMenuOffset: const Offset(-16, 40),
-
         moreMenuItems: [
           AppDropdownItem(
             label: '이름 수정하기',
@@ -529,7 +547,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       );
     }
 
-    if (state.messages.isEmpty) {
+    if (state.messages.isEmpty && state.pendingAttachments.isEmpty) {
       return _EmptyRoomContent(
         roomType: state.roomType,
         roomName: state.roomName,
@@ -541,9 +559,16 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     return _ChatMessageList(
       controller: _scrollController,
       messages: state.messages,
+      pendingAttachments: state.pendingAttachments,
       isLoadingOlderMessages: state.isLoadingOlderMessages,
       onImagePressed: _openImagePreview,
       onAttachmentPressed: _openAttachmentPreview,
+      onRetryPending: (localId) {
+        ref.read(chatRoomProvider.notifier).retryAttachment(localId);
+      },
+      onDeletePending: (localId) {
+        ref.read(chatRoomProvider.notifier).removePendingAttachment(localId);
+      },
     );
   }
 
@@ -567,14 +592,14 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
         );
   }
 
-  String _roomTitle(ChatRoomState state) {
-    final roomName = state.roomName.isEmpty
-        ? widget.initialRoomName
-        : state.roomName;
-    final participantCount = state.participantCount == 0
+  String _resolvedRoomName(ChatRoomState state) {
+    return state.roomName.isEmpty ? widget.initialRoomName : state.roomName;
+  }
+
+  int _resolvedParticipantCount(ChatRoomState state) {
+    return state.participantCount == 0
         ? widget.initialParticipantCount
         : state.participantCount;
-    return participantCount > 2 ? '$roomName $participantCount' : roomName;
   }
 }
 
@@ -582,16 +607,22 @@ class _ChatMessageList extends StatelessWidget {
   const _ChatMessageList({
     required this.controller,
     required this.messages,
+    required this.pendingAttachments,
     required this.isLoadingOlderMessages,
     required this.onImagePressed,
     required this.onAttachmentPressed,
+    required this.onRetryPending,
+    required this.onDeletePending,
   });
 
   final ScrollController controller;
   final List<ChatMessage> messages;
+  final List<ChatPendingAttachment> pendingAttachments;
   final bool isLoadingOlderMessages;
   final ValueChanged<ChatMessage> onImagePressed;
   final ValueChanged<ChatMessage> onAttachmentPressed;
+  final ValueChanged<String> onRetryPending;
+  final ValueChanged<String> onDeletePending;
 
   @override
   Widget build(BuildContext context) {
@@ -606,7 +637,7 @@ class _ChatMessageList extends StatelessWidget {
         AppSpacing.x16,
         AppSpacing.x24,
       ),
-      itemCount: messages.length + leadingItemCount,
+      itemCount: messages.length + pendingAttachments.length + leadingItemCount,
       itemBuilder: (context, index) {
         if (isLoadingOlderMessages && index == 0) {
           return const Padding(
@@ -621,7 +652,21 @@ class _ChatMessageList extends StatelessWidget {
           );
         }
 
-        final messageIndex = index - leadingItemCount;
+        final contentIndex = index - leadingItemCount;
+        if (contentIndex >= messages.length) {
+          final pending = pendingAttachments[contentIndex - messages.length];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.x16),
+            child: ChatPendingAttachmentItem(
+              key: ValueKey(pending.localId),
+              attachment: pending,
+              onRetry: () => onRetryPending(pending.localId),
+              onDelete: () => onDeletePending(pending.localId),
+            ),
+          );
+        }
+
+        final messageIndex = contentIndex;
         final message = messages[messageIndex];
         final previousMessage = messageIndex > 0
             ? messages[messageIndex - 1]

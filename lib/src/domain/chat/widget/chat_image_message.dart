@@ -19,13 +19,12 @@ class ChatImageMessage extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: Image.network(
         imageUrl,
-        width: 240,
-        height: 180,
-        fit: BoxFit.cover,
+        width: 280,
+        fit: BoxFit.fitWidth,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return SizedBox(
-            width: 240,
+            width: 280,
             height: 180,
             child: Center(
               child: CircularProgressIndicator(
@@ -38,7 +37,7 @@ class ChatImageMessage extends StatelessWidget {
           );
         },
         errorBuilder: (_, __, ___) => Container(
-          width: 240,
+          width: 280,
           height: 180,
           alignment: Alignment.center,
           color: context.grays.gray8,

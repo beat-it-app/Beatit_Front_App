@@ -67,7 +67,8 @@ class ChatAttachmentMessageCard extends StatelessWidget {
         '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
 
     final content = Container(
-      constraints: const BoxConstraints(maxWidth: 250),
+      width: 280,
+      constraints: const BoxConstraints(minHeight: 80),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.x12,
         vertical: AppSpacing.x10,

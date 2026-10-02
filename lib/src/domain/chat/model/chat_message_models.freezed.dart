@@ -1455,4 +1455,292 @@ as DateTime,
 
 }
 
+/// @nodoc
+mixin _$ChatPendingAttachment {
+
+ String get localId; String get filePath; String get fileName; int get fileSizeBytes; ChatMessageType get messageType; DateTime get createdAt; double get progress; ChatPendingAttachmentStatus get status; String? get errorMessage;
+/// Create a copy of ChatPendingAttachment
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ChatPendingAttachmentCopyWith<ChatPendingAttachment> get copyWith => _$ChatPendingAttachmentCopyWithImpl<ChatPendingAttachment>(this as ChatPendingAttachment, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as ChatPendingAttachment;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatPendingAttachment&&(identical(other.localId, _this.localId) || other.localId == _this.localId)&&(identical(other.filePath, _this.filePath) || other.filePath == _this.filePath)&&(identical(other.fileName, _this.fileName) || other.fileName == _this.fileName)&&(identical(other.fileSizeBytes, _this.fileSizeBytes) || other.fileSizeBytes == _this.fileSizeBytes)&&(identical(other.messageType, _this.messageType) || other.messageType == _this.messageType)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.progress, _this.progress) || other.progress == _this.progress)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.errorMessage, _this.errorMessage) || other.errorMessage == _this.errorMessage));
+}
+
+
+@override
+int get hashCode {
+  final _this = this as ChatPendingAttachment;
+  return Object.hash(runtimeType,_this.localId,_this.filePath,_this.fileName,_this.fileSizeBytes,_this.messageType,_this.createdAt,_this.progress,_this.status,_this.errorMessage);
+}
+
+@override
+String toString() {
+  final _this = this as ChatPendingAttachment;
+  return 'ChatPendingAttachment(localId: ${_this.localId}, filePath: ${_this.filePath}, fileName: ${_this.fileName}, fileSizeBytes: ${_this.fileSizeBytes}, messageType: ${_this.messageType}, createdAt: ${_this.createdAt}, progress: ${_this.progress}, status: ${_this.status}, errorMessage: ${_this.errorMessage})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ChatPendingAttachmentCopyWith<$Res>  {
+  factory $ChatPendingAttachmentCopyWith(ChatPendingAttachment value, $Res Function(ChatPendingAttachment) _then) = _$ChatPendingAttachmentCopyWithImpl;
+@useResult
+$Res call({
+ String localId, String filePath, String fileName, int fileSizeBytes, ChatMessageType messageType, DateTime createdAt, double progress, ChatPendingAttachmentStatus status, String? errorMessage
+});
+
+
+
+
+}
+/// @nodoc
+class _$ChatPendingAttachmentCopyWithImpl<$Res>
+    implements $ChatPendingAttachmentCopyWith<$Res> {
+  _$ChatPendingAttachmentCopyWithImpl(this._self, this._then);
+
+  final ChatPendingAttachment _self;
+  final $Res Function(ChatPendingAttachment) _then;
+
+/// Create a copy of ChatPendingAttachment
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? localId = null,Object? filePath = null,Object? fileName = null,Object? fileSizeBytes = null,Object? messageType = null,Object? createdAt = null,Object? progress = null,Object? status = null,Object? errorMessage = freezed,}) {
+  return _then(ChatPendingAttachment(
+localId: null == localId ? _self.localId : localId // ignore: cast_nullable_to_non_nullable
+as String,filePath: null == filePath ? _self.filePath : filePath // ignore: cast_nullable_to_non_nullable
+as String,fileName: null == fileName ? _self.fileName : fileName // ignore: cast_nullable_to_non_nullable
+as String,fileSizeBytes: null == fileSizeBytes ? _self.fileSizeBytes : fileSizeBytes // ignore: cast_nullable_to_non_nullable
+as int,messageType: null == messageType ? _self.messageType : messageType // ignore: cast_nullable_to_non_nullable
+as ChatMessageType,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,progress: null == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
+as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as ChatPendingAttachmentStatus,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [ChatPendingAttachment].
+extension ChatPendingAttachmentPatterns on ChatPendingAttachment {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ChatPendingAttachment value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ChatPendingAttachment() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ChatPendingAttachment value)  $default,){
+final _that = this;
+switch (_that) {
+case _ChatPendingAttachment():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ChatPendingAttachment value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ChatPendingAttachment() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String localId,  String filePath,  String fileName,  int fileSizeBytes,  ChatMessageType messageType,  DateTime createdAt,  double progress,  ChatPendingAttachmentStatus status,  String? errorMessage)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ChatPendingAttachment() when $default != null:
+return $default(_that.localId,_that.filePath,_that.fileName,_that.fileSizeBytes,_that.messageType,_that.createdAt,_that.progress,_that.status,_that.errorMessage);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String localId,  String filePath,  String fileName,  int fileSizeBytes,  ChatMessageType messageType,  DateTime createdAt,  double progress,  ChatPendingAttachmentStatus status,  String? errorMessage)  $default,) {final _that = this;
+switch (_that) {
+case _ChatPendingAttachment():
+return $default(_that.localId,_that.filePath,_that.fileName,_that.fileSizeBytes,_that.messageType,_that.createdAt,_that.progress,_that.status,_that.errorMessage);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String localId,  String filePath,  String fileName,  int fileSizeBytes,  ChatMessageType messageType,  DateTime createdAt,  double progress,  ChatPendingAttachmentStatus status,  String? errorMessage)?  $default,) {final _that = this;
+switch (_that) {
+case _ChatPendingAttachment() when $default != null:
+return $default(_that.localId,_that.filePath,_that.fileName,_that.fileSizeBytes,_that.messageType,_that.createdAt,_that.progress,_that.status,_that.errorMessage);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class _ChatPendingAttachment implements ChatPendingAttachment {
+  const _ChatPendingAttachment({required this.localId, required this.filePath, required this.fileName, required this.fileSizeBytes, required this.messageType, required this.createdAt, this.progress = 0, this.status = ChatPendingAttachmentStatus.uploading, this.errorMessage});
+  
+
+@override final  String localId;
+@override final  String filePath;
+@override final  String fileName;
+@override final  int fileSizeBytes;
+@override final  ChatMessageType messageType;
+@override final  DateTime createdAt;
+@override@JsonKey() final  double progress;
+@override@JsonKey() final  ChatPendingAttachmentStatus status;
+@override final  String? errorMessage;
+
+/// Create a copy of ChatPendingAttachment
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ChatPendingAttachmentCopyWith<_ChatPendingAttachment> get copyWith => __$ChatPendingAttachmentCopyWithImpl<_ChatPendingAttachment>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatPendingAttachment&&(identical(other.localId, localId) || other.localId == localId)&&(identical(other.filePath, filePath) || other.filePath == filePath)&&(identical(other.fileName, fileName) || other.fileName == fileName)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.messageType, messageType) || other.messageType == messageType)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.status, status) || other.status == status)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,localId,filePath,fileName,fileSizeBytes,messageType,createdAt,progress,status,errorMessage);
+}
+
+@override
+String toString() {
+    return 'ChatPendingAttachment(localId: $localId, filePath: $filePath, fileName: $fileName, fileSizeBytes: $fileSizeBytes, messageType: $messageType, createdAt: $createdAt, progress: $progress, status: $status, errorMessage: $errorMessage)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ChatPendingAttachmentCopyWith<$Res> implements $ChatPendingAttachmentCopyWith<$Res> {
+  factory _$ChatPendingAttachmentCopyWith(_ChatPendingAttachment value, $Res Function(_ChatPendingAttachment) _then) = __$ChatPendingAttachmentCopyWithImpl;
+@override @useResult
+$Res call({
+ String localId, String filePath, String fileName, int fileSizeBytes, ChatMessageType messageType, DateTime createdAt, double progress, ChatPendingAttachmentStatus status, String? errorMessage
+});
+
+
+
+
+}
+/// @nodoc
+class __$ChatPendingAttachmentCopyWithImpl<$Res>
+    implements _$ChatPendingAttachmentCopyWith<$Res> {
+  __$ChatPendingAttachmentCopyWithImpl(this._self, this._then);
+
+  final _ChatPendingAttachment _self;
+  final $Res Function(_ChatPendingAttachment) _then;
+
+/// Create a copy of ChatPendingAttachment
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? localId = null,Object? filePath = null,Object? fileName = null,Object? fileSizeBytes = null,Object? messageType = null,Object? createdAt = null,Object? progress = null,Object? status = null,Object? errorMessage = freezed,}) {
+  return _then(_ChatPendingAttachment(
+localId: null == localId ? _self.localId : localId // ignore: cast_nullable_to_non_nullable
+as String,filePath: null == filePath ? _self.filePath : filePath // ignore: cast_nullable_to_non_nullable
+as String,fileName: null == fileName ? _self.fileName : fileName // ignore: cast_nullable_to_non_nullable
+as String,fileSizeBytes: null == fileSizeBytes ? _self.fileSizeBytes : fileSizeBytes // ignore: cast_nullable_to_non_nullable
+as int,messageType: null == messageType ? _self.messageType : messageType // ignore: cast_nullable_to_non_nullable
+as ChatMessageType,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,progress: null == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
+as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as ChatPendingAttachmentStatus,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
 // dart format on

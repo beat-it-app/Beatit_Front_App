@@ -17,6 +17,7 @@ class ChatRoomState {
     this.participantCount = 0,
     this.profileImageUrls = const <String>[],
     this.messages = const <ChatMessage>[],
+    this.pendingAttachments = const <ChatPendingAttachment>[],
     this.currentPage = 0,
     this.hasNext = false,
     this.isDraft = false,
@@ -34,6 +35,7 @@ class ChatRoomState {
   final int participantCount;
   final List<String> profileImageUrls;
   final List<ChatMessage> messages;
+  final List<ChatPendingAttachment> pendingAttachments;
   final int currentPage;
   final bool hasNext;
   final bool isDraft;
@@ -61,6 +63,7 @@ class ChatRoomState {
     int? participantCount,
     List<String>? profileImageUrls,
     List<ChatMessage>? messages,
+    List<ChatPendingAttachment>? pendingAttachments,
     int? currentPage,
     bool? hasNext,
     bool? isDraft,
@@ -79,6 +82,7 @@ class ChatRoomState {
       participantCount: participantCount ?? this.participantCount,
       profileImageUrls: profileImageUrls ?? this.profileImageUrls,
       messages: messages ?? this.messages,
+      pendingAttachments: pendingAttachments ?? this.pendingAttachments,
       currentPage: currentPage ?? this.currentPage,
       hasNext: hasNext ?? this.hasNext,
       isDraft: isDraft ?? this.isDraft,
@@ -224,39 +228,125 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     required int fileSizeBytes,
   }) async {
     final chatId = state.chatId;
-    if (chatId == null || state.isDraft || state.isSendingMessage) return false;
+    if (chatId == null || state.isDraft) return false;
 
-    state = state.copyWith(isSendingMessage: true, clearErrorMessage: true);
+    final pending = ChatPendingAttachment(
+      localId: DateTime.now().microsecondsSinceEpoch.toString(),
+      filePath: filePath,
+      fileName: fileName,
+      fileSizeBytes: fileSizeBytes,
+      messageType: messageType,
+      createdAt: DateTime.now(),
+    );
+
+    state = state.copyWith(
+      pendingAttachments: List<ChatPendingAttachment>.unmodifiable([
+        ...state.pendingAttachments,
+        pending,
+      ]),
+      clearErrorMessage: true,
+    );
+
+    return _uploadPendingAttachment(pending.localId, chatId: chatId);
+  }
+
+  Future<bool> retryAttachment(String localId) async {
+    final chatId = state.chatId;
+    if (chatId == null) return false;
+
+    final pending = _pendingById(localId);
+    if (pending == null ||
+        pending.status != ChatPendingAttachmentStatus.failed) {
+      return false;
+    }
+
+    _replacePending(
+      pending.copyWith(
+        status: ChatPendingAttachmentStatus.uploading,
+        progress: 0,
+        errorMessage: null,
+      ),
+    );
+
+    return _uploadPendingAttachment(localId, chatId: chatId);
+  }
+
+  void removePendingAttachment(String localId) {
+    state = state.copyWith(
+      pendingAttachments: List<ChatPendingAttachment>.unmodifiable(
+        state.pendingAttachments
+            .where((item) => item.localId != localId)
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<bool> _uploadPendingAttachment(
+    String localId, {
+    required int chatId,
+  }) async {
+    final pending = _pendingById(localId);
+    if (pending == null) return false;
 
     try {
       final sent = await ref.read(chatApiProvider).sendAttachmentMessage(
         chatId: chatId,
-        messageType: messageType,
-        filePath: filePath,
-        fileName: fileName,
+        messageType: pending.messageType,
+        filePath: pending.filePath,
+        fileName: pending.fileName,
+        onSendProgress: (sentBytes, totalBytes) {
+          if (totalBytes <= 0) return;
+          final current = _pendingById(localId);
+          if (current == null) return;
+          final progress = (sentBytes / totalBytes).clamp(0.0, 1.0).toDouble();
+          _replacePending(current.copyWith(progress: progress));
+        },
       );
+
       _localAttachmentMetadata[sent.messageId] = _LocalAttachmentMetadata(
-        name: fileName,
-        sizeBytes: fileSizeBytes,
+        name: pending.fileName,
+        sizeBytes: pending.fileSizeBytes,
       );
       _appendSentMessage(
         sent,
-        attachmentName: fileName,
-        attachmentSizeBytes: fileSizeBytes,
+        attachmentName: pending.fileName,
+        attachmentSizeBytes: pending.fileSizeBytes,
       );
-      state = state.copyWith(isSendingMessage: false);
+      removePendingAttachment(localId);
 
       await _refreshLatestMessages(
         fallbackMessage: '파일은 전송되었지만 채팅 내용을 다시 불러오지 못했습니다.',
       );
       return true;
     } catch (error) {
-      state = state.copyWith(
-        isSendingMessage: false,
-        errorMessage: _errorMessage(error, '파일을 전송하지 못했습니다.'),
-      );
+      final current = _pendingById(localId);
+      if (current != null) {
+        _replacePending(
+          current.copyWith(
+            status: ChatPendingAttachmentStatus.failed,
+            errorMessage: _errorMessage(error, '파일을 전송하지 못했습니다.'),
+          ),
+        );
+      }
       return false;
     }
+  }
+
+  ChatPendingAttachment? _pendingById(String localId) {
+    for (final item in state.pendingAttachments) {
+      if (item.localId == localId) return item;
+    }
+    return null;
+  }
+
+  void _replacePending(ChatPendingAttachment updated) {
+    state = state.copyWith(
+      pendingAttachments: List<ChatPendingAttachment>.unmodifiable(
+        state.pendingAttachments
+            .map((item) => item.localId == updated.localId ? updated : item)
+            .toList(growable: false),
+      ),
+    );
   }
 
   Future<bool> renameRoom(String roomName) async {
