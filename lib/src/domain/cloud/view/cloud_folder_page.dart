@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_permission_provider.dart';
@@ -13,14 +14,13 @@ import 'package:beatit_front_app/src/domain/cloud/view/cloud_move_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_preview_host_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_upload_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_folder_name_bottomsheet.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_api_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class CloudFolderPage extends ConsumerStatefulWidget {
   const CloudFolderPage({
@@ -197,7 +197,16 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _downloadItems(List<int> itemIds, CloudListData data) async {
+    if (ref.read(cloudDownloadProvider).isDownloading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다른 파일을 다운로드하고 있습니다.')),
+      );
+      return;
+    }
+
     if (itemIds.isEmpty) return;
+
+    final requests = <CloudDownloadRequest>[];
 
     for (final itemId in itemIds) {
       CloudItem? item;
@@ -207,26 +216,61 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
           break;
         }
       }
-      if (item == null) continue;
-
-      Uri? uri;
-      if (item.linkUrl?.trim().isNotEmpty == true) {
-        uri = Uri.tryParse(item.linkUrl!);
-      } else {
-        try {
-          final detail = await ref.read(cloudFileDetailProvider(itemId).future);
-          uri = Uri.tryParse(detail.fileUrl);
-        } catch (_) {
-          uri = null;
-        }
+      if (item == null || item.linkUrl?.trim().isNotEmpty == true) {
+        continue;
       }
-      if (uri == null) continue;
+
       try {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final detail = await ref.read(cloudFileDetailProvider(itemId).future);
+        requests.add(
+          CloudDownloadRequest(
+            itemId: itemId,
+            fileName: detail.itemName,
+            fileUrl: detail.fileUrl,
+            mimeType: detail.mimeType,
+          ),
+        );
       } catch (_) {
-        // 한 항목 실패가 나머지 다운로드를 막지 않게 한다.
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.itemName}의 다운로드 정보를 불러오지 못했습니다.')),
+        );
+        return;
       }
     }
+
+    if (requests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다운로드할 수 있는 파일이 없습니다.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          requests.length == 1
+              ? '${requests.first.fileName} 다운로드를 시작합니다.'
+              : '${requests.length}개 파일 다운로드를 시작합니다.',
+        ),
+      ),
+    );
+
+    final success = await ref
+        .read(cloudDownloadProvider.notifier)
+        .downloadFiles(requests);
+    if (!mounted) return;
+
+    final downloadState = ref.read(cloudDownloadProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Downloads 폴더에 저장했습니다.'
+              : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
+        ),
+      ),
+    );
   }
 
   void _showMutationResult(bool success, {required String successMessage}) {
@@ -250,6 +294,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   Widget build(BuildContext context) {
     final cloudList = ref.watch(cloudListProvider(widget.folderId));
     final mutation = ref.watch(cloudMutationProvider);
+    final download = ref.watch(cloudDownloadProvider);
     final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
     final data = cloudList.asData?.value;
     final allOwned = _allSelectedAreMine(data, currentUserName);
@@ -268,28 +313,46 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
           AppDropdownItem(label: '링크 등록하기', onPressed: _createLink),
         ],
       ),
-      floatingActionButton: SelectFloatButton(
-        isVisible: _isSelectionMode,
-        isEnabled: _hasSelectedItems,
-        isDeleteEnabled: _hasSelectedItems && allOwned,
-        isMoveEnabled: _hasSelectedItems && allOwned,
-        isDownloadEnabled: _hasSelectedItems,
-        onDeletePressed: () => _deleteItems(_selectedItemIds.toList()),
-        onMovePressed: () {
-          final folderName = data?.currentFolderName ?? '팀 클라우드';
-          _moveItems(_selectedItemIds.toList(), folderName);
-        },
-        onDownloadPressed: () {
-          if (data != null) _downloadItems(_selectedItemIds.toList(), data);
-        },
-        onConfirmPressed: () => _setSelectionMode(false),
-      ),
+      floatingActionButton: _isSelectionMode
+          ? SelectFloatButton(
+              isVisible: true,
+              isEnabled: _hasSelectedItems,
+              isDeleteEnabled: _hasSelectedItems && allOwned,
+              isMoveEnabled: _hasSelectedItems && allOwned,
+              isDownloadEnabled: _hasSelectedItems &&
+                  !download.isDownloading &&
+                  (data?.items
+                          .where(
+                            (item) => _selectedItemIds.contains(item.itemId),
+                          )
+                          .every(
+                            (item) => item.linkUrl?.trim().isEmpty ?? true,
+                          ) ??
+                      false),
+              onDeletePressed: () => _deleteItems(_selectedItemIds.toList()),
+              onMovePressed: () {
+                final folderName = data?.currentFolderName ?? '팀 클라우드';
+                _moveItems(_selectedItemIds.toList(), folderName);
+              },
+              onDownloadPressed: () {
+                if (data != null) {
+                  _downloadItems(_selectedItemIds.toList(), data);
+                }
+              },
+              onConfirmPressed: () => _setSelectionMode(false),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (mutation.isLoading) const LinearProgressIndicator(minHeight: 2),
+            if (download.isDownloading)
+              LinearProgressIndicator(
+                minHeight: 2,
+                value: download.overallProgress,
+              ),
             Expanded(
               child: cloudList.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -487,7 +550,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
           label: '저장 용량',
           onPressed: () {
             ref.invalidate(cloudStorageProvider);
-            showCloudStorageBottomSheet(context: context);
+            showCloudStorageApiBottomSheet(context: context);
           },
         ),
       ],

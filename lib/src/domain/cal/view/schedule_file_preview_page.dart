@@ -1,84 +1,121 @@
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_audio_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_image_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_other_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
-import 'package:beatit_front_app/src/domain/etc/view/picture_preview_page.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+/// 일정 첨부 파일도 Cloud Preview UI를 그대로 재사용한다.
+///
+/// 일정에서는 Cloud의 관리 기능(삭제/이동/폴더 관리)이 필요하지 않으므로
+/// 해당 callback을 전달하지 않는다. 파일 종류에 따라 새로운 Preview Page를
+/// 만들지 않고 기존 Clouㅏd Preview 중 하나로만 분기한다.
 class ScheduleFilePreviewPage extends StatelessWidget {
   const ScheduleFilePreviewPage({
     super.key,
     required this.fileName,
     required this.source,
     this.fileSize,
+    this.contextTitle,
   });
 
   final String fileName;
   final String source;
   final String? fileSize;
 
+  /// Cloud에서는 folderName으로 사용하는 위치다.
+  /// 일정에서는 일정 제목을 전달하고, 없으면 빈 문자열로 사용한다.
+  final String? contextTitle;
+
   @override
   Widget build(BuildContext context) {
-    final extension = _extension(fileName);
-
-    if (_imageExtensions.contains(extension)) {
-      return PicturePreviewPage(imageUrls: [source]);
-    }
-
     final previewUri = _toUri(source);
-    if (previewUri == null) {
-      return _UnsupportedScheduleFilePreview(fileName: fileName);
-    }
+    final previewType = _previewType(fileName);
 
     final item = CloudFilePreviewItem(
       name: fileName,
       uploadedAt: '',
       uploaderName: '',
-      type: _cloudType(extension),
+      type: previewType,
       iconPath: 'assets/icons/cloud/file.svg',
       previewUri: previewUri,
       sizeLabel: fileSize,
     );
 
-    if (_audioExtensions.contains(extension)) {
-      return CloudAudioPreview(
-        folderName: '일정 파일',
-        files: [item],
-        onDeletePressed: (_) => _showUnavailable(context),
-        onMovePressed: (_) => _showUnavailable(context),
-        onDownloadPressed: (_) => _showUnavailable(context),
-      );
-    }
+    final title = contextTitle?.trim() ?? '';
+    final files = <CloudFilePreviewItem>[item];
 
-    if (_videoExtensions.contains(extension)) {
-      return CloudVideoPreview(
-        folderName: '일정 파일',
-        files: [item],
-        onDeletePressed: (_) => _showUnavailable(context),
-        onMovePressed: (_) => _showUnavailable(context),
-        onDownloadPressed: (_) => _showUnavailable(context),
-      );
-    }
+    switch (previewType) {
+      case CloudPreviewFileType.image:
+        return CloudImagePreview(
+          folderName: title,
+          files: files,
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
 
-    if (extension == 'pdf') {
-      return CloudFilePreview(
-        folderName: '일정 파일',
-        files: [item],
-        onDeletePressed: (_) => _showUnavailable(context),
-        onMovePressed: (_) => _showUnavailable(context),
-        onDownloadPressed: (_) => _showUnavailable(context),
-      );
-    }
+      case CloudPreviewFileType.audio:
+        return CloudAudioPreview(
+          folderName: title,
+          files: files,
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
 
-    return _UnsupportedScheduleFilePreview(fileName: fileName);
+      case CloudPreviewFileType.video:
+        return CloudVideoPreview(
+          folderName: title,
+          files: files,
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
+
+      case CloudPreviewFileType.document:
+        return CloudFilePreview(
+          folderName: title,
+          files: files,
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
+
+      case CloudPreviewFileType.other:
+        return CloudOtherFilePreview(
+          folderName: title,
+          files: files,
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
+
+      case CloudPreviewFileType.link:
+        // 일정 첨부 파일에는 링크 타입이 없으므로 현재 분기에서는 사용하지 않는다.
+        // 확장자가 없는 파일도 other로 처리한다.
+        return CloudOtherFilePreview(
+          folderName: title,
+          files: [item.copyWithType(CloudPreviewFileType.other)],
+          canManage: false,
+          onOpenExternalPressed: previewUri == null
+              ? null
+              : (_) => _openExternal(context, previewUri),
+        );
+    }
   }
 
   Uri? _toUri(String source) {
-    if (source.trim().isEmpty) {
-      return null;
-    }
+    final trimmed = source.trim();
+    if (trimmed.isEmpty) return null;
 
-    final parsed = Uri.tryParse(source);
+    final parsed = Uri.tryParse(trimmed);
     if (parsed != null &&
         (parsed.scheme == 'http' ||
             parsed.scheme == 'https' ||
@@ -86,17 +123,25 @@ class ScheduleFilePreviewPage extends StatelessWidget {
       return parsed;
     }
 
-    return Uri.file(source);
+    return Uri.file(trimmed);
   }
 
-  CloudPreviewFileType _cloudType(String extension) {
+  CloudPreviewFileType _previewType(String name) {
+    final extension = _extension(name);
+
+    if (_imageExtensions.contains(extension)) {
+      return CloudPreviewFileType.image;
+    }
     if (_audioExtensions.contains(extension)) {
       return CloudPreviewFileType.audio;
     }
     if (_videoExtensions.contains(extension)) {
       return CloudPreviewFileType.video;
     }
-    return CloudPreviewFileType.document;
+    if (extension == 'pdf') {
+      return CloudPreviewFileType.document;
+    }
+    return CloudPreviewFileType.other;
   }
 
   String _extension(String name) {
@@ -107,10 +152,23 @@ class ScheduleFilePreviewPage extends StatelessWidget {
     return name.substring(index + 1).toLowerCase();
   }
 
-  void _showUnavailable(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('일정 첨부 파일에서는 해당 기능을 지원하지 않습니다.')),
-    );
+  Future<void> _openExternal(BuildContext context, Uri uri) async {
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        _showOpenError(context);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showOpenError(context);
+      }
+    }
+  }
+
+  void _showOpenError(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('파일을 열 수 없습니다. 다시 시도해주세요.')));
   }
 
   static const Set<String> _imageExtensions = {
@@ -142,21 +200,18 @@ class ScheduleFilePreviewPage extends StatelessWidget {
   };
 }
 
-class _UnsupportedScheduleFilePreview extends StatelessWidget {
-  const _UnsupportedScheduleFilePreview({required this.fileName});
-
-  final String fileName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppTopAppBar.backTitle(
-        title: fileName,
-        onBackPressed: () => Navigator.of(context).maybePop(),
-      ),
-      body: const Center(
-        child: Text('이 파일 형식은 앱에서 미리보기를 지원하지 않습니다.'),
-      ),
+extension on CloudFilePreviewItem {
+  CloudFilePreviewItem copyWithType(CloudPreviewFileType type) {
+    return CloudFilePreviewItem(
+      itemId: itemId,
+      name: name,
+      uploadedAt: uploadedAt,
+      uploaderName: uploaderName,
+      type: type,
+      iconPath: iconPath,
+      previewUri: previewUri,
+      sizeLabel: sizeLabel,
+      mimeType: mimeType,
     );
   }
 }

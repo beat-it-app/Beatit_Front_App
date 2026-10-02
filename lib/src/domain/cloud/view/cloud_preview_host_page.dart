@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_permission_provider.dart';
@@ -119,6 +120,58 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
   bool _isOwnedByCurrentUser(CloudItem item, String? currentUserName) {
     if (currentUserName == null || currentUserName.trim().isEmpty) return false;
     return item.uploaderName.trim() == currentUserName.trim();
+  }
+
+  Future<void> _downloadFile(CloudFilePreviewItem file) async {
+    if (ref.read(cloudDownloadProvider).isDownloading) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다른 파일을 다운로드하고 있습니다.')),
+      );
+      return;
+    }
+
+    final itemId = file.itemId;
+    if (itemId == null || file.type == CloudPreviewFileType.link) {
+      return;
+    }
+
+    CloudFileDetail detail;
+    try {
+      detail = await ref.read(cloudFileDetailProvider(itemId).future);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다운로드 정보를 불러오지 못했습니다.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${detail.itemName} 다운로드를 시작합니다.')),
+    );
+
+    final success = await ref.read(cloudDownloadProvider.notifier).downloadFiles([
+      CloudDownloadRequest(
+        itemId: detail.itemId,
+        fileName: detail.itemName,
+        fileUrl: detail.fileUrl,
+        mimeType: detail.mimeType,
+      ),
+    ]);
+    if (!mounted) return;
+
+    final state = ref.read(cloudDownloadProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Downloads 폴더에 저장했습니다.'
+              : state.errorMessage ?? '파일 다운로드에 실패했습니다.',
+        ),
+      ),
+    );
   }
 
   Future<void> _openExternally(CloudFilePreviewItem file) async {
@@ -272,7 +325,7 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
     }
 
     void downloadPressed(CloudFilePreviewItem file) {
-      unawaited(_openExternally(file));
+      unawaited(_downloadFile(file));
     }
 
     void movePressed(CloudFilePreviewItem file) {
@@ -288,6 +341,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         onDeletePressed: deletePressed,
         onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        onOpenExternalPressed: (file) {
+          unawaited(_openExternally(file));
+        },
         canManage: canManage,
         onFileSelected: _selectFile,
       ),
@@ -299,6 +355,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         onDeletePressed: deletePressed,
         onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        onOpenExternalPressed: (file) {
+          unawaited(_openExternally(file));
+        },
         canManage: canManage,
         onFileSelected: _selectFile,
       ),
@@ -310,6 +369,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         onDeletePressed: deletePressed,
         onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        onOpenExternalPressed: (file) {
+          unawaited(_openExternally(file));
+        },
         canManage: canManage,
         onFileSelected: _selectFile,
       ),
@@ -321,7 +383,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         onDeletePressed: deletePressed,
         onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
-        onOpenExternalPressed: downloadPressed,
+        onOpenExternalPressed: (file) {
+          unawaited(_openExternally(file));
+        },
         canManage: canManage,
         onFileSelected: _selectFile,
       ),
@@ -333,7 +397,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         onDeletePressed: deletePressed,
         onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
-        onOpenExternalPressed: downloadPressed,
+        onOpenExternalPressed: (file) {
+          unawaited(_openExternally(file));
+        },
         canManage: canManage,
         onFileSelected: _selectFile,
       ),

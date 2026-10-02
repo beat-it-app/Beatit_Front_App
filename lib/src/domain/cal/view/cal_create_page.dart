@@ -667,6 +667,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           fileName: fileName,
           source: source,
           fileSize: fileSize,
+          contextTitle: _titleController.text.trim().isEmpty
+              ? null
+              : _titleController.text.trim(),
         ),
       ),
     );

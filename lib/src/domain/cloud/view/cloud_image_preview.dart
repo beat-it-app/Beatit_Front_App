@@ -14,12 +14,12 @@ import 'package:flutter/material.dart';
 class CloudImagePreview extends StatefulWidget {
   const CloudImagePreview({
     super.key,
-    required this.folderName,
+    this.folderName = '',
     required this.files,
-    required this.onDeletePressed,
-    required this.onMovePressed,
-    required this.onDownloadPressed,
-    required this.onOpenExternalPressed,
+    this.onDeletePressed,
+    this.onMovePressed,
+    this.onDownloadPressed,
+    this.onOpenExternalPressed,
     this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
@@ -30,10 +30,10 @@ class CloudImagePreview extends StatefulWidget {
   final List<CloudFilePreviewItem> files;
   final int initialIndex;
   final Map<String, String>? requestHeaders;
-  final ValueChanged<CloudFilePreviewItem> onDeletePressed;
-  final ValueChanged<CloudFilePreviewItem> onMovePressed;
-  final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
-  final ValueChanged<CloudFilePreviewItem> onOpenExternalPressed;
+  final ValueChanged<CloudFilePreviewItem>? onDeletePressed;
+  final ValueChanged<CloudFilePreviewItem>? onMovePressed;
+  final ValueChanged<CloudFilePreviewItem>? onDownloadPressed;
+  final ValueChanged<CloudFilePreviewItem>? onOpenExternalPressed;
   final bool canManage;
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
 
@@ -54,6 +54,8 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
   }
 
   Future<void> _showFileList() async {
+    if (widget.files.length <= 1) return;
+
     final selectedIndex = await showCloudPreviewFileListBottomSheet(
       context: context,
       folderName: widget.folderName,
@@ -148,10 +150,11 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
               style: FontStyles.med14.copyWith(color: context.grays.gray4),
             ),
             const SizedBox(height: AppSpacing.x16),
-            TextButton(
-              onPressed: () => widget.onOpenExternalPressed(_currentFile),
-              child: const Text('외부 앱에서 열기'),
-            ),
+            if (widget.onOpenExternalPressed != null)
+              TextButton(
+                onPressed: () => widget.onOpenExternalPressed?.call(_currentFile),
+                child: const Text('외부 앱에서 열기'),
+              ),
           ],
         ),
       ),
@@ -160,30 +163,39 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
 
   @override
   Widget build(BuildContext context) {
+    final showDelete = widget.canManage && widget.onDeletePressed != null;
+    final showMove = widget.canManage && widget.onMovePressed != null;
+    final showDownload = widget.onDownloadPressed != null;
+    final showActions = showDelete || showMove || showDownload;
+
     return Scaffold(
       backgroundColor: context.grays.white,
       appBar: CloudFileAppbar(
         titleText: _currentFile.name,
-        onLeadingPressed: _showFileList,
-        onTitlePressed: _showFileList,
+        onLeadingPressed: widget.files.length > 1 ? _showFileList : null,
+        onTitlePressed: widget.files.length > 1 ? _showFileList : null,
       ),
       body: CloudPreviewBackground(
         child: Stack(
           fit: StackFit.expand,
           children: [
             _buildImage(),
-            Positioned(
-              left: AppSpacing.x16,
-              bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
-              child: CloudSelectionFloatingBar(
-                isEnabled: true,
-                showDelete: widget.canManage,
-                showMove: widget.canManage,
-                onDeletePressed: () => widget.onDeletePressed(_currentFile),
-                onMovePressed: () => widget.onMovePressed(_currentFile),
-                onDownloadPressed: () => widget.onDownloadPressed(_currentFile),
+            if (showActions)
+              Positioned(
+                left: AppSpacing.x16,
+                bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
+                child: CloudSelectionFloatingBar(
+                  isEnabled: true,
+                  showDelete: showDelete,
+                  showMove: showMove,
+                  showDownload: showDownload,
+                  onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+                  onMovePressed: () => widget.onMovePressed?.call(_currentFile),
+                  onDownloadPressed: showDownload
+                      ? () => widget.onDownloadPressed?.call(_currentFile)
+                      : null,
+                ),
               ),
-            ),
           ],
         ),
       ),

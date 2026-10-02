@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -23,11 +24,12 @@ enum _VideoRepeatMode { off, whole, selection }
 class CloudVideoPreview extends StatefulWidget {
   const CloudVideoPreview({
     super.key,
-    required this.folderName,
+    this.folderName = '',
     required this.files,
-    required this.onDeletePressed,
-    required this.onMovePressed,
-    required this.onDownloadPressed,
+    this.onDeletePressed,
+    this.onMovePressed,
+    this.onDownloadPressed,
+    this.onOpenExternalPressed,
     this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
@@ -43,9 +45,10 @@ class CloudVideoPreview extends StatefulWidget {
   final int initialIndex;
   final Map<String, String>? requestHeaders;
 
-  final ValueChanged<CloudFilePreviewItem> onDeletePressed;
-  final ValueChanged<CloudFilePreviewItem> onMovePressed;
-  final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
+  final ValueChanged<CloudFilePreviewItem>? onDeletePressed;
+  final ValueChanged<CloudFilePreviewItem>? onMovePressed;
+  final ValueChanged<CloudFilePreviewItem>? onDownloadPressed;
+  final ValueChanged<CloudFilePreviewItem>? onOpenExternalPressed;
   final bool canManage;
 
   /// 영상 외 파일을 선택했을 때 해당 Preview로 전환시키는 진입점이다.
@@ -79,6 +82,8 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
   }
 
   Future<void> _showFileList() async {
+    if (widget.files.length <= 1) return;
+
     final selectedIndex = await showCloudPreviewFileListBottomSheet(
       context: context,
       folderName: widget.folderName,
@@ -146,10 +151,12 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(
-      previewUri,
-      httpHeaders: widget.requestHeaders ?? const <String, String>{},
-    );
+    final controller = previewUri.scheme == 'file'
+        ? VideoPlayerController.file(File.fromUri(previewUri))
+        : VideoPlayerController.networkUrl(
+            previewUri,
+            httpHeaders: widget.requestHeaders ?? const <String, String>{},
+          );
 
     try {
       await controller.initialize();
@@ -185,14 +192,18 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
       case _VideoPreviewLoadState.error:
         return _VideoPreviewErrorView(
           onRetry: _initializeVideo,
-          onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+          onOpenExternal: widget.onOpenExternalPressed == null
+            ? null
+            : () => widget.onOpenExternalPressed!(_currentFile),
         );
       case _VideoPreviewLoadState.ready:
         final controller = _controller;
         if (controller == null || !controller.value.isInitialized) {
           return _VideoPreviewErrorView(
             onRetry: _initializeVideo,
-            onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+            onOpenExternal: widget.onOpenExternalPressed == null
+            ? null
+            : () => widget.onOpenExternalPressed!(_currentFile),
           );
         }
 
@@ -210,13 +221,17 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
   @override
   Widget build(BuildContext context) {
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
+    final showDelete = widget.canManage && widget.onDeletePressed != null;
+    final showMove = widget.canManage && widget.onMovePressed != null;
+    final showDownload = widget.onDownloadPressed != null;
+    final showActions = showDelete || showMove || showDownload;
 
     return Scaffold(
       backgroundColor: context.grays.white,
       appBar: CloudFileAppbar(
         titleText: _currentFile.name,
-        onLeadingPressed: _showFileList,
-        onTitlePressed: _showFileList,
+        onLeadingPressed: widget.files.length > 1 ? _showFileList : null,
+        onTitlePressed: widget.files.length > 1 ? _showFileList : null,
       ),
       body: CloudPreviewBackground(
         child: Stack(
@@ -227,28 +242,26 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
                 0,
                 AppSpacing.x24,
                 0,
-                98.0 + bottomSafeArea,
+                showActions ? 98.0 + bottomSafeArea : AppSpacing.x24,
               ),
               child: _buildPreviewContent(),
             ),
-            Positioned(
-              left: AppSpacing.x16,
-              bottom: AppSpacing.x16 + bottomSafeArea,
-              child: CloudSelectionFloatingBar(
-                isEnabled: true,
-                showDelete: widget.canManage,
-                showMove: widget.canManage,
-                onDeletePressed: () {
-                  widget.onDeletePressed(_currentFile);
-                },
-                onMovePressed: () {
-                  widget.onMovePressed(_currentFile);
-                },
-                onDownloadPressed: () {
-                  widget.onDownloadPressed(_currentFile);
-                },
+            if (showActions)
+              Positioned(
+                left: AppSpacing.x16,
+                bottom: AppSpacing.x16 + bottomSafeArea,
+                child: CloudSelectionFloatingBar(
+                  isEnabled: true,
+                  showDelete: showDelete,
+                  showMove: showMove,
+                  showDownload: showDownload,
+                  onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+                  onMovePressed: () => widget.onMovePressed?.call(_currentFile),
+                  onDownloadPressed: showDownload
+                      ? () => widget.onDownloadPressed?.call(_currentFile)
+                      : null,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -643,11 +656,11 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
 class _VideoPreviewErrorView extends StatelessWidget {
   const _VideoPreviewErrorView({
     required this.onRetry,
-    required this.onOpenExternal,
+    this.onOpenExternal,
   });
 
   final Future<void> Function() onRetry;
-  final VoidCallback onOpenExternal;
+  final VoidCallback? onOpenExternal;
 
   @override
   Widget build(BuildContext context) {
@@ -682,10 +695,11 @@ class _VideoPreviewErrorView extends StatelessWidget {
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: onOpenExternal,
-                  child: const Text('외부 앱에서 열기'),
-                ),
+                if (onOpenExternal != null)
+                  TextButton(
+                    onPressed: onOpenExternal,
+                    child: const Text('외부 앱에서 열기'),
+                  ),
               ],
             ),
           ],

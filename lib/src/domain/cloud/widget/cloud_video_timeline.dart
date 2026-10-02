@@ -180,9 +180,15 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
       try {
         Uint8List? thumbnailData = _memoryThumbnailCache[cacheKey];
 
+        final thumbnailSource = widget.videoUri.scheme == 'file'
+            ? widget.videoUri.toFilePath()
+            : widget.videoUri.toString();
+
         thumbnailData ??= await VideoThumbnail.thumbnailData(
-          video: widget.videoUri.toString(),
-          headers: widget.requestHeaders,
+          video: thumbnailSource,
+          headers: widget.videoUri.scheme == 'file'
+              ? null
+              : widget.requestHeaders,
           imageFormat: ImageFormat.JPEG,
           maxWidth: 180,
           timeMs: sampleMs,

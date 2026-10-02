@@ -21,10 +21,10 @@ enum _LinkPreviewLoadState { loading, ready, error }
 class CloudLinkPreview extends StatefulWidget {
   const CloudLinkPreview({
     super.key,
-    required this.folderName,
+    this.folderName = '',
     required this.files,
-    required this.onDeletePressed,
-    required this.onMovePressed,
+    this.onDeletePressed,
+    this.onMovePressed,
     this.canManage = true,
     this.initialIndex = 0,
     this.onFileSelected,
@@ -38,8 +38,8 @@ class CloudLinkPreview extends StatefulWidget {
   final List<CloudFilePreviewItem> files;
   final int initialIndex;
 
-  final ValueChanged<CloudFilePreviewItem> onDeletePressed;
-  final ValueChanged<CloudFilePreviewItem> onMovePressed;
+  final ValueChanged<CloudFilePreviewItem>? onDeletePressed;
+  final ValueChanged<CloudFilePreviewItem>? onMovePressed;
   final bool canManage;
 
   /// 링크 외 파일을 선택했을 때 해당 형식의 Preview 화면으로 이동시키는 진입점이다.
@@ -75,6 +75,8 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
   }
 
   Future<void> _showFileList() async {
+    if (widget.files.length <= 1) return;
+
     final selectedIndex = await showCloudPreviewFileListBottomSheet(
       context: context,
       folderName: widget.folderName,
@@ -316,32 +318,33 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
   @override
   Widget build(BuildContext context) {
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
+    final showDelete = widget.canManage && widget.onDeletePressed != null;
+    final showMove = widget.canManage && widget.onMovePressed != null;
+    final showManageActions = showDelete || showMove;
 
     return Scaffold(
       backgroundColor: context.grays.white,
       appBar: CloudFileAppbar(
         titleText: _currentFile.name,
-        onLeadingPressed: _showFileList,
-        onTitlePressed: _showFileList,
+        onLeadingPressed: widget.files.length > 1 ? _showFileList : null,
+        onTitlePressed: widget.files.length > 1 ? _showFileList : null,
       ),
       body: CloudPreviewBackground(
         child: Stack(
           fit: StackFit.expand,
           children: [
             _buildPreviewContent(),
-            if (widget.canManage)
+            if (showManageActions)
               Positioned(
                 left: AppSpacing.x16,
                 bottom: AppSpacing.x16 + bottomSafeArea,
                 child: CloudSelectionFloatingBar(
                   isEnabled: true,
+                  showDelete: showDelete,
+                  showMove: showMove,
                   showDownload: false,
-                  onDeletePressed: () {
-                    widget.onDeletePressed(_currentFile);
-                  },
-                  onMovePressed: () {
-                    widget.onMovePressed(_currentFile);
-                  },
+                  onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+                  onMovePressed: () => widget.onMovePressed?.call(_currentFile),
                 ),
               ),
             Positioned(
