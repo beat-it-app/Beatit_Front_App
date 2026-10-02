@@ -7,19 +7,30 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_permission_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_storage_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_move_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_preview_host_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_upload_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_folder_name_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CloudFolderPage extends ConsumerStatefulWidget {
-  const CloudFolderPage({super.key, required this.folderId});
+  const CloudFolderPage({
+    super.key,
+    required this.folderId,
+    this.creatorName,
+  });
 
   final int folderId;
+  final String? creatorName;
 
   @override
   ConsumerState<CloudFolderPage> createState() => _CloudFolderPageState();
@@ -57,16 +68,30 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     setState(() => _selectedItemId = itemId);
   }
 
+  bool _isMine(String writerName, String? currentUserName) {
+    if (currentUserName == null || currentUserName.trim().isEmpty) return false;
+    return writerName.trim() == currentUserName.trim();
+  }
+
+  bool _allSelectedAreMine(CloudListData? data, String? currentUserName) {
+    if (!_hasSelectedItems || data == null || currentUserName == null) {
+      return false;
+    }
+    return data.items
+        .where((item) => _selectedItemIds.contains(item.itemId))
+        .every((item) => _isMine(item.uploaderName, currentUserName));
+  }
+
   Future<void> _uploadFile() async {
     final selection = await showCloudFileUploadBottomSheet(context: context);
     if (!mounted || selection == null) return;
 
     final success = await ref.read(cloudMutationProvider.notifier).uploadFile(
-          folderId: widget.folderId,
-          filePath: selection.path,
-          fileName: selection.name,
-          fileSize: selection.size,
-        );
+      folderId: widget.folderId,
+      filePath: selection.path,
+      fileName: selection.name,
+      fileSize: selection.size,
+    );
     if (!mounted) return;
     _showMutationResult(success, successMessage: '파일을 등록했습니다.');
   }
@@ -76,10 +101,10 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     if (!mounted || result == null) return;
 
     final success = await ref.read(cloudMutationProvider.notifier).createLink(
-          folderId: widget.folderId,
-          itemName: result.title,
-          linkUrl: result.url,
-        );
+      folderId: widget.folderId,
+      itemName: result.title,
+      linkUrl: result.url,
+    );
     if (!mounted) return;
     _showMutationResult(success, successMessage: '링크를 등록했습니다.');
   }
@@ -91,10 +116,9 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     );
     if (!mounted || name == null || name == currentName) return;
 
-    final success = await ref.read(cloudMutationProvider.notifier).renameFolder(
-          folderId: widget.folderId,
-          folderName: name,
-        );
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .renameFolder(folderId: widget.folderId, folderName: name);
     if (!mounted) return;
     _showMutationResult(success, successMessage: '폴더 이름을 수정했습니다.');
   }
@@ -140,19 +164,69 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     if (!mounted || confirmed != true) return;
 
     final success = await ref.read(cloudMutationProvider.notifier).deleteItems(
-          itemIds: itemIds,
-          currentFolderId: widget.folderId,
-        );
+      itemIds: itemIds,
+      currentFolderId: widget.folderId,
+    );
     if (!mounted) return;
 
     if (success) {
-      setState(() {
-        _selectedItemId = null;
-        _selectedItemIds.clear();
-        _isSelectionMode = false;
-      });
+      _setSelectionMode(false);
     }
     _showMutationResult(success, successMessage: '삭제했습니다.');
+  }
+
+  Future<void> _moveItems(
+    List<int> itemIds,
+    String folderName, {
+    String? displayName,
+  }) async {
+    if (itemIds.isEmpty) return;
+    final moved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => CloudMovePage(
+          itemIds: itemIds,
+          currentFolderId: widget.folderId,
+          currentFolderName: folderName,
+          displayName: displayName,
+        ),
+      ),
+    );
+    if (!mounted || moved != true) return;
+    _setSelectionMode(false);
+    _showMutationResult(true, successMessage: '파일을 이동했습니다.');
+  }
+
+  Future<void> _downloadItems(List<int> itemIds, CloudListData data) async {
+    if (itemIds.isEmpty) return;
+
+    for (final itemId in itemIds) {
+      CloudItem? item;
+      for (final candidate in data.items) {
+        if (candidate.itemId == itemId) {
+          item = candidate;
+          break;
+        }
+      }
+      if (item == null) continue;
+
+      Uri? uri;
+      if (item.linkUrl?.trim().isNotEmpty == true) {
+        uri = Uri.tryParse(item.linkUrl!);
+      } else {
+        try {
+          final detail = await ref.read(cloudFileDetailProvider(itemId).future);
+          uri = Uri.tryParse(detail.fileUrl);
+        } catch (_) {
+          uri = null;
+        }
+      }
+      if (uri == null) continue;
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // 한 항목 실패가 나머지 다운로드를 막지 않게 한다.
+      }
+    }
   }
 
   void _showMutationResult(bool success, {required String successMessage}) {
@@ -176,6 +250,11 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   Widget build(BuildContext context) {
     final cloudList = ref.watch(cloudListProvider(widget.folderId));
     final mutation = ref.watch(cloudMutationProvider);
+    final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
+    final data = cloudList.asData?.value;
+    final allOwned = _allSelectedAreMine(data, currentUserName);
+    final folderOwned = widget.creatorName != null &&
+        _isMine(widget.creatorName!, currentUserName);
 
     return Scaffold(
       appBar: AppTwoAppBar(
@@ -192,9 +271,17 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       floatingActionButton: SelectFloatButton(
         isVisible: _isSelectionMode,
         isEnabled: _hasSelectedItems,
+        isDeleteEnabled: _hasSelectedItems && allOwned,
+        isMoveEnabled: _hasSelectedItems && allOwned,
+        isDownloadEnabled: _hasSelectedItems,
         onDeletePressed: () => _deleteItems(_selectedItemIds.toList()),
-        onMovePressed: () => _showScopeNotice('파일 이동은 다음 연동 범위에서 연결합니다.'),
-        onDownloadPressed: () => _showScopeNotice('다중 다운로드는 다음 연동 범위에서 연결합니다.'),
+        onMovePressed: () {
+          final folderName = data?.currentFolderName ?? '팀 클라우드';
+          _moveItems(_selectedItemIds.toList(), folderName);
+        },
+        onDownloadPressed: () {
+          if (data != null) _downloadItems(_selectedItemIds.toList(), data);
+        },
         onConfirmPressed: () => _setSelectionMode(false),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
@@ -208,10 +295,13 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => _CloudFolderErrorView(
                   message: error.toString(),
-                  onRetry: () =>
-                      ref.invalidate(cloudListProvider(widget.folderId)),
+                  onRetry: () => ref.invalidate(cloudListProvider(widget.folderId)),
                 ),
-                data: _buildFolderContent,
+                data: (cloudData) => _buildFolderContent(
+                  cloudData,
+                  currentUserName: currentUserName,
+                  folderOwned: folderOwned,
+                ),
               ),
             ),
           ],
@@ -220,7 +310,11 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     );
   }
 
-  Widget _buildFolderContent(CloudListData data) {
+  Widget _buildFolderContent(
+    CloudListData data, {
+    required String? currentUserName,
+    required bool folderOwned,
+  }) {
     final folderName = data.currentFolderName ?? '팀 클라우드';
 
     return Column(
@@ -252,7 +346,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.x8),
-                  _buildHeaderMenu(folderName),
+                  _buildHeaderMenu(folderName, folderOwned: folderOwned),
                 ],
               ),
               Text(
@@ -268,7 +362,12 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
               : ListView.separated(
                   padding: EdgeInsets.zero,
                   itemCount: data.items.length,
-                  itemBuilder: (_, index) => _buildItem(data.items[index]),
+                  itemBuilder: (_, index) => _buildItem(
+                    data.items[index],
+                    allItems: data.items,
+                    folderName: folderName,
+                    currentUserName: currentUserName,
+                  ),
                   separatorBuilder: (_, __) => _buildDivider(),
                 ),
         ),
@@ -276,7 +375,12 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     );
   }
 
-  Widget _buildItem(CloudItem item) {
+  Widget _buildItem(
+    CloudItem item, {
+    required List<CloudItem> allItems,
+    required String folderName,
+    required String? currentUserName,
+  }) {
     final selected = _isSelectionMode
         ? _selectedItemIds.contains(item.itemId)
         : _selectedItemId == item.itemId;
@@ -290,7 +394,11 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       uploaderName: item.uploaderName,
       isSelectionMode: _isSelectionMode,
       isSelected: selected,
-      menuItems: _menuItemsFor(item),
+      menuItems: _menuItemsFor(
+        item,
+        currentUserName: currentUserName,
+        folderName: folderName,
+      ),
       onMenuTap: () => _selectItem(item.itemId),
       onTap: () {
         if (_isSelectionMode) {
@@ -298,29 +406,52 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
           return;
         }
         _selectItem(item.itemId);
-        _showScopeNotice('파일 미리보기는 다음 연동 범위에서 연결합니다.');
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CloudPreviewHostPage(
+              folderName: folderName,
+              folderId: widget.folderId,
+              items: allItems,
+              initialItemId: item.itemId,
+            ),
+          ),
+        );
       },
     );
   }
 
-  List<AppDropdownItem> _menuItemsFor(CloudItem item) {
+  List<AppDropdownItem> _menuItemsFor(
+    CloudItem item, {
+    required String? currentUserName,
+    required String folderName,
+  }) {
     final type = _itemType(item);
+    final isMine = _isMine(item.uploaderName, currentUserName);
     final items = <AppDropdownItem>[
       AppDropdownItem(label: '이름 수정하기', onPressed: _showUnsupportedRename),
+      AppDropdownItem(
+        label: '이동하기',
+        enabled: isMine,
+        onPressed: () => _moveItems(
+          [item.itemId],
+          folderName,
+          displayName: item.itemName,
+        ),
+      ),
     ];
 
     if (type == CloudItemType.link) {
       items.add(
-        AppDropdownItem(
-          label: '링크 수정하기',
-          onPressed: _showUnsupportedRename,
-        ),
+        AppDropdownItem(label: '링크 수정하기', onPressed: _showUnsupportedRename),
       );
     } else {
       items.add(
         AppDropdownItem(
           label: '${_downloadLabel(type)} 다운로드하기',
-          onPressed: () => _showScopeNotice('다운로드는 다음 연동 범위에서 연결합니다.'),
+          onPressed: () {
+            final data = ref.read(cloudListProvider(widget.folderId)).asData?.value;
+            if (data != null) _downloadItems([item.itemId], data);
+          },
         ),
       );
     }
@@ -328,13 +459,14 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     items.add(
       AppDropdownItem(
         label: '삭제하기',
+        enabled: isMine,
         onPressed: () => _deleteItems([item.itemId]),
       ),
     );
     return items;
   }
 
-  Widget _buildHeaderMenu(String folderName) {
+  Widget _buildHeaderMenu(String folderName, {required bool folderOwned}) {
     return AppDropdownList(
       items: [
         AppDropdownItem(
@@ -343,12 +475,20 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
         ),
         AppDropdownItem(
           label: '폴더 이름 수정하기',
+          enabled: folderOwned,
           onPressed: () => _renameFolder(folderName),
         ),
-        AppDropdownItem(label: '폴더 삭제하기', onPressed: _deleteFolder),
+        AppDropdownItem(
+          label: '폴더 삭제하기',
+          enabled: folderOwned,
+          onPressed: _deleteFolder,
+        ),
         AppDropdownItem(
           label: '저장 용량',
-          onPressed: () => _showScopeNotice('저장 용량은 다음 연동 범위에서 연결합니다.'),
+          onPressed: () {
+            ref.invalidate(cloudStorageProvider);
+            showCloudStorageBottomSheet(context: context);
+          },
         ),
       ],
       width: 180.0,
@@ -357,7 +497,8 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       alignment: AppDropdownAlignment.right,
       alignmentOffset: const Offset(-4, 48),
       triggerBuilder: (context, controller) => _CloudHeaderMoreButton(
-        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
       ),
     );
   }
@@ -369,10 +510,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       thickness: 1,
       indent: AppSpacing.x30,
       endIndent: AppSpacing.x16,
-      color: Color.alphaBlend(
-        colors.onSurface.withAlpha(18),
-        colors.surface,
-      ),
+      color: Color.alphaBlend(colors.onSurface.withAlpha(18), colors.surface),
     );
   }
 
@@ -407,10 +545,6 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   String _formatDate(DateTime date) {
     final local = date.toLocal();
     return '${local.year}. ${local.month.toString().padLeft(2, '0')}. ${local.day.toString().padLeft(2, '0')}';
-  }
-
-  void _showScopeNotice(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -469,13 +603,14 @@ class _CloudFolderEmptyView extends StatelessWidget {
         children: [
           Text(
             '폴더가 비었습니다.',
-            style: FontStyles.med16.copyWith(color: context.grays.black),
+            style: FontStyles.bold22.copyWith(color: context.grays.black),
           ),
           const SizedBox(height: AppSpacing.x8),
           Text(
             '+ 버튼을 눌러 파일을 등록해보세요.',
-            style: FontStyles.med14.copyWith(color: context.grays.gray5),
+            style: FontStyles.med16.copyWith(color: context.grays.gray5),
           ),
+          const SizedBox(height: 110.0),
         ],
       ),
     );

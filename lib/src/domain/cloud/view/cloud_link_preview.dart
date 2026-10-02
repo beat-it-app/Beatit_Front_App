@@ -12,6 +12,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart'
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:metadata_fetch/metadata_fetch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,6 +25,7 @@ class CloudLinkPreview extends StatefulWidget {
     required this.files,
     required this.onDeletePressed,
     required this.onMovePressed,
+    this.canManage = true,
     this.initialIndex = 0,
     this.onFileSelected,
   }) : assert(files.length > 0, 'files에는 하나 이상의 파일이 필요합니다.'),
@@ -38,6 +40,7 @@ class CloudLinkPreview extends StatefulWidget {
 
   final ValueChanged<CloudFilePreviewItem> onDeletePressed;
   final ValueChanged<CloudFilePreviewItem> onMovePressed;
+  final bool canManage;
 
   /// 링크 외 파일을 선택했을 때 해당 형식의 Preview 화면으로 이동시키는 진입점이다.
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
@@ -326,21 +329,68 @@ class _CloudLinkPreviewState extends State<CloudLinkPreview> {
           fit: StackFit.expand,
           children: [
             _buildPreviewContent(),
-            Positioned(
-              left: AppSpacing.x16,
-              bottom: AppSpacing.x16 + bottomSafeArea,
-              child: CloudSelectionFloatingBar(
-                isEnabled: true,
-                showDownload: false,
-                onDeletePressed: () {
-                  widget.onDeletePressed(_currentFile);
-                },
-                onMovePressed: () {
-                  widget.onMovePressed(_currentFile);
-                },
+            if (widget.canManage)
+              Positioned(
+                left: AppSpacing.x16,
+                bottom: AppSpacing.x16 + bottomSafeArea,
+                child: CloudSelectionFloatingBar(
+                  isEnabled: true,
+                  showDownload: false,
+                  onDeletePressed: () {
+                    widget.onDeletePressed(_currentFile);
+                  },
+                  onMovePressed: () {
+                    widget.onMovePressed(_currentFile);
+                  },
+                ),
               ),
+            Positioned(
+              right: AppSpacing.x16,
+              bottom: AppSpacing.x16 + bottomSafeArea,
+              child: _CloudLinkMoveButton(onPressed: _openCurrentLink),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloudLinkMoveButton extends StatelessWidget {
+  const _CloudLinkMoveButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '링크로 이동',
+      child: Material(
+        color: context.grays.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              border: Border.all(color: context.grays.gray7),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/cloud/link_move.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray1,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

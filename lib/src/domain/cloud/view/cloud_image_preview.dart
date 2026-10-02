@@ -20,6 +20,7 @@ class CloudImagePreview extends StatefulWidget {
     required this.onMovePressed,
     required this.onDownloadPressed,
     required this.onOpenExternalPressed,
+    this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -33,6 +34,7 @@ class CloudImagePreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem> onMovePressed;
   final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
   final ValueChanged<CloudFilePreviewItem> onOpenExternalPressed;
+  final bool canManage;
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
 
   @override
@@ -175,6 +177,8 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
               bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
               child: CloudSelectionFloatingBar(
                 isEnabled: true,
+                showDelete: widget.canManage,
+                showMove: widget.canManage,
                 onDeletePressed: () => widget.onDeletePressed(_currentFile),
                 onMovePressed: () => widget.onMovePressed(_currentFile),
                 onDownloadPressed: () => widget.onDownloadPressed(_currentFile),

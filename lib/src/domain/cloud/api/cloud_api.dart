@@ -34,6 +34,69 @@ class CloudApi {
     }
   }
 
+  Future<CloudFileDetailResponse> getFileDetail({
+    required int itemId,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_cloudPath/items/$itemId',
+        options: _cloudRequestOptions(),
+      );
+
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '파일 정보를 불러오지 못했습니다.',
+      );
+      return CloudFileDetailResponse.fromJson(body);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<CloudStorageResponse> getStorage() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_cloudPath/storage',
+        options: _cloudRequestOptions(),
+      );
+
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '저장 용량을 불러오지 못했습니다.',
+      );
+      return CloudStorageResponse.fromJson(body);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  /// 현재 Team Cloud 응답에는 uploaderId/creatorId/isMine이 없어서
+  /// UI 권한 표시에 한해 /mypage의 사용자 이름을 비교한다.
+  /// 동명이인을 완전히 구분하려면 백엔드 응답에 isMine 또는 userId가 필요하다.
+  Future<String> getCurrentUserName() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/mypage',
+        options: _cloudRequestOptions(),
+      );
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '사용자 정보를 불러오지 못했습니다.',
+      );
+      final data = body['data'];
+      if (data is! Map) {
+        throw const CloudApiException(message: '사용자 정보 응답이 올바르지 않습니다.');
+      }
+      final userName = data['userName']?.toString().trim() ?? '';
+      if (userName.isEmpty) {
+        throw const CloudApiException(message: '사용자 이름을 확인할 수 없습니다.');
+      }
+      return userName;
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<int> createFolder({required String folderName}) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -82,6 +145,33 @@ class CloudApi {
       _requireSuccessBody(
         response: response,
         fallbackMessage: '폴더를 삭제하지 못했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<void> moveItems({
+    required List<int> itemIds,
+    int? targetFolderId,
+  }) async {
+    if (itemIds.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '$_cloudPath/items/move',
+        data: CloudItemsMoveRequest(
+          itemIds: itemIds,
+          targetFolderId: targetFolderId,
+        ).toJson(),
+        options: _cloudRequestOptions(),
+      );
+
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '파일을 이동하지 못했습니다.',
       );
     } on DioException catch (error) {
       throw _mapDioException(error);

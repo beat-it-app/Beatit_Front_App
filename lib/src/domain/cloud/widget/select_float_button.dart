@@ -13,12 +13,16 @@ class SelectFloatButton extends StatelessWidget {
     required this.onDownloadPressed,
     required this.onConfirmPressed,
     this.isEnabled = true,
+    this.isDeleteEnabled,
+    this.isMoveEnabled,
+    this.isDownloadEnabled,
   });
 
   final bool isVisible;
-
-  /// 선택된 항목이 하나라도 있을 때만 true로 전달한다.
   final bool isEnabled;
+  final bool? isDeleteEnabled;
+  final bool? isMoveEnabled;
+  final bool? isDownloadEnabled;
 
   final VoidCallback onDeletePressed;
   final VoidCallback onMovePressed;
@@ -51,6 +55,9 @@ class SelectFloatButton extends StatelessWidget {
                   children: [
                     CloudSelectionFloatingBar(
                       isEnabled: isEnabled,
+                      isDeleteEnabled: isDeleteEnabled,
+                      isMoveEnabled: isMoveEnabled,
+                      isDownloadEnabled: isDownloadEnabled,
                       onDeletePressed: onDeletePressed,
                       onMovePressed: onMovePressed,
                       onDownloadPressed: onDownloadPressed,
@@ -70,26 +77,45 @@ class SelectFloatButton extends StatelessWidget {
 class CloudSelectionFloatingBar extends StatelessWidget {
   const CloudSelectionFloatingBar({
     super.key,
-    required this.isEnabled,
+    this.isEnabled = true,
     required this.onDeletePressed,
     required this.onMovePressed,
     this.onDownloadPressed,
+    this.showDelete = true,
+    this.showMove = true,
     this.showDownload = true,
+    this.isDeleteEnabled,
+    this.isMoveEnabled,
+    this.isDownloadEnabled,
   }) : assert(
          !showDownload || onDownloadPressed != null,
          'showDownload이 true이면 onDownloadPressed가 필요합니다.',
        );
 
   final bool isEnabled;
+  final bool showDelete;
+  final bool showMove;
+  final bool showDownload;
+  final bool? isDeleteEnabled;
+  final bool? isMoveEnabled;
+  final bool? isDownloadEnabled;
   final VoidCallback onDeletePressed;
   final VoidCallback onMovePressed;
   final VoidCallback? onDownloadPressed;
-  final bool showDownload;
 
   @override
   Widget build(BuildContext context) {
+    final visibleCount = <bool>[showDelete, showMove, showDownload]
+        .where((visible) => visible)
+        .length;
+    if (visibleCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final width = 24.0 + (visibleCount * 52.0) + ((visibleCount - 1) * 8.0);
+
     return Container(
-      width: showDownload ? 190.0 : 130.0,
+      width: width,
       height: 66.0,
       decoration: BoxDecoration(
         color: context.grays.white.withValues(alpha: 0.9),
@@ -108,28 +134,31 @@ class CloudSelectionFloatingBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _CloudFloatingIconButton(
-              semanticLabel: '선택한 항목 삭제',
-              iconPath: 'assets/icons/cloud/del.svg',
-              isEnabled: isEnabled,
-              onPressed: onDeletePressed,
-            ),
-            const SizedBox(width: AppSpacing.x8),
-            _CloudFloatingIconButton(
-              semanticLabel: '선택한 항목 이동',
-              iconPath: 'assets/icons/cloud/move.svg',
-              isEnabled: isEnabled,
-              onPressed: onMovePressed,
-            ),
-            if (showDownload) ...[
+            if (showDelete)
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 삭제',
+                iconPath: 'assets/icons/cloud/del.svg',
+                isEnabled: isEnabled && (isDeleteEnabled ?? true),
+                onPressed: onDeletePressed,
+              ),
+            if (showDelete && (showMove || showDownload))
               const SizedBox(width: AppSpacing.x8),
+            if (showMove)
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 이동',
+                iconPath: 'assets/icons/cloud/move.svg',
+                isEnabled: isEnabled && (isMoveEnabled ?? true),
+                onPressed: onMovePressed,
+              ),
+            if (showMove && showDownload)
+              const SizedBox(width: AppSpacing.x8),
+            if (showDownload)
               _CloudFloatingIconButton(
                 semanticLabel: '선택한 항목 다운로드',
                 iconPath: 'assets/icons/cloud/download.svg',
-                isEnabled: isEnabled,
+                isEnabled: isEnabled && (isDownloadEnabled ?? true),
                 onPressed: onDownloadPressed!,
               ),
-            ],
           ],
         ),
       ),
@@ -160,23 +189,13 @@ class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
   bool _isPressed = false;
 
   void _setHovered(bool value) {
-    if (_isHovered == value) {
-      return;
-    }
-
-    setState(() {
-      _isHovered = value;
-    });
+    if (_isHovered == value) return;
+    setState(() => _isHovered = value);
   }
 
   void _setPressed(bool value) {
-    if (_isPressed == value) {
-      return;
-    }
-
-    setState(() {
-      _isPressed = value;
-    });
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
   }
 
   @override
@@ -246,19 +265,13 @@ class _CloudConfirmFloatingButtonState
   bool _isPressed = false;
 
   void _setPressed(bool value) {
-    if (_isPressed == value) {
-      return;
-    }
-
-    setState(() {
-      _isPressed = value;
-    });
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
   }
 
   @override
   Widget build(BuildContext context) {
     final defaultColor = context.brands.beatOrange1.withValues(alpha: 0.9);
-
     final pressedColor = Color.alphaBlend(
       context.grays.black.withValues(alpha: 0.12),
       defaultColor,

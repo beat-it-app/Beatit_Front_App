@@ -9,14 +9,16 @@ import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dar
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-enum CloudPreviewFileType { audio, document, link, video }
+enum CloudPreviewFileType { audio, document, image, link, other, video }
 
 extension CloudPreviewFileTypeExtension on CloudPreviewFileType {
   CloudItemType get cloudItemType {
     return switch (this) {
       CloudPreviewFileType.audio => CloudItemType.audio,
       CloudPreviewFileType.document => CloudItemType.file,
+      CloudPreviewFileType.image => CloudItemType.file,
       CloudPreviewFileType.link => CloudItemType.link,
+      CloudPreviewFileType.other => CloudItemType.file,
       CloudPreviewFileType.video => CloudItemType.video,
     };
   }
@@ -24,6 +26,7 @@ extension CloudPreviewFileTypeExtension on CloudPreviewFileType {
 
 class CloudFilePreviewItem {
   const CloudFilePreviewItem({
+    this.itemId,
     required this.name,
     required this.uploadedAt,
     required this.uploaderName,
@@ -31,8 +34,10 @@ class CloudFilePreviewItem {
     required this.iconPath,
     this.previewUri,
     this.sizeLabel,
+    this.mimeType,
   });
 
+  final int? itemId;
   final String name;
   final String uploadedAt;
   final String uploaderName;
@@ -46,6 +51,7 @@ class CloudFilePreviewItem {
 
   final Uri? previewUri;
   final String? sizeLabel;
+  final String? mimeType;
 }
 
 class CloudFilePreview extends StatefulWidget {
@@ -56,6 +62,7 @@ class CloudFilePreview extends StatefulWidget {
     required this.onDeletePressed,
     required this.onMovePressed,
     required this.onDownloadPressed,
+    this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -73,6 +80,7 @@ class CloudFilePreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem> onDeletePressed;
   final ValueChanged<CloudFilePreviewItem> onMovePressed;
   final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
+  final bool canManage;
 
   /// 문서 외 파일을 선택했을 때
   /// 해당 형식의 Preview 화면으로 이동시키는 진입점이다.
@@ -130,7 +138,8 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
 
     final selectedFile = widget.files[selectedIndex];
 
-    if (selectedFile.type != CloudPreviewFileType.document) {
+    if (selectedFile.type != CloudPreviewFileType.document ||
+        selectedFile.previewUri == null) {
       widget.onFileSelected?.call(selectedFile);
       return;
     }
@@ -152,7 +161,10 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
 
     if (_currentFile.type != CloudPreviewFileType.document ||
         previewUri == null) {
-      return _PreviewErrorView(onRetry: _retryPreview);
+      return _PreviewErrorView(
+        onRetry: _retryPreview,
+        onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+      );
     }
 
     return PdfViewer.uri(
@@ -178,7 +190,10 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
         errorBannerBuilder: (context, error, stackTrace, documentRef) {
           debugPrint('[CloudFilePreview] PDF load failed: $error');
 
-          return _PreviewErrorView(onRetry: _retryPreview);
+          return _PreviewErrorView(
+            onRetry: _retryPreview,
+            onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+          );
         },
       ),
     );
@@ -203,6 +218,8 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
               bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
               child: CloudSelectionFloatingBar(
                 isEnabled: true,
+                showDelete: widget.canManage,
+                showMove: widget.canManage,
                 onDeletePressed: () {
                   widget.onDeletePressed(_currentFile);
                 },
@@ -222,9 +239,13 @@ class _CloudFilePreviewState extends State<CloudFilePreview> {
 }
 
 class _PreviewErrorView extends StatelessWidget {
-  const _PreviewErrorView({required this.onRetry});
+  const _PreviewErrorView({
+    required this.onRetry,
+    required this.onOpenExternal,
+  });
 
   final VoidCallback onRetry;
+  final VoidCallback onOpenExternal;
 
   @override
   Widget build(BuildContext context) {
@@ -240,18 +261,28 @@ class _PreviewErrorView extends StatelessWidget {
               style: FontStyles.med16.copyWith(color: context.grays.gray2),
             ),
             const SizedBox(height: AppSpacing.x16),
-            Semantics(
-              button: true,
-              label: '파일 미리보기 다시 시도',
-              child: TextButton(
-                onPressed: onRetry,
-                child: Text(
-                  '다시 시도',
-                  style: FontStyles.med14.copyWith(
-                    color: context.brands.beatOrange1,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.x8,
+              children: [
+                Semantics(
+                  button: true,
+                  label: '파일 미리보기 다시 시도',
+                  child: TextButton(
+                    onPressed: onRetry,
+                    child: Text(
+                      '다시 시도',
+                      style: FontStyles.med14.copyWith(
+                        color: context.brands.beatOrange1,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                TextButton(
+                  onPressed: onOpenExternal,
+                  child: const Text('외부 앱에서 열기'),
+                ),
+              ],
             ),
           ],
         ),

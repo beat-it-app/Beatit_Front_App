@@ -19,6 +19,16 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_waveform/just_waveform.dart';
 
+class _CloudWaveformCacheFiles {
+  const _CloudWaveformCacheFiles({
+    required this.audio,
+    required this.waveform,
+  });
+
+  final File audio;
+  final File waveform;
+}
+
 enum _AudioLoadState { loading, ready, error }
 
 enum _AudioRepeatMode { off, whole, selection }
@@ -31,6 +41,7 @@ class CloudAudioPreview extends StatefulWidget {
     required this.onDeletePressed,
     required this.onMovePressed,
     required this.onDownloadPressed,
+    this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -48,6 +59,7 @@ class CloudAudioPreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem> onDeletePressed;
   final ValueChanged<CloudFilePreviewItem> onMovePressed;
   final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
+  final bool canManage;
 
   /// 음원 외 파일을 선택했을 때 해당 Preview 화면으로 전환하는 진입점이다.
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
@@ -64,7 +76,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
   StreamSubscription<WaveformProgress>? _waveformSubscription;
 
   HttpClient? _waveformHttpClient;
-  Directory? _waveformTempDirectory;
 
   late int _currentIndex;
 
@@ -79,6 +90,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
   Waveform? _waveform;
   double _waveformProgress = 0.0;
+  bool _waveformFailed = false;
 
   bool _isPlaying = false;
   bool _isSelectionMode = false;
@@ -165,7 +177,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
     final selectedFile = widget.files[selectedIndex];
 
-    if (selectedFile.type != CloudPreviewFileType.audio) {
+    if (selectedFile.type != CloudPreviewFileType.audio ||
+        selectedFile.previewUri == null) {
       widget.onFileSelected?.call(selectedFile);
       return;
     }
@@ -193,6 +206,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       _selectionEnd = Duration.zero;
       _waveform = null;
       _waveformProgress = 0.0;
+      _waveformFailed = false;
       _isSelectionMode = false;
       _isClipApplied = false;
     });
@@ -242,61 +256,198 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
   Future<void> _prepareWaveform(Uri uri, int requestId) async {
     try {
-      final audioFile = await _waveformInputFile(uri, requestId);
+      final cacheFiles = await _waveformCacheFiles(uri);
+
+      // 이미 한 번 생성한 파형은 다시 음원을 다운로드하거나 디코딩하지 않는다.
+      if (await cacheFiles.waveform.exists()) {
+        try {
+          final cachedWaveform = await JustWaveform.parse(cacheFiles.waveform);
+          if (!mounted || requestId != _loadRequestId) return;
+
+          setState(() {
+            _waveform = cachedWaveform;
+            _waveformProgress = 1.0;
+            _waveformFailed = false;
+          });
+          return;
+        } catch (error) {
+          debugPrint('[CloudAudioPreview] cached waveform parse failed: $error');
+          try {
+            await cacheFiles.waveform.delete();
+          } catch (_) {}
+        }
+      }
+
+      final audioFile = await _waveformInputFile(
+        uri,
+        requestId,
+        cacheFiles.audio,
+      );
 
       if (audioFile == null || !mounted || requestId != _loadRequestId) {
         return;
       }
 
-      final directory = _waveformTempDirectory;
-      if (directory == null) return;
+      if (mounted && requestId == _loadRequestId) {
+        setState(() {
+          // 로컬/캐시 음원 준비가 끝난 시점을 전체 과정의 35%로 본다.
+          _waveformProgress = math.max(_waveformProgress, 0.35);
+        });
+      }
 
-      final waveformFile = File('${directory.path}/waveform.wave');
+      final temporaryWaveform = File('${cacheFiles.waveform.path}.part');
+      if (await temporaryWaveform.exists()) {
+        try {
+          await temporaryWaveform.delete();
+        } catch (_) {}
+      }
 
       await _waveformSubscription?.cancel();
-      _waveformSubscription =
-          JustWaveform.extract(
-            audioInFile: audioFile,
-            waveOutFile: waveformFile,
-            zoom: const WaveformZoom.pixelsPerSecond(80),
-          ).listen(
-            (progress) {
-              if (!mounted || requestId != _loadRequestId) return;
 
-              setState(() {
-                _waveformProgress = progress.progress.clamp(0.0, 1.0);
-                _waveform = progress.waveform ?? _waveform;
-              });
-            },
-            onError: (Object error, StackTrace stackTrace) {
-              debugPrint('[CloudAudioPreview] waveform extract failed: $error');
-              debugPrintStack(stackTrace: stackTrace);
+      final pixelsPerSecond = _waveformPixelsPerSecond(_sourceDuration);
 
-              if (!mounted || requestId != _loadRequestId) return;
-              setState(() => _waveformProgress = 1.0);
-            },
-          );
+      _waveformSubscription = JustWaveform.extract(
+        audioInFile: audioFile,
+        waveOutFile: temporaryWaveform,
+        // 1시간 이상의 음원에 높은 해상도 파형은 UI에 불필요하다.
+        // 길이가 길수록 coarse waveform을 사용해 파일 크기/추출 후처리를 줄인다.
+        zoom: WaveformZoom.pixelsPerSecond(pixelsPerSecond),
+      ).listen(
+        (progress) {
+          if (!mounted || requestId != _loadRequestId) return;
+
+          final extractionProgress = progress.progress.clamp(0.0, 1.0);
+          final completedWaveform = progress.waveform;
+
+          setState(() {
+            _waveformProgress = 0.35 + (extractionProgress * 0.65);
+            _waveform = completedWaveform ?? _waveform;
+            if (completedWaveform != null) {
+              _waveformFailed = false;
+            }
+          });
+
+          if (completedWaveform != null) {
+            unawaited(
+              _commitWaveformCache(
+                temporaryWaveform,
+                cacheFiles.waveform,
+              ),
+            );
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          debugPrint('[CloudAudioPreview] waveform extract failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+
+          if (!mounted || requestId != _loadRequestId) return;
+          setState(() {
+            _waveformProgress = 1.0;
+            _waveformFailed = true;
+          });
+        },
+      );
     } catch (error, stackTrace) {
       debugPrint('[CloudAudioPreview] waveform prepare failed: $error');
       debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted || requestId != _loadRequestId) return;
-      setState(() => _waveformProgress = 1.0);
+      setState(() {
+        _waveformProgress = 1.0;
+        _waveformFailed = true;
+      });
     }
   }
 
-  Future<File?> _waveformInputFile(Uri uri, int requestId) async {
-    if (uri.scheme == 'file') {
-      final directory = await Directory.systemTemp.createTemp(
-        'beatit_audio_waveform_',
-      );
+  Future<_CloudWaveformCacheFiles> _waveformCacheFiles(Uri uri) async {
+    final directory = Directory(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}beatit_cloud_waveform_cache',
+    );
+    await directory.create(recursive: true);
 
-      if (requestId != _loadRequestId) {
-        await directory.delete(recursive: true);
-        return null;
+    final itemId = _currentFile.itemId;
+    final cacheKey = itemId != null
+        ? 'item_$itemId'
+        : 'uri_${_stableCacheHash(uri.toString())}';
+
+    final extension = _fileExtension(uri.path);
+
+    final files = _CloudWaveformCacheFiles(
+      audio: File(
+        '${directory.path}${Platform.pathSeparator}$cacheKey$extension',
+      ),
+      waveform: File(
+        '${directory.path}${Platform.pathSeparator}$cacheKey.wave',
+      ),
+    );
+
+    unawaited(
+      _pruneWaveformCache(
+        directory,
+        keepPrefix: cacheKey,
+      ),
+    );
+
+    return files;
+  }
+
+  Future<void> _pruneWaveformCache(
+    Directory directory, {
+    required String keepPrefix,
+  }) async {
+    const maxCacheBytes = 512 * 1024 * 1024;
+
+    try {
+      final entries = await directory
+          .list()
+          .where((entity) => entity is File)
+          .cast<File>()
+          .toList();
+
+      final infos = <({File file, int length, DateTime modified})>[];
+      var totalBytes = 0;
+
+      for (final file in entries) {
+        try {
+          final stat = await file.stat();
+          totalBytes += stat.size;
+          infos.add((
+            file: file,
+            length: stat.size,
+            modified: stat.modified,
+          ));
+        } catch (_) {}
       }
 
-      _waveformTempDirectory = directory;
+      if (totalBytes <= maxCacheBytes) return;
+
+      infos.sort((a, b) => a.modified.compareTo(b.modified));
+
+      for (final info in infos) {
+        if (totalBytes <= maxCacheBytes) break;
+
+        final name = info.file.uri.pathSegments.isEmpty
+            ? ''
+            : info.file.uri.pathSegments.last;
+
+        if (name.startsWith(keepPrefix)) continue;
+
+        try {
+          await info.file.delete();
+          totalBytes -= info.length;
+        } catch (_) {}
+      }
+    } catch (error) {
+      debugPrint('[CloudAudioPreview] waveform cache prune failed: $error');
+    }
+  }
+
+  Future<File?> _waveformInputFile(
+    Uri uri,
+    int requestId,
+    File cacheFile,
+  ) async {
+    if (uri.scheme == 'file') {
       return File.fromUri(uri);
     }
 
@@ -304,19 +455,22 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       return null;
     }
 
-    final directory = await Directory.systemTemp.createTemp(
-      'beatit_audio_waveform_',
-    );
-
-    if (requestId != _loadRequestId) {
-      await directory.delete(recursive: true);
-      return null;
+    // 같은 기기에서 한 번 받은 음원은 다시 89MB 전체를 다운로드하지 않는다.
+    if (await cacheFile.exists() && await cacheFile.length() > 0) {
+      if (mounted && requestId == _loadRequestId) {
+        setState(() {
+          _waveformProgress = math.max(_waveformProgress, 0.35);
+        });
+      }
+      return cacheFile;
     }
 
-    _waveformTempDirectory = directory;
-    final audioFile = File(
-      '${directory.path}/audio${_fileExtension(uri.path)}',
-    );
+    final partialFile = File('${cacheFile.path}.part');
+    if (await partialFile.exists()) {
+      try {
+        await partialFile.delete();
+      } catch (_) {}
+    }
 
     final client = HttpClient();
     _waveformHttpClient = client;
@@ -336,16 +490,85 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         );
       }
 
-      await response.pipe(audioFile.openWrite());
+      final sink = partialFile.openWrite();
+      final totalBytes = response.contentLength;
+      var receivedBytes = 0;
+
+      try {
+        await for (final chunk in response) {
+          if (requestId != _loadRequestId) {
+            return null;
+          }
+
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+
+          if (!mounted || requestId != _loadRequestId) {
+            continue;
+          }
+
+          final nextProgress = totalBytes > 0
+              ? (receivedBytes / totalBytes * 0.35).clamp(0.0, 0.35)
+              : math.min(0.30, _waveformProgress + 0.002);
+
+          setState(() {
+            _waveformProgress = nextProgress.toDouble();
+          });
+        }
+
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
 
       if (requestId != _loadRequestId) return null;
-      return audioFile;
+
+      if (await cacheFile.exists()) {
+        await cacheFile.delete();
+      }
+      await partialFile.rename(cacheFile.path);
+      return cacheFile;
     } finally {
       client.close(force: true);
       if (identical(_waveformHttpClient, client)) {
         _waveformHttpClient = null;
       }
     }
+  }
+
+  int _waveformPixelsPerSecond(Duration duration) {
+    if (duration >= const Duration(minutes: 45)) return 2;
+    if (duration >= const Duration(minutes: 20)) return 4;
+    if (duration >= const Duration(minutes: 10)) return 6;
+    return 10;
+  }
+
+  Future<void> _commitWaveformCache(
+    File temporaryWaveform,
+    File finalWaveform,
+  ) async {
+    try {
+      if (!await temporaryWaveform.exists()) return;
+
+      if (await finalWaveform.exists()) {
+        await finalWaveform.delete();
+      }
+
+      await temporaryWaveform.rename(finalWaveform.path);
+    } catch (error) {
+      debugPrint('[CloudAudioPreview] waveform cache commit failed: $error');
+    }
+  }
+
+  int _stableCacheHash(String value) {
+    // Dart String.hashCode는 실행 간 안정성을 계약하지 않으므로
+    // 캐시 파일명에는 단순 FNV-1a 32bit를 사용한다.
+    var hash = 0x811C9DC5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash;
   }
 
   String _fileExtension(String path) {
@@ -550,7 +773,10 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       case _AudioLoadState.loading:
         return const Center(child: CircularProgressIndicator());
       case _AudioLoadState.error:
-        return _AudioErrorView(onRetry: () => unawaited(_loadCurrentFile()));
+        return _AudioErrorView(
+          onRetry: () => unawaited(_loadCurrentFile()),
+          onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+        );
       case _AudioLoadState.ready:
         return Center(child: _buildPlayer());
     }
@@ -665,6 +891,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
               CloudAudioWaveform(
                 waveform: _waveform,
                 loadingProgress: _waveformProgress,
+                hasError: _waveformFailed,
                 duration: _sourceDuration,
                 position: _displayPosition,
                 isSelectionMode: _isSelectionMode,
@@ -712,17 +939,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
     _waveformHttpClient?.close(force: true);
     _waveformHttpClient = null;
-
-    final directory = _waveformTempDirectory;
-    _waveformTempDirectory = null;
-
-    if (directory != null && await directory.exists()) {
-      try {
-        await directory.delete(recursive: true);
-      } catch (error) {
-        debugPrint('[CloudAudioPreview] temp cleanup failed: $error');
-      }
-    }
   }
 
   @override
@@ -734,18 +950,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     unawaited(_positionSubscription?.cancel());
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player.dispose());
-
-    final directory = _waveformTempDirectory;
-    if (directory != null) {
-      unawaited(
-        directory.exists().then((exists) async {
-          if (!exists) return;
-          try {
-            await directory.delete(recursive: true);
-          } catch (_) {}
-        }),
-      );
-    }
 
     super.dispose();
   }
@@ -769,6 +973,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
               bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
               child: CloudSelectionFloatingBar(
                 isEnabled: true,
+                showDelete: widget.canManage,
+                showMove: widget.canManage,
                 onDeletePressed: () {
                   widget.onDeletePressed(_currentFile);
                 },
@@ -788,9 +994,13 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 }
 
 class _AudioErrorView extends StatelessWidget {
-  const _AudioErrorView({required this.onRetry});
+  const _AudioErrorView({
+    required this.onRetry,
+    required this.onOpenExternal,
+  });
 
   final VoidCallback onRetry;
+  final VoidCallback onOpenExternal;
 
   @override
   Widget build(BuildContext context) {
@@ -806,14 +1016,24 @@ class _AudioErrorView extends StatelessWidget {
               style: FontStyles.med16.copyWith(color: context.grays.gray2),
             ),
             const SizedBox(height: AppSpacing.x16),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(
-                '다시 시도',
-                style: FontStyles.med14.copyWith(
-                  color: context.brands.beatOrange1,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.x8,
+              children: [
+                TextButton(
+                  onPressed: onRetry,
+                  child: Text(
+                    '다시 시도',
+                    style: FontStyles.med14.copyWith(
+                      color: context.brands.beatOrange1,
+                    ),
+                  ),
                 ),
-              ),
+                TextButton(
+                  onPressed: onOpenExternal,
+                  child: const Text('외부 앱에서 열기'),
+                ),
+              ],
             ),
           ],
         ),

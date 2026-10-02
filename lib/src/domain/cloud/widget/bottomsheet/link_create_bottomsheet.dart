@@ -22,11 +22,17 @@ Future<LinkCreateBottomsheetResult?> showLinkCreateBottomsheet({
     backgroundColor: context.grays.white.withValues(alpha: 0.0),
     barrierColor: context.grays.black.withValues(alpha: 0.6),
     builder: (context) {
-      return FractionallySizedBox(
-        heightFactor: 0.84,
-        child: LinkCreateBottomsheet(
-          initialTitle: initialTitle,
-          initialUrl: initialUrl,
+      final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+          ),
+          child: LinkCreateBottomsheet(
+            initialTitle: initialTitle,
+            initialUrl: initialUrl,
+          ),
         ),
       );
     },
@@ -41,11 +47,7 @@ class LinkCreateBottomsheetResult {
 }
 
 class LinkCreateBottomsheet extends StatefulWidget {
-  const LinkCreateBottomsheet({
-    super.key,
-    this.initialTitle,
-    this.initialUrl,
-  });
+  const LinkCreateBottomsheet({super.key, this.initialTitle, this.initialUrl});
 
   final String? initialTitle;
   final String? initialUrl;
@@ -180,10 +182,7 @@ class _LinkCreateBottomsheetState extends State<LinkCreateBottomsheet> {
     }
 
     Navigator.of(context).pop(
-      LinkCreateBottomsheetResult(
-        title: _resolvedTitle(),
-        url: uri.toString(),
-      ),
+      LinkCreateBottomsheetResult(title: _resolvedTitle(), url: uri.toString()),
     );
   }
 
@@ -200,10 +199,11 @@ class _LinkCreateBottomsheetState extends State<LinkCreateBottomsheet> {
           AppSpacing.x20,
           AppSpacing.x30,
           AppSpacing.x20,
-          AppSpacing.x20 + MediaQuery.viewInsetsOf(context).bottom,
+          AppSpacing.x20,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '링크 등록하기',

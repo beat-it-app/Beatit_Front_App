@@ -28,6 +28,7 @@ class CloudVideoPreview extends StatefulWidget {
     required this.onDeletePressed,
     required this.onMovePressed,
     required this.onDownloadPressed,
+    this.canManage = true,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -45,6 +46,7 @@ class CloudVideoPreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem> onDeletePressed;
   final ValueChanged<CloudFilePreviewItem> onMovePressed;
   final ValueChanged<CloudFilePreviewItem> onDownloadPressed;
+  final bool canManage;
 
   /// 영상 외 파일을 선택했을 때 해당 Preview로 전환시키는 진입점이다.
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
@@ -105,7 +107,8 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
 
     final selectedFile = widget.files[selectedIndex];
 
-    if (selectedFile.type != CloudPreviewFileType.video) {
+    if (selectedFile.type != CloudPreviewFileType.video ||
+        selectedFile.previewUri == null) {
       widget.onFileSelected?.call(selectedFile);
       return;
     }
@@ -180,11 +183,17 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
       case _VideoPreviewLoadState.loading:
         return const Center(child: CircularProgressIndicator());
       case _VideoPreviewLoadState.error:
-        return _VideoPreviewErrorView(onRetry: _initializeVideo);
+        return _VideoPreviewErrorView(
+          onRetry: _initializeVideo,
+          onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+        );
       case _VideoPreviewLoadState.ready:
         final controller = _controller;
         if (controller == null || !controller.value.isInitialized) {
-          return _VideoPreviewErrorView(onRetry: _initializeVideo);
+          return _VideoPreviewErrorView(
+            onRetry: _initializeVideo,
+            onOpenExternal: () => widget.onDownloadPressed(_currentFile),
+          );
         }
 
         return _VideoPreviewPlayer(
@@ -227,6 +236,8 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
               bottom: AppSpacing.x16 + bottomSafeArea,
               child: CloudSelectionFloatingBar(
                 isEnabled: true,
+                showDelete: widget.canManage,
+                showMove: widget.canManage,
                 onDeletePressed: () {
                   widget.onDeletePressed(_currentFile);
                 },
@@ -630,9 +641,13 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
 }
 
 class _VideoPreviewErrorView extends StatelessWidget {
-  const _VideoPreviewErrorView({required this.onRetry});
+  const _VideoPreviewErrorView({
+    required this.onRetry,
+    required this.onOpenExternal,
+  });
 
   final Future<void> Function() onRetry;
+  final VoidCallback onOpenExternal;
 
   @override
   Widget build(BuildContext context) {
@@ -648,20 +663,30 @@ class _VideoPreviewErrorView extends StatelessWidget {
               style: FontStyles.med16.copyWith(color: context.grays.gray2),
             ),
             const SizedBox(height: AppSpacing.x16),
-            Semantics(
-              button: true,
-              label: '영상 미리보기 다시 시도',
-              child: TextButton(
-                onPressed: () {
-                  onRetry();
-                },
-                child: Text(
-                  '다시 시도',
-                  style: FontStyles.med14.copyWith(
-                    color: context.brands.beatOrange1,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.x8,
+              children: [
+                Semantics(
+                  button: true,
+                  label: '영상 미리보기 다시 시도',
+                  child: TextButton(
+                    onPressed: () {
+                      onRetry();
+                    },
+                    child: Text(
+                      '다시 시도',
+                      style: FontStyles.med14.copyWith(
+                        color: context.brands.beatOrange1,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                TextButton(
+                  onPressed: onOpenExternal,
+                  child: const Text('외부 앱에서 열기'),
+                ),
+              ],
             ),
           ],
         ),

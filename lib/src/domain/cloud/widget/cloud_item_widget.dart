@@ -16,7 +16,7 @@ extension CloudItemTypeExtension on CloudItemType {
   String get iconPath {
     return switch (this) {
       CloudItemType.audio => 'assets/icons/cloud/music_simbol.svg',
-      CloudItemType.video => 'assets/icons/cloud/file.svg',
+      CloudItemType.video => 'assets/icons/cloud/video.svg',
       CloudItemType.file => 'assets/icons/cloud/file.svg',
       CloudItemType.link => 'assets/icons/cloud/link.svg',
     };

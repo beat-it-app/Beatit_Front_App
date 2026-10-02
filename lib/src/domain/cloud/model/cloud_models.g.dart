@@ -80,6 +80,42 @@ Map<String, dynamic> _$CloudItemToJson(_CloudItem instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
     };
 
+_CloudFileDetailResponse _$CloudFileDetailResponseFromJson(
+  Map<String, dynamic> json,
+) => _CloudFileDetailResponse(
+  success: json['success'] as bool,
+  status: (json['status'] as num).toInt(),
+  message: json['message'] as String,
+  data: CloudFileDetail.fromJson(json['data'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$CloudFileDetailResponseToJson(
+  _CloudFileDetailResponse instance,
+) => <String, dynamic>{
+  'success': instance.success,
+  'status': instance.status,
+  'message': instance.message,
+  'data': instance.data,
+};
+
+_CloudFileDetail _$CloudFileDetailFromJson(Map<String, dynamic> json) =>
+    _CloudFileDetail(
+      itemId: (json['itemId'] as num).toInt(),
+      itemName: json['itemName'] as String,
+      fileSize: (json['fileSize'] as num).toInt(),
+      mimeType: json['mimeType'] as String,
+      fileUrl: json['fileUrl'] as String,
+    );
+
+Map<String, dynamic> _$CloudFileDetailToJson(_CloudFileDetail instance) =>
+    <String, dynamic>{
+      'itemId': instance.itemId,
+      'itemName': instance.itemName,
+      'fileSize': instance.fileSize,
+      'mimeType': instance.mimeType,
+      'fileUrl': instance.fileUrl,
+    };
+
 _CloudPresignedUrlResponse _$CloudPresignedUrlResponseFromJson(
   Map<String, dynamic> json,
 ) => _CloudPresignedUrlResponse(
@@ -116,6 +152,74 @@ Map<String, dynamic> _$CloudPresignedUrlDataToJson(
   'expirationMinutes': instance.expirationMinutes,
 };
 
+_CloudStorageResponse _$CloudStorageResponseFromJson(
+  Map<String, dynamic> json,
+) => _CloudStorageResponse(
+  success: json['success'] as bool,
+  status: (json['status'] as num).toInt(),
+  message: json['message'] as String,
+  data: CloudStorageData.fromJson(json['data'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$CloudStorageResponseToJson(
+  _CloudStorageResponse instance,
+) => <String, dynamic>{
+  'success': instance.success,
+  'status': instance.status,
+  'message': instance.message,
+  'data': instance.data,
+};
+
+_CloudStorageData _$CloudStorageDataFromJson(Map<String, dynamic> json) =>
+    _CloudStorageData(
+      teamName: json['teamName'] as String,
+      usagePercentage: (json['usagePercentage'] as num).toInt(),
+      totalStorageBytes: (json['totalStorageBytes'] as num).toInt(),
+      totalStorageDisplay: json['totalStorageDisplay'] as String,
+      usedStorageBytes: (json['usedStorageBytes'] as num).toInt(),
+      usedStorageDisplay: json['usedStorageDisplay'] as String,
+      remainingStorageBytes: (json['remainingStorageBytes'] as num).toInt(),
+      remainingStorageDisplay: json['remainingStorageDisplay'] as String,
+      categories:
+          (json['categories'] as List<dynamic>?)
+              ?.map(
+                (e) => CloudStorageCategoryUsage.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
+              .toList() ??
+          const <CloudStorageCategoryUsage>[],
+    );
+
+Map<String, dynamic> _$CloudStorageDataToJson(_CloudStorageData instance) =>
+    <String, dynamic>{
+      'teamName': instance.teamName,
+      'usagePercentage': instance.usagePercentage,
+      'totalStorageBytes': instance.totalStorageBytes,
+      'totalStorageDisplay': instance.totalStorageDisplay,
+      'usedStorageBytes': instance.usedStorageBytes,
+      'usedStorageDisplay': instance.usedStorageDisplay,
+      'remainingStorageBytes': instance.remainingStorageBytes,
+      'remainingStorageDisplay': instance.remainingStorageDisplay,
+      'categories': instance.categories,
+    };
+
+_CloudStorageCategoryUsage _$CloudStorageCategoryUsageFromJson(
+  Map<String, dynamic> json,
+) => _CloudStorageCategoryUsage(
+  category: json['category'] as String,
+  bytes: (json['bytes'] as num).toInt(),
+  displaySize: json['displaySize'] as String,
+);
+
+Map<String, dynamic> _$CloudStorageCategoryUsageToJson(
+  _CloudStorageCategoryUsage instance,
+) => <String, dynamic>{
+  'category': instance.category,
+  'bytes': instance.bytes,
+  'displaySize': instance.displaySize,
+};
+
 _CloudIdResponse _$CloudIdResponseFromJson(Map<String, dynamic> json) =>
     _CloudIdResponse(
       success: json['success'] as bool,
@@ -149,6 +253,22 @@ _CloudItemsDeleteRequest _$CloudItemsDeleteRequestFromJson(
 Map<String, dynamic> _$CloudItemsDeleteRequestToJson(
   _CloudItemsDeleteRequest instance,
 ) => <String, dynamic>{'itemIds': instance.itemIds};
+
+_CloudItemsMoveRequest _$CloudItemsMoveRequestFromJson(
+  Map<String, dynamic> json,
+) => _CloudItemsMoveRequest(
+  itemIds: (json['itemIds'] as List<dynamic>)
+      .map((e) => (e as num).toInt())
+      .toList(),
+  targetFolderId: (json['targetFolderId'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$CloudItemsMoveRequestToJson(
+  _CloudItemsMoveRequest instance,
+) => <String, dynamic>{
+  'itemIds': instance.itemIds,
+  'targetFolderId': instance.targetFolderId,
+};
 
 _CloudLinkCreateRequest _$CloudLinkCreateRequestFromJson(
   Map<String, dynamic> json,

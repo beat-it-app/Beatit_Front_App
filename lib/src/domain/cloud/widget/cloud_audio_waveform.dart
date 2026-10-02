@@ -22,6 +22,7 @@ class CloudAudioWaveform extends StatefulWidget {
     required this.position,
     required this.onSeek,
     this.loadingProgress = 0.0,
+    this.hasError = false,
     this.isSelectionMode = false,
     this.selectionStart = Duration.zero,
     this.selectionEnd = Duration.zero,
@@ -34,6 +35,7 @@ class CloudAudioWaveform extends StatefulWidget {
   final Duration position;
   final ValueChanged<Duration> onSeek;
   final double loadingProgress;
+  final bool hasError;
 
   final bool isSelectionMode;
   final Duration selectionStart;
@@ -413,28 +415,44 @@ class _CloudAudioWaveformState extends State<CloudAudioWaveform> {
               _handleScaleUpdate(details, constraints.maxWidth);
             },
             onScaleEnd: _handleScaleEnd,
-            child: SizedBox.expand(
-              child: CustomPaint(
-                painter: _CloudAudioWaveformPainter(
-                  waveform: widget.waveform,
-                  duration: widget.duration,
-                  viewportPosition: _viewportCenter,
-                  visibleSeconds: _visibleSeconds,
-                  loadingProgress: widget.loadingProgress,
-                  isSelectionMode: widget.isSelectionMode,
-                  selectionStart: widget.selectionStart,
-                  selectionEnd: widget.selectionEnd,
-                  backgroundColor: context.grays.white,
-                  borderColor: context.grays.gray7,
-                  unselectedWaveformColor: context.grays.gray6,
-                  selectedWaveformColor: context.grays.gray2,
-                  playheadBorderColor: context.grays.gray5,
-                  playheadFillColor: context.grays.white,
-                  selectionFillColor: context.brands.beatOrange5.withValues(alpha: 0.35),
-                  containerHeight: _containerHeight,
-                  playheadExtension: _playheadExtension,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomPaint(
+                  painter: _CloudAudioWaveformPainter(
+                    waveform: widget.waveform,
+                    duration: widget.duration,
+                    viewportPosition: _viewportCenter,
+                    visibleSeconds: _visibleSeconds,
+                    loadingProgress: widget.loadingProgress,
+                    isSelectionMode: widget.isSelectionMode,
+                    selectionStart: widget.selectionStart,
+                    selectionEnd: widget.selectionEnd,
+                    backgroundColor: context.grays.white,
+                    borderColor: context.grays.gray7,
+                    unselectedWaveformColor: context.grays.gray6,
+                    selectedWaveformColor: context.grays.gray2,
+                    playheadBorderColor: context.grays.gray5,
+                    playheadFillColor: context.grays.white,
+                    selectionFillColor: context.brands.beatOrange5.withValues(alpha: 0.35),
+                    containerHeight: _containerHeight,
+                    playheadExtension: _playheadExtension,
+                  ),
                 ),
-              ),
+                if (widget.waveform == null)
+                  IgnorePointer(
+                    child: Center(
+                      child: Text(
+                        widget.hasError
+                            ? '파형을 생성하지 못했어요'
+                            : '파형 준비 중 ${((widget.loadingProgress.clamp(0.0, 1.0)) * 100).round()}%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.grays.gray5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },

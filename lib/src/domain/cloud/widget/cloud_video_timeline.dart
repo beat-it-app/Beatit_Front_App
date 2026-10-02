@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 typedef CloudVideoSelectionChanged = void Function(Duration start, Duration end);
 
 /// 영상 전체에서 소수의 고정 썸네일을 한 번 준비한 뒤,
 /// 재생 위치/확대 배율이 변해도 같은 썸네일을 재사용하는 Cloud 영상 타임라인이다.
 ///
-/// 메인 영상 재생과는 완전히 별개의 paused controller를 사용하므로,
-/// 타임라인 썸네일 때문에 실제 영상의 재생 위치가 변경되지 않는다.
+/// `video_thumbnail`로 정지 이미지만 추출하므로 메인 VideoPlayerController와
+/// 완전히 분리되며, 타임라인 때문에 decoder/controller 여러 개를 유지하지 않는다.
 class CloudVideoTimeline extends StatefulWidget {
   const CloudVideoTimeline({
     super.key,
@@ -44,16 +45,6 @@ class CloudVideoTimeline extends StatefulWidget {
 
 enum _SelectionHandle { start, end }
 
-class _FixedVideoThumbnail {
-  const _FixedVideoThumbnail({
-    required this.index,
-    required this.controller,
-  });
-
-  final int index;
-  final VideoPlayerController controller;
-}
-
 class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
   // Audio waveform과 동일한 zoom 범위: 1/3 ~ 3/3.
   static const double _minVisibleFraction = 1 / 3;
@@ -69,7 +60,7 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
   static const Duration _minimumSelectionGap = Duration(milliseconds: 100);
 
   // 영상 전체에서 딱 이 개수만 고정 샘플링하고 이후 계속 재사용한다.
-  static const int _thumbnailCount = 8;
+  static const int _thumbnailCount = 4;
 
   double _visibleFraction = _minVisibleFraction;
   double _scaleStartVisibleFraction = _minVisibleFraction;
@@ -85,7 +76,12 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
   Timer? _autoScrollTimer;
 
   int _thumbnailLoadId = 0;
-  final Map<int, _FixedVideoThumbnail> _thumbnails = {};
+  int _thumbnailCompletedCount = 0;
+  bool _thumbnailLoadFailed = false;
+  final Map<int, Uint8List> _thumbnails = {};
+
+  static final Map<String, Uint8List> _memoryThumbnailCache = {};
+  static const int _memoryThumbnailCacheLimit = 24;
 
   double get _visibleSeconds {
     final durationSeconds = _durationInSeconds(widget.duration);
@@ -146,7 +142,7 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
 
   Future<void> _prepareFixedThumbnails() async {
     final loadId = ++_thumbnailLoadId;
-    await _disposeThumbnails();
+    _thumbnails.clear();
 
     if (!mounted ||
         loadId != _thumbnailLoadId ||
@@ -154,10 +150,21 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
       return;
     }
 
-    final durationUs = widget.duration.inMicroseconds;
+    setState(() {
+      _thumbnailCompletedCount = 0;
+      _thumbnailLoadFailed = false;
+    });
 
-    // 각 구간의 중앙 시점만 한 번 seek한다.
-    // 이후 pan / zoom / 재생 중에는 다시 seek하지 않는다.
+    final durationUs = widget.duration.inMicroseconds;
+    var successCount = 0;
+
+    // 메인 VideoPlayerController가 먼저 재생/버퍼링을 확보하도록 잠깐 양보한다.
+    // 이후에도 thumbnail은 별도 플러그인 호출로 순차 생성하며 재생 controller를 seek하지 않는다.
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted || loadId != _thumbnailLoadId) return;
+
+    // video_thumbnail 전용 플러그인으로 각 구간의 중앙 프레임만 추출한다.
+    // VideoPlayerController를 여러 개 유지하지 않기 때문에 메모리/decoder 부담이 훨씬 작다.
     for (int index = 0; index < _thumbnailCount; index += 1) {
       if (!mounted || loadId != _thumbnailLoadId) {
         return;
@@ -167,44 +174,65 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
           .round()
           .clamp(0, durationUs)
           .toInt();
-      final samplePosition = Duration(microseconds: sampleUs);
-
-      final controller = VideoPlayerController.networkUrl(
-        widget.videoUri,
-        httpHeaders: widget.requestHeaders ?? const <String, String>{},
-      );
+      final sampleMs = Duration(microseconds: sampleUs).inMilliseconds;
+      final cacheKey = '${widget.videoUri}#$sampleMs';
 
       try {
-        await controller.initialize();
-        await controller.setVolume(0.0);
-        await controller.setLooping(false);
-        await controller.seekTo(samplePosition);
-        await controller.pause();
+        Uint8List? thumbnailData = _memoryThumbnailCache[cacheKey];
+
+        thumbnailData ??= await VideoThumbnail.thumbnailData(
+          video: widget.videoUri.toString(),
+          headers: widget.requestHeaders,
+          imageFormat: ImageFormat.JPEG,
+          maxWidth: 180,
+          timeMs: sampleMs,
+          quality: 45,
+        ).timeout(const Duration(seconds: 25));
 
         if (!mounted || loadId != _thumbnailLoadId) {
-          await controller.dispose();
           return;
         }
 
-        setState(() {
-          _thumbnails[index] = _FixedVideoThumbnail(
-            index: index,
-            controller: controller,
-          );
-        });
-      } catch (_) {
-        await controller.dispose();
-        // 하나의 샘플이 실패해도 나머지 고정 썸네일은 계속 준비한다.
+        if (thumbnailData != null && thumbnailData.isNotEmpty) {
+          successCount += 1;
+          _rememberThumbnail(cacheKey, thumbnailData);
+          setState(() {
+            _thumbnailCompletedCount = index + 1;
+            _thumbnails[index] = thumbnailData!;
+          });
+        } else {
+          setState(() {
+            _thumbnailCompletedCount = index + 1;
+          });
+        }
+      } catch (error) {
+        debugPrint('[CloudVideoTimeline] thumbnail $index failed: $error');
+        if (mounted && loadId == _thumbnailLoadId) {
+          setState(() {
+            _thumbnailCompletedCount = index + 1;
+          });
+        }
       }
+
+      // 원격 영상 재생과 썸네일 네트워크 요청이 동시에 몰리지 않도록
+      // 각 샘플 사이에 짧게 양보한다.
+      if (index < _thumbnailCount - 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+    }
+
+    if (mounted && loadId == _thumbnailLoadId && successCount == 0) {
+      setState(() {
+        _thumbnailLoadFailed = true;
+      });
     }
   }
 
-  Future<void> _disposeThumbnails() async {
-    final values = _thumbnails.values.toList(growable: false);
-    _thumbnails.clear();
+  void _rememberThumbnail(String key, Uint8List data) {
+    _memoryThumbnailCache[key] = data;
 
-    for (final thumbnail in values) {
-      await thumbnail.controller.dispose();
+    while (_memoryThumbnailCache.length > _memoryThumbnailCacheLimit) {
+      _memoryThumbnailCache.remove(_memoryThumbnailCache.keys.first);
     }
   }
 
@@ -505,7 +533,7 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
           bottom: 0,
           child: thumbnail == null
               ? ColoredBox(color: context.grays.gray8)
-              : _FixedThumbnailView(controller: thumbnail.controller),
+              : _FixedThumbnailView(bytes: thumbnail),
         ),
       );
     }
@@ -517,7 +545,7 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
   void dispose() {
     ++_thumbnailLoadId;
     _stopAutoScroll();
-    unawaited(_disposeThumbnails());
+    _thumbnails.clear();
     super.dispose();
   }
 
@@ -573,6 +601,25 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
                     ),
                   ),
                 ),
+                if (_thumbnails.isEmpty)
+                  Positioned(
+                    left: _innerPadding,
+                    right: _innerPadding,
+                    top: _playheadExtension + _innerPadding,
+                    height: innerHeight,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Text(
+                          _thumbnailLoadFailed
+                              ? '영상 프레임을 불러오지 못했어요'
+                              : '영상 미리보기 준비 중 ${((_thumbnailCompletedCount / _thumbnailCount) * 100).round()}%',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.grays.gray5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 CustomPaint(
                   painter: _CloudVideoTimelineForegroundPainter(
                     duration: widget.duration,
@@ -601,27 +648,22 @@ class _CloudVideoTimelineState extends State<CloudVideoTimeline> {
 }
 
 class _FixedThumbnailView extends StatelessWidget {
-  const _FixedThumbnailView({required this.controller});
+  const _FixedThumbnailView({required this.bytes});
 
-  final VideoPlayerController controller;
+  final Uint8List bytes;
 
   @override
   Widget build(BuildContext context) {
-    final value = controller.value;
-    if (!value.isInitialized || value.size.isEmpty) {
+    if (bytes.isEmpty) {
       return ColoredBox(color: context.grays.gray8);
     }
 
-    return ClipRect(
-      child: FittedBox(
-        fit: BoxFit.cover,
-        clipBehavior: Clip.hardEdge,
-        child: SizedBox(
-          width: value.size.width,
-          height: value.size.height,
-          child: VideoPlayer(controller),
-        ),
-      ),
+    return Image.memory(
+      bytes,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
+      errorBuilder: (_, __, ___) => ColoredBox(color: context.grays.gray8),
     );
   }
 }

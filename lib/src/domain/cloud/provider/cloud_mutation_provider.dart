@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/domain/cloud/api/cloud_api.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_api_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_storage_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final cloudMutationProvider =
@@ -15,6 +16,7 @@ class CloudMutationState {
     this.isDeleting = false,
     this.isUploading = false,
     this.isCreatingLink = false,
+    this.isMoving = false,
     this.errorMessage,
   });
 
@@ -23,6 +25,7 @@ class CloudMutationState {
   final bool isDeleting;
   final bool isUploading;
   final bool isCreatingLink;
+  final bool isMoving;
   final String? errorMessage;
 
   bool get isLoading =>
@@ -30,7 +33,8 @@ class CloudMutationState {
       isRenamingFolder ||
       isDeleting ||
       isUploading ||
-      isCreatingLink;
+      isCreatingLink ||
+      isMoving;
 
   CloudMutationState copyWith({
     bool? isCreatingFolder,
@@ -38,6 +42,7 @@ class CloudMutationState {
     bool? isDeleting,
     bool? isUploading,
     bool? isCreatingLink,
+    bool? isMoving,
     String? errorMessage,
     bool clearError = false,
   }) {
@@ -47,6 +52,7 @@ class CloudMutationState {
       isDeleting: isDeleting ?? this.isDeleting,
       isUploading: isUploading ?? this.isUploading,
       isCreatingLink: isCreatingLink ?? this.isCreatingLink,
+      isMoving: isMoving ?? this.isMoving,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );
   }
@@ -113,6 +119,7 @@ class CloudMutationNotifier extends Notifier<CloudMutationState> {
       await ref.read(cloudApiProvider).deleteFolder(folderId: folderId);
       ref.invalidate(cloudListProvider(null));
       ref.invalidate(cloudListProvider(folderId));
+      ref.invalidate(cloudStorageProvider);
       state = state.copyWith(isDeleting: false, clearError: true);
       return true;
     } catch (error) {
@@ -139,9 +146,71 @@ class CloudMutationNotifier extends Notifier<CloudMutationState> {
       if (currentFolderId != null) {
         ref.invalidate(cloudListProvider(null));
       }
+      ref.invalidate(cloudStorageProvider);
       state = state.copyWith(isDeleting: false, clearError: true);
       return true;
     } catch (error) {
+      state = state.copyWith(
+        isDeleting: false,
+        errorMessage: _message(error),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> moveItems({
+    required List<int> itemIds,
+    int? targetFolderId,
+    int? currentFolderId,
+  }) async {
+    if (itemIds.isEmpty) {
+      return true;
+    }
+
+    state = state.copyWith(isMoving: true, clearError: true);
+    try {
+      await ref.read(cloudApiProvider).moveItems(
+        itemIds: itemIds,
+        targetFolderId: targetFolderId,
+      );
+
+      ref.invalidate(cloudListProvider(currentFolderId));
+      ref.invalidate(cloudListProvider(targetFolderId));
+      ref.invalidate(cloudListProvider(null));
+      state = state.copyWith(isMoving: false, clearError: true);
+      return true;
+    } catch (error) {
+      state = state.copyWith(
+        isMoving: false,
+        errorMessage: _message(error),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteSelection({
+    required List<int> itemIds,
+    required List<int> folderIds,
+  }) async {
+    if (itemIds.isEmpty && folderIds.isEmpty) {
+      return true;
+    }
+
+    state = state.copyWith(isDeleting: true, clearError: true);
+    try {
+      if (itemIds.isNotEmpty) {
+        await ref.read(cloudApiProvider).deleteItems(itemIds: itemIds);
+      }
+      for (final folderId in folderIds) {
+        await ref.read(cloudApiProvider).deleteFolder(folderId: folderId);
+      }
+
+      ref.invalidate(cloudListProvider(null));
+      ref.invalidate(cloudStorageProvider);
+      state = state.copyWith(isDeleting: false, clearError: true);
+      return true;
+    } catch (error) {
+      ref.invalidate(cloudListProvider(null));
       state = state.copyWith(
         isDeleting: false,
         errorMessage: _message(error),
@@ -168,6 +237,7 @@ class CloudMutationNotifier extends Notifier<CloudMutationState> {
       if (folderId != null) {
         ref.invalidate(cloudListProvider(null));
       }
+      ref.invalidate(cloudStorageProvider);
       state = state.copyWith(isUploading: false, clearError: true);
       return true;
     } catch (error) {

@@ -7,10 +7,12 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_permission_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_audio_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_image_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_link_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_move_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_other_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
@@ -94,10 +96,29 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showMoveNotice(CloudFilePreviewItem _) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('파일 이동은 다음 연동 범위에서 연결합니다.')),
+  Future<void> _moveItem(CloudFilePreviewItem file) async {
+    final itemId = file.itemId;
+    if (itemId == null) return;
+
+    final moved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => CloudMovePage(
+          itemIds: [itemId],
+          currentFolderId: widget.folderId,
+          currentFolderName: widget.folderName,
+          displayName: file.name,
+        ),
+      ),
     );
+    if (!mounted || moved != true) return;
+
+    // 현재 위치에서 파일이 빠졌으므로 기존 Preview를 닫는다.
+    Navigator.of(context).pop();
+  }
+
+  bool _isOwnedByCurrentUser(CloudItem item, String? currentUserName) {
+    if (currentUserName == null || currentUserName.trim().isEmpty) return false;
+    return item.uploaderName.trim() == currentUserName.trim();
   }
 
   Future<void> _openExternally(CloudFilePreviewItem file) async {
@@ -243,6 +264,8 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
     );
     final initialIndex = resolvedIndex < 0 ? 0 : resolvedIndex;
     final type = _previewTypeOf(currentItem);
+    final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
+    final canManage = _isOwnedByCurrentUser(currentItem, currentUserName);
 
     void deletePressed(CloudFilePreviewItem file) {
       unawaited(_deleteItem(file));
@@ -252,6 +275,10 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
       unawaited(_openExternally(file));
     }
 
+    void movePressed(CloudFilePreviewItem file) {
+      unawaited(_moveItem(file));
+    }
+
     return switch (type) {
       CloudPreviewFileType.audio => CloudAudioPreview(
         key: ValueKey('audio-${currentItem.itemId}'),
@@ -259,8 +286,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
       CloudPreviewFileType.video => CloudVideoPreview(
@@ -269,8 +297,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
       CloudPreviewFileType.document => CloudFilePreview(
@@ -279,8 +308,9 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
       CloudPreviewFileType.image => CloudImagePreview(
@@ -289,9 +319,10 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
         onOpenExternalPressed: downloadPressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
       CloudPreviewFileType.other => CloudOtherFilePreview(
@@ -300,9 +331,10 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
         onDownloadPressed: downloadPressed,
         onOpenExternalPressed: downloadPressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
       CloudPreviewFileType.link => CloudLinkPreview(
@@ -311,7 +343,8 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
         files: files,
         initialIndex: initialIndex,
         onDeletePressed: deletePressed,
-        onMovePressed: _showMoveNotice,
+        onMovePressed: movePressed,
+        canManage: canManage,
         onFileSelected: _selectFile,
       ),
     };

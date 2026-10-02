@@ -10,3 +10,12 @@ final cloudListProvider = FutureProvider.family<CloudListData, int?>(
     return response.data;
   },
 );
+
+final cloudFileDetailProvider = FutureProvider.family<CloudFileDetail, int>(
+  (ref, itemId) async {
+    final response = await ref.watch(cloudApiProvider).getFileDetail(
+      itemId: itemId,
+    );
+    return response.data;
+  },
+);
