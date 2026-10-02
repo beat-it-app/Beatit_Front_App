@@ -58,10 +58,11 @@ class CloudFileAppbar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onTitlePressed,
                 ),
               ),
-              Positioned(
-                right: AppSpacing.x20,
-                child: CloudBasicButton(onPressed: onLeadingPressed),
-              ),
+              if (onLeadingPressed != null)
+                Positioned(
+                  right: AppSpacing.x20,
+                  child: CloudBasicButton(onPressed: onLeadingPressed),
+                ),
             ],
           ),
         ),
@@ -103,26 +104,28 @@ class _CloudFileTitleButton extends StatelessWidget {
                   style: FontStyles.semi18.copyWith(color: context.grays.black),
                 ),
               ),
-              const SizedBox(width: AppSpacing.x8),
-              Container(
-                width: 30.0,
-                height: 30.0,
-                decoration: BoxDecoration(
-                  color: context.grays.gray8,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Center(
-                  child: SvgPicture.asset(
-                    'assets/icons/cloud/toggle_down.svg',
-                    width: 24.0,
-                    height: 24.0,
-                    colorFilter: ColorFilter.mode(
-                      context.grays.black,
-                      BlendMode.srcIn,
+              if (onPressed != null) ...[
+                const SizedBox(width: AppSpacing.x8),
+                Container(
+                  width: 30.0,
+                  height: 30.0,
+                  decoration: BoxDecoration(
+                    color: context.grays.gray8,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/cloud/toggle_down.svg',
+                      width: 24.0,
+                      height: 24.0,
+                      colorFilter: ColorFilter.mode(
+                        context.grays.black,
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

@@ -504,6 +504,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
                   builder: (_) => ScheduleFilePreviewPage(
                     fileName: file.originalFileName,
                     source: file.cdnUrl,
+                    contextTitle: schedule.title,
                   ),
                 ),
               );

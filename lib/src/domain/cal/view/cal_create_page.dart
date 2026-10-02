@@ -11,6 +11,7 @@ import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_create_r
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_request.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cal/provider/cal_schedule_music_cache_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/view/schedule_file_preview_page.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
@@ -353,11 +354,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         .toList(growable: false)
                   : null,
               retainMusicIds: _selectedMusics
-                  .where((music) => music.existingMusicId != null)
+                  .where((music) => (music.existingMusicId ?? 0) > 0)
                   .map((music) => music.existingMusicId!)
                   .toList(growable: false),
               musics: _selectedMusics
-                  .where((music) => music.existingMusicId == null)
+                  .where((music) => (music.existingMusicId ?? 0) <= 0)
                   .map(
                     (music) => ScheduleUpdateMusicRequest(
                       musicTitle: music.title,
@@ -418,6 +419,31 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       ).showSnackBar(SnackBar(content: Text(errorMessage)));
       return;
     }
+
+    // 백엔드 상세 조회 응답에는 현재 musics가 포함되지 않으므로, 생성/수정 직후
+    // 상세 화면에서 선택한 음원이 사라져 보이지 않도록 현재 앱 세션에 보관합니다.
+    // 음수 ID는 FE fallback임을 구분하기 위한 값이며, 수정 요청 시 retainMusicIds로
+    // 보내지 않고 새 음원 데이터로 다시 전송합니다.
+    final cachedMusics = List<ScheduleDetailMusic>.generate(
+      _selectedMusics.length,
+      (index) {
+        final music = _selectedMusics[index];
+        final existingId = music.existingMusicId;
+
+        return ScheduleDetailMusic(
+          musicId: existingId != null && existingId > 0
+              ? existingId
+              : -(index + 1),
+          musicTitle: music.title,
+          musicArtist: music.artist,
+          musicPreviewUrl: music.previewUrl,
+        );
+      },
+      growable: false,
+    );
+    ref
+        .read(calScheduleMusicCacheProvider.notifier)
+        .setMusics(result.scheduleId, cachedMusics);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_isEditMode ? '일정이 수정되었습니다.' : '일정이 생성되었습니다.')),
@@ -641,6 +667,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           fileName: fileName,
           source: source,
           fileSize: fileSize,
+          contextTitle: _titleController.text.trim().isEmpty
+              ? null
+              : _titleController.text.trim(),
         ),
       ),
     );
