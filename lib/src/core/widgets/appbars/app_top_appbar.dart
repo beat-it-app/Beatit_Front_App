@@ -215,7 +215,12 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onBackPressed ?? _noop,
             )
           : null,
-      title: title == null ? null : Text(title!),
+      title: title == null
+          ? null
+          : Text(
+              title!,
+              style: FontStyles.semi18.copyWith(color: colors.onSurface),
+            ),
       actions: [
         switch (trailing) {
           AppTopAppBarTrailing.none => const SizedBox.shrink(),

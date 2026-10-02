@@ -86,6 +86,7 @@ flutter:
     - assets/icons/meetit/
     - assets/icons/team/
     - assets/icons/etc/
+    - assets/icons/chat/
 
   fonts:
     - family: Pretendard
