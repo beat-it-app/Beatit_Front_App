@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
@@ -121,24 +122,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     final data = _data;
 
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-16, 56),
-        moreMenuItems: [
-          AppDropdownItem(label: '수정하기', onPressed: _openEditPage),
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.')),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(data),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -200,6 +184,64 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
         ),
       ),
     );
+  }
+
+  PreferredSizeWidget _buildAppBar(MeetitDetailData data) {
+    final currentUserId = _currentUserId;
+    final isCreator = currentUserId != null && data.creatorId == currentUserId;
+    final items = <AppDropdownItem>[
+      if (data.isParticipant)
+        AppDropdownItem(
+          label: _hasCurrentUserResponded(data) ? '수정하기' : '응답하기',
+          onPressed: _openEditPage,
+        ),
+      if (isCreator)
+        AppDropdownItem(
+          label: '삭제하기',
+          onPressed: _confirmDelete,
+        ),
+    ];
+
+    if (items.isEmpty) {
+      return AppTopAppBar.backOnly(
+        onBackPressed: () => Navigator.of(context).maybePop(),
+      );
+    }
+
+    return AppTopAppBar.backMore(
+      onBackPressed: () => Navigator.of(context).maybePop(),
+      moreMenuOffset: const Offset(-16, 56),
+      moreMenuItems: items,
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _deleteMeetit();
+  }
+
+  Future<void> _deleteMeetit() async {
+    final meetitId = _data.meetitId;
+    try {
+      await ref.read(postApiProvider).deleteMeetit(meetitId);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   Widget _buildMeetingSummary(BuildContext context, MeetitDetailData data) {
@@ -474,9 +516,15 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       ).showSnackBar(const SnackBar(content: Text('사용자 정보를 불러올 수 없습니다.')));
       return;
     }
+    if (!data.isParticipant) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('밋잇 참여 대상이 아닙니다.')));
+      return;
+    }
 
-    final selected = await Navigator.of(context).push<Set<DateTime>>(
-      MaterialPageRoute<Set<DateTime>>(
+    final result = await Navigator.of(context).push<MeetitEditResult>(
+      MaterialPageRoute<MeetitEditResult>(
         builder: (_) => MeetitEditPage(
           title: data.title,
           candidateDates: _dates,
@@ -486,25 +534,33 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           totalInvitedCount: data.totalInvitedCount,
           currentUserId: currentUserId,
           dateOnly: data.dateOnly,
+          isCreator: data.creatorId == currentUserId,
         ),
       ),
     );
 
-    if (selected == null || !mounted) return;
-    final hadExistingResponse = _hasCurrentUserResponded(data);
+    if (result == null || !mounted) return;
+    if (result.deleteRequested) {
+      await _deleteMeetit();
+      return;
+    }
+
+    final selected = result.selection;
+    if (selected == null) return;
+
     try {
       await ref.read(postApiProvider).submitMeetitResponse(
         data.meetitId,
         selected,
         dateOnly: data.dateOnly,
-        replaceExisting: hadExistingResponse,
       );
       await _load();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     }
   }
 

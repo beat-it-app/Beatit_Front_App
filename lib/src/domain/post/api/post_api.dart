@@ -103,10 +103,28 @@ class PostApi {
   }
 
   Future<PollDetailData> getPoll(int id) async {
-    final response = await _dio.get<Map<String, dynamic>>('$_pollPath/$id');
-    return PollDetailResponse.fromJson(_requireSuccessBody(
-      response: response, fallbackMessage: '투표를 불러오지 못했습니다.',
-    )).data;
+    return (await getPollWithMetadata(id)).data;
+  }
+
+  Future<PollDetailLoadResult> getPollWithMetadata(int id) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('$_pollPath/$id');
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '투표를 불러오지 못했습니다.',
+      );
+      final dataJson = body['data'];
+      final remindBeforeClose = dataJson is Map
+          ? dataJson['remindBeforeClose']?.toString() == 'REMIND'
+          : false;
+
+      return PollDetailLoadResult(
+        data: PollDetailResponse.fromJson(body).data,
+        remindBeforeClose: remindBeforeClose,
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
   Future<MeetitDetailData> getMeetit(int id) async {
@@ -220,6 +238,24 @@ class PostApi {
     _requireSuccessBody(response: response, fallbackMessage: '투표 생성에 실패했습니다.');
   }
 
+  Future<void> updatePoll(int id, PollCreateRequest request) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '$_pollPath/$id',
+        data: {
+          ...request.toJson(),
+          'closeAt': request.closeAt?.toUtc().toIso8601String(),
+        },
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '투표 수정에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> createMeetit(MeetitCreateRequest request) async {
     final payload = <String, dynamic>{
       'title': request.title,
@@ -248,7 +284,6 @@ class PostApi {
     int id,
     Iterable<DateTime> selected, {
     bool dateOnly = false,
-    bool replaceExisting = false,
   }) async {
     final normalized = selected
         .map((time) {
@@ -268,38 +303,35 @@ class PostApi {
       ..sort();
 
     try {
-      // 백엔드는 응답 수정 전용 API가 없고 같은 POST에서 기존 응답을 삭제 후
-      // 재저장합니다. 기존 슬롯과 새 슬롯이 겹칠 때 DB unique 제약과 flush
-      // 순서에 따라 500이 날 수 있어, 수정 시에는 먼저 빈 응답으로 기존 값을
-      // 확정 삭제한 다음 새 선택을 저장합니다. 백엔드 코드는 변경하지 않습니다.
-      if (replaceExisting) {
-        await _postMeetitResponse(id, const <DateTime>[]);
-      }
-
-      if (normalized.isNotEmpty || !replaceExisting) {
-        await _postMeetitResponse(id, normalized);
-      }
+      final response = await _dio.post<Map<String, dynamic>>(
+        '$_meetitPath/$id/responses',
+        data: {
+          'slotStartTimes': normalized.map((time) {
+            return '${time.year.toString().padLeft(4, '0')}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
+          }).toList(),
+        },
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '밋잇 응답에 실패했습니다.',
+      );
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
   }
 
-  Future<void> _postMeetitResponse(
-    int id,
-    Iterable<DateTime> selected,
-  ) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      '$_meetitPath/$id/responses',
-      data: {
-        'slotStartTimes': selected.map((time) {
-          return '${time.year.toString().padLeft(4, '0')}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00';
-        }).toList(),
-      },
-    );
-    _requireSuccessBody(
-      response: response,
-      fallbackMessage: '밋잇 응답에 실패했습니다.',
-    );
+  Future<void> deleteMeetit(int id) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        '$_meetitPath/$id',
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '밋잇 삭제에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
   Future<void> votePoll(int id, List<int> optionIds) async {
@@ -411,6 +443,16 @@ class PostApi {
       statusCode: error.response?.statusCode,
     );
   }
+}
+
+class PollDetailLoadResult {
+  const PollDetailLoadResult({
+    required this.data,
+    required this.remindBeforeClose,
+  });
+
+  final PollDetailData data;
+  final bool remindBeforeClose;
 }
 
 class PostApiException implements Exception {

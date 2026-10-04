@@ -4,11 +4,28 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/meetit_switch_widget.dart';
 import 'package:beatit_front_app/src/domain/meetit/widget/meetit_time_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
+class MeetitEditResult {
+  const MeetitEditResult._({
+    this.selection,
+    this.deleteRequested = false,
+  });
+
+  const MeetitEditResult.submit(Set<DateTime> selection)
+      : this._(selection: selection);
+
+  const MeetitEditResult.delete()
+      : this._(deleteRequested: true);
+
+  final Set<DateTime>? selection;
+  final bool deleteRequested;
+}
 
 class MeetitEditPage extends StatefulWidget {
   const MeetitEditPage({
@@ -21,6 +38,7 @@ class MeetitEditPage extends StatefulWidget {
     required this.totalInvitedCount,
     required this.currentUserId,
     required this.dateOnly,
+    required this.isCreator,
   });
 
   final String title;
@@ -31,6 +49,7 @@ class MeetitEditPage extends StatefulWidget {
   final int totalInvitedCount;
   final int currentUserId;
   final bool dateOnly;
+  final bool isCreator;
 
   @override
   State<MeetitEditPage> createState() => _MeetitEditPageState();
@@ -39,12 +58,49 @@ class MeetitEditPage extends StatefulWidget {
 class _MeetitEditPageState extends State<MeetitEditPage> {
   bool _showAllSchedule = false;
   bool _isGridGestureActive = false;
+  late Set<DateTime> _initialSelection;
   Set<DateTime> _mySelection = <DateTime>{};
 
   @override
   void initState() {
     super.initState();
-    _mySelection = _selectionFromResponse();
+    _initialSelection = _selectionFromResponse();
+    _mySelection = Set<DateTime>.of(_initialSelection);
+  }
+
+  bool get _hasChanges {
+    final initial = _normalizedSelection(_initialSelection);
+    final current = _normalizedSelection(_mySelection);
+    return initial.length != current.length || !initial.containsAll(current);
+  }
+
+  Set<DateTime> _normalizedSelection(Iterable<DateTime> selection) {
+    return selection
+        .map((time) => widget.dateOnly
+            ? DateUtils.dateOnly(time)
+            : DateTime(
+                time.year,
+                time.month,
+                time.day,
+                time.hour,
+                time.minute,
+              ))
+        .toSet();
+  }
+
+  Future<void> _requestDelete() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (confirmed == true && mounted) {
+      Navigator.of(context).pop(const MeetitEditResult.delete());
+    }
   }
 
   @override
@@ -52,23 +108,24 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-16, 56),
-        moreMenuItems: [
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('밋잇 삭제 API가 제공되지 않아 삭제할 수 없습니다.'),
-              ));
-            },
-          ),
-        ],
-      ),
+      appBar: widget.isCreator
+          ? AppTopAppBar.backMore(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+              moreMenuOffset: const Offset(-16, 56),
+              moreMenuItems: [
+                AppDropdownItem(
+                  label: '삭제하기',
+                  onPressed: _requestDelete,
+                ),
+              ],
+            )
+          : AppTopAppBar.backOnly(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+            ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -109,12 +166,10 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,
-                isDisabled: _showAllSchedule,
+                isDisabled: _showAllSchedule || !_hasChanges,
                 onPressed: () {
-                  final result = widget.dateOnly
-                      ? _mySelection.map(DateUtils.dateOnly).toSet()
-                      : Set<DateTime>.of(_mySelection);
-                  Navigator.of(context).pop(result);
+                  final result = _normalizedSelection(_mySelection);
+                  Navigator.of(context).pop(MeetitEditResult.submit(result));
                 },
               ),
             ],

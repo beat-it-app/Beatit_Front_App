@@ -170,25 +170,28 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
     if (_data == null) return Scaffold(body: Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!)));
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-16, 40),
-        moreMenuItems: [
-          AppDropdownItem(
-            label: '수정하기',
-            onPressed: _openEditPage,
-          ),
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () {
-              _confirmDelete();
-            },
-          ),
-        ],
-      ),
+      appBar: _data!.isWriter
+          ? AppTopAppBar.backMore(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+              moreMenuOffset: const Offset(-16, 40),
+              moreMenuItems: [
+                AppDropdownItem(
+                  label: '수정하기',
+                  onPressed: _openEditPage,
+                ),
+                AppDropdownItem(
+                  label: '삭제하기',
+                  onPressed: _confirmDelete,
+                ),
+              ],
+            )
+          : AppTopAppBar.backOnly(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+            ),
       body: SafeArea(
         child: Column(
           children: [

@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
@@ -30,6 +31,7 @@ class PollDetailPage extends ConsumerStatefulWidget {
 
 class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   PollDetailData? _data;
+  bool _remindBeforeClose = false;
   String? _error;
   final _composerKey = GlobalKey<PostCommentComposerState>();
   final ScrollController _scrollController = ScrollController();
@@ -43,10 +45,13 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
 
   Future<void> _load() async {
     try {
-      final data = await ref.read(postApiProvider).getPoll(widget.pollId);
+      final result = await ref
+          .read(postApiProvider)
+          .getPollWithMetadata(widget.pollId);
       if (!mounted) return;
       setState(() {
-        _data = data;
+        _data = result.data;
+        _remindBeforeClose = result.remindBeforeClose;
         _error = null;
       });
     } catch (error) {
@@ -196,6 +201,32 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
     }
   }
 
+  Future<void> _openEditPage() async {
+    final data = _data;
+    if (data == null || !data.isWriter) return;
+
+    final hasVotes =
+        (widget.participantCount ?? 0) > 0 ||
+        data.pollItems.any((item) => item.voteCount > 0);
+    if (hasVotes) {
+      _showError('참여자가 있는 투표는 수정할 수 없습니다.');
+      return;
+    }
+
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PollCreatePage(
+          initialData: data,
+          initialRemindBeforeClose: _remindBeforeClose,
+        ),
+      ),
+    );
+
+    if (updated == true && mounted) {
+      await _load();
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final confirmed = await AppPopup.show(
       context,
@@ -244,27 +275,22 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         ),
       );
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-16, 40),
-        moreMenuItems: [
-          AppDropdownItem(
-            label: '수정하기',
-            onPressed: () {
-              _showError('수정 화면은 아직 연결되지 않았습니다.');
-            },
-          ),
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () {
-              _confirmDelete();
-            },
-          ),
-        ],
-      ),
+      appBar: _data!.isWriter
+          ? AppTopAppBar.backMore(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+              moreMenuOffset: const Offset(-16, 40),
+              moreMenuItems: [
+                AppDropdownItem(label: '수정하기', onPressed: _openEditPage),
+                AppDropdownItem(label: '삭제하기', onPressed: _confirmDelete),
+              ],
+            )
+          : AppTopAppBar.backOnly(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+            ),
       body: SafeArea(
         child: Column(
           children: [
