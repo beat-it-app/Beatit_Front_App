@@ -19,6 +19,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onMorePressed,
     this.onClosePressed,
     this.onAlarmPressed,
+    this.onEditPressed,
+    this.onSharePressed,
     this.moreMenuItems = const [],
     this.moreMenuAlignment = AppDropdownAlignment.right,
     this.moreMenuWidth = 170.0,
@@ -39,6 +41,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -57,6 +61,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -81,6 +87,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onBackPressed = onBackPressed,
        onMorePressed = onMorePressed,
        onClosePressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
        onAlarmPressed = null,
        toolbarHeight = toolbarHeight;
 
@@ -102,6 +110,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
        toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.closeOnly({
@@ -116,6 +126,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = onClosePressed,
        onAlarmPressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -123,10 +135,11 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuOffset = const Offset(0, 56),
        toolbarHeight = toolbarHeight;
 
-  /// 우측 trailing 영역에 알림 버튼 하나만 표시한다.
   const AppTopAppBar.alarmOnly({
     super.key,
     VoidCallback? onAlarmPressed,
+    VoidCallback? onEditPressed,
+    VoidCallback? onSharePressed,
     double toolbarHeight = 64.0,
   }) : title = null,
        showBackButton = false,
@@ -135,6 +148,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onMorePressed = null,
        onClosePressed = null,
        onAlarmPressed = onAlarmPressed,
+       onEditPressed = onEditPressed,
+       onSharePressed = onSharePressed,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -147,12 +162,11 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   final AppTopAppBarTrailing trailing;
 
   final VoidCallback? onBackPressed;
-
-  /// [moreMenuItems]가 비어 있을 때 더보기 버튼이 직접 실행할 콜백
   final VoidCallback? onMorePressed;
-
   final VoidCallback? onClosePressed;
   final VoidCallback? onAlarmPressed;
+  final VoidCallback? onEditPressed;
+  final VoidCallback? onSharePressed;
 
   /// 더보기 버튼을 눌렀을 때 표시할 드롭다운 항목
   ///
@@ -230,11 +244,56 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
             semanticLabel: '닫기',
             onPressed: onClosePressed ?? _noop,
           ),
-          AppTopAppBarTrailing.alarm => _AppBarPressIconButton(
-            icon: 'assets/icons/appbar/bell.svg',
-            semanticLabel: '알림',
-            iconColor: Colors.white,
-            onPressed: onAlarmPressed ?? _noop,
+          AppTopAppBarTrailing.alarm => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onEditPressed != null) ...[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onEditPressed,
+                  child: SvgPicture.asset(
+                    'assets/icons/team/edit.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcATop,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+              ],
+              if (onSharePressed != null) ...[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSharePressed,
+                  child: SvgPicture.asset(
+                    'assets/icons/team/share.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+              ],
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onAlarmPressed ?? _noop,
+                child: SvgPicture.asset(
+                  'assets/icons/appbar/bell.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.white,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
         },
       ],

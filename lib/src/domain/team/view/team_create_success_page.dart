@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -8,9 +11,16 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 
 class TeamCreateSuccessPage extends StatelessWidget {
-  const TeamCreateSuccessPage({super.key, required this.teamName});
+  const TeamCreateSuccessPage({
+    super.key,
+    required this.teamName,
+    this.teamImageFile,
+    this.teamImageUrl,
+  });
 
   final String teamName;
+  final File? teamImageFile;
+  final String? teamImageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +56,7 @@ class TeamCreateSuccessPage extends StatelessWidget {
                           'assets/icons/appbar/back.svg',
                           width: 24,
                           height: 24,
-                          colorFilter: ColorFilter.mode(
+                          colorFilter: const ColorFilter.mode(
                             AppColor.white,
                             BlendMode.srcIn,
                           ),
@@ -73,15 +83,15 @@ class TeamCreateSuccessPage extends StatelessWidget {
                           Center(
                             child: SvgPicture.asset(
                               'assets/icons/profile/profile1.svg',
-                              width: 44,
-                              height: 44,
+                              width: 26,
+                              height: 26,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.x12),
                           Text(
                             '$formattedDate 생성된 팀',
                             style: FontStyles.med16.copyWith(
-                              color: colors.primary,
+                              color: AppColor.beatOrange1,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.x4),
@@ -104,6 +114,12 @@ class TeamCreateSuccessPage extends StatelessWidget {
                                   AppRadius.lg,
                                 ),
                               ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.lg,
+                                ),
+                                child: _buildTeamImage(colors),
+                              ),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.x70),
@@ -112,6 +128,7 @@ class TeamCreateSuccessPage extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                const SizedBox(height: AppSpacing.x20),
                                 Text(
                                   '"$teamName"의 생성을 환영합니다.',
                                   style: FontStyles.semi14.copyWith(
@@ -142,21 +159,66 @@ class TeamCreateSuccessPage extends StatelessWidget {
                     AppSpacing.x20,
                     AppSpacing.x24,
                   ),
-                  //Todo: 버튼 다크모드 제외
-                  child: AppButton(
-                    text: '팀 페이지 가기',
-                    variant: ButtonVariant.primary,
-                    width: ButtonWidth.expand,
-                    height: ButtonHeight.normal,
-                    onPressed: () {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    },
+                  child: Theme(
+                    data: theme.copyWith(
+                      colorScheme: colors.copyWith(
+                        primary: AppColor.beatOrange1,
+                        onPrimary: AppColor.white,
+                      ),
+                    ),
+                    child: AppButton(
+                      text: '팀 개설 완료',
+                      variant: ButtonVariant.primary,
+                      width: ButtonWidth.expand,
+                      height: ButtonHeight.normal,
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TeamSelectPage(),
+                          ),
+                          (route) => route.isFirst,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTeamImage(ColorScheme colors) {
+    if (teamImageFile != null) {
+      return Image.file(teamImageFile!, fit: BoxFit.cover);
+    }
+
+    if (teamImageUrl != null && teamImageUrl!.trim().isNotEmpty) {
+      return Image.network(
+        teamImageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholder(colors),
+      );
+    }
+    return _buildPlaceholder(colors);
+  }
+
+  Widget _buildPlaceholder(ColorScheme colors) {
+    return Container(
+      color: colors.surfaceContainerHighest,
+      child: Center(
+        child: SvgPicture.asset(
+          'assets/icons/profile/profile1.svg',
+          width: 64,
+          height: 64,
+          colorFilter: ColorFilter.mode(
+            colors.onSurfaceVariant.withValues(alpha: 0.4),
+            BlendMode.srcIn,
+          ),
+        ),
       ),
     );
   }

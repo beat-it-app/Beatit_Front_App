@@ -1,155 +1,106 @@
-import 'package:beatit_front_app/src/domain/team/view/team_archive_detail_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import '../../../core/widgets/navigation/app_navigation_bar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
+import 'package:beatit_front_app/src/domain/team/model/team_archive_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_archive_provider.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_detail_page.dart';
 
-// 💡 TeamArchiveDetailPage 임포트 추가 (파일 경로에 맞춰 수정해 주세요)
-// import 'team_archive_detail_page.dart';
-
-class TeamArchiveListPage extends StatefulWidget {
+class TeamArchiveListPage extends ConsumerStatefulWidget {
   const TeamArchiveListPage({super.key});
 
   @override
-  State<TeamArchiveListPage> createState() => _TeamArchiveListPageState();
+  ConsumerState<TeamArchiveListPage> createState() =>
+      _TeamArchiveListPageState();
 }
 
-class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
-  final TextEditingController _searchController = TextEditingController();
-  int _currentBottomNavIndex = 0; // 하단 네비게이션 현재 인덱스
-
-  // 임시 데이터 리스트
-  final List<Map<String, dynamic>> _archiveList = [
-    {
-      'title': '그라운드합주실 본점 A3',
-      'location': '서울특별시 마포구 양화로 147 지하 2층',
-      'rating': 4.0,
-      'comments': 55,
-    },
-    {
-      'title': '그라운드합주실 본점 A3',
-      'location': '서울특별시 마포구 양화로 147 지하 2층',
-      'rating': 3.2,
-      'comments': 55,
-    },
-    {
-      'title': '그라운드합주실 본점 A3',
-      'location': '서울특별시 마포구 양화로 147 지하 2층',
-      'rating': 5.0,
-      'comments': 55,
-    },
-  ];
+class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
+  int _currentBottomNavIndex = 0;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(teamArchiveProvider.notifier).fetchArchives();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final state = ref.watch(teamArchiveProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppTopAppBar.backOnly(
-        onBackPressed: () {
-          Navigator.pop(context);
-        },
+      // 💡 보내주신 AppTopAppBar.backMore 사용 규칙 그대로 적용
+      appBar: AppTopAppBar.backMore(
+        title: '',
+        onBackPressed: () => Navigator.pop(context),
+        onMorePressed: () {},
+        moreMenuOffset: const Offset(-20, 56),
+        moreMenuItems: [
+          AppDropdownItem(
+            label: '기록하기',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TeamArchivePage(),
+                ),
+              );
+
+              if (mounted) {
+                ref.read(teamArchiveProvider.notifier).fetchArchives();
+              }
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppSpacing.x8),
-
-              // 1. 검색창 영역
-              Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: context.grays.gray8,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: '검색어를 입력하세요.',
-                          hintStyle: FontStyles.reg18.copyWith(
-                            color: context.grays.gray5,
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
+          child: state.isLoading && state.items.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : state.items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '기록된 장소가 없습니다.',
+                        style: FontStyles.bold22.copyWith(
+                          color: colors.onSurface,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    SvgPicture.asset(
-                      'assets/icons/cal/search.svg',
-                      width: 20,
-                      height: 20,
-                      colorFilter: ColorFilter.mode(
-                        context.grays.gray5,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.x10),
-
-              // 2. 정렬 필터 버튼 (별점순 등)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: context.grays.gray4),
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '별점순',
-                          style: FontStyles.reg14.copyWith(
-                            color: colors.onSurface,
-                          ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '+ 버튼을 눌러 장소를 추가해보세요.',
+                        style: FontStyles.med16.copyWith(
+                          color: context.grays.gray5,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-
-              const SizedBox(height: AppSpacing.x16),
-
-              // 3. 리스트 영역
-              Expanded(
-                child: ListView.separated(
-                  itemCount: _archiveList.length,
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.x16,
+                    bottom: AppSpacing.x16,
+                  ),
+                  itemCount: state.items.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: AppSpacing.x16),
                   itemBuilder: (context, index) {
-                    final item = _archiveList[index];
+                    final item = state.items[index];
                     return GestureDetector(
-                      // 💡 리스트 아이템 클릭 시 상세 페이지(TeamArchiveDetailPage)로 이동
                       onTap: () {
                         Navigator.push(
                           context,
@@ -167,7 +118,6 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 왼쪽 회색 이미지 박스
                             Container(
                               width: 64,
                               height: 64,
@@ -175,16 +125,26 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                                 color: context.grays.gray8,
                                 borderRadius: BorderRadius.circular(5),
                               ),
+                              child: Center(
+                                child: SvgPicture.asset(
+                                  'assets/icons/team/archive.svg',
+                                  width: 28,
+                                  height: 28,
+                                  colorFilter: ColorFilter.mode(
+                                    context.grays.gray5,
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 12),
-                            // 오른쪽 정보 영역
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    item['title'],
+                                    item.title,
                                     style: FontStyles.med20.copyWith(
                                       color: colors.onSurface,
                                     ),
@@ -204,7 +164,7 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          item['location'],
+                                          item.placeName ?? '장소 정보 없음',
                                           style: FontStyles.med16.copyWith(
                                             color: context.grays.gray5,
                                           ),
@@ -214,7 +174,6 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  // 별점 및 댓글 정보 박스
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Container(
@@ -240,7 +199,7 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${item['rating'].toStringAsFixed(1)}',
+                                            '${item.likeCount}',
                                             style: FontStyles.med12.copyWith(
                                               color: colors.onSurface,
                                             ),
@@ -257,7 +216,7 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${item['comments']}',
+                                            '${item.commentCount}',
                                             style: FontStyles.med12.copyWith(
                                               color: context.grays.gray2,
                                             ),
@@ -275,19 +234,14 @@ class _TeamArchiveListPageState extends State<TeamArchiveListPage> {
                     );
                   },
                 ),
-              ),
-            ],
-          ),
         ),
       ),
-      // 4. 하단 네비게이션 바 결합
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: _currentBottomNavIndex,
         onTap: (index) {
           setState(() {
             _currentBottomNavIndex = index;
           });
-          // TODO: 탭 이동 로직 작성
         },
       ),
     );
