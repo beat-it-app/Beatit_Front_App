@@ -1398,25 +1398,26 @@ class _SelectionRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FontStyles.reg16.copyWith(
+                  style: FontStyles.reg18.copyWith(
                     color: context.colors.onSurface,
                   ),
                 ),
+                const SizedBox(width: AppSpacing.x8),
                 if (subtitle != null && subtitle!.isNotEmpty)
                   Text(
                     subtitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: FontStyles.med12.copyWith(
-                      color: context.grays.gray5,
+                    style: FontStyles.reg14.copyWith(
+                      color: context.grays.gray4,
                     ),
                   ),
               ],
