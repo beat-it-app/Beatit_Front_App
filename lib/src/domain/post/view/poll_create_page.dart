@@ -1,30 +1,55 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/toggles/app_switch.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_add_box.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PollCreatePage extends StatefulWidget {
+class PollCreatePage extends ConsumerStatefulWidget {
   const PollCreatePage({super.key});
 
   @override
-  State<PollCreatePage> createState() => _PollCreatePageState();
+  ConsumerState<PollCreatePage> createState() => _PollCreatePageState();
 }
 
-class _PollCreatePageState extends State<PollCreatePage> {
+class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _deadlineController = TextEditingController();
 
+  final _optionKey = GlobalKey<PollAddBoxState>();
+  final Map<int, MusicSearchResult> _musicChoices = {};
+  final Map<int, LocationData> _placeChoices = {};
   final Set<String> _voteSelectedOptions = {};
   final List<String> _voteOptions = ['익명 투표', '중복 투표'];
 
+  DateTime? _closeAt;
+  bool _remindBeforeClose = false;
+  bool _submitting = false;
+
   PollOptionType _pollOptionType = PollOptionType.text;
   List<PollOptionValue> _pollOptions = const [];
+
+  String? _titleError;
+  String? _contentError;
+  String? _pollOptionsError;
+  String? _deadlineError;
 
   @override
   void dispose() {
@@ -38,36 +63,257 @@ class _PollCreatePageState extends State<PollCreatePage> {
     PollOptionType type,
     List<PollOptionValue> options,
   ) {
+    if (type != _pollOptionType) {
+      _musicChoices.clear();
+      _placeChoices.clear();
+    }
     _pollOptionType = type;
     _pollOptions = options;
+
+    if (_pollOptionsError != null && _arePollOptionsValid()) {
+      setState(() => _pollOptionsError = null);
+    }
   }
 
-  void _handleDatePressed(int index) {
-    debugPrint('$index 번째 날짜 선택 버튼 클릭');
-    // TODO: DatePicker/BottomSheet 연결 후 해당 항목의 값을 반영한다.
-  }
-
-  void _handleMusicPressed(int index) {
-    debugPrint('$index 번째 음원 선택 버튼 클릭');
-    // TODO: 음원 선택 화면/BottomSheet 연결.
-  }
-
-  void _handlePlacePressed(int index) {
-    debugPrint('$index 번째 장소 선택 버튼 클릭');
-    // TODO: 장소 검색 화면/BottomSheet 연결.
-  }
-
-  void _submitPoll() {
-    debugPrint('투표 제목: ${_titleController.text}');
-    debugPrint('투표 내용: ${_contentController.text}');
-    debugPrint('투표 타입: ${_pollOptionType.name}');
-    debugPrint(
-      '투표 항목: ${_pollOptions.map((option) => option.value).toList()}',
+  Future<void> _handleMusicPressed(int index) async {
+    final id = _pollOptions[index].id;
+    final chosen = await Navigator.of(context).push<MusicSearchResult>(
+      MaterialPageRoute(
+        builder: (_) => const MusicSearchPage(returnOnSelect: true),
+      ),
     );
-    debugPrint('마감 시간: ${_deadlineController.text}');
-    debugPrint('투표 옵션: $_voteSelectedOptions');
+    if (chosen == null || !mounted) return;
 
-    // TODO: 투표 생성 API 연결.
+    _musicChoices[id] = chosen;
+    _optionKey.currentState?.setOptionById(
+      id,
+      '${chosen.title} - ${chosen.artist}',
+    );
+  }
+
+  Future<void> _handlePlacePressed(int index) async {
+    final id = _pollOptions[index].id;
+    final chosen = await Navigator.of(context).push<LocationData>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const LocationSearchPage(returnRegisteredLocationOnSelect: true),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    _placeChoices[id] = chosen;
+    _optionKey.currentState?.setOptionById(
+      id,
+      chosen.locationName ?? chosen.roadAddress ?? '장소',
+    );
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final initialDate = _closeAt ?? now;
+    final date = await AppTimeBottomSheet.showDatePicker(
+      context,
+      title: '투표 마감 날짜',
+      initialDate: initialDate,
+      startYear: now.year,
+      maxDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+
+    final initialTime = TimeOfDay.fromDateTime(
+      _closeAt ?? _roundUpToTenMinutes(now.add(const Duration(hours: 1))),
+    );
+    final time = await AppTimeBottomSheet.showTimePicker(
+      context,
+      title: '투표 마감 시간',
+      initialTime: initialTime,
+      minuteInterval: 10,
+    );
+    if (time == null || !mounted) return;
+
+    final deadline = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    setState(() {
+      _closeAt = deadline;
+      _deadlineController.text = _formatDeadline(deadline);
+      _deadlineError = deadline.isAfter(DateTime.now())
+          ? null
+          : '투표 마감 시간은 현재 시간 이후여야 합니다.';
+    });
+  }
+
+  String _formatDeadline(DateTime dateTime) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    const weekdays = <String>['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+    final period = dateTime.hour < 12 ? '오전' : '오후';
+
+    return '${dateTime.year}. ${twoDigits(dateTime.month)}. '
+        '${twoDigits(dateTime.day)} ${weekdays[dateTime.weekday - 1]} '
+        '$period ${twoDigits(dateTime.hour)}:${twoDigits(dateTime.minute)}';
+  }
+
+  DateTime _roundUpToTenMinutes(DateTime dateTime) {
+    final remainder = dateTime.minute % 10;
+    if (remainder == 0) {
+      return DateTime(
+        dateTime.year,
+        dateTime.month,
+        dateTime.day,
+        dateTime.hour,
+        dateTime.minute,
+      );
+    }
+
+    return DateTime(
+      dateTime.year,
+      dateTime.month,
+      dateTime.day,
+      dateTime.hour,
+      dateTime.minute,
+    ).add(Duration(minutes: 10 - remainder));
+  }
+
+  bool _arePollOptionsValid() {
+    if (_pollOptions.length < 2) return false;
+
+    return _pollOptions.every((option) {
+      final value = option.value.trim();
+      if (value.isEmpty) return false;
+
+      return switch (_pollOptionType) {
+        PollOptionType.text => true,
+        PollOptionType.music => _musicChoices.containsKey(option.id),
+        PollOptionType.place => _placeChoices.containsKey(option.id),
+      };
+    });
+  }
+
+  String? _pollOptionsValidationMessage() {
+    if (_pollOptions.length < 2) {
+      return '투표 항목을 2개 이상 입력해주세요.';
+    }
+
+    if (!_arePollOptionsValid()) {
+      return '투표 항목을 입력해주세요.';
+    }
+
+    return null;
+  }
+
+  bool _validateRequiredFields() {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    final deadline = _closeAt;
+
+    setState(() {
+      _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
+      _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
+      _pollOptionsError = _pollOptionsValidationMessage();
+      _deadlineError = deadline == null
+          ? '투표 마감 시간을 설정해주세요.'
+          : !deadline.isAfter(DateTime.now())
+          ? '투표 마감 시간은 현재 시간 이후여야 합니다.'
+          : null;
+    });
+
+    return _titleError == null &&
+        _contentError == null &&
+        _pollOptionsError == null &&
+        _deadlineError == null;
+  }
+
+  void _handleTitleChanged(String value) {
+    if (_titleError != null && value.trim().isNotEmpty) {
+      setState(() => _titleError = null);
+    }
+  }
+
+  void _handleContentChanged(String value) {
+    if (_contentError != null && value.trim().isNotEmpty) {
+      setState(() => _contentError = null);
+    }
+  }
+
+  Future<void> _handleClose() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  Future<void> _submitPoll() async {
+    if (_submitting || !_validateRequiredFields()) return;
+
+    final title = _titleController.text.trim();
+
+    final type = switch (_pollOptionType) {
+      PollOptionType.music => 'MUSIC',
+      PollOptionType.place => 'LOCATION',
+      PollOptionType.text => 'TEXT',
+    };
+
+    final options = <PollCreateItem>[];
+    for (final option in _pollOptions) {
+      final text = option.value.trim();
+      final music = _musicChoices[option.id];
+      final place = _placeChoices[option.id];
+      options.add(
+        PollCreateItem(
+          content: type == 'TEXT' ? text : null,
+          music: type == 'MUSIC' && music != null
+              ? PollCreateMusic(
+                  title: music.title,
+                  artist: music.artist,
+                  previewUrl: music.previewUrl,
+                )
+              : null,
+          location: type == 'LOCATION' ? text : null,
+          locationId: type == 'LOCATION' ? place?.locationId : null,
+        ),
+      );
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await ref
+          .read(postApiProvider)
+          .createPoll(
+            PollCreateRequest(
+              title: title,
+              content: _contentController.text.trim(),
+              pollType: type,
+              pollList: options,
+              allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
+              isAnonymous: _voteSelectedOptions.contains('익명 투표'),
+              remindBeforeClose: _remindBeforeClose,
+              closeAt: _closeAt,
+            ),
+          );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -75,11 +321,7 @@ class _PollCreatePageState extends State<PollCreatePage> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppTopAppBar.closeOnly(
-        onClosePressed: () {
-          Navigator.of(context).maybePop();
-        },
-      ),
+      appBar: AppTopAppBar.closeOnly(onClosePressed: _handleClose),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -101,11 +343,10 @@ class _PollCreatePageState extends State<PollCreatePage> {
                         requiredMark: true,
                         hintText: '제목',
                         controller: _titleController,
-                        onChanged: (_) {},
+                        errorText: _titleError,
+                        onChanged: _handleTitleChanged,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '내용',
                         color: colors.onSurface,
@@ -115,12 +356,12 @@ class _PollCreatePageState extends State<PollCreatePage> {
                       AppTextArea(
                         hintText: '투표 내용을 작성해주세요.',
                         controller: _contentController,
+                        errorText: _contentError,
+                        onChanged: _handleContentChanged,
                         maxLength: 500,
                         fieldHeight: 200,
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '투표란',
                         color: colors.onSurface,
@@ -128,34 +369,71 @@ class _PollCreatePageState extends State<PollCreatePage> {
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       PollAddBox(
+                        key: _optionKey,
                         onChanged: _handlePollOptionsChanged,
-                        onDatePressed: _handleDatePressed,
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
                       ),
-
+                      if (_pollOptionsError != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(
+                          text: _pollOptionsError!,
+                          isError: true,
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.x20),
-
                       _RequiredLabel(
                         text: '투표 마감 시간 설정',
                         color: colors.onSurface,
+                        requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       AppTextField(
                         hintText: '투표 마감 시간을 설정하세요.',
                         controller: _deadlineController,
+                        readOnly: true,
+                        onTap: _pickDeadline,
                         suffixIcon: SvgPicture.asset(
                           'assets/icons/post/clock.svg',
                         ),
+                        errorText: _deadlineError,
                         onChanged: (_) {},
                       ),
-
                       const SizedBox(height: AppSpacing.x20),
-
-                      _RequiredLabel(
-                        text: '투표 옵션',
-                        color: colors.onSurface,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '투표 마감 알림',
+                                  style: FontStyles.reg18.copyWith(
+                                    color: context.grays.black,
+                                  ),
+                                ),
+                                Text(
+                                  '투표 마감 하루 전과 1시간 전에 알림을 보내드릴게요.',
+                                  style: FontStyles.med14.copyWith(
+                                    color: context.grays.gray4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AppSwitch(
+                            value: _remindBeforeClose,
+                            onChanged: (value) {
+                              setState(() => _remindBeforeClose = value);
+                            },
+                            height: 27.0,
+                            width: 50.0,
+                            ballPadding: 2.0,
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: AppSpacing.x20),
+                      _RequiredLabel(text: '투표 옵션', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
                       Wrap(
                         spacing: AppSpacing.x8,
@@ -177,7 +455,6 @@ class _PollCreatePageState extends State<PollCreatePage> {
                           );
                         }).toList(),
                       ),
-
                       const SizedBox(height: AppSpacing.x16),
                     ],
                   ),
@@ -189,7 +466,7 @@ class _PollCreatePageState extends State<PollCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitPoll,
+                onPressed: _submitting ? null : _submitPoll,
               ),
             ],
           ),
@@ -216,17 +493,15 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.semi16.copyWith(color: color),
           children: [
             TextSpan(text: text),
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: requiredColor,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: requiredColor),
               ),
           ],
         ),

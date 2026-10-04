@@ -1,4 +1,12 @@
+
 import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_main_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/member_selection_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_main_page.dart';
 import 'package:flutter/material.dart';
 
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
@@ -21,8 +29,9 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _pages = const [
     TeamDetailPage(),
 
-    _TemporaryMainPage(title: '공지'),
+    PostMainPage(),
     CalMainPage(),
+
     _TemporaryMainPage(title: '채팅'),
 
     // TODO: 실제 마이페이지 화면으로 교체
@@ -68,6 +77,22 @@ class _TemporaryMainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(child: Center(child: Text(title)));
+    return SafeArea(
+      child: Center(
+        child: Column(
+          children: [
+            Text(title),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => CloudMainPage()),
+                );
+              },
+              child: const Text('버튼'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

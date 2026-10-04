@@ -1,10 +1,23 @@
+import 'dart:async';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_main_provider.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_detail_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/poll_detail_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_create_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/view/meetit_detail_page.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 const String _goodIconPath = 'assets/icons/post/good.svg';
@@ -13,35 +26,11 @@ const String _chatIconPath = 'assets/icons/post/chat.svg';
 typedef PostDetailPageBuilder =
     Widget Function(BuildContext context, int postId);
 
-enum PostMainType { notice, poll, meetit }
-
-extension PostMainTypeExtension on PostMainType {
-  String get title {
-    switch (this) {
-      case PostMainType.notice:
-        return '공지';
-      case PostMainType.poll:
-        return '투표';
-      case PostMainType.meetit:
-        return '밋잇';
-    }
-  }
-
-  String get createMenuLabel {
-    switch (this) {
-      case PostMainType.notice:
-        return '공지 작성하기';
-      case PostMainType.poll:
-        return '투표 생성하기';
-      case PostMainType.meetit:
-        return '밋잇 생성하기';
-    }
-  }
-}
-
-class PostMainPage extends StatefulWidget {
+class PostMainPage extends ConsumerStatefulWidget {
   const PostMainPage({
     super.key,
+    this.searchOnly = false,
+    this.initialType = PostMainType.notice,
     this.onCreateNotice,
     this.onCreatePoll,
     this.onCreateMeetit,
@@ -50,6 +39,8 @@ class PostMainPage extends StatefulWidget {
     this.meetitDetailPageBuilder,
   });
 
+  final bool searchOnly;
+  final PostMainType initialType;
   final VoidCallback? onCreateNotice;
   final VoidCallback? onCreatePoll;
   final VoidCallback? onCreateMeetit;
@@ -59,11 +50,61 @@ class PostMainPage extends StatefulWidget {
   final PostDetailPageBuilder? meetitDetailPageBuilder;
 
   @override
-  State<PostMainPage> createState() => _PostMainPageState();
+  ConsumerState<PostMainPage> createState() => _PostMainPageState();
 }
 
-class _PostMainPageState extends State<PostMainPage> {
-  PostMainType _selectedType = PostMainType.notice;
+class _PostMainPageState extends ConsumerState<PostMainPage> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  late PostMainType _selectedType;
+  late bool _isSearchOpen;
+  Timer? _pollClockTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = widget.initialType;
+    _isSearchOpen = widget.searchOnly;
+    _pollClockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted && _selectedType == PostMainType.poll) {
+        setState(() {});
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _loadSelected(keyword: '');
+      if (widget.searchOnly) _searchFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollClockTimer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSelected({String? keyword}) async {
+    final query =
+        keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
+    final notifier = ref.read(postMainProvider.notifier);
+
+    switch (_selectedType) {
+      case PostMainType.notice:
+        await notifier.loadNotices(keyword: query);
+        return;
+      case PostMainType.poll:
+        await notifier.loadPolls(keyword: query);
+        return;
+      case PostMainType.meetit:
+        await notifier.loadMeetits(keyword: query);
+        return;
+    }
+  }
 
   void _changePostType(PostMainType type) {
     if (_selectedType == type) {
@@ -73,57 +114,161 @@ class _PostMainPageState extends State<PostMainPage> {
     setState(() {
       _selectedType = type;
     });
+
+    _loadSelected();
   }
 
-  void _handleCreatePressed(PostMainType type) {
-    switch (type) {
-      case PostMainType.notice:
-        widget.onCreateNotice?.call();
-        return;
-      case PostMainType.poll:
-        widget.onCreatePoll?.call();
-        return;
-      case PostMainType.meetit:
-        widget.onCreateMeetit?.call();
-        return;
-    }
+  void _handleSearchPressed() {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => PostMainPage(
+              searchOnly: true,
+              initialType: _selectedType,
+              noticeDetailPageBuilder: widget.noticeDetailPageBuilder,
+              pollDetailPageBuilder: widget.pollDetailPageBuilder,
+              meetitDetailPageBuilder: widget.meetitDetailPageBuilder,
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) _loadSelected(keyword: '');
+        });
   }
 
-  void _openDetailPage({
-    required int postId,
-    required PostDetailPageBuilder? pageBuilder,
-  }) {
-    if (pageBuilder == null) {
-      debugPrint('postId=$postId 상세 페이지 builder가 연결되지 않았습니다.');
+  Future<void> _submitSearch() async {
+    _searchFocusNode.unfocus();
+    await _loadSelected(keyword: _searchController.text.trim());
+  }
+
+  Future<void> _handleCreatePressed(PostMainType type) async {
+    final callback = switch (type) {
+      PostMainType.notice => widget.onCreateNotice,
+      PostMainType.poll => widget.onCreatePoll,
+      PostMainType.meetit => widget.onCreateMeetit,
+    };
+    if (callback != null) {
+      callback();
       return;
     }
+    final page = switch (type) {
+      PostMainType.notice => const PostCreatePage(),
+      PostMainType.poll => const PollCreatePage(),
+      PostMainType.meetit => const MeetitCreatePage(),
+    };
+    final created = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => page));
+    if (mounted && created == true) _loadSelected(keyword: '');
+  }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => pageBuilder(context, postId)),
+  Future<void> _openDetailPage({
+    required int postId,
+    required PostMainType type,
+    required PostDetailPageBuilder? pageBuilder,
+    int? pollCount,
+  }) async {
+    final page =
+        pageBuilder?.call(context, postId) ??
+        switch (type) {
+          PostMainType.notice => PostDetailPage(noticeId: postId),
+          PostMainType.poll => PollDetailPage(
+            pollId: postId,
+            participantCount: pollCount,
+          ),
+          PostMainType.meetit => MeetitDetailPage(meetitId: postId),
+        };
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    if (mounted)
+      _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
+  }
+
+  void _handleMeetitDelete(MeetitListItem item) {
+    // 제공된 백엔드 MeetitController에는 DELETE API가 없습니다.
+    // 존재하지 않는 endpoint를 추정해서 호출하지 않고 사용자에게 현재 상태를 알립니다.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('밋잇 삭제 API가 아직 제공되지 않아 삭제할 수 없습니다.')),
     );
   }
 
-  Widget _buildSelectedContent() {
+  Widget _buildSelectedContent(PostMainState state) {
     switch (_selectedType) {
       case PostMainType.notice:
-        return _NoticeContent(
-          onItemTap: (postId) => _openDetailPage(
-            postId: postId,
-            pageBuilder: widget.noticeDetailPageBuilder,
+        return _PostLoadState(
+          isLoading: state.isNoticeLoading,
+          errorMessage: state.noticeError,
+          isEmpty: state.notices.isEmpty,
+          emptyMessage: state.noticeKeyword.isEmpty
+              ? '작성된 공지가 없습니다.'
+              : '검색된 공지가 없습니다.',
+          onRetry: _loadSelected,
+          child: _NoticeContent(
+            items: state.notices,
+            onItemTap: (postId) => _openDetailPage(
+              postId: postId,
+              type: PostMainType.notice,
+              pageBuilder: widget.noticeDetailPageBuilder,
+            ),
           ),
         );
       case PostMainType.poll:
-        return _PollContent(
-          onItemTap: (postId) => _openDetailPage(
-            postId: postId,
-            pageBuilder: widget.pollDetailPageBuilder,
+        final now = DateTime.now();
+        final serverClosedIds = state.pollsClosed
+            .map((item) => item.pollId)
+            .toSet();
+        final uniquePolls = <int, PollListItem>{
+          for (final item in state.pollsInProgress) item.pollId: item,
+          for (final item in state.pollsClosed) item.pollId: item,
+        };
+        final activePolls = <PollListItem>[];
+        final completedPolls = <PollListItem>[];
+
+        for (final item in uniquePolls.values) {
+          final isExpired =
+              item.closeAt != null && !item.closeAt!.toLocal().isAfter(now);
+          if (serverClosedIds.contains(item.pollId) || isExpired) {
+            completedPolls.add(item);
+          } else {
+            activePolls.add(item);
+          }
+        }
+
+        return _PostLoadState(
+          isLoading: state.isPollLoading,
+          errorMessage: state.pollError,
+          isEmpty: activePolls.isEmpty && completedPolls.isEmpty,
+          emptyMessage: state.pollKeyword.isEmpty
+              ? '작성된 투표가 없습니다.'
+              : '검색된 투표가 없습니다.',
+          onRetry: _loadSelected,
+          child: _PollContent(
+            activePolls: activePolls,
+            completedPolls: completedPolls,
+            onItemTap: (postId) => _openDetailPage(
+              postId: postId,
+              type: PostMainType.poll,
+              pollCount: uniquePolls[postId]?.pollCount,
+              pageBuilder: widget.pollDetailPageBuilder,
+            ),
           ),
         );
       case PostMainType.meetit:
-        return _MeetitContent(
-          onItemTap: (postId) => _openDetailPage(
-            postId: postId,
-            pageBuilder: widget.meetitDetailPageBuilder,
+        return _PostLoadState(
+          isLoading: state.isMeetitLoading,
+          errorMessage: state.meetitError,
+          isEmpty: state.meetits.isEmpty,
+          emptyMessage: state.meetitKeyword.isEmpty
+              ? '작성된 밋잇이 없습니다.'
+              : '검색된 밋잇이 없습니다.',
+          onRetry: _loadSelected,
+          child: _MeetitContent(
+            items: state.meetits,
+            onItemTap: (postId) => _openDetailPage(
+              postId: postId,
+              type: PostMainType.meetit,
+              pageBuilder: widget.meetitDetailPageBuilder,
+            ),
+            onDelete: _handleMeetitDelete,
           ),
         );
     }
@@ -131,9 +276,81 @@ class _PostMainPageState extends State<PostMainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(postMainProvider);
+
+    if (widget.searchOnly) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.x12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SearchInputWidget(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        hintText: '${_selectedType.title} 검색',
+                        onSearchPressed: _submitSearch,
+                        onChanged: (value) {
+                          _loadSelected(keyword: value.trim());
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.x12),
+                    Semantics(
+                      button: true,
+                      label: '검색 닫기',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: SizedBox(
+                          width: 32,
+                          height: 54,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/etc/delete.svg',
+                              width: 24,
+                              height: 24,
+                              colorFilter: ColorFilter.mode(
+                                context.grays.gray1,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.x16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.only(bottom: AppSpacing.x30),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: KeyedSubtree(
+                        key: ValueKey<PostMainType>(_selectedType),
+                        child: _buildSelectedContent(state),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppTwoAppBar(
-        trailing: AppTwoAppBarTrailing.add,
+        trailing: AppTwoAppBarTrailing.all,
+        onSearchPressed: _handleSearchPressed,
         addMenuAlignment: AppDropdownAlignment.right,
         addMenuOffset: const Offset(0, 68),
         addMenuItems: [
@@ -195,7 +412,7 @@ class _PostMainPageState extends State<PostMainPage> {
                   },
                   child: KeyedSubtree(
                     key: ValueKey<PostMainType>(_selectedType),
-                    child: _buildSelectedContent(),
+                    child: _buildSelectedContent(state),
                   ),
                 ),
               ),
@@ -225,9 +442,11 @@ class _PostTypeDropdown extends StatelessWidget {
       itemHeight: 44,
       alignment: AppDropdownAlignment.left,
       alignmentOffset: const Offset(0, AppSpacing.x60),
+      showPressedCheck: false,
       items: PostMainType.values.map((type) {
+        final isSelected = type == selectedType;
         return AppDropdownItem(
-          label: type.title,
+          label: isSelected ? '✓  ${type.title}' : '    ${type.title}',
           onPressed: () => onChanged(type),
         );
       }).toList(),
@@ -283,56 +502,116 @@ class _PostTypeDropdown extends StatelessWidget {
   }
 }
 
+class _PostLoadState extends StatelessWidget {
+  const _PostLoadState({
+    required this.isLoading,
+    required this.errorMessage,
+    required this.isEmpty,
+    required this.emptyMessage,
+    required this.onRetry,
+    required this.child,
+  });
+
+  final bool isLoading;
+  final String? errorMessage;
+  final bool isEmpty;
+  final String emptyMessage;
+  final Future<void> Function() onRetry;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    if (isLoading && isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.x40),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (errorMessage != null && isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x30),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: FontStyles.med14.copyWith(color: colors.onSurface),
+              ),
+              const SizedBox(height: AppSpacing.x12),
+              TextButton(
+                onPressed: () => onRetry(),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isEmpty) {
+      final isSearchEmpty = emptyMessage.startsWith('검색된');
+      final itemName = emptyMessage.contains('공지')
+          ? '공지'
+          : emptyMessage.contains('투표')
+          ? '투표'
+          : '밋잇';
+      return SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.64,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: FontStyles.bold20.copyWith(color: colors.onSurface),
+              ),
+              if (!isSearchEmpty) ...[
+                const SizedBox(height: AppSpacing.x8),
+                Text(
+                  '+ 버튼을 눌러 ${itemName == '투표' ? '투표를' : '$itemName을'} ${itemName == '공지' ? '작성' : '생성'}해보세요.',
+                  textAlign: TextAlign.center,
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return child;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // 공지
 // -----------------------------------------------------------------------------
 
 class _NoticeContent extends StatelessWidget {
-  const _NoticeContent({required this.onItemTap});
+  const _NoticeContent({required this.items, required this.onItemTap});
 
+  final List<NoticeListItem> items;
   final ValueChanged<int> onItemTap;
-
-  static const List<_NoticeData> _items = [
-    _NoticeData(
-      id: 1,
-      title: '[중요] 합주실 사용 공지',
-      description: '안녕하세요. 합주실 사용과 관련하여 안내드립니다.',
-      likeCount: 16,
-      commentCount: 55,
-      dateText: '2026.04.08 10:16 · 작성자 송하은',
-      hasThumbnail: true,
-    ),
-    _NoticeData(
-      id: 2,
-      title: '합주 일정 합류 공지',
-      description: '잘 나가는 밴드 합주 일정은 다음과 같이 이루어집니다.',
-      likeCount: 16,
-      commentCount: 55,
-      dateText: '2026.04.08 10:16 · 작성자 송하은',
-      hasThumbnail: true,
-    ),
-    _NoticeData(
-      id: 3,
-      title: '합주 일정 합류 공지',
-      description: '잘 나가는 밴드 합주 일정은 방장의 투표 공지로 참여해주세요.',
-      likeCount: 16,
-      commentCount: 55,
-      dateText: '2026.04.08 10:16 · 작성자 송하은',
-      hasThumbnail: false,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: List.generate(_items.length, (index) {
+      children: List.generate(items.length, (index) {
+        final item = items[index];
+
         return Padding(
           padding: EdgeInsets.only(
-            bottom: index == _items.length - 1 ? 0 : AppSpacing.x20,
+            bottom: index == items.length - 1 ? 0 : AppSpacing.x20,
           ),
           child: _NoticeListItem(
-            item: _items[index],
-            onTap: () => onItemTap(_items[index].id),
+            item: item,
+            onTap: () => onItemTap(item.noticeId),
           ),
         );
       }),
@@ -343,7 +622,7 @@ class _NoticeContent extends StatelessWidget {
 class _NoticeListItem extends StatelessWidget {
   const _NoticeListItem({required this.item, required this.onTap});
 
-  final _NoticeData item;
+  final NoticeListItem item;
   final VoidCallback onTap;
 
   @override
@@ -377,14 +656,14 @@ class _NoticeListItem extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.x8),
                 _PostMetaChip(
-                  firstIconPath: 'assets/icons/post/good.svg',
+                  firstIconPath: _goodIconPath,
                   firstText: '${item.likeCount}',
-                  secondIconPath: 'assets/icons/post/chat.svg',
+                  secondIconPath: _chatIconPath,
                   secondText: '${item.commentCount}',
                 ),
                 const SizedBox(height: AppSpacing.x8),
                 Text(
-                  item.dateText,
+                  '${_formatDateTime(item.createdAt)} · 작성자 ${item.writer}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: FontStyles.reg12.copyWith(color: context.grays.gray4),
@@ -392,14 +671,22 @@ class _NoticeListItem extends StatelessWidget {
               ],
             ),
           ),
-          if (item.hasThumbnail) ...[
+          if (item.thumbnailUrl != null) ...[
             const SizedBox(width: AppSpacing.x12),
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(5),
-                color: context.grays.gray8,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Image.network(
+                item.thumbnailUrl!,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 64,
+                    height: 64,
+                    color: context.grays.gray8,
+                  );
+                },
               ),
             ),
           ],
@@ -409,76 +696,20 @@ class _NoticeListItem extends StatelessWidget {
   }
 }
 
-class _NoticeData {
-  const _NoticeData({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.likeCount,
-    required this.commentCount,
-    required this.dateText,
-    required this.hasThumbnail,
-  });
-
-  final int id;
-  final String title;
-  final String description;
-  final int likeCount;
-  final int commentCount;
-  final String dateText;
-  final bool hasThumbnail;
-}
-
 // -----------------------------------------------------------------------------
 // 투표
 // -----------------------------------------------------------------------------
 
 class _PollContent extends StatelessWidget {
-  const _PollContent({required this.onItemTap});
+  const _PollContent({
+    required this.activePolls,
+    required this.completedPolls,
+    required this.onItemTap,
+  });
 
+  final List<PollListItem> activePolls;
+  final List<PollListItem> completedPolls;
   final ValueChanged<int> onItemTap;
-
-  static const List<_PollData> _activePolls = [
-    _PollData(
-      id: 1,
-      title: '[중요] 4월 합주 일정 투표',
-      dateText: '2026.04.08 10:16 종료 예정',
-      participantCount: 7,
-      voteStatus: '투표 완료',
-      isUrgent: true,
-    ),
-    _PollData(
-      id: 2,
-      title: '5월 합주 일정 투표',
-      dateText: '2026.04.08 10:16 종료 예정',
-      participantCount: 7,
-      voteStatus: '투표 안함',
-    ),
-    _PollData(
-      id: 3,
-      title: '6월 합주 일정 투표',
-      dateText: '2026.04.08 10:16 종료 예정',
-      participantCount: 7,
-      voteStatus: '투표 안함',
-    ),
-  ];
-
-  static const List<_PollData> _completedPolls = [
-    _PollData(
-      id: 4,
-      title: '2월 합주 일정 투표',
-      dateText: '2026.04.08 10:16 종료된 투표',
-      participantCount: 28,
-      voteStatus: '투표 안함',
-    ),
-    _PollData(
-      id: 5,
-      title: '1월 합주 일정 투표',
-      dateText: '2026.04.08 10:16 종료된 투표',
-      participantCount: 19,
-      voteStatus: '투표 완료',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -487,16 +718,18 @@ class _PollContent extends StatelessWidget {
       children: [
         _PollSection(
           title: '진행 중인 투표',
-          items: _activePolls,
+          items: activePolls,
           isActive: true,
           onItemTap: onItemTap,
         ),
-        const SizedBox(height: AppSpacing.x20),
-        Divider(height: 1, thickness: 1, color: context.grays.gray7),
-        const SizedBox(height: AppSpacing.x20),
+        if (activePolls.isNotEmpty && completedPolls.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.x20),
+          Divider(height: 1, thickness: 1, color: context.grays.gray7),
+          const SizedBox(height: AppSpacing.x20),
+        ],
         _PollSection(
           title: '종료한 투표',
-          items: _completedPolls,
+          items: completedPolls,
           isActive: false,
           onItemTap: onItemTap,
         ),
@@ -514,12 +747,16 @@ class _PollSection extends StatelessWidget {
   });
 
   final String title;
-  final List<_PollData> items;
+  final List<PollListItem> items;
   final bool isActive;
   final ValueChanged<int> onItemTap;
 
   @override
   Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final colorScheme = Theme.of(context).colorScheme;
     final sectionColor = isActive ? colorScheme.primary : context.grays.gray1;
 
@@ -550,22 +787,20 @@ class _PollSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x8),
         ...List.generate(items.length, (index) {
+          final item = items[index];
+          final listItem = _PollListItem(
+            item: item,
+            isActive: isActive,
+            onTap: () => onItemTap(item.pollId),
+          );
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: index == items.length - 1 ? 0 : AppSpacing.x20,
             ),
             child: isActive
-                ? _PollListItem(
-                    item: items[index],
-                    onTap: () => onItemTap(items[index].id),
-                  )
-                : Opacity(
-                    opacity: 0.42,
-                    child: _PollListItem(
-                      item: items[index],
-                      onTap: () => onItemTap(items[index].id),
-                    ),
-                  ),
+                ? listItem
+                : Opacity(opacity: 0.42, child: listItem),
           );
         }),
       ],
@@ -574,14 +809,20 @@ class _PollSection extends StatelessWidget {
 }
 
 class _PollListItem extends StatelessWidget {
-  const _PollListItem({required this.item, required this.onTap});
+  const _PollListItem({
+    required this.item,
+    required this.isActive,
+    required this.onTap,
+  });
 
-  final _PollData item;
+  final PollListItem item;
+  final bool isActive;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isUrgent = isActive && _isClosingWithinOneDay(item.closeAt);
 
     return _PostItemTapSurface(
       semanticLabel: '${item.title} 투표 상세 보기',
@@ -596,27 +837,24 @@ class _PollListItem extends StatelessWidget {
             style: FontStyles.med20.copyWith(color: colorScheme.onSurface),
           ),
           const SizedBox(height: AppSpacing.x4),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.x8,
-            children: [
-              if (item.isUrgent)
-                Text(
-                  '[종료 임박]',
-                  style: FontStyles.reg12.copyWith(color: context.brands.error),
-                ),
-              Text(
-                item.dateText,
-                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-              ),
-            ],
+          Text(
+            _formatPollCloseText(
+              closeAt: item.closeAt,
+              isActive: isActive,
+              isUrgent: isUrgent,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: FontStyles.reg12.copyWith(
+              color: isUrgent ? colorScheme.primary : context.grays.gray4,
+            ),
           ),
           const SizedBox(height: AppSpacing.x8),
           _PostMetaChip(
             firstIconPath: 'assets/icons/post/vote.svg',
-            firstText: '${item.participantCount}명',
-            secondText: item.voteStatus,
-            secondTextColor: item.isUrgent ? colorScheme.primary : null,
+            firstText: '${item.pollCount}명',
+            secondText: item.isVoted ? '투표 완료' : '투표 안함',
+            secondTextColor: item.isVoted ? colorScheme.primary : null,
           ),
         ],
       ),
@@ -624,75 +862,35 @@ class _PollListItem extends StatelessWidget {
   }
 }
 
-class _PollData {
-  const _PollData({
-    required this.id,
-    required this.title,
-    required this.dateText,
-    required this.participantCount,
-    required this.voteStatus,
-    this.isUrgent = false,
-  });
-
-  final int id;
-  final String title;
-  final String dateText;
-  final int participantCount;
-  final String voteStatus;
-  final bool isUrgent;
-}
-
 // -----------------------------------------------------------------------------
 // 밋잇
 // -----------------------------------------------------------------------------
 
 class _MeetitContent extends StatelessWidget {
-  const _MeetitContent({required this.onItemTap});
+  const _MeetitContent({
+    required this.items,
+    required this.onItemTap,
+    required this.onDelete,
+  });
 
+  final List<MeetitListItem> items;
   final ValueChanged<int> onItemTap;
-
-  static const List<_MeetitData> _items = [
-    _MeetitData(
-      id: 1,
-      title: '4월 둘째주 합주',
-      participantCount: 7,
-      resultText: '2명 완료',
-      hasCompletedResult: true,
-    ),
-    _MeetitData(
-      id: 2,
-      title: '4월 첫째주 회식',
-      participantCount: 6,
-      resultText: '4명 완료',
-      hasCompletedResult: true,
-    ),
-    _MeetitData(
-      id: 3,
-      title: '합주',
-      participantCount: 7,
-      resultText: '미완료',
-      hasCompletedResult: false,
-    ),
-  ];
-
-  void _handleDelete(_MeetitData item) {
-    // TODO: 삭제 확인 팝업 또는 삭제 API 연결
-  }
+  final ValueChanged<MeetitListItem> onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: List.generate(_items.length, (index) {
-        final item = _items[index];
+      children: List.generate(items.length, (index) {
+        final item = items[index];
 
         return Padding(
           padding: EdgeInsets.only(
-            bottom: index == _items.length - 1 ? 0 : AppSpacing.x20,
+            bottom: index == items.length - 1 ? 0 : AppSpacing.x20,
           ),
           child: _MeetitListItem(
             item: item,
-            onTap: () => onItemTap(item.id),
-            onDelete: () => _handleDelete(item),
+            onTap: () => onItemTap(item.meetitId),
+            onDelete: () => onDelete(item),
           ),
         );
       }),
@@ -707,13 +905,14 @@ class _MeetitListItem extends StatelessWidget {
     required this.onDelete,
   });
 
-  final _MeetitData item;
+  final MeetitListItem item;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasResponse = item.respondedCount > 0;
 
     return _PostItemTapSurface(
       semanticLabel: '${item.title} 밋잇 상세 보기',
@@ -736,9 +935,11 @@ class _MeetitListItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.x10),
                 _PostMetaChip(
                   firstIconPath: 'assets/icons/post/people.svg',
-                  firstText: '${item.participantCount}명',
-                  secondText: item.resultText,
-                  secondTextColor: item.hasCompletedResult
+                  firstText: '${item.totalInvitedCount}명',
+                  secondText: hasResponse
+                      ? '${item.respondedCount}명 완료'
+                      : '미완료',
+                  secondTextColor: hasResponse
                       ? colorScheme.primary
                       : context.grays.gray5,
                 ),
@@ -785,22 +986,6 @@ class _MeetitListItem extends StatelessWidget {
   }
 }
 
-class _MeetitData {
-  const _MeetitData({
-    required this.id,
-    required this.title,
-    required this.participantCount,
-    required this.resultText,
-    required this.hasCompletedResult,
-  });
-
-  final int id;
-  final String title;
-  final int participantCount;
-  final String resultText;
-  final bool hasCompletedResult;
-}
-
 class _PostItemTapSurface extends StatelessWidget {
   const _PostItemTapSurface({
     required this.semanticLabel,
@@ -820,7 +1005,7 @@ class _PostItemTapSurface extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           overlayColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.pressed)) {
               return context.grays.gray8.withValues(alpha: 0.65);
@@ -866,7 +1051,7 @@ class _PostMetaChip extends StatelessWidget {
         vertical: AppSpacing.x4,
       ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         color: context.grays.gray8,
       ),
       child: Row(
@@ -900,7 +1085,6 @@ class _PostMetaChip extends StatelessWidget {
               style: FontStyles.med12.copyWith(color: defaultTextColor),
             ),
           ],
-
           const SizedBox(width: AppSpacing.x4),
           Text(
             secondText,
@@ -912,4 +1096,40 @@ class _PostMetaChip extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatDateTime(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  return '${local.year}.${twoDigits(local.month)}.${twoDigits(local.day)} '
+      '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+}
+
+bool _isClosingWithinOneDay(DateTime? closeAt) {
+  if (closeAt == null) {
+    return false;
+  }
+
+  final difference = closeAt.toLocal().difference(DateTime.now());
+  return difference > Duration.zero && difference <= const Duration(days: 1);
+}
+
+String _formatPollCloseText({
+  required DateTime? closeAt,
+  required bool isActive,
+  required bool isUrgent,
+}) {
+  if (closeAt == null) {
+    return isActive ? '종료 일정 없음' : '종료된 투표';
+  }
+
+  final formatted = _formatDateTime(closeAt);
+  if (!isActive) {
+    return '$formatted 종료된 투표';
+  }
+  if (isUrgent) {
+    return '종료 임박 · $formatted 종료 예정';
+  }
+  return '$formatted 종료 예정';
 }

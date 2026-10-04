@@ -33,6 +33,7 @@ class MeetitDetailData {
     required this.meetitId,
     required this.title,
     required this.creatorId,
+    this.dateOnly = false,
     required this.startTime,
     required this.endTime,
     required this.candidateDates,
@@ -49,6 +50,7 @@ class MeetitDetailData {
   final int meetitId;
   final String title;
   final int creatorId;
+  final bool dateOnly;
   final String startTime;
   final String endTime;
   final List<String> candidateDates;
@@ -61,11 +63,16 @@ class MeetitDetailData {
   final List<MeetitTimetableSlot> timetableGrid;
   final bool participant;
 
+  /// 백엔드 DTO는 `isParticipant`를 사용합니다.
+  /// Jackson 설정/기존 응답과의 호환을 위해 `participant`도 함께 지원합니다.
+  bool get isParticipant => participant;
+
   factory MeetitDetailData.fromJson(Map<String, dynamic> json) {
     return MeetitDetailData(
       meetitId: json['meetitId'] as int? ?? 0,
       title: json['title'] as String? ?? '',
       creatorId: json['creatorId'] as int? ?? 0,
+      dateOnly: json['dateOnly'] as bool? ?? false,
       startTime: json['startTime'] as String? ?? '09:00',
       endTime: json['endTime'] as String? ?? '16:00',
       candidateDates: (json['candidateDates'] as List? ?? const <dynamic>[])
@@ -109,7 +116,7 @@ class MeetitDetailData {
             ),
           )
           .toList(growable: false),
-      participant: json['participant'] as bool? ?? false,
+      participant: (json['isParticipant'] ?? json['participant']) as bool? ?? false,
     );
   }
 
@@ -236,21 +243,77 @@ class MeetitRespondedParticipant {
 @immutable
 class MeetitOptimalSlot {
   const MeetitOptimalSlot({
-    required this.date,
-    required this.startTime,
-    required this.endTime,
+    this.date = '',
+    this.startTime = '',
+    this.endTime = '',
+    this.startDateTime,
+    this.endDateTime,
   });
 
+  /// 구버전 응답 호환 필드입니다.
   final String date;
   final String startTime;
   final String endTime;
 
+  /// 현재 백엔드 응답 필드입니다.
+  final String? startDateTime;
+  final String? endDateTime;
+
   factory MeetitOptimalSlot.fromJson(Map<String, dynamic> json) {
+    final rawStartDateTime = json['startDateTime']?.toString();
+    final rawEndDateTime = json['endDateTime']?.toString();
+
+    final wallClockStart = _parseWallClock(rawStartDateTime);
+    final wallClockEnd = _parseWallClock(rawEndDateTime);
+
     return MeetitOptimalSlot(
-      date: json['date'] as String? ?? '',
-      startTime: json['startTime'] as String? ?? '',
-      endTime: json['endTime'] as String? ?? '',
+      date: json['date']?.toString() ??
+          (wallClockStart == null
+              ? ''
+              : '${wallClockStart.year.toString().padLeft(4, '0')}-'
+                  '${wallClockStart.month.toString().padLeft(2, '0')}-'
+                  '${wallClockStart.day.toString().padLeft(2, '0')}'),
+      startTime: json['startTime']?.toString() ??
+          (wallClockStart == null
+              ? ''
+              : '${wallClockStart.hour.toString().padLeft(2, '0')}:'
+                  '${wallClockStart.minute.toString().padLeft(2, '0')}'),
+      endTime: json['endTime']?.toString() ??
+          (wallClockEnd == null
+              ? ''
+              : '${wallClockEnd.hour.toString().padLeft(2, '0')}:'
+                  '${wallClockEnd.minute.toString().padLeft(2, '0')}'),
+      startDateTime: rawStartDateTime,
+      endDateTime: rawEndDateTime,
     );
+  }
+
+  /// 서버의 offset/Z를 현지 시각으로 변환하지 않고, 응답에 적힌 시각 자체를
+  /// 화면용 wall-clock 값으로 사용합니다. 후보 시간 09:30이 서버 환경에 따라
+  /// `09:30:00Z`로 내려와도 화면에는 09:30으로 표시하기 위함입니다.
+  DateTime? get wallClockStart =>
+      _parseWallClock(startDateTime) ?? _parseLegacy(date, startTime);
+
+  DateTime? get wallClockEnd =>
+      _parseWallClock(endDateTime) ?? _parseLegacy(date, endTime);
+
+  static DateTime? _parseWallClock(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return null;
+    return DateTime(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      parsed.second,
+    );
+  }
+
+  static DateTime? _parseLegacy(String date, String time) {
+    if (date.isEmpty || time.isEmpty) return null;
+    return DateTime.tryParse('${date}T$time:00');
   }
 }
 

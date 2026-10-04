@@ -40,7 +40,7 @@ class AppBottomNavigationBar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     this.items = defaultAppNavigationItems,
-    this.height = 64,
+    this.height = 70,
     this.iconSize = 24,
 
     this.pressedScale = 0.90,
@@ -83,26 +83,29 @@ class AppBottomNavigationBar extends StatelessWidget {
               horizontal: AppSpacing.x12,
               vertical: AppSpacing.x16,
             ),
-            child: Row(
-              children: List.generate(items.length, (index) {
-                final item = items[index];
-                final isSelected = safeCurrentIndex == index;
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.x4),
+              child: Row(
+                children: List.generate(items.length, (index) {
+                  final item = items[index];
+                  final isSelected = safeCurrentIndex == index;
 
-                return Expanded(
-                  child: _NavigationIconButton(
-                    item: item,
-                    isSelected: isSelected,
-                    iconSize: iconSize,
-                    activeColor: colors.primary,
-                    inactiveColor: AppColor.white,
-                    pressedScale: pressedScale,
-                    pressInDuration: pressInDuration,
-                    pressOutDuration: pressOutDuration,
-                    pressCurve: pressCurve,
-                    onTap: () => onTap(index),
-                  ),
-                );
-              }),
+                  return Expanded(
+                    child: _NavigationIconButton(
+                      item: item,
+                      isSelected: isSelected,
+                      iconSize: iconSize,
+                      activeColor: colors.primary,
+                      inactiveColor: AppColor.white,
+                      pressedScale: pressedScale,
+                      pressInDuration: pressInDuration,
+                      pressOutDuration: pressOutDuration,
+                      pressCurve: pressCurve,
+                      onTap: () => onTap(index),
+                    ),
+                  );
+                }),
+              ),
             ),
           ),
         ),

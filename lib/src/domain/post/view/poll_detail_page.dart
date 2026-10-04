@@ -3,89 +3,217 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
-import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PollDetailPage extends StatefulWidget {
-  const PollDetailPage({super.key});
+class PollDetailPage extends ConsumerStatefulWidget {
+  const PollDetailPage({
+    super.key,
+    required this.pollId,
+    this.participantCount,
+  });
+  final int pollId;
+  final int? participantCount;
 
   @override
-  State<PollDetailPage> createState() => _PollDetailPageState();
+  ConsumerState<PollDetailPage> createState() => _PollDetailPageState();
 }
 
-class _PollDetailPageState extends State<PollDetailPage> {
-  static const String _currentUserName = '송하은';
-  static const int _initialLikedCount = 100;
-  static const int _initialDislikedCount = 90;
-
-  final List<String> imageUrls = [
-    'https://picsum.photos/id/237/200/200',
-    'https://picsum.photos/id/238/200/200',
-    'https://picsum.photos/id/239/200/200',
-  ];
-
-  final TextEditingController _commentController = TextEditingController();
-  final FocusNode _commentFocusNode = FocusNode();
+class _PollDetailPageState extends ConsumerState<PollDetailPage> {
+  PollDetailData? _data;
+  String? _error;
+  final _composerKey = GlobalKey<PostCommentComposerState>();
   final ScrollController _scrollController = ScrollController();
-  final List<_PostComment> _comments = [
-    const _PostComment(
-      name: '송하은',
-      time: '2026.07.22 15:47',
-      comment: '안녕하세요?안녕하세요?안녕하세요?안녕하세요?',
-    ),
-  ];
+  int get _commentCount => _data?.commentCount ?? 0;
 
-  bool _isLiked = false;
-  bool _isDisliked = false;
-
-  int get _likedCount => _initialLikedCount + (_isLiked ? 1 : 0);
-  int get _dislikedCount => _initialDislikedCount + (_isDisliked ? 1 : 0);
-  int get _commentCount => _comments.length;
-
-  void _toggleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-    });
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_load);
   }
 
-  void _toggleDislike() {
-    setState(() {
-      _isDisliked = !_isDisliked;
-    });
-  }
-
-  void _addComment(String message) {
-    final comment = message.trim();
-
-    if (comment.isEmpty) {
-      return;
+  Future<void> _load() async {
+    try {
+      final data = await ref.read(postApiProvider).getPoll(widget.pollId);
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     }
+  }
 
-    setState(() {
-      _comments.add(
-        _PostComment(
-          name: _currentUserName,
-          time: _formatDateTime(DateTime.now()),
-          comment: comment,
+  void _showError(Object error) {
+    if (mounted)
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+  }
+
+  void _showOptionsPreview() {
+    final data = _data;
+    if (data == null) return;
+    final isMusic = data.pollType == 'MUSIC';
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.grays.white,
+      builder: (sheetContext) => SafeArea(
+        child: FractionallySizedBox(
+          heightFactor: 0.58,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.x20),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Text(
+                        isMusic ? '음악 미리듣기' : '장소 미리보기',
+                        textAlign: TextAlign.center,
+                        style: FontStyles.bold20.copyWith(
+                          color: context.grays.black,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: data.pollItems.length,
+                  itemBuilder: (context, index) {
+                    final item = data.pollItems[index];
+                    if (!isMusic) {
+                      return LocationResultWidget(
+                        name: item.locationName ?? item.location ?? '장소',
+                        address: item.roadAddress ?? '',
+                        onTap: item.locationId == null
+                            ? null
+                            : () {
+                                Navigator.of(sheetContext).pop();
+                                Navigator.of(this.context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LocationMapPreviewPage(
+                                      locationId: item.locationId!,
+                                    ),
+                                  ),
+                                );
+                              },
+                      );
+                    }
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.x20,
+                      ),
+                      leading: SvgPicture.asset(
+                        'assets/icons/post/music_symbol.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(
+                          context.brands.beatOrange1,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      title: Text(
+                        item.title ?? '',
+                        style: FontStyles.med16.copyWith(
+                          color: context.grays.black,
+                        ),
+                      ),
+                      subtitle: Text(item.artist ?? ''),
+                      onTap: item.previewUrl == null || item.previewUrl!.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(sheetContext).pop();
+                              Navigator.of(this.context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => MusicPreviewPage(
+                                    musicTitle: item.title ?? '',
+                                    artist: item.artist ?? '',
+                                    imageUrl: '',
+                                    previewUrl: item.previewUrl!,
+                                  ),
+                                ),
+                              );
+                            },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    });
+      ),
+    );
+  }
 
-    _commentController.clear();
+  Future<bool> _addComment(
+    String message,
+    int? parentId,
+    List<int> mentions,
+  ) async {
+    if (message.trim().isEmpty) return false;
+    try {
+      await ref
+          .read(postApiProvider)
+          .commentPoll(
+            widget.pollId,
+            message.trim(),
+            parentCommentId: parentId,
+            mentionedUserIds: mentions,
+          );
+      if (mounted) await _load();
+      return true;
+    } catch (error) {
+      _showError(error);
+      return false;
+    }
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) {
-        return;
-      }
+  Future<void> _deleteComment(int id) async {
+    try {
+      await ref.read(postApiProvider).deletePollComment(widget.pollId, id);
+      if (mounted) await _load();
+    } catch (error) {
+      _showError(error);
+    }
+  }
 
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-      );
-    });
+  Future<void> _confirmDelete() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(postApiProvider).deletePoll(widget.pollId);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      _showError(error);
+    }
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -98,8 +226,6 @@ class _PollDetailPageState extends State<PollDetailPage> {
 
   @override
   void dispose() {
-    _commentController.dispose();
-    _commentFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -109,6 +235,14 @@ class _PollDetailPageState extends State<PollDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
+    if (_data == null)
+      return Scaffold(
+        body: Center(
+          child: _error == null
+              ? const CircularProgressIndicator()
+              : Text(_error!),
+        ),
+      );
     return Scaffold(
       appBar: AppTopAppBar.backMore(
         onBackPressed: () {
@@ -120,13 +254,13 @@ class _PollDetailPageState extends State<PollDetailPage> {
           AppDropdownItem(
             label: '수정하기',
             onPressed: () {
-              debugPrint('수정');
+              _showError('수정 화면은 아직 연결되지 않았습니다.');
             },
           ),
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              debugPrint('삭제');
+              _confirmDelete();
             },
           ),
         ],
@@ -146,13 +280,13 @@ class _PollDetailPageState extends State<PollDetailPage> {
                         AppSpacing.x16,
                         AppSpacing.x24,
                         AppSpacing.x16,
-                        AppSpacing.x24,
+                        AppSpacing.x16,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '4월 28일 합주',
+                            _data!.title,
                             softWrap: true,
                             style: FontStyles.bold34.copyWith(
                               color: colors.onSurface,
@@ -163,14 +297,16 @@ class _PollDetailPageState extends State<PollDetailPage> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _ProfileAvatar(),
+                              _ProfileAvatar(
+                                imageUrl: _data!.writerProfileImageUrl,
+                              ),
                               const SizedBox(width: AppSpacing.x8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '송하은',
+                                      _data!.writerName,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: FontStyles.semi14.copyWith(
@@ -182,13 +318,16 @@ class _PollDetailPageState extends State<PollDetailPage> {
                                       TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: '2026.07.22 15:47',
+                                            text: _formatDateTime(
+                                              _data!.createdAt.toLocal(),
+                                            ),
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray4,
                                             ),
                                           ),
                                           TextSpan(
-                                            text: ' ｜최종수정일 2026.04.03 15:00',
+                                            text:
+                                                ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray5,
                                             ),
@@ -206,11 +345,7 @@ class _PollDetailPageState extends State<PollDetailPage> {
                           SizedBox(
                             width: double.infinity,
                             child: Text(
-                              '안녕하세요! 오늘 합주는 아래 두 곡 연습 예정입니다.\n\n'
-                              '파일에는 악보를 pdf로 첨부했으니 참고 부탁드려요 !\n'
-                              '합주는 약 3시간 진행 후 함께 점심식사 예정입니다.\n'
-                              '(메뉴는 아마도 닭갈비...)\n\n'
-                              '오늘은 악기 대여를 안 했으니, 본인이 지참해주세요~',
+                              _data!.content ?? '',
                               softWrap: true,
                               style: FontStyles.reg14.copyWith(
                                 color: context.grays.black,
@@ -218,7 +353,89 @@ class _PollDetailPageState extends State<PollDetailPage> {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.x24),
-                          PollSelectionBox(),
+                          PollSelectionBox(
+                            key: ValueKey(
+                              '${_data!.pollId}-${_data!.updatedAt}',
+                            ),
+                            options: _data!.pollItems
+                                .map(
+                                  (item) =>
+                                      item.content ??
+                                      item.locationName ??
+                                      item.location ??
+                                      ((item.title ?? '') +
+                                          (item.artist == null
+                                              ? ''
+                                              : ' - ${item.artist}')),
+                                )
+                                .toList(),
+                            status:
+                                _data!.closeAt != null &&
+                                    !_data!.closeAt!.isAfter(DateTime.now())
+                                ? PollStatus.completed
+                                : PollStatus.inProgress,
+                            isAnonymous: _data!.isAnonymous,
+                            participantCount: widget.participantCount ?? 0,
+                            selectionMode: _data!.allowMultipleChoice
+                                ? PollSelectionMode.multiple
+                                : PollSelectionMode.single,
+                            initialVoteCounts: _data!.pollItems
+                                .map((item) => item.voteCount)
+                                .toList(),
+                            initialSelectedIndexes: {
+                              for (
+                                var index = 0;
+                                index < _data!.pollItems.length;
+                                index++
+                              )
+                                if (_data!.pollItems[index].isVoted) index,
+                            },
+                            initialHasVoted: _data!.pollItems.any(
+                              (item) => item.isVoted,
+                            ),
+                            optionType: switch (_data!.pollType) {
+                              'MUSIC' => PollOptionDisplayType.music,
+                              'LOCATION' => PollOptionDisplayType.location,
+                              _ => PollOptionDisplayType.text,
+                            },
+                            onPreviewTap:
+                                _data!.pollType == 'MUSIC' ||
+                                    _data!.pollType == 'LOCATION'
+                                ? _showOptionsPreview
+                                : null,
+                            onVoteSubmitted: (indexes) async {
+                              try {
+                                await ref
+                                    .read(postApiProvider)
+                                    .votePoll(
+                                      widget.pollId,
+                                      indexes
+                                          .map(
+                                            (index) =>
+                                                _data!.pollItems[index].itemId,
+                                          )
+                                          .toList(),
+                                    );
+                                if (mounted) await _load();
+                                return true;
+                              } catch (error) {
+                                _showError(error);
+                                return false;
+                              }
+                            },
+                            onMapTap: (index) {
+                              final locationId =
+                                  _data!.pollItems[index].locationId;
+                              if (locationId != null)
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LocationMapPreviewPage(
+                                      locationId: locationId,
+                                    ),
+                                  ),
+                                );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -266,21 +483,13 @@ class _PollDetailPageState extends State<PollDetailPage> {
                         AppSpacing.x16,
                         AppSpacing.x24,
                       ),
-                      child: _comments.isEmpty
-                          ? const _EmptyCommentWidget()
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < _comments.length;
-                                  index++
-                                ) ...[
-                                  _CommentTile(comment: _comments[index]),
-                                  if (index != _comments.length - 1)
-                                    const SizedBox(height: AppSpacing.x20),
-                                ],
-                              ],
-                            ),
+                      child: PostCommentList(
+                        comments: _data!.commentList,
+                        canModerate: _data!.isWriter,
+                        onReply: (comment) =>
+                            _composerKey.currentState?.replyTo(comment),
+                        onDelete: _deleteComment,
+                      ),
                     ),
                   ],
                 ),
@@ -288,11 +497,8 @@ class _PollDetailPageState extends State<PollDetailPage> {
             ),
             ColoredBox(
               color: colors.surface,
-              child: AppCommentInput(
-                controller: _commentController,
-                focusNode: _commentFocusNode,
-                hintText: '댓글을 입력해주세요.',
-                sendButtonSemanticLabel: '댓글 등록하기',
+              child: PostCommentComposer(
+                key: _composerKey,
                 onSend: _addComment,
               ),
             ),
@@ -303,64 +509,10 @@ class _PollDetailPageState extends State<PollDetailPage> {
   }
 }
 
-class _PostComment {
-  const _PostComment({
-    required this.name,
-    required this.time,
-    required this.comment,
-    this.imageUrl = 'https://picsum.photos/80/80',
-  });
-
-  final String name;
-  final String time;
-  final String comment;
-  final String imageUrl;
-}
-
-class _CommentTile extends StatelessWidget {
-  const _CommentTile({required this.comment});
-
-  final _PostComment comment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ProfileAvatar(imageUrl: comment.imageUrl),
-        const SizedBox(width: AppSpacing.x8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                comment.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: FontStyles.semi14.copyWith(color: context.grays.gray1),
-              ),
-              Text(
-                comment.time,
-                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-              ),
-              const SizedBox(height: AppSpacing.x8),
-              Text(
-                comment.comment,
-                softWrap: true,
-                style: FontStyles.reg14.copyWith(color: context.grays.gray1),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({this.imageUrl = 'https://picsum.photos/80/80'});
+  const _ProfileAvatar({this.imageUrl});
 
-  final String imageUrl;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -370,62 +522,37 @@ class _ProfileAvatar extends StatelessWidget {
       width: 40,
       height: 40,
       child: ClipOval(
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
+        child: imageUrl == null || imageUrl!.isEmpty
+            ? const Icon(Icons.person_outline_rounded)
+            : Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
 
-            return ColoredBox(
-              color: colors.surfaceContainerHighest,
-              child: const Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                  return ColoredBox(
+                    color: colors.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return ColoredBox(
+                    color: colors.errorContainer,
+                    child: Icon(
+                      Icons.person_outline_rounded,
+                      color: colors.onErrorContainer,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return ColoredBox(
-              color: colors.errorContainer,
-              child: Icon(
-                Icons.person_outline_rounded,
-                color: colors.onErrorContainer,
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyCommentWidget extends StatelessWidget {
-  const _EmptyCommentWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '아직 단 댓글이 없어요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-          const SizedBox(height: AppSpacing.x4),
-          Text(
-            '가장 먼저 댓글을 남겨보세요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-        ],
       ),
     );
   }

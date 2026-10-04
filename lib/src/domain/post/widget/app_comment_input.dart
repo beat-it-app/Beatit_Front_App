@@ -12,6 +12,7 @@ class AppCommentInput extends StatefulWidget {
     this.hintText = '댓글을 입력해주세요.',
     this.sendButtonSemanticLabel = '메시지 보내기',
     this.enabled = true,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -22,6 +23,7 @@ class AppCommentInput extends StatefulWidget {
   final bool enabled;
 
   final ValueChanged<String> onSend;
+  final ValueChanged<String>? onChanged;
 
   @override
   State<AppCommentInput> createState() => _AppCommentInputState();
@@ -153,6 +155,7 @@ class _AppCommentInputState extends State<AppCommentInput> {
                         focusedBorder: InputBorder.none,
                         disabledBorder: InputBorder.none,
                       ),
+                      onChanged: widget.onChanged,
                       onTapOutside: (_) {
                         FocusManager.instance.primaryFocus?.unfocus();
                       },

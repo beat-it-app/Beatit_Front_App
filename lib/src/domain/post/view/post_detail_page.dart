@@ -4,88 +4,149 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
-import 'package:beatit_front_app/src/domain/post/widget/app_comment_input.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/etc/view/picture_preview_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
+import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PostDetailPage extends StatefulWidget {
-  const PostDetailPage({super.key});
+class PostDetailPage extends ConsumerStatefulWidget {
+  const PostDetailPage({super.key, required this.noticeId});
+  final int noticeId;
 
   @override
-  State<PostDetailPage> createState() => _PostDetailPageState();
+  ConsumerState<PostDetailPage> createState() => _PostDetailPageState();
 }
 
-class _PostDetailPageState extends State<PostDetailPage> {
-  static const String _currentUserName = '송하은';
-  static const int _initialLikedCount = 100;
-  static const int _initialDislikedCount = 90;
-
-  final List<String> imageUrls = [
-    'https://picsum.photos/id/237/200/200',
-    'https://picsum.photos/id/238/200/200',
-    'https://picsum.photos/id/239/200/200',
-  ];
-
-  final TextEditingController _commentController = TextEditingController();
-  final FocusNode _commentFocusNode = FocusNode();
+class _PostDetailPageState extends ConsumerState<PostDetailPage> {
+  NoticeDetailData? _data;
+  String? _error;
+  final _composerKey = GlobalKey<PostCommentComposerState>();
   final ScrollController _scrollController = ScrollController();
-  final List<_PostComment> _comments = [
-    const _PostComment(
-      name: '송하은',
-      time: '2026.07.22 15:47',
-      comment: '안녕하세요?안녕하세요?안녕하세요?안녕하세요?',
-    ),
-  ];
+  bool _reactionPending = false;
+  int get _commentCount => _data?.reaction.commentCount ?? 0;
+  List<String> get imageUrls => _data?.images ?? const [];
 
-  bool _isLiked = false;
-  bool _isDisliked = false;
+  @override
+  void initState() { super.initState(); Future.microtask(_load); }
 
-  int get _likedCount => _initialLikedCount + (_isLiked ? 1 : 0);
-  int get _dislikedCount => _initialDislikedCount + (_isDisliked ? 1 : 0);
-  int get _commentCount => _comments.length;
-
-  void _toggleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-    });
-  }
-
-  void _toggleDislike() {
-    setState(() {
-      _isDisliked = !_isDisliked;
-    });
-  }
-
-  void _addComment(String message) {
-    final comment = message.trim();
-
-    if (comment.isEmpty) {
-      return;
+  Future<void> _load() async {
+    try {
+      final data = await ref.read(postApiProvider).getNotice(widget.noticeId);
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     }
+  }
 
-    setState(() {
-      _comments.add(
-        _PostComment(
-          name: _currentUserName,
-          time: _formatDateTime(DateTime.now()),
-          comment: comment,
+  void _showError(Object error) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+  }
+
+  bool get _isLiked => _data?.reaction.isLiked ?? false;
+  bool get _isDisliked => _data?.reaction.isDisliked ?? false;
+  int get _likedCount => _data?.reaction.likeCount ?? 0;
+  int get _dislikedCount => _data?.reaction.dislikeCount ?? 0;
+  Future<void> _toggleLike() async {
+    if (_reactionPending || _data == null) return;
+    _reactionPending = true;
+    try {
+      final api = ref.read(postApiProvider);
+      if (_isDisliked) await api.toggleNoticeDislike(widget.noticeId);
+      await api.toggleNoticeLike(widget.noticeId);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) await _load();
+      _reactionPending = false;
+    }
+  }
+  Future<void> _toggleDislike() async {
+    if (_reactionPending || _data == null) return;
+    _reactionPending = true;
+    try {
+      final api = ref.read(postApiProvider);
+      if (_isLiked) await api.toggleNoticeLike(widget.noticeId);
+      await api.toggleNoticeDislike(widget.noticeId);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) await _load();
+      _reactionPending = false;
+    }
+  }
+
+  Future<bool> _addComment(String message, int? parentId, List<int> mentions) async {
+    if (message.trim().isEmpty) return false;
+    try {
+      await ref.read(postApiProvider).commentNotice(widget.noticeId, message.trim(),
+        parentCommentId: parentId, mentionedUserIds: mentions);
+      if (mounted) await _load();
+      return true;
+    } catch (error) { _showError(error); return false; }
+  }
+
+  Future<void> _deleteComment(int id) async {
+    try {
+      await ref.read(postApiProvider).deleteNoticeComment(widget.noticeId, id);
+      if (mounted) await _load();
+    } catch (error) { _showError(error); }
+  }
+
+  Future<void> _openEditPage() async {
+    final data = _data;
+    if (data == null) return;
+
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PostCreatePage(initialNotice: data),
+      ),
+    );
+
+    if (updated == true && mounted) {
+      await _load();
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 내용은 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(postApiProvider).deleteNotice(widget.noticeId);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  void _openImagePreview(int initialIndex) {
+    if (imageUrls.isEmpty) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PicturePreviewPage(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
         ),
-      );
-    });
-
-    _commentController.clear();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) {
-        return;
-      }
-
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-      );
-    });
+      ),
+    );
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -98,8 +159,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   @override
   void dispose() {
-    _commentController.dispose();
-    _commentFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -109,6 +168,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
+    if (_data == null) return Scaffold(body: Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!)));
     return Scaffold(
       appBar: AppTopAppBar.backMore(
         onBackPressed: () {
@@ -119,14 +179,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
         moreMenuItems: [
           AppDropdownItem(
             label: '수정하기',
-            onPressed: () {
-              debugPrint('수정');
-            },
+            onPressed: _openEditPage,
           ),
           AppDropdownItem(
             label: '삭제하기',
             onPressed: () {
-              debugPrint('삭제');
+              _confirmDelete();
             },
           ),
         ],
@@ -152,7 +210,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '4월 28일 합주',
+                            _data!.title,
                             softWrap: true,
                             style: FontStyles.bold34.copyWith(
                               color: colors.onSurface,
@@ -163,14 +221,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _ProfileAvatar(),
+                              _ProfileAvatar(imageUrl: _data!.writerProfileImageUrl),
                               const SizedBox(width: AppSpacing.x8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '송하은',
+                                      _data!.writerName,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: FontStyles.semi14.copyWith(
@@ -182,13 +240,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                       TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: '2026.07.22 15:47',
+                                            text: _formatDateTime(_data!.createdAt.toLocal()),
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray4,
                                             ),
                                           ),
                                           TextSpan(
-                                            text: ' ｜최종수정일 2026.04.03 15:00',
+                                            text: ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray5,
                                             ),
@@ -206,11 +264,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           SizedBox(
                             width: double.infinity,
                             child: Text(
-                              '안녕하세요! 오늘 합주는 아래 두 곡 연습 예정입니다.\n\n'
-                              '파일에는 악보를 pdf로 첨부했으니 참고 부탁드려요 !\n'
-                              '합주는 약 3시간 진행 후 함께 점심식사 예정입니다.\n'
-                              '(메뉴는 아마도 닭갈비...)\n\n'
-                              '오늘은 악기 대여를 안 했으니, 본인이 지참해주세요~',
+                              _data!.content,
                               softWrap: true,
                               style: FontStyles.reg14.copyWith(
                                 color: context.grays.black,
@@ -225,48 +279,53 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 for (int i = 0; i < imageUrls.length; i++) ...[
-                                  SizedBox(
-                                    width: 190,
-                                    height: 190,
-                                    // Container 대신 ClipRRect를 사용하여 자식 위젯을 둥글게 자릅니다.
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.lg,
-                                      ),
-                                      child: Image.network(
-                                        imageUrls[i],
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
+                                  Semantics(
+                                    button: true,
+                                    label: '${i + 1}번째 사진 크게 보기',
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => _openImagePreview(i),
+                                      child: SizedBox(
+                                        width: 190,
+                                        height: 190,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.lg,
+                                          ),
+                                          child: Image.network(
+                                            imageUrls[i],
+                                            fit: BoxFit.cover,
+                                            loadingBuilder:
+                                                (context, child, loadingProgress) {
                                               if (loadingProgress == null) {
                                                 return child;
                                               }
 
                                               return ColoredBox(
-                                                color: colors
-                                                    .surfaceContainerHighest,
+                                                color: colors.surfaceContainerHighest,
                                                 child: const Center(
                                                   child: SizedBox(
                                                     width: 18,
                                                     height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
                                                   ),
                                                 ),
                                               );
                                             },
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return ColoredBox(
-                                            color: colors.errorContainer,
-                                            child: Icon(
-                                              Icons
-                                                  .image_not_supported_outlined, // 프로필이 아닌 일반 이미지 오류 아이콘으로 변경 추천
-                                              color: colors.onErrorContainer,
-                                            ),
-                                          );
-                                        },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return ColoredBox(
+                                                color: colors.errorContainer,
+                                                child: Icon(
+                                                  Icons.image_not_supported_outlined,
+                                                  color: colors.onErrorContainer,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -433,21 +492,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         AppSpacing.x16,
                         AppSpacing.x24,
                       ),
-                      child: _comments.isEmpty
-                          ? const _EmptyCommentWidget()
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < _comments.length;
-                                  index++
-                                ) ...[
-                                  _CommentTile(comment: _comments[index]),
-                                  if (index != _comments.length - 1)
-                                    const SizedBox(height: AppSpacing.x20),
-                                ],
-                              ],
-                            ),
+                      child: PostCommentList(
+                        comments: _data!.commentList,
+                        canModerate: _data!.isWriter,
+                        onReply: (comment) => _composerKey.currentState?.replyTo(comment),
+                        onDelete: _deleteComment,
+                      ),
                     ),
                   ],
                 ),
@@ -455,11 +505,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ),
             ColoredBox(
               color: colors.surface,
-              child: AppCommentInput(
-                controller: _commentController,
-                focusNode: _commentFocusNode,
-                hintText: '댓글을 입력해주세요.',
-                sendButtonSemanticLabel: '댓글 등록하기',
+              child: PostCommentComposer(
+                key: _composerKey,
                 onSend: _addComment,
               ),
             ),
@@ -470,64 +517,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 }
 
-class _PostComment {
-  const _PostComment({
-    required this.name,
-    required this.time,
-    required this.comment,
-    this.imageUrl = 'https://picsum.photos/80/80',
-  });
-
-  final String name;
-  final String time;
-  final String comment;
-  final String imageUrl;
-}
-
-class _CommentTile extends StatelessWidget {
-  const _CommentTile({required this.comment});
-
-  final _PostComment comment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ProfileAvatar(imageUrl: comment.imageUrl),
-        const SizedBox(width: AppSpacing.x8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                comment.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: FontStyles.semi14.copyWith(color: context.grays.gray1),
-              ),
-              Text(
-                comment.time,
-                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-              ),
-              const SizedBox(height: AppSpacing.x8),
-              Text(
-                comment.comment,
-                softWrap: true,
-                style: FontStyles.reg14.copyWith(color: context.grays.gray1),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({this.imageUrl = 'https://picsum.photos/80/80'});
+  const _ProfileAvatar({this.imageUrl});
 
-  final String imageUrl;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -537,8 +530,10 @@ class _ProfileAvatar extends StatelessWidget {
       width: 40,
       height: 40,
       child: ClipOval(
-        child: Image.network(
-          imageUrl,
+        child: imageUrl == null || imageUrl!.isEmpty
+            ? const Icon(Icons.person_outline_rounded)
+            : Image.network(
+          imageUrl!,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) {
@@ -566,33 +561,6 @@ class _ProfileAvatar extends StatelessWidget {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyCommentWidget extends StatelessWidget {
-  const _EmptyCommentWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '아직 단 댓글이 없어요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-          const SizedBox(height: AppSpacing.x4),
-          Text(
-            '가장 먼저 댓글을 남겨보세요.',
-            textAlign: TextAlign.center,
-            style: FontStyles.med14.copyWith(color: context.grays.gray4),
-          ),
-        ],
       ),
     );
   }

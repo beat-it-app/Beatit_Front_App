@@ -3,266 +3,318 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_audio_preview.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_permission_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_storage_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_folder_page.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_link_preview.dart';
-import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_move_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/view/cloud_preview_host_page.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_upload_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_folder_name_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_api_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class CloudMainPage extends StatefulWidget {
+class CloudMainPage extends ConsumerStatefulWidget {
   const CloudMainPage({super.key});
 
   @override
-  State<CloudMainPage> createState() => _CloudMainPageState();
+  ConsumerState<CloudMainPage> createState() => _CloudMainPageState();
 }
 
-class _CloudMainPageState extends State<CloudMainPage> {
-  String? _selectedEntryId;
-
+class _CloudMainPageState extends ConsumerState<CloudMainPage> {
+  int? _selectedItemId;
   bool _isSelectionMode = false;
-  final Set<String> _selectedEntryIds = <String>{};
+  final Set<int> _selectedItemIds = <int>{};
+  final Set<int> _selectedFolderIds = <int>{};
 
-  /// 화면 확인용 임시 데이터
-  static const List<_CloudEntry> _entries = [
-    _CloudFolderEntry(
-      id: 'folder-youngseo',
-      folderName: '영서의 폴더',
-      fileCount: 10,
-    ),
-    _CloudFileEntry(
-      id: 'audio-basket-case',
-      itemType: CloudItemType.audio,
-      fileName: 'Basket Case.mp3',
-      fileSize: '10MB',
-      uploadedAt: '2026. 08. 05',
-      uploaderName: '이현영',
-      // TODO: 실제 Cloud API 연결 후 서버에서 받은 음원 URL로 교체
-      previewUrl: 'https://samplelib.com/mp3/sample-20s.mp3',
-    ),
-    _CloudFileEntry(
-      id: 'video-practice',
-      itemType: CloudItemType.video,
-      fileName: '합주 연습 영상.mp4',
-      fileSize: '32MB',
-      uploadedAt: '2026. 08. 04',
-      uploaderName: '송하은',
-      // TODO: 실제 Cloud API 연결 후 서버에서 받은 영상 URL로 교체
-      previewUrl:
-          'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-    ),
-    _CloudFileEntry(
-      id: 'file-setlist',
-      itemType: CloudItemType.file,
-      fileName: '2차 베이스 악보 공유.pdf',
-      fileSize: '8.2MB',
-      uploadedAt: '2026. 07. 22',
-      uploaderName: '송하은',
-      // TODO: 실제 Cloud API 연결 후 제거
-      previewUrl:
-          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    ),
-    _CloudFileEntry(
-      id: 'link-surfin-boy',
-      itemType: CloudItemType.link,
-      fileName: 'Surfin’ Boy',
-      uploadedAt: '2026. 07. 20',
-      uploaderName: '김지원',
-      // TODO: 실제 Cloud API 연결 후 서버에서 받은 URL로 교체
-      previewUrl: 'https://www.youtube.com/watch?v=NZP153MUpHY',
-    ),
-    _CloudFolderEntry(id: 'folder-jiwon', folderName: '지원이의 폴더', fileCount: 4),
-  ];
+  int get _selectedCount => _selectedItemIds.length + _selectedFolderIds.length;
+  bool get _hasSelection => _selectedCount > 0;
+  bool get _hasSelectedFolders => _selectedFolderIds.isNotEmpty;
 
-  List<_CloudFileEntry> get _previewEntries {
-    return _entries.whereType<_CloudFileEntry>().toList(growable: false);
-  }
-
-  CloudFilePreviewItem _toPreviewItem(_CloudFileEntry file) {
-    final previewType = switch (file.itemType) {
-      CloudItemType.audio => CloudPreviewFileType.audio,
-      CloudItemType.video => CloudPreviewFileType.video,
-      CloudItemType.file => CloudPreviewFileType.document,
-      CloudItemType.link => CloudPreviewFileType.link,
-    };
-
-    return CloudFilePreviewItem(
-      name: file.fileName,
-      uploadedAt: file.uploadedAt,
-      uploaderName: file.uploaderName,
-      sizeLabel: file.fileSize,
-      type: previewType,
-      iconPath: file.itemType.iconPath,
-      previewUri: file.previewUrl == null
-          ? null
-          : Uri.tryParse(file.previewUrl!),
-    );
-  }
-
-  void _openPreview(_CloudFileEntry selectedEntry) {
-    final entries = _previewEntries;
-    final initialIndex = entries.indexWhere(
-      (entry) => entry.id == selectedEntry.id,
-    );
-
-    if (initialIndex < 0) {
-      return;
-    }
-
-    final files = entries.map(_toPreviewItem).toList(growable: false);
-    final page = _buildPreviewPage(files: files, initialIndex: initialIndex);
-
-    if (page == null) {
-      debugPrint('[TEST] 아직 구현되지 않은 미리보기: ${selectedEntry.fileName}');
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
-  }
-
-  Widget? _buildPreviewPage({
-    required List<CloudFilePreviewItem> files,
-    required int initialIndex,
-  }) {
-    final currentFile = files[initialIndex];
-
-    switch (currentFile.type) {
-      case CloudPreviewFileType.document:
-        return CloudFilePreview(
-          folderName: '팀 클라우드',
-          files: files,
-          initialIndex: initialIndex,
-          onDeletePressed: (file) {
-            debugPrint('[TEST] 삭제: ${file.name}');
-          },
-          onMovePressed: (file) {
-            debugPrint('[TEST] 이동: ${file.name}');
-          },
-          onDownloadPressed: (file) {
-            debugPrint('[TEST] 다운로드: ${file.name}');
-          },
-          onFileSelected: (file) {
-            _replacePreview(files: files, selectedFile: file);
-          },
-        );
-
-      case CloudPreviewFileType.link:
-        return CloudLinkPreview(
-          folderName: '팀 클라우드',
-          files: files,
-          initialIndex: initialIndex,
-          onDeletePressed: (file) {
-            debugPrint('[TEST] 링크 삭제: ${file.name}');
-          },
-          onMovePressed: (file) {
-            debugPrint('[TEST] 링크 이동: ${file.name}');
-          },
-          onFileSelected: (file) {
-            _replacePreview(files: files, selectedFile: file);
-          },
-        );
-
-      case CloudPreviewFileType.audio:
-        return CloudAudioPreview(
-          folderName: '팀 클라우드',
-          files: files,
-          initialIndex: initialIndex,
-          onDeletePressed: (file) {
-            debugPrint('[TEST] 음원 삭제: ${file.name}');
-          },
-          onMovePressed: (file) {
-            debugPrint('[TEST] 음원 이동: ${file.name}');
-          },
-          onDownloadPressed: (file) {
-            debugPrint('[TEST] 음원 다운로드: ${file.name}');
-          },
-          onFileSelected: (file) {
-            _replacePreview(files: files, selectedFile: file);
-          },
-        );
-
-      case CloudPreviewFileType.video:
-        return CloudVideoPreview(
-          folderName: '팀 클라우드',
-          files: files,
-          initialIndex: initialIndex,
-          onDeletePressed: (file) {
-            debugPrint('[TEST] 영상 삭제: ${file.name}');
-          },
-          onMovePressed: (file) {
-            debugPrint('[TEST] 영상 이동: ${file.name}');
-          },
-          onDownloadPressed: (file) {
-            debugPrint('[TEST] 영상 다운로드: ${file.name}');
-          },
-          onFileSelected: (file) {
-            _replacePreview(files: files, selectedFile: file);
-          },
-        );
-    }
-  }
-
-  void _replacePreview({
-    required List<CloudFilePreviewItem> files,
-    required CloudFilePreviewItem selectedFile,
-  }) {
-    final selectedIndex = files.indexOf(selectedFile);
-    if (selectedIndex < 0) {
-      return;
-    }
-
-    final page = _buildPreviewPage(
-      files: files,
-      initialIndex: selectedIndex,
-    );
-
-    if (page == null) {
-      debugPrint('[TEST] 아직 구현되지 않은 미리보기: ${selectedFile.name}');
-      return;
-    }
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
-  }
-
-  int get _selectedCount => _selectedEntryIds.length;
-  bool get _hasSelectedEntries => _selectedEntryIds.isNotEmpty;
-
-  void _navigateBack() {
-    Navigator.of(context).pop();
-  }
+  void _navigateBack() => Navigator.of(context).pop();
 
   void _setSelectionMode(bool value) {
-    if (_isSelectionMode == value) {
-      return;
-    }
-
+    if (_isSelectionMode == value) return;
     setState(() {
       _isSelectionMode = value;
-      _selectedEntryIds.clear();
-      _selectedEntryId = null;
+      _selectedItemIds.clear();
+      _selectedFolderIds.clear();
+      _selectedItemId = null;
     });
   }
 
-  void _toggleSelection(String id) {
+  void _toggleItemSelection(int itemId) {
     setState(() {
-      if (_selectedEntryIds.contains(id)) {
-        _selectedEntryIds.remove(id);
-      } else {
-        _selectedEntryIds.add(id);
+      if (!_selectedItemIds.add(itemId)) {
+        _selectedItemIds.remove(itemId);
       }
     });
   }
 
+  void _toggleFolderSelection(int folderId) {
+    setState(() {
+      if (!_selectedFolderIds.add(folderId)) {
+        _selectedFolderIds.remove(folderId);
+      }
+    });
+  }
+
+  void _selectItem(int itemId) {
+    if (_selectedItemId == itemId) return;
+    setState(() => _selectedItemId = itemId);
+  }
+
+  bool _isMine(String writerName, String? currentUserName) {
+    if (currentUserName == null || currentUserName.trim().isEmpty) return false;
+    return writerName.trim() == currentUserName.trim();
+  }
+
+  bool _allSelectedAreMine(CloudListData? data, String? currentUserName) {
+    if (!_hasSelection || data == null || currentUserName == null) return false;
+
+    final selectedItems = data.items.where(
+      (item) => _selectedItemIds.contains(item.itemId),
+    );
+    final selectedFolders = data.folders.where(
+      (folder) => _selectedFolderIds.contains(folder.folderId),
+    );
+
+    return selectedItems.every(
+          (item) => _isMine(item.uploaderName, currentUserName),
+        ) &&
+        selectedFolders.every(
+          (folder) => _isMine(folder.creatorName, currentUserName),
+        );
+  }
+
+  Future<void> _createFolder() async {
+    final name = await showCloudFolderNameBottomSheet(context: context);
+    if (!mounted || name == null) return;
+
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .createFolder(folderName: name);
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '폴더를 만들었습니다.');
+  }
+
+  Future<void> _uploadFile() async {
+    final selection = await showCloudFileUploadBottomSheet(context: context);
+    if (!mounted || selection == null) return;
+
+    final success = await ref.read(cloudMutationProvider.notifier).uploadFile(
+      filePath: selection.path,
+      fileName: selection.name,
+      fileSize: selection.size,
+    );
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '파일을 등록했습니다.');
+  }
+
+  Future<void> _createLink() async {
+    final result = await showLinkCreateBottomsheet(context: context);
+    if (!mounted || result == null) return;
+
+    final success = await ref.read(cloudMutationProvider.notifier).createLink(
+      itemName: result.title,
+      linkUrl: result.url,
+    );
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '링크를 등록했습니다.');
+  }
+
+  Future<void> _deleteSelection() async {
+    if (!_hasSelection) return;
+
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: _selectedFolderIds.isNotEmpty
+          ? '선택한 폴더와 파일을 삭제합니다.\n폴더 내부의 파일과 링크도 함께 삭제되며 복구할 수 없습니다.'
+          : '선택한 $_selectedCount개 항목은 삭제 후 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: _selectedFolderIds.isNotEmpty
+          ? WarningType.folder
+          : WarningType.triangle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (!mounted || confirmed != true) return;
+
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .deleteSelection(
+          itemIds: _selectedItemIds.toList(),
+          folderIds: _selectedFolderIds.toList(),
+        );
+    if (!mounted) return;
+
+    if (success) {
+      _setSelectionMode(false);
+    }
+    _showMutationResult(success, successMessage: '삭제했습니다.');
+  }
+
+  Future<void> _deleteSingleItem(int itemId) async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '삭제하시겠습니까?',
+      content: '삭제한 파일 또는 링크는 복구할 수 없습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.triangle,
+      confirmText: '삭제',
+      cancelText: '취소',
+    );
+    if (!mounted || confirmed != true) return;
+
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .deleteItems(itemIds: [itemId]);
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '삭제했습니다.');
+  }
+
+  Future<void> _moveItems(
+    List<int> itemIds, {
+    String? displayName,
+  }) async {
+    if (itemIds.isEmpty || _hasSelectedFolders) return;
+    final moved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => CloudMovePage(
+          itemIds: itemIds,
+          currentFolderName: '팀 클라우드',
+          displayName: displayName,
+        ),
+      ),
+    );
+    if (!mounted || moved != true) return;
+    _setSelectionMode(false);
+    _showMutationResult(true, successMessage: '파일을 이동했습니다.');
+  }
+
+  Future<void> _downloadItems(List<int> itemIds, CloudListData data) async {
+    if (ref.read(cloudDownloadProvider).isDownloading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다른 파일을 다운로드하고 있습니다.')),
+      );
+      return;
+    }
+
+    if (itemIds.isEmpty || _hasSelectedFolders) return;
+
+    final requests = <CloudDownloadRequest>[];
+
+    for (final itemId in itemIds) {
+      CloudItem? item;
+      for (final candidate in data.items) {
+        if (candidate.itemId == itemId) {
+          item = candidate;
+          break;
+        }
+      }
+      if (item == null || item.linkUrl?.trim().isNotEmpty == true) {
+        continue;
+      }
+
+      try {
+        final detail = await ref.read(cloudFileDetailProvider(itemId).future);
+        requests.add(
+          CloudDownloadRequest(
+            itemId: itemId,
+            fileName: detail.itemName,
+            fileUrl: detail.fileUrl,
+            mimeType: detail.mimeType,
+          ),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.itemName}의 다운로드 정보를 불러오지 못했습니다.')),
+        );
+        return;
+      }
+    }
+
+    if (requests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다운로드할 수 있는 파일이 없습니다.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          requests.length == 1
+              ? '${requests.first.fileName} 다운로드를 시작합니다.'
+              : '${requests.length}개 파일 다운로드를 시작합니다.',
+        ),
+      ),
+    );
+
+    final success = await ref
+        .read(cloudDownloadProvider.notifier)
+        .downloadFiles(requests);
+    if (!mounted) return;
+
+    final downloadState = ref.read(cloudDownloadProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Downloads 폴더에 저장했습니다.'
+              : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
+        ),
+      ),
+    );
+  }
+
+  void _showMutationResult(bool success, {required String successMessage}) {
+    final mutation = ref.read(cloudMutationProvider);
+    final message = success
+        ? successMessage
+        : mutation.errorMessage ?? '요청 처리 중 오류가 발생했습니다.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showUnsupportedRename() {
+    return AppPopup.show(
+      context,
+      title: '이름 수정 준비 중',
+      content: '현재 백엔드에는 파일·링크 이름 수정 API가 없습니다.\n폴더 이름 수정만 연동되어 있습니다.',
+      buttonNum: ButtonNum.one,
+    ).then((_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cloudList = ref.watch(cloudListProvider(null));
+    final mutation = ref.watch(cloudMutationProvider);
+    final download = ref.watch(cloudDownloadProvider);
+    final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
+    final data = cloudList.asData?.value;
+    final allOwned = _allSelectedAreMine(data, currentUserName);
+    final canDelete = _hasSelection && allOwned;
+    final canMove = _selectedItemIds.isNotEmpty && !_hasSelectedFolders && allOwned;
+    final selectedItems = data?.items
+        .where((item) => _selectedItemIds.contains(item.itemId))
+        .toList(growable: false);
+    final canDownload = selectedItems?.isNotEmpty == true &&
+        !_hasSelectedFolders &&
+        selectedItems!.every((item) => item.linkUrl?.trim().isEmpty ?? true) &&
+        !download.isDownloading;
+
     return Scaffold(
       appBar: AppTwoAppBar(
         showBackButton: true,
@@ -271,54 +323,39 @@ class _CloudMainPageState extends State<CloudMainPage> {
         addMenuAlignment: AppDropdownAlignment.right,
         addMenuOffset: const Offset(-4, 68),
         addMenuItems: [
-          AppDropdownItem(
-            label: '새 폴더 만들기',
-            onPressed: () {
-              debugPrint('새 폴더 만들기');
-            },
-          ),
-          AppDropdownItem(
-            label: '파일 등록하기',
-            onPressed: () {
-              debugPrint('파일 등록하기 팝업 띄우기');
-            },
-          ),
-          AppDropdownItem(
-            label: '링크 등록하기',
-            onPressed: () {
-              debugPrint('링크 등록하기 팝업 띄우기');
-            },
-          ),
+          AppDropdownItem(label: '새 폴더 만들기', onPressed: _createFolder),
+          AppDropdownItem(label: '파일 등록하기', onPressed: _uploadFile),
+          AppDropdownItem(label: '링크 등록하기', onPressed: _createLink),
         ],
       ),
-      floatingActionButton: SelectFloatButton(
-        isVisible: _isSelectionMode,
-        isEnabled: _hasSelectedEntries,
-        onDeletePressed: () {
-          debugPrint('선택한 클라우드 항목 삭제: $_selectedEntryIds');
-
-          // TODO: 삭제 기능 연결
-        },
-        onMovePressed: () {
-          debugPrint('선택한 클라우드 항목 이동: $_selectedEntryIds');
-
-          // TODO: 이동 기능 연결
-        },
-        onDownloadPressed: () {
-          debugPrint('선택한 클라우드 항목 다운로드: $_selectedEntryIds');
-
-          // TODO: 다운로드 기능 연결
-        },
-        onConfirmPressed: () {
-          debugPrint('선택한 클라우드 항목 작업 완료: $_selectedEntryIds');
-          _setSelectionMode(false);
-        },
-      ),
+      floatingActionButton: _isSelectionMode
+          ? SelectFloatButton(
+              isVisible: true,
+              isEnabled: _hasSelection,
+              isDeleteEnabled: canDelete,
+              isMoveEnabled: canMove,
+              isDownloadEnabled: canDownload,
+              onDeletePressed: _deleteSelection,
+              onMovePressed: () => _moveItems(_selectedItemIds.toList()),
+              onDownloadPressed: () {
+                if (data != null) {
+                  _downloadItems(_selectedItemIds.toList(), data);
+                }
+              },
+              onConfirmPressed: () => _setSelectionMode(false),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (mutation.isLoading) const LinearProgressIndicator(minHeight: 2),
+            if (download.isDownloading)
+              LinearProgressIndicator(
+                minHeight: 2,
+                value: download.overallProgress,
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.x16,
@@ -347,29 +384,17 @@ class _CloudMainPageState extends State<CloudMainPage> {
               ),
             ),
             Expanded(
-              child: _entries.isEmpty
-                  ? const _CloudEmptyView()
-                  : ListView.separated(
-                      padding: EdgeInsets.zero,
-                      itemCount: _entries.length,
-                      itemBuilder: (context, index) {
-                        return _buildEntry(_entries[index]);
-                      },
-                      separatorBuilder: (context, index) {
-                        final colorScheme = Theme.of(context).colorScheme;
-
-                        return Divider(
-                          height: 1.0,
-                          thickness: 1.0,
-                          indent: AppSpacing.x30,
-                          endIndent: AppSpacing.x16,
-                          color: Color.alphaBlend(
-                            colorScheme.onSurface.withAlpha(18),
-                            colorScheme.surface,
-                          ),
-                        );
-                      },
-                    ),
+              child: cloudList.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => _CloudErrorView(
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(cloudListProvider(null)),
+                ),
+                data: (cloudData) => _buildCloudList(
+                  cloudData,
+                  currentUserName: currentUserName,
+                ),
+              ),
             ),
           ],
         ),
@@ -377,21 +402,152 @@ class _CloudMainPageState extends State<CloudMainPage> {
     );
   }
 
+  Widget _buildCloudList(
+    CloudListData data, {
+    required String? currentUserName,
+  }) {
+    final totalCount = data.folders.length + data.items.length;
+    if (totalCount == 0) {
+      return const _CloudEmptyView();
+    }
+
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: totalCount,
+      itemBuilder: (context, index) {
+        if (index < data.folders.length) {
+          return _buildFolder(data.folders[index]);
+        }
+        return _buildItem(
+          data.items[index - data.folders.length],
+          allItems: data.items,
+          currentUserName: currentUserName,
+        );
+      },
+      separatorBuilder: (_, __) => _buildDivider(),
+    );
+  }
+
+  Widget _buildFolder(CloudFolder folder) {
+    final selected = _selectedFolderIds.contains(folder.folderId);
+    return CloudFolderWidget(
+      key: ValueKey('folder-${folder.folderId}'),
+      folderName: folder.folderName,
+      fileCount: folder.itemCount,
+      isSelectionMode: _isSelectionMode,
+      isSelected: selected,
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleFolderSelection(folder.folderId);
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CloudFolderPage(
+              folderId: folder.folderId,
+              creatorName: folder.creatorName,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildItem(
+    CloudItem item, {
+    required List<CloudItem> allItems,
+    required String? currentUserName,
+  }) {
+    final selected = _isSelectionMode
+        ? _selectedItemIds.contains(item.itemId)
+        : _selectedItemId == item.itemId;
+
+    return CloudItemWidget(
+      key: ValueKey('item-${item.itemId}'),
+      itemType: _itemType(item),
+      fileName: item.itemName,
+      fileSize: _formatFileSize(item.fileSize),
+      uploadedAt: _formatDate(item.createdAt),
+      uploaderName: item.uploaderName,
+      isSelectionMode: _isSelectionMode,
+      isSelected: selected,
+      menuItems: _menuItemsFor(item, currentUserName: currentUserName),
+      onMenuTap: () => _selectItem(item.itemId),
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleItemSelection(item.itemId);
+          return;
+        }
+        _selectItem(item.itemId);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CloudPreviewHostPage(
+              folderName: '팀 클라우드',
+              items: allItems,
+              initialItemId: item.itemId,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<AppDropdownItem> _menuItemsFor(
+    CloudItem item, {
+    required String? currentUserName,
+  }) {
+    final type = _itemType(item);
+    final isMine = _isMine(item.uploaderName, currentUserName);
+    final items = <AppDropdownItem>[
+      AppDropdownItem(label: '이름 수정하기', onPressed: _showUnsupportedRename),
+      AppDropdownItem(
+        label: '이동하기',
+        enabled: isMine,
+        onPressed: () => _moveItems(
+          [item.itemId],
+          displayName: item.itemName,
+        ),
+      ),
+    ];
+
+    if (type == CloudItemType.link) {
+      items.add(
+        AppDropdownItem(label: '링크 수정하기', onPressed: _showUnsupportedRename),
+      );
+    } else {
+      items.add(
+        AppDropdownItem(
+          label: '${_downloadLabel(type)} 다운로드하기',
+          onPressed: () {
+            final data = ref.read(cloudListProvider(null)).asData?.value;
+            if (data != null) _downloadItems([item.itemId], data);
+          },
+        ),
+      );
+    }
+
+    items.add(
+      AppDropdownItem(
+        label: '삭제하기',
+        enabled: isMine,
+        onPressed: () => _deleteSingleItem(item.itemId),
+      ),
+    );
+    return items;
+  }
+
   Widget _buildHeaderMenu() {
     return AppDropdownList(
       items: [
         AppDropdownItem(
           label: _isSelectionMode ? '선택 취소' : '선택하기',
-          onPressed: () {
-            debugPrint(_isSelectionMode ? '팀 클라우드 선택 취소' : '팀 클라우드 선택하기');
-            _setSelectionMode(!_isSelectionMode);
-          },
+          onPressed: () => _setSelectionMode(!_isSelectionMode),
         ),
         AppDropdownItem(
           label: '저장 용량',
           onPressed: () {
-            debugPrint('팀 클라우드 저장 용량');
-            // TODO: 저장 용량 팝업 또는 페이지 이동을 여기에 연결한다.
+            ref.invalidate(cloudStorageProvider);
+            showCloudStorageApiBottomSheet(context: context);
           },
         ),
       ],
@@ -400,145 +556,55 @@ class _CloudMainPageState extends State<CloudMainPage> {
       itemHeight: 44.0,
       alignment: AppDropdownAlignment.right,
       alignmentOffset: const Offset(-4, 48),
-      triggerBuilder: (context, controller) {
-        return _CloudHeaderMoreButton(
-          onPressed: () {
-            if (controller.isOpen) {
-              controller.close();
-              return;
-            }
-
-            controller.open();
-          },
-        );
-      },
+      triggerBuilder: (context, controller) => _CloudHeaderMoreButton(
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+      ),
     );
   }
 
-  Widget _buildEntry(_CloudEntry entry) {
-    final isSelected = _isSelectionMode
-        ? _selectedEntryIds.contains(entry.id)
-        : _selectedEntryId == entry.id;
-
-    if (entry is _CloudFolderEntry) {
-      return CloudFolderWidget(
-        key: ValueKey(entry.id),
-        folderName: entry.folderName,
-        fileCount: entry.fileCount,
-        isSelectionMode: _isSelectionMode,
-        isSelected: isSelected,
-        onTap: () {
-          if (_isSelectionMode) {
-            _toggleSelection(entry.id);
-            return;
-          }
-
-          _selectEntry(entry.id);
-          debugPrint('${entry.folderName} 선택');
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => CloudFolderPage(
-                title: entry.folderName,
-                fileCount: entry.fileCount,
-              ),
-            ),
-          );
-        },
-      );
-    }
-
-    final file = entry as _CloudFileEntry;
-
-    return CloudItemWidget(
-      key: ValueKey(file.id),
-      itemType: file.itemType,
-      fileName: file.fileName,
-      fileSize: file.fileSize,
-      uploadedAt: file.uploadedAt,
-      uploaderName: file.uploaderName,
-      isSelectionMode: _isSelectionMode,
-      isSelected: isSelected,
-      menuItems: _menuItemsFor(file),
-      onMenuTap: () {
-        if (_isSelectionMode) {
-          return;
-        }
-
-        _selectEntry(file.id);
-      },
-      onTap: () {
-        if (_isSelectionMode) {
-          _toggleSelection(file.id);
-          return;
-        }
-
-        _selectEntry(file.id);
-        debugPrint('${file.fileName} 선택');
-        _openPreview(file);
-      },
+  Widget _buildDivider() {
+    final colors = Theme.of(context).colorScheme;
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: AppSpacing.x30,
+      endIndent: AppSpacing.x16,
+      color: Color.alphaBlend(colors.onSurface.withAlpha(18), colors.surface),
     );
   }
 
-  void _selectEntry(String id) {
-    if (_selectedEntryId == id) {
-      return;
+  CloudItemType _itemType(CloudItem item) {
+    if (item.linkUrl?.isNotEmpty == true) return CloudItemType.link;
+    final mimeType = item.mimeType ?? '';
+    if (mimeType.startsWith('audio/')) return CloudItemType.audio;
+    if (mimeType.startsWith('video/')) return CloudItemType.video;
+    return CloudItemType.file;
+  }
+
+  String _downloadLabel(CloudItemType type) {
+    return switch (type) {
+      CloudItemType.audio => '음원',
+      CloudItemType.video => '영상',
+      CloudItemType.file => '파일',
+      CloudItemType.link => '파일',
+    };
+  }
+
+  String? _formatFileSize(int? bytes) {
+    if (bytes == null) return null;
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
     }
-
-    setState(() {
-      _selectedEntryId = id;
-    });
-  }
-
-  /// 타입별 드롭다운 목록을 수정하려면 이 함수의 각 case만 바꾸면 된다.
-  List<AppDropdownItem> _menuItemsFor(_CloudFileEntry file) {
-    switch (file.itemType) {
-      case CloudItemType.audio:
-        return _downloadableMenuItems(file, downloadLabel: '음원 다운로드하기');
-      case CloudItemType.video:
-        return _downloadableMenuItems(file, downloadLabel: '영상 다운로드하기');
-      case CloudItemType.file:
-        return _downloadableMenuItems(file, downloadLabel: '파일 다운로드하기');
-      case CloudItemType.link:
-        return [
-          AppDropdownItem(
-            label: '이름 수정하기',
-            onPressed: () => _handleMenuAction(file, '이름 수정하기'),
-          ),
-          AppDropdownItem(
-            label: '링크 수정하기',
-            onPressed: () => _handleMenuAction(file, '링크 수정하기'),
-          ),
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () => _handleMenuAction(file, '삭제하기'),
-          ),
-        ];
+    if (bytes >= 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)}KB';
     }
+    return '${bytes}B';
   }
 
-  List<AppDropdownItem> _downloadableMenuItems(
-    _CloudFileEntry file, {
-    required String downloadLabel,
-  }) {
-    return [
-      AppDropdownItem(
-        label: '이름 수정하기',
-        onPressed: () => _handleMenuAction(file, '이름 수정하기'),
-      ),
-      AppDropdownItem(
-        label: downloadLabel,
-        onPressed: () => _handleMenuAction(file, downloadLabel),
-      ),
-      AppDropdownItem(
-        label: '삭제하기',
-        onPressed: () => _handleMenuAction(file, '삭제하기'),
-      ),
-    ];
-  }
-
-  void _handleMenuAction(_CloudFileEntry file, String action) {
-    debugPrint('${file.fileName}: $action');
-    // TODO: 형식별 팝업, 다운로드, 삭제 기능을 여기에 연결한다.
+  String _formatDate(DateTime date) {
+    final local = date.toLocal();
+    return '${local.year}. ${local.month.toString().padLeft(2, '0')}. ${local.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -549,36 +615,28 @@ class _CloudHeaderMoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final pressedColor = Color.alphaBlend(
-      context.grays.gray6.withValues(alpha: 0.9),
-      context.grays.white,
-    );
-
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
       label: '팀 클라우드 더보기 메뉴',
       child: SizedBox(
-        width: 48.0,
-        height: 48.0,
+        width: 48,
+        height: 48,
         child: Center(
           child: Material(
-            color: colorScheme.surface.withAlpha(0),
+            color: colors.surface.withAlpha(0),
             shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed,
               customBorder: const CircleBorder(),
-              splashFactory: NoSplash.splashFactory,
-              highlightColor: pressedColor,
               child: SizedBox(
-                width: 40.0,
-                height: 40.0,
+                width: 40,
+                height: 40,
                 child: Center(
                   child: SvgPicture.asset(
                     'assets/icons/appbar/menu.svg',
-                    width: 24.0,
-                    height: 24.0,
+                    width: 24,
+                    height: 24,
                     colorFilter: ColorFilter.mode(
                       context.grays.black,
                       BlendMode.srcIn,
@@ -605,51 +663,44 @@ class _CloudEmptyView extends StatelessWidget {
         children: [
           Text(
             '팀 클라우드가 비었습니다.',
-            style: FontStyles.med16.copyWith(color: context.grays.black),
+            style: FontStyles.bold22.copyWith(color: context.grays.black),
           ),
           const SizedBox(height: AppSpacing.x8),
           Text(
             '+ 버튼을 눌러 파일을 등록해보세요.',
-            style: FontStyles.med14.copyWith(color: context.grays.gray5),
+            style: FontStyles.med16.copyWith(color: context.grays.gray5),
           ),
+          const SizedBox(height: 110.0),
         ],
       ),
     );
   }
 }
 
-abstract class _CloudEntry {
-  const _CloudEntry({required this.id});
+class _CloudErrorView extends StatelessWidget {
+  const _CloudErrorView({required this.message, required this.onRetry});
 
-  final String id;
-}
+  final String message;
+  final VoidCallback onRetry;
 
-class _CloudFolderEntry extends _CloudEntry {
-  const _CloudFolderEntry({
-    required super.id,
-    required this.folderName,
-    required this.fileCount,
-  });
-
-  final String folderName;
-  final int fileCount;
-}
-
-class _CloudFileEntry extends _CloudEntry {
-  const _CloudFileEntry({
-    required super.id,
-    required this.itemType,
-    required this.fileName,
-    required this.uploadedAt,
-    required this.uploaderName,
-    this.fileSize,
-    this.previewUrl,
-  });
-
-  final CloudItemType itemType;
-  final String fileName;
-  final String? fileSize;
-  final String uploadedAt;
-  final String uploaderName;
-  final String? previewUrl;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: FontStyles.med14.copyWith(color: context.grays.gray4),
+            ),
+            const SizedBox(height: AppSpacing.x16),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ),
+      ),
+    );
+  }
 }

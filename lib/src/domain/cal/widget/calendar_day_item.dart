@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 /// 표시된 월 상태
 enum CalendarMonthState { currentMonth, outsideMonth }
 
-/// 날짜의 강조 상태 : 우선순위 today > selected > normal
+/// 날짜의 강조 상태
+/// 오늘은 선택 여부보다 우선해서 오늘 스타일을 유지합니다.
 enum CalendarHighlightState {
   normal,
   selected,
@@ -38,6 +39,8 @@ class CalendarDayItem extends StatelessWidget {
     this.onTap,
     this.label,
     this.isSelected = false,
+    this.isHoliday = false,
+    this.isPast = false,
     this.monthState = CalendarMonthState.currentMonth,
     this.highlightState = CalendarHighlightState.normal,
     this.scheduleState = CalendarScheduleState.none,
@@ -48,6 +51,12 @@ class CalendarDayItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   final bool isSelected;
+
+  /// 공휴일 여부
+  final bool isHoliday;
+
+  /// 오늘 이전 날짜 여부
+  final bool isPast;
 
   final CalendarMonthState monthState;
   final CalendarHighlightState highlightState;
@@ -114,7 +123,7 @@ class CalendarDayItem extends StatelessWidget {
             ),
             child: Text(
               day.toString(),
-              style: FontStyles.med14.copyWith(
+              style: FontStyles.semi14.copyWith(
                 color: _resolveDayTextColor(context),
               ),
             ),
@@ -129,7 +138,7 @@ class CalendarDayItem extends StatelessWidget {
                 height: _scheduleDotSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: context.colors.primary,
+                  color: _resolveScheduleDotColor(context),
                   border: Border.all(
                     color: context.colors.surface,
                     width: _scheduleDotBorderWidth,
@@ -142,49 +151,76 @@ class CalendarDayItem extends StatelessWidget {
     );
   }
 
+  /// 큰 날짜 원 색상
   Color _resolveDayBackgroundColor(BuildContext context) {
-    return switch (highlightState) {
-      CalendarHighlightState.today => context.brands.beatOrange1,
+    // 선택한 공휴일
+    // 일요일도 isHoliday == true이므로 동일하게 적용됨
+    if (isSelected && isHoliday) {
+      return context.brands.beatOrange1;
+    }
 
+    return switch (highlightState) {
+      // 오늘
+      CalendarHighlightState.today => context.grays.gray1,
+
+      // 선택한 일반 날짜
       CalendarHighlightState.selected => context.brands.beatOrange3,
 
-      CalendarHighlightState.normal => switch (monthState) {
-        CalendarMonthState.currentMonth => context.grays.gray1,
-        CalendarMonthState.outsideMonth => context.grays.gray8,
-      },
+      // 일반 날짜 / 선택되지 않은 공휴일 모두 gray8
+      CalendarHighlightState.normal => context.grays.gray8,
     };
   }
 
   Color _resolveDayTextColor(BuildContext context) {
-    return switch (highlightState) {
-      CalendarHighlightState.today => context.grays.white,
-
-      CalendarHighlightState.selected => context.grays.white,
-
-      CalendarHighlightState.normal => switch (monthState) {
-        CalendarMonthState.currentMonth => context.grays.white,
-        CalendarMonthState.outsideMonth => context.grays.gray5,
-      },
-    };
+    // 선택한 날짜는 배경 위에서 보여야 하므로 white
+    if (isSelected) {
+      return context.grays.white;
+    }
+    // 오늘
+    if (highlightState == CalendarHighlightState.today) {
+      return context.grays.white;
+    }
+    // 이전/다음 달 날짜
+    if (monthState == CalendarMonthState.outsideMonth) {
+      return context.grays.gray5;
+    }
+    // 일요일 또는 공휴일
+    if (isHoliday) {
+      return context.brands.beatOrange1;
+    }
+    // 일반 날짜
+    return context.grays.black;
   }
 
+  /// 날짜 우측 상단 일정 표시 점
+  Color _resolveScheduleDotColor(BuildContext context) {
+    // 당일 및 다가오는 일정
+    if (!isPast) {
+      return context.brands.beatOrange1;
+    }
+
+    // 지난 일정
+    return context.grays.gray5;
+  }
+
+  /// 날짜 아래 일정 텍스트 색상
   Color _resolveLabelColor(BuildContext context) {
-    if (highlightState == CalendarHighlightState.today) {
-      return context.colors.primary;
+    // 오늘이 아닌 다른 날짜를 선택한 경우
+    if (isSelected && highlightState != CalendarHighlightState.today) {
+      return context.brands.beatOrange1;
     }
 
-    if (highlightState == CalendarHighlightState.selected) {
-      return context.brands.beatOrange2;
+    // 지난 일정/날짜는 일정 존재 여부와 관계없이 gray5
+    if (isPast) {
+      return context.grays.gray5;
     }
 
-    if (monthState == CalendarMonthState.outsideMonth) {
-      return context.grays.gray6;
-    }
-
+    // 오늘 또는 미래에 내가 참여하는 일정이 있는 경우
     if (_hasSchedule) {
-      return context.colors.onSurface;
+      return context.grays.black;
     }
 
+    // 일정이 없는 경우
     return context.grays.gray5;
   }
 
@@ -197,6 +233,10 @@ class CalendarDayItem extends StatelessWidget {
 
     if (isSelected) {
       parts.add('선택됨');
+    }
+
+    if (isHoliday) {
+      parts.add('공휴일');
     }
 
     if (_hasSchedule) {

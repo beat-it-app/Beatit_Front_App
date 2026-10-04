@@ -25,6 +25,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.4"
+  android_file_picker:
+    dependency: transitive
+    description:
+      name: android_file_picker
+      sha256: "14ab27769b54c48d5a8a71aa9858372b7a3ae77572ea0a8aee744643c5d8c53d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   archive:
     dependency: transitive
     description:
@@ -57,6 +65,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.4"
+  background_downloader:
+    dependency: "direct main"
+    description:
+      name: background_downloader
+      sha256: "9a3bde7e8331edb70588bef7171acc2a0a77e50fbe3c310f5022a14ebd2bdf0f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.6.3"
   boolean_selector:
     dependency: transitive
     description:
@@ -161,6 +177,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
+  connectivity_plus:
+    dependency: transitive
+    description:
+      name: connectivity_plus
+      sha256: d7749fd36d8b404a4935612b94eca7c3ce3705377ab678e24ff2a4301436f741
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.3.2"
+  connectivity_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: connectivity_plus_platform_interface
+      sha256: "3c09627c536d22fd24691a905cdd8b14520de69da52c7a97499c8be5284a32ed"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   convert:
     dependency: transitive
     description:
@@ -217,6 +249,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.13"
+  dbus:
+    dependency: transitive
+    description:
+      name: dbus
+      sha256: f7db8504e715b835f5ebe5fe74604ccd961d504c73389a5d8e81bafc2e2f3612
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.8.0"
   dio:
     dependency: "direct main"
     description:
@@ -265,6 +305,46 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
+  file_picker:
+    dependency: "direct main"
+    description:
+      name: file_picker
+      sha256: "98c0b156b6380ba55bc767a14e2e6b3feb246e713ad40092424596fa79005bea"
+      url: "https://pub.dev"
+    source: hosted
+    version: "13.1.0"
+  file_picker_darwin:
+    dependency: transitive
+    description:
+      name: file_picker_darwin
+      sha256: "51aef9f4c80449c736e7cc02198675fda73689f0bd45a84da642cfeab0250d46"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.2"
+  file_picker_linux:
+    dependency: transitive
+    description:
+      name: file_picker_linux
+      sha256: "9c870771500c758eb46506c98532c3ee60e6e51d0a62dcde24a849ef213ea5ce"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
+  file_picker_platform_interface:
+    dependency: transitive
+    description:
+      name: file_picker_platform_interface
+      sha256: bbdc085a6f168e63f147e9ce8988f79fa0800a58e7f25a48f762c60837107ba5
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
+  file_picker_web:
+    dependency: transitive
+    description:
+      name: file_picker_web
+      sha256: b3004268da0c1b52baa18df430e7ec4438194de855a807d26b447cbf07ef3496
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
   file_selector_linux:
     dependency: transitive
     description:
@@ -797,6 +877,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.8.1"
+  nm:
+    dependency: transitive
+    description:
+      name: nm
+      sha256: "2ae480aa3379716b8bb58dfebb168e2919394c92b629efaaa0baaa5d140786e6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   objective_c:
     dependency: transitive
     description:
@@ -1298,6 +1386,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
+  video_thumbnail:
+    dependency: "direct main"
+    description:
+      name: video_thumbnail
+      sha256: "181a0c205b353918954a881f53a3441476b9e301641688a581e0c13f00dc588b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.6"
   vm_service:
     dependency: transitive
     description:
@@ -1346,6 +1442,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.4.0"
+  windows_file_picker:
+    dependency: transitive
+    description:
+      name: windows_file_picker
+      sha256: "9f3aa833068b09e380fdc59560ad260a4a14e9397173abb533699f967443602e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   xdg_directories:
     dependency: transitive
     description:
