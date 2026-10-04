@@ -68,12 +68,13 @@ class AppPopup extends StatelessWidget {
     String confirmText = '확인',
     String cancelText = '취소',
     bool barrierDismissible = true,
+    ThemeData? theme,
   }) {
     return showDialog<bool>(
       context: context,
       barrierDismissible: barrierDismissible,
       builder: (_) {
-        return AppPopup(
+        final popup = AppPopup(
           title: title,
           content: content,
           contentWidget: contentWidget,
@@ -86,6 +87,12 @@ class AppPopup extends StatelessWidget {
           confirmText: confirmText,
           cancelText: cancelText,
         );
+
+        if (theme == null) {
+          return popup;
+        }
+
+        return Theme(data: theme, child: popup);
       },
     );
   }

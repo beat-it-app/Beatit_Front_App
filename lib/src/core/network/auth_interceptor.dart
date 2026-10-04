@@ -140,14 +140,23 @@ class AuthInterceptor extends Interceptor {
       throw StateError('Refresh token is missing.');
     }
 
-    final response = await _refreshDio.post<Map<String, dynamic>>(
-      _reissuePath,
-      options: Options(
-        headers: {
-          'Refresh-Token': refreshToken,
-        },
-      ),
-    );
+    late final Response<Map<String, dynamic>> response;
+
+    try {
+      response = await _refreshDio.post<Map<String, dynamic>>(
+        _reissuePath,
+        options: Options(
+          headers: {
+            'Refresh-Token': refreshToken,
+          },
+        ),
+      );
+    } on DioException catch (error) {
+      if (_isRefreshTokenRejected(error)) {
+        await _tokenStorage.deleteTokens();
+      }
+      rethrow;
+    }
 
     final body = response.data;
     final data = body?['data'];
@@ -177,6 +186,23 @@ class AuthInterceptor extends Interceptor {
     );
 
     return newAccessToken;
+  }
+
+  bool _isRefreshTokenRejected(DioException error) {
+    final rawData = error.response?.data;
+    final statusCode = error.response?.statusCode;
+
+    if (rawData is Map) {
+      final code = rawData['status']?.toString();
+
+      if (code == 'LOGIN-006' ||
+          code == 'LOGIN-007' ||
+          code == 'LOGIN-008') {
+        return true;
+      }
+    }
+
+    return statusCode == 401;
   }
 
   String? _extractBearerToken(String? authorization) {
