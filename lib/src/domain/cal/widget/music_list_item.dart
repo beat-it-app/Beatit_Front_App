@@ -1,11 +1,7 @@
-import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
-import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
-import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/widgets/music/music_preview_list_item.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:loading_indicator/loading_indicator.dart';
 
+/// 기존 일정 화면의 호출부를 유지하면서 공통 음악 미리듣기 위젯을 사용한다.
 class MusicListItem extends StatelessWidget {
   const MusicListItem({
     super.key,
@@ -24,112 +20,12 @@ class MusicListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x16,
-            vertical: AppSpacing.x12,
-          ),
-          child: Row(
-            children: [
-              _PlaybackStatusIcon(isPlaying: isPlaying),
-              const SizedBox(width: AppSpacing.x16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trackText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.med16.copyWith(
-                        color: context.colors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    Text(
-                      artistText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.med12.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.x12),
-              _MusicWaveIndicator(isPlaying: isPlaying, isLoading: isLoading),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaybackStatusIcon extends StatelessWidget {
-  const _PlaybackStatusIcon({required this.isPlaying});
-
-  final bool isPlaying;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: ShapeDecoration(
-        shape: const OvalBorder(),
-        color: context.brands.beatOrange1,
-      ),
-      alignment: Alignment.center,
-      child: Padding(
-        padding: EdgeInsets.only(left: 3),
-        child: SvgPicture.asset(
-          'assets/icons/core/play.svg',
-          width: 10,
-          height: 10,
-          fit: BoxFit.contain,
-          colorFilter: ColorFilter.mode(
-            context.colors.onPrimary,
-            BlendMode.srcIn,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MusicWaveIndicator extends StatelessWidget {
-  const _MusicWaveIndicator({required this.isPlaying, required this.isLoading});
-
-  final bool isPlaying;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOut,
-      opacity: isLoading ? 0.45 : 1,
-      child: SizedBox(
-        width: 30,
-        height: 20,
-        child: TickerMode(
-          enabled: isPlaying,
-          child: LoadingIndicator(
-            indicatorType: Indicator.lineScalePulseOut,
-            colors: <Color>[context.colors.onSurface],
-            strokeWidth: 2,
-          ),
-        ),
-      ),
+    return MusicPreviewListItem(
+      trackText: trackText,
+      artistText: artistText,
+      onTap: onTap,
+      isPlaying: isPlaying,
+      isLoading: isLoading,
     );
   }
 }

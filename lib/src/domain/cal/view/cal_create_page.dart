@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -16,7 +17,9 @@ import 'package:beatit_front_app/src/domain/cal/view/schedule_file_preview_page.
 import 'package:beatit_front_app/src/domain/cal/widget/add_member_button.dart';
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/member_selection_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
@@ -83,8 +86,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   final List<ScheduleDetailFile> _retainedFiles = <ScheduleDetailFile>[];
 
   bool _showValidation = false;
-  bool _isDirty = false;
   bool _membersWereEdited = false;
+  bool _isLoadingInitialMembers = false;
 
   bool get _isEditMode => widget.initialSchedule != null;
 
@@ -106,14 +109,100 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   bool get _canSubmit {
     return _hasTitle &&
         _selectedDate != null &&
+        _selectedLocationId != null &&
         _startTime != null &&
         _endTime != null &&
-        _hasValidTimeRange;
+        _hasValidTimeRange &&
+        _selectedMembers.isNotEmpty;
+  }
+
+  Set<int> get _initialParticipantUserIds =>
+      widget.initialSchedule?.participants
+          .map((participant) => participant.userId)
+          .toSet() ??
+      const <int>{};
+
+  Set<int> get _currentParticipantUserIds => _selectedMembers
+      .map((member) => member.userId)
+      .whereType<int>()
+      .toSet();
+
+  bool get _participantsChanged {
+    if (!_isEditMode || !_membersWereEdited) {
+      return false;
+    }
+
+    return !_sameIntSets(
+      _initialParticipantUserIds,
+      _currentParticipantUserIds,
+    );
+  }
+
+  bool get _hasChanges {
+    final initial = widget.initialSchedule;
+    if (initial == null) {
+      return false;
+    }
+
+    if (_titleController.text.trim() != initial.title.trim()) {
+      return true;
+    }
+
+    if (_nullableTrimmedText(_contentController.text) !=
+        _nullableTrimmedText(initial.content ?? '')) {
+      return true;
+    }
+
+    if (_selectedLocationId != initial.locationId) {
+      return true;
+    }
+
+    if (_selectedDate == null || _startTime == null || _endTime == null) {
+      return true;
+    }
+
+    final currentStartsAt = _combineDateAndTime(_selectedDate!, _startTime!);
+    final currentEndsAt = _combineDateAndTime(_selectedDate!, _endTime!);
+    if (!_sameLocalMinute(currentStartsAt, initial.startsAt) ||
+        !_sameLocalMinute(currentEndsAt, initial.endsAt)) {
+      return true;
+    }
+
+    if (_participantsChanged) {
+      return true;
+    }
+
+    if (_selectedMusics.length != initial.musics.length) {
+      return true;
+    }
+
+    for (var index = 0; index < _selectedMusics.length; index++) {
+      final current = _selectedMusics[index];
+      final original = initial.musics[index];
+      if (current.existingMusicId != original.musicId ||
+          current.title != (original.musicTitle ?? '제목 없음') ||
+          current.artist != (original.musicArtist ?? '아티스트 정보 없음') ||
+          current.previewUrl != original.musicPreviewUrl) {
+        return true;
+      }
+    }
+
+    if (_selectedFiles.isNotEmpty) {
+      return true;
+    }
+
+    final initialFileIds = initial.files.map((file) => file.fileId).toSet();
+    final retainedFileIds = _retainedFiles.map((file) => file.fileId).toSet();
+    if (!_sameIntSets(initialFileIds, retainedFileIds)) {
+      return true;
+    }
+
+    return false;
   }
 
   bool get _hasDraft {
     if (_isEditMode) {
-      return _isDirty;
+      return _hasChanges;
     }
 
     return _titleController.text.trim().isNotEmpty ||
@@ -164,6 +253,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       ),
     );
     _retainedFiles.addAll(schedule.files);
+    _isLoadingInitialMembers = schedule.participants.isNotEmpty;
+
+    if (schedule.participants.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadInitialMembers();
+      });
+    }
 
     if (schedule.locationId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -188,6 +284,63 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       }
       _locationController.text = '장소 ID $locationId';
     }
+  }
+
+  Future<void> _loadInitialMembers() async {
+    final schedule = widget.initialSchedule;
+    if (schedule == null || schedule.participants.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isLoadingInitialMembers = false;
+        });
+      }
+      return;
+    }
+
+    await ref.read(memberSelectionProvider.notifier).loadMembers(force: true);
+    if (!mounted) return;
+
+    final memberState = ref.read(memberSelectionProvider);
+    final membersByUserId = <int, TeamMemberSearchResult>{
+      for (final member in memberState.members)
+        if (member.userId != null) member.userId!: member,
+    };
+
+    final hydratedMembers = schedule.participants.map((participant) {
+      final member = membersByUserId[participant.userId];
+      if (member == null) {
+        return _SelectedMember(
+          userPublicId: '',
+          userId: participant.userId,
+          name: '사용자 ${participant.userId}',
+          part: '멤버',
+        );
+      }
+
+      final viewMember = MemberSelectionMember(
+        id: member.userPublicId,
+        userId: member.userId,
+        name: member.userName,
+        role: MemberSelectionRole.fromApiValue(member.teamRole),
+        profileImageUrl: member.profileImageUrl,
+        position: member.position,
+      );
+
+      return _SelectedMember(
+        userPublicId: viewMember.id,
+        userId: viewMember.userId,
+        name: viewMember.name,
+        part: _memberPart(viewMember),
+        profileImageUrl: viewMember.profileImageUrl,
+      );
+    }).toList(growable: false);
+
+    setState(() {
+      _selectedMembers
+        ..clear()
+        ..addAll(hydratedMembers);
+      _isLoadingInitialMembers = false;
+    });
   }
 
   Future<bool> _confirmDiscardIfNeeded() async {
@@ -283,14 +436,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     super.dispose();
   }
 
-  void _markDirty() {
-    if (!_isDirty) {
-      setState(() {
-        _isDirty = true;
-      });
-    }
-  }
-
   Future<void> _selectDate() async {
     FocusScope.of(context).unfocus();
 
@@ -307,7 +452,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _selectedDate = DateUtils.dateOnly(selectedDate);
       _dateController.text = _formatDate(selectedDate);
-      _isDirty = true;
     });
   }
 
@@ -325,7 +469,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _startTime = selectedTime;
       _startTimeController.text = _formatTime(selectedTime);
-      _isDirty = true;
     });
   }
 
@@ -343,7 +486,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _endTime = selectedTime;
       _endTimeController.text = _formatTime(selectedTime);
-      _isDirty = true;
     });
   }
 
@@ -370,7 +512,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
               content: _nullableTrimmedText(_contentController.text),
               startsAt: startsAt,
               endsAt: endsAt,
-              participantUserIds: _membersWereEdited
+              participantUserIds: _participantsChanged
                   ? _selectedMembers
                         .map((member) => member.userId)
                         .whereType<int>()
@@ -490,7 +632,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _selectedLocationId = selectedLocation.locationId;
       _locationController.text = _displayLocationName(selectedLocation);
-      _isDirty = true;
     });
   }
 
@@ -501,6 +642,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             builder: (_) => MemberSelectionPage(
               initialSelectedMemberIds: _selectedMembers
                   .map((member) => member.userPublicId)
+                  .where((id) => id.isNotEmpty)
                   .toSet(),
               initialSelectedUserIds: _membersWereEdited
                   ? _selectedMembers
@@ -534,7 +676,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           ),
         );
       _membersWereEdited = true;
-      _isDirty = true;
     });
   }
 
@@ -574,7 +715,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           previewUrl: selectedMusic.previewUrl,
         ),
       );
-      _isDirty = true;
     });
   }
 
@@ -626,7 +766,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     if (addedFiles.isNotEmpty) {
       setState(() {
         _selectedFiles.addAll(addedFiles);
-        _isDirty = true;
       });
     }
 
@@ -647,35 +786,30 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _selectedMembers.removeAt(index);
       _membersWereEdited = true;
-      _isDirty = true;
     });
   }
 
   void _removeMusic(int index) {
     setState(() {
       _selectedMusics.removeAt(index);
-      _isDirty = true;
     });
   }
 
   void _removeSelectedFile(int index) {
     setState(() {
       _selectedFiles.removeAt(index);
-      _isDirty = true;
     });
   }
 
   void _renameSelectedFile(int index, String baseName) {
     setState(() {
       _selectedFiles[index] = _selectedFiles[index].copyWithBaseName(baseName);
-      _isDirty = true;
     });
   }
 
   void _removeRetainedFile(int index) {
     setState(() {
       _retainedFiles.removeAt(index);
-      _isDirty = true;
     });
   }
 
@@ -751,6 +885,20 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     };
   }
 
+  bool _sameIntSets(Set<int> first, Set<int> second) {
+    return first.length == second.length && first.containsAll(second);
+  }
+
+  bool _sameLocalMinute(DateTime first, DateTime second) {
+    final a = first.toLocal();
+    final b = second.toLocal();
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day &&
+        a.hour == b.hour &&
+        a.minute == b.minute;
+  }
+
   String? _nullableTrimmedText(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -758,10 +906,14 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 수정 화면 진입 시 기존 참여자 정보를 복원하는 동안 provider를 유지한다.
+    ref.watch(memberSelectionProvider);
     final mutationState = ref.watch(calMutationProvider);
     final isSubmitting = _isEditMode
         ? mutationState.isUpdating
         : mutationState.isCreating;
+    final isEditSubmitDisabled =
+        _isEditMode && (!_hasChanges || _isLoadingInitialMembers);
 
     return WillPopScope(
       onWillPop: _handleSystemBack,
@@ -793,8 +945,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           textInputAction: TextInputAction.next,
                           errorText: _titleErrorText,
                           onChanged: (_) {
-                            _isDirty = true;
-                            if (_showValidation) setState(() {});
+                            setState(() {});
                           },
                         ),
                         const SizedBox(height: AppSpacing.x20),
@@ -882,7 +1033,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           maxLength: 200,
                           fieldHeight: 120,
                           onChanged: (_) {
-                            _isDirty = true;
+                            setState(() {});
                           },
                         ),
                         const SizedBox(height: AppSpacing.x20),
@@ -894,6 +1045,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         ),
                         const SizedBox(height: AppSpacing.x8),
                         _buildMemberSection(),
+                        if (_membersErrorText != null) ...[
+                          const SizedBox(height: AppSpacing.x4),
+                          AppFieldMessage(
+                            text: _membersErrorText!,
+                            isError: true,
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.x20),
                         _SectionLabel(
                           text:
@@ -917,7 +1075,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                   height: ButtonHeight.normal,
                   variant: ButtonVariant.primary,
                   isLoading: isSubmitting,
-                  onPressed: isSubmitting ? null : _submitSchedule,
+                  onPressed: isSubmitting || isEditSubmitDisabled
+                      ? null
+                      : _submitSchedule,
                 ),
               ],
             ),
@@ -928,8 +1088,21 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Widget _buildMemberSection() {
+    if (_isLoadingInitialMembers) {
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
     if (_selectedMembers.isEmpty) {
-      return AddMemberButton(text: '인원 선택하기', onPressed: _openMemberSelector);
+      return AddMemberButton(
+        text: '인원 선택하기',
+        onPressed: _openMemberSelector,
+      );
     }
 
     return SingleChildScrollView(
