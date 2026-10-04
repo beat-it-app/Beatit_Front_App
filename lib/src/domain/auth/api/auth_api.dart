@@ -25,6 +25,7 @@ class AuthApi {
   static const String _loginPath = '/auth/login';
   static const String _googleLoginPath = '/auth/google';
   static const String _logoutPath = '/auth/logout';
+  static const String _reissueLoginPath = '/auth/reissue/login';
 
   static const String _findIdentifierPath = '/auth/find-identifier/verify';
   static const String _findIdentifierSendPath = '/auth/find-identifier/send';
@@ -151,6 +152,24 @@ class AuthApi {
     return _authenticate(path: _googleLoginPath, data: request.toJson());
   }
 
+  Future<AuthLoginResult> reissueLogin({required String refreshToken}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _reissueLoginPath,
+        options: _publicRequestOptions(
+          headers: {'Refresh-Token': refreshToken},
+        ),
+      );
+
+      return _parseAuthResult(
+        response,
+        fallbackMessage: '로그인 세션 복구에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<AuthLoginResult> _authenticate({
     required String path,
     required Map<String, dynamic> data,
@@ -162,51 +181,61 @@ class AuthApi {
         options: _publicRequestOptions(),
       );
 
-      final body = response.data;
-
-      if (body == null) {
-        throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
-      }
-
-      if (body['success'] != true) {
-        throw _createApiException(
-          body: body,
-          statusCode: response.statusCode,
-          fallbackMessage: '로그인에 실패했습니다.',
-        );
-      }
-
-      debugPrint('[AuthApi] response body: $body');
-
-      final loginResponse = LoginResponse.fromJson(body);
-
-      final loginData = loginResponse.data;
-
-      final authorization = response.headers.value('authorization');
-      final accessToken = _extractBearerToken(authorization);
-      final refreshToken = response.headers.value('refresh-token')?.trim();
-
-      if (accessToken == null) {
-        throw const AuthApiException(message: '로그인 토큰이 응답에 존재하지 않습니다.');
-      }
-
-      if (refreshToken == null || refreshToken.isEmpty) {
-        throw const AuthApiException(message: 'Refresh Token이 응답에 존재하지 않습니다.');
-      }
-
-      return AuthLoginResult(
-        session: AuthSession(
-          userId: loginData.userId,
-          role: loginData.role,
-          createdProfile: loginData.createdProfile,
-          socialProvider: loginData.socialProvider,
-          accessToken: accessToken,
-        ),
-        refreshToken: refreshToken,
+      return _parseAuthResult(
+        response,
+        fallbackMessage: '로그인에 실패했습니다.',
       );
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
+  }
+
+  AuthLoginResult _parseAuthResult(
+    Response<Map<String, dynamic>> response, {
+    required String fallbackMessage,
+  }) {
+    final body = response.data;
+
+    if (body == null) {
+      throw const AuthApiException(message: '서버 응답이 비어 있습니다.');
+    }
+
+    if (body['success'] != true) {
+      throw _createApiException(
+        body: body,
+        statusCode: response.statusCode,
+        fallbackMessage: fallbackMessage,
+      );
+    }
+
+    debugPrint('[AuthApi] response body: $body');
+
+    final loginResponse = LoginResponse.fromJson(body);
+    final loginData = loginResponse.data;
+
+    final accessToken = _extractBearerToken(
+      response.headers.value('authorization'),
+    );
+    final refreshToken = response.headers.value('refresh-token')?.trim();
+
+    if (accessToken == null) {
+      throw const AuthApiException(message: '로그인 토큰이 응답에 존재하지 않습니다.');
+    }
+
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw const AuthApiException(message: 'Refresh Token이 응답에 존재하지 않습니다.');
+    }
+
+    return AuthLoginResult(
+      session: AuthSession(
+        userId: loginData.userId,
+        role: loginData.role,
+        createdProfile: loginData.createdProfile,
+        socialProvider: loginData.socialProvider,
+        accessToken: accessToken,
+      ),
+      refreshToken: refreshToken,
+    );
   }
 
   Future<void> sendFindIdentifierCode({required String email}) async {
@@ -371,8 +400,11 @@ class AuthApi {
     }
   }
 
-  Options _publicRequestOptions() {
-    return Options(extra: const {'requiresAuth': false});
+  Options _publicRequestOptions({Map<String, dynamic>? headers}) {
+    return Options(
+      headers: headers,
+      extra: const {'requiresAuth': false},
+    );
   }
 
   String? _extractBearerToken(String? authorization) {

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:beatit_front_app/src/core/network/auth_token_storage.dart';
+import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/api/google_auth_client.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/google_login_request.dart';
@@ -21,6 +22,51 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
   @override
   AsyncValue<AuthSession?> build() {
     return const AsyncData(null);
+  }
+
+  static const Set<String> _invalidRefreshTokenCodes = {
+    'LOGIN-006',
+    'LOGIN-007',
+    'LOGIN-008',
+  };
+
+  Future<AuthSession?> restoreSession() async {
+    final tokenStorage = ref.read(authTokenStorageProvider);
+    final refreshToken = await tokenStorage.readRefreshToken();
+
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await tokenStorage.deleteTokens();
+      state = const AsyncData(null);
+      return null;
+    }
+
+    state = const AsyncLoading();
+
+    try {
+      final result = await ref
+          .read(authApiProvider)
+          .reissueLogin(refreshToken: refreshToken);
+
+      await tokenStorage.saveTokens(
+        accessToken: result.session.accessToken,
+        refreshToken: result.refreshToken,
+      );
+
+      state = AsyncData(result.session);
+      return result.session;
+    } on AuthApiException catch (error) {
+      if (_invalidRefreshTokenCodes.contains(error.code)) {
+        await tokenStorage.deleteTokens();
+      }
+
+      debugPrint('[Auth] session restore failed: ${error.code} ${error.message}');
+      state = const AsyncData(null);
+      return null;
+    } catch (error) {
+      debugPrint('[Auth] session restore failed: $error');
+      state = const AsyncData(null);
+      return null;
+    }
   }
 
   Future<void> login({

@@ -11,7 +11,9 @@ import 'package:beatit_front_app/src/domain/auth/provider/reset_password_provide
 import 'package:beatit_front_app/src/domain/auth/view/auth/reset_password_page.dart';
 
 class VerifyPasswordPage extends ConsumerStatefulWidget {
-  const VerifyPasswordPage({super.key});
+  const VerifyPasswordPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<VerifyPasswordPage> createState() => _VerifyPasswordPageState();
@@ -98,141 +100,142 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
         codeController.text.trim().isNotEmpty &&
         !state.isLoading;
 
+    final content = SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.x24,
+        horizontal: AppSpacing.x16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '비밀번호 재설정',
+            style: FontStyles.bold28.copyWith(color: colors.onSurface),
+          ),
+
+          const SizedBox(height: AppSpacing.x4),
+
+          Text(
+            '가입한 아이디와 이메일을 인증해주세요.',
+            style: FontStyles.reg12.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.x50),
+
+          _RequiredLabel(
+            text: '아이디',
+            color: colors.onSurface,
+            requiredColor: null,
+          ),
+
+          const SizedBox(height: AppSpacing.x8),
+
+          AppTextField(
+            hintText: '아이디',
+            controller: idController,
+            isError: state.identityError != null,
+            onChanged: (_) {
+              _onIdentityChanged();
+            },
+          ),
+
+          const SizedBox(height: AppSpacing.x20),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: '이메일 인증',
+                  requiredMark: false,
+                  hintText: '이메일',
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  isError: state.identityError != null,
+                  onChanged: (_) {
+                    _onIdentityChanged();
+                  },
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.x10),
+
+              AppButton(
+                text: state.isSendingCode
+                    ? '전송 중'
+                    : state.isCodeSent
+                    ? '재전송'
+                    : '인증번호 발송',
+                width: ButtonWidth.medium,
+                height: ButtonHeight.small,
+                variant: ButtonVariant.black,
+                onPressed: canSendCode ? _sendEmailCode : null,
+              ),
+            ],
+          ),
+
+          if (state.identityError != null) ...[
+            const SizedBox(height: AppSpacing.x4),
+            AppFieldMessage(text: state.identityError!, isError: true),
+          ] else if (state.isCodeSent) ...[
+            const SizedBox(height: AppSpacing.x4),
+            AppFieldMessage(
+              text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
+              color: colors.onSurfaceVariant,
+              icon: 'assets/icons/check/check_round_green.svg',
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.x10),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: AppTextField(
+                  hintText: '인증번호',
+                  controller: codeController,
+                  isError: state.codeError != null,
+                  onChanged: (_) {
+                    ref.read(resetPasswordProvider.notifier).onCodeChanged();
+                    setState(() {});
+                  },
+                ),
+              ),
+
+              const SizedBox(width: AppSpacing.x10),
+
+              AppButton(
+                text: state.isVerifyingCode ? '확인 중' : '확인',
+                width: ButtonWidth.medium,
+                height: ButtonHeight.small,
+                variant: ButtonVariant.black,
+                onPressed: canVerifyCode ? _verifyEmailCode : null,
+              ),
+            ],
+          ),
+
+          if (state.codeError != null) ...[
+            const SizedBox(height: AppSpacing.x4),
+            AppFieldMessage(text: state.codeError!, isError: true),
+          ],
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
+
     return Scaffold(
       appBar: AppTopAppBar.backOnly(
         onBackPressed: () {
           Navigator.of(context).maybePop();
         },
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.x24,
-            horizontal: AppSpacing.x16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '비밀번호 재설정',
-                style: FontStyles.bold28.copyWith(color: colors.onSurface),
-              ),
-
-              const SizedBox(height: AppSpacing.x4),
-
-              Text(
-                '가입한 아이디와 이메일을 인증해주세요.',
-                style: FontStyles.reg12.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.x50),
-
-              _RequiredLabel(
-                text: '아이디',
-                color: colors.onSurface,
-                requiredColor: null,
-              ),
-
-              const SizedBox(height: AppSpacing.x8),
-
-              AppTextField(
-                hintText: '아이디',
-                controller: idController,
-                isError: state.identityError != null,
-                onChanged: (_) {
-                  _onIdentityChanged();
-                },
-              ),
-
-              const SizedBox(height: AppSpacing.x20),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      label: '이메일 인증',
-                      requiredMark: false,
-                      hintText: '이메일',
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      isError: state.identityError != null,
-                      onChanged: (_) {
-                        _onIdentityChanged();
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(width: AppSpacing.x10),
-
-                  AppButton(
-                    text: state.isSendingCode
-                        ? '전송 중'
-                        : state.isCodeSent
-                        ? '재전송'
-                        : '인증번호 발송',
-                    width: ButtonWidth.medium,
-                    height: ButtonHeight.small,
-                    variant: ButtonVariant.black,
-                    onPressed: canSendCode ? _sendEmailCode : null,
-                  ),
-                ],
-              ),
-
-              if (state.identityError != null) ...[
-                const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(text: state.identityError!, isError: true),
-              ] else if (state.isCodeSent) ...[
-                const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(
-                  text: '인증 번호가 발송되었습니다. 3분 이내로 인증번호를 입력해주세요.',
-                  color: colors.onSurfaceVariant,
-                  icon: 'assets/icons/check/check_round_green.svg',
-                ),
-              ],
-
-              const SizedBox(height: AppSpacing.x10),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      hintText: '인증번호',
-                      controller: codeController,
-                      isError: state.codeError != null,
-                      onChanged: (_) {
-                        ref
-                            .read(resetPasswordProvider.notifier)
-                            .onCodeChanged();
-
-                        setState(() {});
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(width: AppSpacing.x10),
-
-                  AppButton(
-                    text: state.isVerifyingCode ? '확인 중' : '확인',
-                    width: ButtonWidth.medium,
-                    height: ButtonHeight.small,
-                    variant: ButtonVariant.black,
-                    onPressed: canVerifyCode ? _verifyEmailCode : null,
-                  ),
-                ],
-              ),
-
-              if (state.codeError != null) ...[
-                const SizedBox(height: AppSpacing.x4),
-                AppFieldMessage(text: state.codeError!, isError: true),
-              ],
-            ],
-          ),
-        ),
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
