@@ -22,13 +22,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class PollCreatePage extends ConsumerStatefulWidget {
-  const PollCreatePage({super.key});
+  const PollCreatePage({
+    super.key,
+    this.initialData,
+    this.initialRemindBeforeClose = false,
+  });
+
+  final PollDetailData? initialData;
+  final bool initialRemindBeforeClose;
+
+  bool get isEditing => initialData != null;
 
   @override
   ConsumerState<PollCreatePage> createState() => _PollCreatePageState();
 }
 
 class _PollCreatePageState extends ConsumerState<PollCreatePage> {
+  static const int _maxTitleLength = 200;
+  static const int _maxContentLength = 500;
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _deadlineController = TextEditingController();
@@ -36,6 +48,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   final _optionKey = GlobalKey<PollAddBoxState>();
   final Map<int, MusicSearchResult> _musicChoices = {};
   final Map<int, LocationData> _placeChoices = {};
+  final Map<int, PollDetailItem> _initialItemsByOptionId = {};
   final Set<String> _voteSelectedOptions = {};
   final List<String> _voteOptions = ['익명 투표', '중복 투표'];
 
@@ -52,6 +65,44 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   String? _deadlineError;
 
   @override
+  void initState() {
+    super.initState();
+
+    final initial = widget.initialData;
+    if (initial == null) return;
+
+    _titleController.text = initial.title;
+    _contentController.text = initial.content ?? '';
+    _pollOptionType = _pollOptionTypeFromServer(initial.pollType);
+    _pollOptions = List<PollOptionValue>.generate(
+      initial.pollItems.length,
+      (index) => PollOptionValue(
+        id: index,
+        value: _displayValue(initial.pollItems[index], _pollOptionType),
+      ),
+      growable: false,
+    );
+    _initialItemsByOptionId.addEntries(
+      initial.pollItems.asMap().entries.map(
+        (entry) => MapEntry(entry.key, entry.value),
+      ),
+    );
+
+    _closeAt = initial.closeAt?.toLocal();
+    if (_closeAt != null) {
+      _deadlineController.text = _formatDeadline(_closeAt!);
+    }
+
+    _remindBeforeClose = widget.initialRemindBeforeClose;
+    if (initial.isAnonymous) {
+      _voteSelectedOptions.add('익명 투표');
+    }
+    if (initial.allowMultipleChoice) {
+      _voteSelectedOptions.add('중복 투표');
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
@@ -66,13 +117,43 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     if (type != _pollOptionType) {
       _musicChoices.clear();
       _placeChoices.clear();
+      _initialItemsByOptionId.clear();
     }
+
     _pollOptionType = type;
     _pollOptions = options;
 
     if (_pollOptionsError != null && _arePollOptionsValid()) {
-      setState(() => _pollOptionsError = null);
+      _pollOptionsError = null;
     }
+
+    // PollAddBox가 initState에서 초기 값을 전달할 수 있으므로,
+    // 부모 build 중 setState가 발생하지 않도록 다음 프레임에 버튼 상태를 갱신한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  PollOptionType _pollOptionTypeFromServer(String value) {
+    return switch (value) {
+      'MUSIC' => PollOptionType.music,
+      'LOCATION' => PollOptionType.place,
+      _ => PollOptionType.text,
+    };
+  }
+
+  String _displayValue(PollDetailItem item, PollOptionType type) {
+    return switch (type) {
+      PollOptionType.text => item.content ?? '',
+      PollOptionType.music => [
+          item.title,
+          item.artist,
+        ].whereType<String>().where((value) => value.isNotEmpty).join(' - '),
+      PollOptionType.place =>
+        item.locationName ?? item.location ?? item.roadAddress ?? '',
+    };
   }
 
   Future<void> _handleMusicPressed(int index) async {
@@ -178,6 +259,52 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     ).add(Duration(minutes: 10 - remainder));
   }
 
+  PollCreateRequest _buildInitialRequest() {
+    final initial = widget.initialData!;
+    final initialType = _pollOptionTypeFromServer(initial.pollType);
+    final type = switch (initialType) {
+      PollOptionType.music => 'MUSIC',
+      PollOptionType.place => 'LOCATION',
+      PollOptionType.text => 'TEXT',
+    };
+
+    return PollCreateRequest(
+      title: initial.title.trim(),
+      content: (initial.content ?? '').trim(),
+      pollType: type,
+      pollList: initial.pollItems
+          .map(
+            (item) => PollCreateItem(
+              content: type == 'TEXT' ? (item.content ?? '').trim() : null,
+              music: type == 'MUSIC'
+                  ? PollCreateMusic(
+                      title: item.title ?? '',
+                      artist: item.artist ?? '',
+                      previewUrl: item.previewUrl,
+                    )
+                  : null,
+              location: type == 'LOCATION'
+                  ? (item.location ??
+                        item.locationName ??
+                        item.roadAddress ??
+                        '')
+                  : null,
+              locationId: type == 'LOCATION' ? item.locationId : null,
+            ),
+          )
+          .toList(growable: false),
+      allowMultipleChoice: initial.allowMultipleChoice,
+      isAnonymous: initial.isAnonymous,
+      remindBeforeClose: widget.initialRemindBeforeClose,
+      closeAt: initial.closeAt?.toLocal(),
+    );
+  }
+
+  bool get _hasChanges {
+    if (!widget.isEditing) return true;
+    return _buildRequest() != _buildInitialRequest();
+  }
+
   bool _arePollOptionsValid() {
     if (_pollOptions.length < 2) return false;
 
@@ -185,10 +312,16 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       final value = option.value.trim();
       if (value.isEmpty) return false;
 
+      final initialItem = _initialItemsByOptionId[option.id];
       return switch (_pollOptionType) {
         PollOptionType.text => true,
-        PollOptionType.music => _musicChoices.containsKey(option.id),
-        PollOptionType.place => _placeChoices.containsKey(option.id),
+        PollOptionType.music =>
+          _musicChoices.containsKey(option.id) ||
+              (initialItem?.title?.isNotEmpty == true),
+        PollOptionType.place =>
+          _placeChoices.containsKey(option.id) ||
+              (initialItem?.locationId != null) ||
+              (initialItem?.location?.trim().isNotEmpty == true),
       };
     });
   }
@@ -211,8 +344,16 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     final deadline = _closeAt;
 
     setState(() {
-      _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
-      _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
+      _titleError = title.isEmpty
+          ? '투표 제목을 입력해주세요.'
+          : title.length > _maxTitleLength
+          ? '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.'
+          : null;
+      _contentError = content.isEmpty
+          ? '투표 내용을 입력해주세요.'
+          : content.length > _maxContentLength
+          ? '투표 내용은 $_maxContentLength자 이하로 입력해주세요.'
+          : null;
       _pollOptionsError = _pollOptionsValidationMessage();
       _deadlineError = deadline == null
           ? '투표 마감 시간을 설정해주세요.'
@@ -228,22 +369,36 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   void _handleTitleChanged(String value) {
-    if (_titleError != null && value.trim().isNotEmpty) {
-      setState(() => _titleError = null);
-    }
+    final title = value.trim();
+
+    setState(() {
+      if (title.length > _maxTitleLength) {
+        _titleError = '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.';
+      } else if (_titleError != null) {
+        _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
+      }
+    });
   }
 
   void _handleContentChanged(String value) {
-    if (_contentError != null && value.trim().isNotEmpty) {
-      setState(() => _contentError = null);
-    }
+    final content = value.trim();
+
+    setState(() {
+      if (content.length > _maxContentLength) {
+        _contentError = '투표 내용은 $_maxContentLength자 이하로 입력해주세요.';
+      } else if (_contentError != null) {
+        _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
+      }
+    });
   }
 
   Future<void> _handleClose() async {
     final confirmed = await AppPopup.show(
       context,
-      title: '작성을 중단하시겠습니까?',
-      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      title: widget.isEditing ? '수정을 중단하시겠습니까?' : '작성을 중단하시겠습니까?',
+      content: widget.isEditing
+          ? '중단 시, 수정된 내용은\n저장되지 않습니다.'
+          : '중단 시, 작성된 내용은\n저장되지 않습니다.',
       buttonNum: ButtonNum.two,
       warningType: WarningType.circle,
       contentType: ContentType.small,
@@ -256,11 +411,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     }
   }
 
-  Future<void> _submitPoll() async {
-    if (_submitting || !_validateRequiredFields()) return;
-
-    final title = _titleController.text.trim();
-
+  PollCreateRequest _buildRequest() {
     final type = switch (_pollOptionType) {
       PollOptionType.music => 'MUSIC',
       PollOptionType.place => 'LOCATION',
@@ -272,38 +423,57 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       final text = option.value.trim();
       final music = _musicChoices[option.id];
       final place = _placeChoices[option.id];
+      final initialItem = _initialItemsByOptionId[option.id];
+
       options.add(
         PollCreateItem(
           content: type == 'TEXT' ? text : null,
-          music: type == 'MUSIC' && music != null
+          music: type == 'MUSIC'
               ? PollCreateMusic(
-                  title: music.title,
-                  artist: music.artist,
-                  previewUrl: music.previewUrl,
+                  title: music?.title ?? initialItem?.title ?? '',
+                  artist: music?.artist ?? initialItem?.artist ?? '',
+                  previewUrl: music?.previewUrl ?? initialItem?.previewUrl,
                 )
               : null,
-          location: type == 'LOCATION' ? text : null,
-          locationId: type == 'LOCATION' ? place?.locationId : null,
+          location: type == 'LOCATION'
+              ? (place != null
+                    ? (place.locationName ?? place.roadAddress ?? text)
+                    : (initialItem?.location ?? initialItem?.locationName ?? text))
+              : null,
+          locationId: type == 'LOCATION'
+              ? (place?.locationId ?? initialItem?.locationId)
+              : null,
         ),
       );
     }
 
+    return PollCreateRequest(
+      title: _titleController.text.trim(),
+      content: _contentController.text.trim(),
+      pollType: type,
+      pollList: options,
+      allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
+      isAnonymous: _voteSelectedOptions.contains('익명 투표'),
+      remindBeforeClose: _remindBeforeClose,
+      closeAt: _closeAt,
+    );
+  }
+
+  Future<void> _submitPoll() async {
+    if (_submitting || (widget.isEditing && !_hasChanges)) return;
+    if (!_validateRequiredFields()) return;
+
+    final request = _buildRequest();
     setState(() => _submitting = true);
+
     try {
-      await ref
-          .read(postApiProvider)
-          .createPoll(
-            PollCreateRequest(
-              title: title,
-              content: _contentController.text.trim(),
-              pollType: type,
-              pollList: options,
-              allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
-              isAnonymous: _voteSelectedOptions.contains('익명 투표'),
-              remindBeforeClose: _remindBeforeClose,
-              closeAt: _closeAt,
-            ),
-          );
+      final api = ref.read(postApiProvider);
+      if (widget.initialData != null) {
+        await api.updatePoll(widget.initialData!.pollId, request);
+      } else {
+        await api.createPoll(request);
+      }
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) {
@@ -358,7 +528,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         controller: _contentController,
                         errorText: _contentError,
                         onChanged: _handleContentChanged,
-                        maxLength: 500,
+                        maxLength: _maxContentLength,
                         fieldHeight: 200,
                       ),
                       const SizedBox(height: AppSpacing.x20),
@@ -370,6 +540,12 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                       const SizedBox(height: AppSpacing.x8),
                       PollAddBox(
                         key: _optionKey,
+                        initialType: _pollOptionType,
+                        initialValues: widget.initialData == null
+                            ? const <String>[]
+                            : _pollOptions
+                                .map((option) => option.value)
+                                .toList(growable: false),
                         onChanged: _handlePollOptionsChanged,
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
@@ -462,11 +638,13 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
               ),
               const SizedBox(height: AppSpacing.x16),
               AppButton(
-                text: '등록하기',
+                text: widget.isEditing ? '수정하기' : '등록하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitting ? null : _submitPoll,
+                onPressed: _submitting || (widget.isEditing && !_hasChanges)
+                    ? null
+                    : _submitPoll,
               ),
             ],
           ),

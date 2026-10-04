@@ -50,12 +50,16 @@ class PollAddBox extends StatefulWidget {
   const PollAddBox({
     super.key,
     this.initialOptionCount = 3,
+    this.initialType = PollOptionType.text,
+    this.initialValues = const <String>[],
     this.onChanged,
     this.onMusicPressed,
     this.onPlacePressed,
   });
 
   final int initialOptionCount;
+  final PollOptionType initialType;
+  final List<String> initialValues;
   final PollOptionsChanged? onChanged;
 
   /// 실제 음원 선택 화면 연결 지점.
@@ -69,7 +73,7 @@ class PollAddBox extends StatefulWidget {
 }
 
 class PollAddBoxState extends State<PollAddBox> {
-  PollOptionType _selectedType = PollOptionType.text;
+  late PollOptionType _selectedType;
 
   final List<_PollOptionDraft> _items = [];
   int _nextId = 0;
@@ -86,11 +90,17 @@ class PollAddBoxState extends State<PollAddBox> {
   @override
   void initState() {
     super.initState();
+    _selectedType = widget.initialType;
 
-    final count = widget.initialOptionCount < 0 ? 0 : widget.initialOptionCount;
-
-    for (var i = 0; i < count; i++) {
-      _items.add(_createDraft());
+    if (widget.initialValues.isNotEmpty) {
+      for (final value in widget.initialValues) {
+        _items.add(_createDraft(value));
+      }
+    } else {
+      final count = widget.initialOptionCount < 0 ? 0 : widget.initialOptionCount;
+      for (var i = 0; i < count; i++) {
+        _items.add(_createDraft());
+      }
     }
 
     _notifyChanged();
@@ -104,8 +114,11 @@ class PollAddBoxState extends State<PollAddBox> {
     super.dispose();
   }
 
-  _PollOptionDraft _createDraft() {
-    return _PollOptionDraft(id: _nextId++, controller: TextEditingController());
+  _PollOptionDraft _createDraft([String value = '']) {
+    return _PollOptionDraft(
+      id: _nextId++,
+      controller: TextEditingController(text: value),
+    );
   }
 
   void _changeType(PollOptionType type) {

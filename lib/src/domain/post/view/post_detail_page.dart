@@ -170,25 +170,28 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
     if (_data == null) return Scaffold(body: Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!)));
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () {
-          Navigator.of(context).maybePop();
-        },
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-16, 40),
-        moreMenuItems: [
-          AppDropdownItem(
-            label: '수정하기',
-            onPressed: _openEditPage,
-          ),
-          AppDropdownItem(
-            label: '삭제하기',
-            onPressed: () {
-              _confirmDelete();
-            },
-          ),
-        ],
-      ),
+      appBar: _data!.isWriter
+          ? AppTopAppBar.backMore(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+              moreMenuOffset: const Offset(-16, 40),
+              moreMenuItems: [
+                AppDropdownItem(
+                  label: '수정하기',
+                  onPressed: _openEditPage,
+                ),
+                AppDropdownItem(
+                  label: '삭제하기',
+                  onPressed: _confirmDelete,
+                ),
+              ],
+            )
+          : AppTopAppBar.backOnly(
+              onBackPressed: () {
+                Navigator.of(context).maybePop();
+              },
+            ),
       body: SafeArea(
         child: Column(
           children: [
@@ -245,12 +248,16 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                               color: context.grays.gray4,
                                             ),
                                           ),
-                                          TextSpan(
-                                            text: ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
-                                            style: FontStyles.reg12.copyWith(
-                                              color: context.grays.gray5,
+                                          if (!_data!.updatedAt.isAtSameMomentAs(
+                                            _data!.createdAt,
+                                          ))
+                                            TextSpan(
+                                              text:
+                                                  ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
+                                              style: FontStyles.reg12.copyWith(
+                                                color: context.grays.gray5,
+                                              ),
                                             ),
-                                          ),
                                         ],
                                       ),
                                       softWrap: true,
@@ -520,47 +527,45 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({this.imageUrl});
 
+  static const String _fallbackAsset =
+      'assets/images/auth/profile_orange.png';
+
   final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final hasImageUrl = imageUrl?.trim().isNotEmpty == true;
 
     return SizedBox(
       width: 40,
       height: 40,
       child: ClipOval(
-        child: imageUrl == null || imageUrl!.isEmpty
-            ? const Icon(Icons.person_outline_rounded)
-            : Image.network(
-          imageUrl!,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
+        child: hasImageUrl
+            ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
 
-            return ColoredBox(
-              color: colors.surfaceContainerHighest,
-              child: const Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return ColoredBox(
-              color: colors.errorContainer,
-              child: Icon(
-                Icons.person_outline_rounded,
-                color: colors.onErrorContainer,
-              ),
-            );
-          },
-        ),
+                  return ColoredBox(
+                    color: colors.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.asset(_fallbackAsset, fit: BoxFit.cover);
+                },
+              )
+            : Image.asset(_fallbackAsset, fit: BoxFit.cover),
       ),
     );
   }

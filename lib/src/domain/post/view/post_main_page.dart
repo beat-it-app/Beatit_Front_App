@@ -6,6 +6,8 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_main_provider.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
@@ -183,12 +185,43 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
       _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
   }
 
-  void _handleMeetitDelete(MeetitListItem item) {
-    // 제공된 백엔드 MeetitController에는 DELETE API가 없습니다.
-    // 존재하지 않는 endpoint를 추정해서 호출하지 않고 사용자에게 현재 상태를 알립니다.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('밋잇 삭제 API가 아직 제공되지 않아 삭제할 수 없습니다.')),
-    );
+  Future<void> _handleMeetitDelete(MeetitListItem item) async {
+    try {
+      final currentUserId = ref.read(authProvider).asData?.value?.userId;
+      final detail = await ref.read(postApiProvider).getMeetit(item.meetitId);
+
+      if (!mounted) return;
+      if (currentUserId == null || detail.creatorId != currentUserId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('밋잇 작성자만 삭제할 수 있습니다.')),
+        );
+        return;
+      }
+
+      final confirmed = await AppPopup.show(
+        context,
+        title: '삭제하시겠습니까?',
+        content: '삭제한 내용은 복구할 수 없습니다.',
+        buttonNum: ButtonNum.two,
+        warningType: WarningType.circle,
+        confirmText: '삭제',
+        cancelText: '취소',
+      );
+      if (confirmed != true || !mounted) return;
+
+      await ref.read(postApiProvider).deleteMeetit(item.meetitId);
+      if (mounted) {
+        await _loadSelected(
+          keyword: widget.searchOnly ? _searchController.text.trim() : '',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   Widget _buildSelectedContent(PostMainState state) {
@@ -912,7 +945,12 @@ class _MeetitListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasResponse = item.respondedCount > 0;
+    final responseLabel = switch (item.myResponseStatus) {
+      MeetitMyResponseStatus.responded => '응답 완료',
+      MeetitMyResponseStatus.notResponded => '미응답',
+      MeetitMyResponseStatus.notParticipant => '참여 대상 아님',
+    };
+    final hasResponded = item.myResponseStatus == MeetitMyResponseStatus.responded;
 
     return _PostItemTapSurface(
       semanticLabel: '${item.title} 밋잇 상세 보기',
@@ -935,11 +973,9 @@ class _MeetitListItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.x10),
                 _PostMetaChip(
                   firstIconPath: 'assets/icons/post/people.svg',
-                  firstText: '${item.totalInvitedCount}명',
-                  secondText: hasResponse
-                      ? '${item.respondedCount}명 완료'
-                      : '미완료',
-                  secondTextColor: hasResponse
+                  firstText: '${item.respondedCount}/${item.totalInvitedCount}명',
+                  secondText: responseLabel,
+                  secondTextColor: hasResponded
                       ? colorScheme.primary
                       : context.grays.gray5,
                 ),
