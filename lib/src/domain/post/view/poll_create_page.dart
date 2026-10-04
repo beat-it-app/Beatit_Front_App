@@ -38,6 +38,9 @@ class PollCreatePage extends ConsumerStatefulWidget {
 }
 
 class _PollCreatePageState extends ConsumerState<PollCreatePage> {
+  static const int _maxTitleLength = 200;
+  static const int _maxContentLength = 500;
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _deadlineController = TextEditingController();
@@ -116,12 +119,21 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       _placeChoices.clear();
       _initialItemsByOptionId.clear();
     }
+
     _pollOptionType = type;
     _pollOptions = options;
 
     if (_pollOptionsError != null && _arePollOptionsValid()) {
-      setState(() => _pollOptionsError = null);
+      _pollOptionsError = null;
     }
+
+    // PollAddBox가 initState에서 초기 값을 전달할 수 있으므로,
+    // 부모 build 중 setState가 발생하지 않도록 다음 프레임에 버튼 상태를 갱신한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   PollOptionType _pollOptionTypeFromServer(String value) {
@@ -247,6 +259,52 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     ).add(Duration(minutes: 10 - remainder));
   }
 
+  PollCreateRequest _buildInitialRequest() {
+    final initial = widget.initialData!;
+    final initialType = _pollOptionTypeFromServer(initial.pollType);
+    final type = switch (initialType) {
+      PollOptionType.music => 'MUSIC',
+      PollOptionType.place => 'LOCATION',
+      PollOptionType.text => 'TEXT',
+    };
+
+    return PollCreateRequest(
+      title: initial.title.trim(),
+      content: (initial.content ?? '').trim(),
+      pollType: type,
+      pollList: initial.pollItems
+          .map(
+            (item) => PollCreateItem(
+              content: type == 'TEXT' ? (item.content ?? '').trim() : null,
+              music: type == 'MUSIC'
+                  ? PollCreateMusic(
+                      title: item.title ?? '',
+                      artist: item.artist ?? '',
+                      previewUrl: item.previewUrl,
+                    )
+                  : null,
+              location: type == 'LOCATION'
+                  ? (item.location ??
+                        item.locationName ??
+                        item.roadAddress ??
+                        '')
+                  : null,
+              locationId: type == 'LOCATION' ? item.locationId : null,
+            ),
+          )
+          .toList(growable: false),
+      allowMultipleChoice: initial.allowMultipleChoice,
+      isAnonymous: initial.isAnonymous,
+      remindBeforeClose: widget.initialRemindBeforeClose,
+      closeAt: initial.closeAt?.toLocal(),
+    );
+  }
+
+  bool get _hasChanges {
+    if (!widget.isEditing) return true;
+    return _buildRequest() != _buildInitialRequest();
+  }
+
   bool _arePollOptionsValid() {
     if (_pollOptions.length < 2) return false;
 
@@ -286,8 +344,16 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     final deadline = _closeAt;
 
     setState(() {
-      _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
-      _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
+      _titleError = title.isEmpty
+          ? '투표 제목을 입력해주세요.'
+          : title.length > _maxTitleLength
+          ? '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.'
+          : null;
+      _contentError = content.isEmpty
+          ? '투표 내용을 입력해주세요.'
+          : content.length > _maxContentLength
+          ? '투표 내용은 $_maxContentLength자 이하로 입력해주세요.'
+          : null;
       _pollOptionsError = _pollOptionsValidationMessage();
       _deadlineError = deadline == null
           ? '투표 마감 시간을 설정해주세요.'
@@ -303,15 +369,27 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   void _handleTitleChanged(String value) {
-    if (_titleError != null && value.trim().isNotEmpty) {
-      setState(() => _titleError = null);
-    }
+    final title = value.trim();
+
+    setState(() {
+      if (title.length > _maxTitleLength) {
+        _titleError = '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.';
+      } else if (_titleError != null) {
+        _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
+      }
+    });
   }
 
   void _handleContentChanged(String value) {
-    if (_contentError != null && value.trim().isNotEmpty) {
-      setState(() => _contentError = null);
-    }
+    final content = value.trim();
+
+    setState(() {
+      if (content.length > _maxContentLength) {
+        _contentError = '투표 내용은 $_maxContentLength자 이하로 입력해주세요.';
+      } else if (_contentError != null) {
+        _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
+      }
+    });
   }
 
   Future<void> _handleClose() async {
@@ -382,7 +460,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _submitPoll() async {
-    if (_submitting || !_validateRequiredFields()) return;
+    if (_submitting || (widget.isEditing && !_hasChanges)) return;
+    if (!_validateRequiredFields()) return;
 
     final request = _buildRequest();
     setState(() => _submitting = true);
@@ -449,7 +528,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         controller: _contentController,
                         errorText: _contentError,
                         onChanged: _handleContentChanged,
-                        maxLength: 500,
+                        maxLength: _maxContentLength,
                         fieldHeight: 200,
                       ),
                       const SizedBox(height: AppSpacing.x20),
@@ -563,7 +642,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitting ? null : _submitPoll,
+                onPressed: _submitting || (widget.isEditing && !_hasChanges)
+                    ? null
+                    : _submitPoll,
               ),
             ],
           ),

@@ -187,14 +187,26 @@ class _SwipeCommentState extends State<_SwipeComment> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundImage: comment.profileImageUrl?.isNotEmpty == true
-                        ? NetworkImage(comment.profileImageUrl!)
-                        : null,
-                    child: comment.profileImageUrl?.isNotEmpty == true
-                        ? null
-                        : const Icon(Icons.person_outline),
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: ClipOval(
+                      child: comment.profileImageUrl?.trim().isNotEmpty == true
+                          ? Image.network(
+                              comment.profileImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/auth/profile_orange.png',
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            )
+                          : Image.asset(
+                              'assets/images/auth/profile_orange.png',
+                              fit: BoxFit.cover,
+                            ),
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.x8),
                   Expanded(

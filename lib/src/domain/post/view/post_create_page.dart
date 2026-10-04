@@ -32,6 +32,8 @@ class PostCreatePage extends ConsumerStatefulWidget {
 }
 
 class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+  static const int _maxTitleLength = 50;
+  static const int _maxContentLength = 500;
   static const int _maxImageBytes = 50 * 1024 * 1024;
   static const int _maxUploadRequestBytes = 300 * 1024 * 1024;
   static const Set<String> _allowedImageExtensions = {
@@ -52,6 +54,15 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   bool _submitting = false;
 
   bool get _isEditMode => widget.isEditMode;
+
+  bool get _hasChanges {
+    if (!_isEditMode) return true;
+
+    final initial = widget.initialNotice!;
+    return _titleController.text.trim() != initial.title.trim() ||
+        _contentController.text.trim() != initial.content.trim() ||
+        _imagesChanged;
+  }
 
   @override
   void initState() {
@@ -217,27 +228,48 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final content = _contentController.text.trim();
 
     setState(() {
-      _titleError = title.isEmpty ? '공지 제목을 입력해주세요.' : null;
-      _contentError = content.isEmpty ? '공지 내용을 입력해주세요.' : null;
+      _titleError = title.isEmpty
+          ? '공지 제목을 입력해주세요.'
+          : title.length > _maxTitleLength
+          ? '공지 제목은 $_maxTitleLength자 이하로 입력해주세요.'
+          : null;
+      _contentError = content.isEmpty
+          ? '공지 내용을 입력해주세요.'
+          : content.length > _maxContentLength
+          ? '공지 내용은 $_maxContentLength자 이하로 입력해주세요.'
+          : null;
     });
 
     return _titleError == null && _contentError == null;
   }
 
   void _handleTitleChanged(String value) {
-    if (_titleError != null && value.trim().isNotEmpty) {
-      setState(() => _titleError = null);
-    }
+    final title = value.trim();
+
+    setState(() {
+      if (title.length > _maxTitleLength) {
+        _titleError = '공지 제목은 $_maxTitleLength자 이하로 입력해주세요.';
+      } else if (_titleError != null) {
+        _titleError = title.isEmpty ? '공지 제목을 입력해주세요.' : null;
+      }
+    });
   }
 
   void _handleContentChanged(String value) {
-    if (_contentError != null && value.trim().isNotEmpty) {
-      setState(() => _contentError = null);
-    }
+    final content = value.trim();
+
+    setState(() {
+      if (content.length > _maxContentLength) {
+        _contentError = '공지 내용은 $_maxContentLength자 이하로 입력해주세요.';
+      } else if (_contentError != null) {
+        _contentError = content.isEmpty ? '공지 내용을 입력해주세요.' : null;
+      }
+    });
   }
 
   Future<void> _submit() async {
-    if (_submitting || !_validateRequiredFields()) return;
+    if (_submitting || (_isEditMode && !_hasChanges)) return;
+    if (!_validateRequiredFields()) return;
 
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
@@ -323,7 +355,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         controller: _contentController,
                         errorText: _contentError,
                         onChanged: _handleContentChanged,
-                        maxLength: 500,
+                        maxLength: _maxContentLength,
                         fieldHeight: 200,
                       ),
                       const SizedBox(height: AppSpacing.x20),
@@ -374,7 +406,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitting ? null : _submit,
+                onPressed: _submitting || (_isEditMode && !_hasChanges)
+                    ? null
+                    : _submit,
               ),
             ],
           ),
