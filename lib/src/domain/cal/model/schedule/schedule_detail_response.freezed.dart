@@ -1195,7 +1195,7 @@ as String,
 /// @nodoc
 mixin _$ScheduleDetailMusic {
 
- int get musicId; String? get musicTitle; String? get musicArtist; String? get musicPreviewUrl;
+@JsonKey(name: 'scheduleMusicId') int get musicId; String? get musicTitle; String? get musicArtist; String? get musicPreviewUrl;
 /// Create a copy of ScheduleDetailMusic
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1233,7 +1233,7 @@ abstract mixin class $ScheduleDetailMusicCopyWith<$Res>  {
   factory $ScheduleDetailMusicCopyWith(ScheduleDetailMusic value, $Res Function(ScheduleDetailMusic) _then) = _$ScheduleDetailMusicCopyWithImpl;
 @useResult
 $Res call({
- int musicId, String? musicTitle, String? musicArtist, String? musicPreviewUrl
+@JsonKey(name: 'scheduleMusicId') int musicId, String? musicTitle, String? musicArtist, String? musicPreviewUrl
 });
 
 
@@ -1341,7 +1341,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'scheduleMusicId')  int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ScheduleDetailMusic() when $default != null:
 return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPreviewUrl);case _:
@@ -1362,7 +1362,7 @@ return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPrev
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'scheduleMusicId')  int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleDetailMusic():
 return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPreviewUrl);case _:
@@ -1382,7 +1382,7 @@ return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPrev
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'scheduleMusicId')  int musicId,  String? musicTitle,  String? musicArtist,  String? musicPreviewUrl)?  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleDetailMusic() when $default != null:
 return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPreviewUrl);case _:
@@ -1397,10 +1397,10 @@ return $default(_that.musicId,_that.musicTitle,_that.musicArtist,_that.musicPrev
 @JsonSerializable()
 
 class _ScheduleDetailMusic implements ScheduleDetailMusic {
-  const _ScheduleDetailMusic({required this.musicId, this.musicTitle, this.musicArtist, this.musicPreviewUrl});
+  const _ScheduleDetailMusic({@JsonKey(name: 'scheduleMusicId') required this.musicId, this.musicTitle, this.musicArtist, this.musicPreviewUrl});
   factory _ScheduleDetailMusic.fromJson(Map<String, dynamic> json) => _$ScheduleDetailMusicFromJson(json);
 
-@override final  int musicId;
+@override@JsonKey(name: 'scheduleMusicId') final  int musicId;
 @override final  String? musicTitle;
 @override final  String? musicArtist;
 @override final  String? musicPreviewUrl;
@@ -1440,7 +1440,7 @@ abstract mixin class _$ScheduleDetailMusicCopyWith<$Res> implements $ScheduleDet
   factory _$ScheduleDetailMusicCopyWith(_ScheduleDetailMusic value, $Res Function(_ScheduleDetailMusic) _then) = __$ScheduleDetailMusicCopyWithImpl;
 @override @useResult
 $Res call({
- int musicId, String? musicTitle, String? musicArtist, String? musicPreviewUrl
+@JsonKey(name: 'scheduleMusicId') int musicId, String? musicTitle, String? musicArtist, String? musicPreviewUrl
 });
 
 

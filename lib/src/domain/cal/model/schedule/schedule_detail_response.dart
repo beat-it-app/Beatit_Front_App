@@ -68,7 +68,7 @@ abstract class ScheduleDetailFile with _$ScheduleDetailFile {
 @freezed
 abstract class ScheduleDetailMusic with _$ScheduleDetailMusic {
   const factory ScheduleDetailMusic({
-    required int musicId,
+    @JsonKey(name: 'scheduleMusicId') required int musicId,
     String? musicTitle,
     String? musicArtist,
     String? musicPreviewUrl,
