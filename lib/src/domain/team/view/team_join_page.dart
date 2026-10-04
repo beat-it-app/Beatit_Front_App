@@ -1,13 +1,13 @@
 import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:flutter/material.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart'; // 추가된 위젯 임포트
+import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/popups/app_popup.dart';
@@ -92,7 +92,7 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
         onConfirm: () {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const TeamDetailPage()),
+            MaterialPageRoute(builder: (context) => const TeamSelectPage()),
             (route) => route.isFirst,
           );
         },
@@ -169,13 +169,11 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
                   ),
                   const SizedBox(width: AppSpacing.x8),
                   AppButton(
-                    text: state.isVerifying ? '확인 중' : '확인',
-                    variant: ButtonVariant.black,
+                    text: '확인',
+                    variant: ButtonVariant.gray,
                     height: ButtonHeight.small,
                     width: ButtonWidth.medium,
-                    onPressed: (_canSubmit && !state.isVerifying)
-                        ? _handleVerifyCode
-                        : null,
+                    onPressed: state.isVerifying ? null : _handleVerifyCode,
                   ),
                 ],
               ),

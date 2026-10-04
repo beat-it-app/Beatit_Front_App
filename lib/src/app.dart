@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
 
+import 'domain/team/view/team_detail_page.dart';
+
 class MainShell extends StatefulWidget {
   const MainShell({super.key, this.initialIndex = 0});
 
@@ -17,7 +19,7 @@ class _MainShellState extends State<MainShell> {
   late int _currentIndex;
 
   final List<Widget> _pages = const [
-    TeamSelectPage(),
+    TeamDetailPage(),
 
     _TemporaryMainPage(title: '공지'),
     CalMainPage(),

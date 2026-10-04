@@ -11,6 +11,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/bottomsheets/app_time_bottomsheet.dart';
 import '../../../core/widgets/buttons/app_upload_button.dart';
 import '../../../core/widgets/inputs/app_text_area.dart';
@@ -74,6 +75,10 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
   Future<void> _submitTeamCreate() async {
     FocusScope.of(context).unfocus();
 
+    final File? imageFile = _selectedImage != null
+        ? File(_selectedImage!.path)
+        : null;
+
     final request = TeamCreateRequest(
       teamName: teamNameController.text.trim(),
       teamType: selectedTeamType!,
@@ -88,7 +93,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
     final success = await ref
         .read(teamCreateProvider.notifier)
-        .createTeam(request);
+        .createTeam(request, teamImageFile: imageFile);
 
     if (!mounted) return;
 
@@ -96,8 +101,10 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              TeamCreateSuccessPage(teamName: teamNameController.text.trim()),
+          builder: (context) => TeamCreateSuccessPage(
+            teamName: teamNameController.text.trim(),
+            teamImageFile: imageFile,
+          ),
         ),
         (route) => route.isFirst,
       );
@@ -307,15 +314,22 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
               const SizedBox(height: AppSpacing.x16),
 
-              // 실제 API 연동 함수 연결 및 로딩/비활성화 처리
-              AppButton(
-                text: state.isLoading ? '생성 중...' : '팀 생성하기',
-                width: ButtonWidth.expand,
-                height: ButtonHeight.normal,
-                variant: ButtonVariant.primary,
-                onPressed: (_canSubmit && !state.isLoading)
-                    ? _submitTeamCreate
-                    : null,
+              Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: Theme.of(context).colorScheme.copyWith(
+                    primary: AppColor.beatOrange1,
+                    onPrimary: AppColor.white,
+                  ),
+                ),
+                child: AppButton(
+                  text: '팀 생성하기',
+                  width: ButtonWidth.expand,
+                  height: ButtonHeight.normal,
+                  variant: ButtonVariant.primary,
+                  onPressed: (_canSubmit && !state.isLoading)
+                      ? _submitTeamCreate
+                      : null,
+                ),
               ),
             ],
           ),

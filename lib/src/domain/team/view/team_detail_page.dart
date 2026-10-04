@@ -1,46 +1,130 @@
+import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart'; // 💡 AppTopAppBar 경로 확인 후 사용
+import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/domain/team/model/team_detail_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_member_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
+import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 
-class TeamDetailPage extends StatelessWidget {
+class TeamDetailPage extends ConsumerStatefulWidget {
   const TeamDetailPage({super.key});
+
+  @override
+  ConsumerState<TeamDetailPage> createState() => _TeamDetailPageState();
+}
+
+class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
+  bool _hasFetched = false;
+  bool _isNavigatingBack = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasFetched && mounted) {
+        _hasFetched = true;
+        // GET /teams 호출
+        ref.read(teamDetailProvider.notifier).fetchTeamDetail();
+      }
+    });
+  }
+
+  Future<void> _launchUrlString(String urlStr) async {
+    final uri = Uri.tryParse(urlStr);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
+    ref.listen<TeamDetailState>(teamDetailProvider, (previous, next) {
+      if (next.navigateToSelectPage && !_isNavigatingBack && mounted) {
+        _isNavigatingBack = true;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const TeamSelectPage()),
+        );
+      }
+    });
+
+    final state = ref.watch(teamDetailProvider);
+
+    // 로딩 중이거나 선택 페이지로 리다이렉트 중일 때 인디케이터 표시
+    if (state.isLoading || state.navigateToSelectPage) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final detail = state.teamDetail;
+    if (detail == null) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        body: Center(
+          child: Text(
+            state.errorMessage ?? '팀 정보를 찾을 수 없습니다.',
+            style: FontStyles.med16.copyWith(color: context.grays.gray4),
+          ),
+        ),
+      );
+    }
+
+    // myRole 권한 검사 (LEADER, MANAGER만 수정/공유 버튼 노출)
+    final role = detail.myRole?.toUpperCase();
+    final bool isManagerOrLeader = role == 'LEADER' || role == 'MANAGER';
+
     return Scaffold(
       backgroundColor: colors.surface,
       extendBodyBehindAppBar: true,
-
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(64.0),
-        child: Theme(
-          data: theme.copyWith(
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-            ),
-          ),
-          child: AppTopAppBar.alarmOnly(
-            onAlarmPressed: () {
-              print('알림 클릭됨');
-            },
-          ),
+        child: AppTopAppBar.alarmOnly(
+          onEditPressed: isManagerOrLeader
+              ? () {
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (context) => const TeamUpdatePage(),
+                        ),
+                      )
+                      .then((_) {
+                        ref.read(teamDetailProvider.notifier).fetchTeamDetail();
+                      });
+                }
+              : null,
+          onSharePressed: isManagerOrLeader
+              ? () {
+                  showTeamInviteDialog(
+                    context: context,
+                    teamName: detail.teamName,
+                    inviteCode: detail.inviteCode,
+                  );
+                }
+              : null,
+          onAlarmPressed: () {
+            // 알림 액션
+          },
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. 상단 프로필 헤더 영역
-            _buildHeader(context),
+            // 1. 상단 프로필 헤더 (배경, 팀명, 개설일, SNS 링크)
+            _buildHeader(context, detail),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
@@ -53,7 +137,10 @@ class TeamDetailPage extends StatelessWidget {
                   _buildSectionTitle(context, '밴드 소개'),
                   const SizedBox(height: AppSpacing.x8),
                   Text(
-                    '안녕하세요, 잘나가는 밴드입니다.\n소소하고 행복한 음악을 즐기는 대학생 연합 밴드입니다.\n함께 즐거운 공연해요\n\n정기 공연일: 매달 둘째주 토요일 18시\n장소 공지: 전주 금요일 14시',
+                    detail.description != null &&
+                            detail.description!.trim().isNotEmpty
+                        ? detail.description!
+                        : '등록된 소개글이 없습니다.',
                     style: FontStyles.med16.copyWith(
                       color: context.grays.gray3,
                       height: 1.5,
@@ -65,11 +152,18 @@ class TeamDetailPage extends StatelessWidget {
                   // 3. 멤버 목록 영역
                   _buildSectionTitle(
                     context,
-                    '멤버 목록 (10)',
+                    '멤버 목록 (${detail.memberCount})',
                     trailingText: '더보기',
+                    onTrailingTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const TeamMemberPage(),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpacing.x12),
-                  _buildMemberList(context),
+                  _buildMemberList(context, detail),
 
                   const SizedBox(height: AppSpacing.x30),
 
@@ -147,12 +241,20 @@ class TeamDetailPage extends StatelessWidget {
                     context,
                     svgPath: 'assets/icons/team/archive.svg',
                     title: '합주실/연습실 기록하기',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const TeamArchiveListPage(),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpacing.x12),
                   _buildActionButton(
                     context,
                     svgPath: 'assets/icons/team/cloud.svg',
                     title: '팀 클라우드',
+                    onTap: () {},
                   ),
 
                   const SizedBox(height: AppSpacing.x40),
@@ -165,9 +267,21 @@ class TeamDetailPage extends StatelessWidget {
     );
   }
 
-  // 상단 프로필 헤더 (기존 내부 알림 버튼 아이콘은 제거되고 AppTopAppBar로 통합)
-  Widget _buildHeader(BuildContext context) {
+  // 상단 프로필 헤더
+  Widget _buildHeader(BuildContext context, TeamDetailModel detail) {
     final colors = Theme.of(context).colorScheme;
+    final bool hasImage =
+        detail.teamImageUrl != null && detail.teamImageUrl!.trim().isNotEmpty;
+
+    // 개설일 포맷팅 (YYYY.MM.DD)
+    String dateDisplay = '-';
+    if (detail.establishedOn != null &&
+        detail.establishedOn!.trim().isNotEmpty) {
+      final raw = detail.establishedOn!.trim();
+      dateDisplay = raw.length >= 10
+          ? raw.substring(0, 10).replaceAll('-', '.')
+          : raw;
+    }
 
     return SizedBox(
       height: 400,
@@ -176,13 +290,22 @@ class TeamDetailPage extends StatelessWidget {
         children: [
           // 1. 프로필 배경 사진
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/team/team_view_profile.png',
-              fit: BoxFit.cover,
-            ),
+            child: hasImage
+                ? Image.network(
+                    detail.teamImageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Image.asset(
+                      'assets/images/team/team_view_profile.png',
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Image.asset(
+                    'assets/images/team/team_view_profile.png',
+                    fit: BoxFit.cover,
+                  ),
           ),
 
-          // 2. 어두운 그라데이션 오버레이
+          // 2. 그라데이션 오버레이
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -198,9 +321,9 @@ class TeamDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 3. 고정 프로필 타이틀 영역
+          // 3. 프로필 타이틀 및 SNS
           Positioned(
-            top: 200,
+            top: 190,
             left: 0,
             right: 0,
             child: Column(
@@ -211,28 +334,18 @@ class TeamDetailPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '잘나가는 밴드',
+                  detail.teamName,
                   style: FontStyles.bold28.copyWith(color: colors.primary),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '개설일  |  2026.04.06',
+                  '개설일  |  $dateDisplay',
                   style: FontStyles.reg12.copyWith(color: context.grays.gray4),
                 ),
                 const SizedBox(height: 18),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildSocialCircle('assets/icons/team/instagram.svg'),
-                    const SizedBox(width: 12),
-                    _buildSocialCircle('assets/icons/team/youtube.svg'),
-                    const SizedBox(width: 12),
-                    _buildSocialCircle('assets/icons/team/link.svg'),
-                  ],
-                ),
-
-                const SizedBox(height: 40),
+                // 유효한 SNS 링크만 가운데 정렬 렌더링
+                _buildDynamicSocialLinks(detail.links),
               ],
             ),
           ),
@@ -241,31 +354,62 @@ class TeamDetailPage extends StatelessWidget {
     );
   }
 
-  // SNS 로고 원형 아이콘 생성 함수
-  Widget _buildSocialCircle(String svgPath) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.transparent,
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-      ),
-      child: Center(
-        child: SvgPicture.asset(
-          svgPath,
-          width: 28,
-          height: 28,
-          colorFilter: ColorFilter.mode(
-            Colors.white.withOpacity(0.6),
-            BlendMode.srcIn,
+  // 등록된 SNS 링크 동적 생성
+  Widget _buildDynamicSocialLinks(List<TeamLinkModel> links) {
+    final validLinks = links
+        .where((link) => link.linkUrl.trim().isNotEmpty)
+        .toList();
+
+    if (validLinks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: validLinks.map((link) {
+        String svgPath = 'assets/icons/team/link.svg';
+        final code = link.platformCode.toUpperCase();
+
+        if (code == 'INSTAGRAM') {
+          svgPath = 'assets/icons/team/instagram.svg';
+        } else if (code == 'YOUTUBE') {
+          svgPath = 'assets/icons/team/youtube.svg';
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+          child: _buildSocialCircle(
+            svgPath,
+            onTap: () => _launchUrlString(link.linkUrl),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSocialCircle(String svgPath, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withOpacity(0.3),
+          border: Border.all(color: Colors.white.withOpacity(0.8), width: 1),
+        ),
+        child: Center(
+          child: SvgPicture.asset(
+            svgPath,
+            width: 24,
+            height: 24,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
           ),
         ),
       ),
     );
   }
 
-  // 섹션 타이틀
   Widget _buildSectionTitle(
     BuildContext context,
     String title, {
@@ -329,45 +473,78 @@ class TeamDetailPage extends StatelessWidget {
     );
   }
 
-  // 멤버 목록
-  Widget _buildMemberList(BuildContext context) {
-    final members = [
-      {'name': '송하은', 'role': '베이스'},
-      {'name': '노영서', 'role': '드럼'},
-      {'name': '김지원', 'role': '보컬 1'},
-      {'name': '이기주', 'role': '기타'},
-      {'name': '박민수', 'role': '키보드'},
-      {'name': '최유진', 'role': '보컬 2'},
-      {'name': '정현우', 'role': '세컨 기타'},
-      {'name': '한소희', 'role': '퍼커션'},
-      {'name': '윤도현', 'role': '작곡/서브'},
-      {'name': '강하늘', 'role': '매니저'},
-    ];
-
-    final displayMembers = members.take(10).toList();
+  // members를 사용한 멤버 목록 가로 스크롤
+  Widget _buildMemberList(BuildContext context, TeamDetailModel detail) {
+    if (detail.members.isEmpty) {
+      return SizedBox(
+        height: 110,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Color(0xFF2C2C2E),
+                  backgroundImage: AssetImage(
+                    'assets/images/team/team_view_profile.png',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('미지정', style: FontStyles.semi16),
+                const SizedBox(height: 2),
+                Text(
+                  '멤버',
+                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return SizedBox(
-      height: 116,
+      height: 110,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: displayMembers.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 28),
+        itemCount: detail.members.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
-          final member = displayMembers[index];
+          final member = detail.members[index];
+          final bool hasImage =
+              member.profileImageUrl != null &&
+              member.profileImageUrl!.trim().isNotEmpty;
 
           return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 28,
-                backgroundImage: AssetImage(
-                  'assets/images/team/team_view_profile.png',
+                backgroundColor: const Color(0xFF2C2C2E),
+                backgroundImage: hasImage
+                    ? NetworkImage(member.profileImageUrl!)
+                    : const AssetImage(
+                            'assets/images/team/team_view_profile.png',
+                          )
+                          as ImageProvider,
+              ),
+              const SizedBox(height: 6),
+              // 멤버 이름
+              Text(
+                member.userName.isNotEmpty ? member.userName : '이름 없음',
+                style: FontStyles.semi16.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(member['name']!, style: FontStyles.semi18),
+              const SizedBox(height: 2),
+              // 멤버 포지션
               Text(
-                member['role']!,
-                style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+                (member.position != null && member.position!.trim().isNotEmpty)
+                    ? member.position!
+                    : '',
+                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
               ),
             ],
           );
@@ -376,239 +553,90 @@ class TeamDetailPage extends StatelessWidget {
     );
   }
 
-  // 일정 섹션
+  // 4. 다가오는 일정 섹션 (데이터 없을 때 Empty Box 렌더링)
   Widget _buildScheduleSection(BuildContext context) {
-    return Column(
-      children: [
-        _buildScheduleDateGroup(
-          context,
-          dDayText: 'D-D',
-          dateText: '2026. 04. 14 (오늘)',
-          items: [
-            _ScheduleCardData(
-              title: '04.14 두 번째 합주',
-              location: '그라운드 합주일 본점 A3',
-              startTime: '오전    11:00',
-              endTime: '오후    13:00',
-              isChecked: true,
-            ),
-            _ScheduleCardData(
-              title: '04.14 세 번째 합주',
-              location: '그라운드 합주일 본점 A3',
-              startTime: '오후    14:00',
-              endTime: '오후    16:00',
-              isChecked: false,
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        _buildScheduleDateGroup(
-          context,
-          dDayText: 'D-1',
-          dateText: '2026. 04. 15',
-          items: [
-            _ScheduleCardData(
-              title: '04.14 네 번째 합주',
-              location: '그라운드 합주일 본점 A3',
-              startTime: '오전    10:00',
-              endTime: '오전    12:00',
-              isChecked: false,
-              isDimmed: true,
-            ),
-          ],
-        ),
-      ],
+    return _buildEmptyBox(
+      context,
+      iconBgColor: context.brands.beatOrange3,
+      iconWidget: SvgPicture.asset(
+        'assets/icons/cal/calendar.svg',
+        width: 24,
+        height: 24,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      ),
+      title: '등록된 일정이 없습니다.',
+      subtitle: '캘린더에서 일정을 추가해보세요.',
     );
   }
 
-  Widget _buildScheduleDateGroup(
+  // 5. 다가오는 LIVE 공연 섹션 (데이터 없을 때 Empty Box 렌더링)
+  Widget _buildLiveConcertList(BuildContext context) {
+    return _buildEmptyBox(
+      context,
+      iconBgColor: context.grays.gray1,
+      iconWidget: SvgPicture.asset(
+        'assets/icons/team/mic.svg',
+        width: 24,
+        height: 24,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      ),
+      title: '등록된 LIVE 공연이 없습니다.',
+      subtitle: '가장 먼저 공연을 등록해보세요.',
+    );
+  }
+
+  // Empty State 공통 박스 위젯
+  Widget _buildEmptyBox(
     BuildContext context, {
-    required String dDayText,
-    required String dateText,
-    required List<_ScheduleCardData> items,
-    Color? overrideColor,
+    required Widget iconWidget,
+    required Color iconBgColor,
+    required String title,
+    required String subtitle,
   }) {
     final colors = Theme.of(context).colorScheme;
 
-    final bool isTodayDDay = dDayText.trim().toUpperCase() == 'D-D';
-    final Color badgeColor =
-        overrideColor ?? (isTodayDDay ? colors.primary : colors.onSurface);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: badgeColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                dDayText,
-                style: FontStyles.semi10.copyWith(color: Colors.white),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(dateText, style: FontStyles.med16),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...items.map((item) => _buildScheduleCard(context, item, isTodayDDay)),
-      ],
-    );
-  }
-
-  Widget _buildScheduleCard(
-    BuildContext context,
-    _ScheduleCardData data,
-    bool isTodayDDay,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: 4),
-            // 1. 시간 영역 (상단 정렬)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text(
-                  data.startTime,
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray2),
-                ),
-                Text(
-                  data.endTime,
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
-                ),
-              ],
-            ),
-
-            const SizedBox(width: 10),
-
-            // 2. 구분선 막대
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Container(width: 1, color: context.grays.gray7),
-            ),
-
-            const SizedBox(width: 10),
-
-            // 3. 카드 박스 영역 (3:1 비율)
-            Expanded(
-              child: AspectRatio(
-                aspectRatio: 3 / 1,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: data.isDimmed
-                        ? context.grays.gray8.withOpacity(0.5)
-                        : context.grays.gray8,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            data.title,
-                            style: FontStyles.semi18.copyWith(
-                              color: data.isDimmed
-                                  ? context.grays.gray4
-                                  : Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            data.location,
-                            style: FontStyles.med12.copyWith(
-                              color: data.isDimmed
-                                  ? context.grays.gray6
-                                  : context.grays.gray4,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Center(
-                        child: SvgPicture.asset(
-                          data.isChecked
-                              ? 'assets/icons/check/check_round_on.svg'
-                              : 'assets/icons/check/check_dot.svg',
-                          width: 25,
-                          height: 25,
-                          fit: BoxFit.contain,
-                          colorFilter: (!data.isChecked && !isTodayDDay)
-                              ? ColorFilter.mode(
-                                  context.grays.gray5,
-                                  BlendMode.srcIn,
-                                )
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(5),
       ),
-    );
-  }
-
-  Widget _buildLiveConcertList(BuildContext context) {
-    final concerts = [
-      {'date': '2026. 04. 14', 'title': '뭔가 공연의 제목이겠지요 빗잇 빗잇'},
-      {'date': '2026. 04. 14', 'title': '뭔가 공연의 제목'},
-      {'date': '2026. 04. 14', 'title': '뭔가 공연의 제목이겠지요 빗잇 빗잇'},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: concerts.map((concert) {
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.only(right: 12),
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Center(child: iconWidget),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  height: 166,
-                  decoration: BoxDecoration(
-                    color: context.grays.gray8,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: context.grays.gray6, width: 1),
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  concert['date']!,
-                  style: FontStyles.reg16.copyWith(color: context.grays.gray4),
+                  title,
+                  style: FontStyles.med16.copyWith(color: context.grays.gray4),
                 ),
                 Text(
-                  concert['title']!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: FontStyles.semi18,
+                  subtitle,
+                  style: FontStyles.semi18.copyWith(color: colors.onSurface),
                 ),
               ],
             ),
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
 
+  // 하단 액션 버튼
   Widget _buildActionButton(
     BuildContext context, {
     required String svgPath,
@@ -659,23 +687,4 @@ class TeamDetailPage extends StatelessWidget {
       ),
     );
   }
-}
-
-// 일정 카드 데이터 모델
-class _ScheduleCardData {
-  final String title;
-  final String location;
-  final String startTime;
-  final String endTime;
-  final bool isChecked;
-  final bool isDimmed;
-
-  _ScheduleCardData({
-    required this.title,
-    required this.location,
-    required this.startTime,
-    required this.endTime,
-    this.isChecked = false,
-    this.isDimmed = false,
-  });
 }

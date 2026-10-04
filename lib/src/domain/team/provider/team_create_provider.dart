@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,16 +20,45 @@ class TeamApi {
 
   TeamApi(this._dio);
 
-  Future<void> createTeam(TeamCreateRequest request) async {
+  // 💡 [수정]: File? teamImageFile 매개변수 추가 및 FormData 방식으로 전송
+  Future<void> createTeam(
+    TeamCreateRequest request, {
+    File? teamImageFile,
+  }) async {
     try {
-      await _dio.post('/teams', data: request.toJson());
+      // 백엔드 @RequestParam 스펙에 맞게 Map 구성
+      final map = <String, dynamic>{
+        'teamName': request.teamName,
+        'teamType': request.teamType,
+        if (request.description != null &&
+            request.description!.trim().isNotEmpty)
+          'description': request.description!.trim(),
+        if (request.establishedOn != null &&
+            request.establishedOn!.trim().isNotEmpty)
+          'establishedOn': request.establishedOn!.trim(),
+      };
+
+      // 백엔드 @RequestPart(value = "teamImage") 스펙에 맞게 파일 추가
+      if (teamImageFile != null) {
+        final fileName = teamImageFile.path.split('/').last;
+        map['teamImage'] = await MultipartFile.fromFile(
+          teamImageFile.path,
+          filename: fileName,
+        );
+      }
+
+      final formData = FormData.fromMap(map);
+
+      // Dio에 FormData를 전달하면 자동으로 Content-Type이 multipart/form-data로 지정됩니다.
+      await _dio.post('/teams', data: formData);
     } on DioException catch (e) {
       String message = '팀 생성에 실패했습니다.';
       String? errorCode;
 
       final data = e.response?.data;
       if (data is Map<String, dynamic>) {
-        errorCode = data['errorCode'] ?? data['code'];
+        errorCode =
+            data['status']?.toString() ?? data['errorCode'] ?? data['code'];
         switch (errorCode) {
           case 'TEAM-003':
             message = '팀 이름은 필수입니다.';
@@ -91,12 +121,16 @@ class TeamCreateNotifier extends Notifier<TeamCreateState> {
     return const TeamCreateState();
   }
 
-  Future<bool> createTeam(TeamCreateRequest request) async {
+  // 💡 [수정]: File? teamImageFile 선택 파라미터 전달 지원
+  Future<bool> createTeam(
+    TeamCreateRequest request, {
+    File? teamImageFile,
+  }) async {
     state = state.copyWith(isCreating: true, clearError: true);
 
     try {
       final teamApi = ref.read(teamApiProvider);
-      await teamApi.createTeam(request);
+      await teamApi.createTeam(request, teamImageFile: teamImageFile);
 
       state = state.copyWith(isCreating: false);
       return true;
