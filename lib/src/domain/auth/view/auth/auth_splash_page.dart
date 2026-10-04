@@ -1,55 +1,56 @@
 import 'dart:ui' as ui;
 
+import 'package:beatit_front_app/src/app.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/profile/create_profile_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class AuthSplashPage extends StatefulWidget {
+class AuthSplashPage extends ConsumerStatefulWidget {
   const AuthSplashPage({super.key});
 
   @override
-  State<AuthSplashPage> createState() => _AuthSplashPageState();
+  ConsumerState<AuthSplashPage> createState() => _AuthSplashPageState();
 }
 
-class _AuthSplashPageState extends State<AuthSplashPage>
+class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     with SingleTickerProviderStateMixin {
   static const _introDelay = Duration(seconds: 1);
   static const _entranceDuration = Duration(seconds: 2);
 
-  static const _windowAsset = 'assets/images/auth/window.png';
   static const _headphoneAsset = 'assets/images/auth/headphone.png';
   static const _logoAsset = 'assets/icons/auth/main_logo.svg';
 
+  static const _glassPaneCount = 7;
+
   late final AnimationController _controller;
-  late final Animation<double> _windowEntrance;
   late final Animation<double> _headphoneEntrance;
   late final Animation<double> _logoEntrance;
-  late final Animation<double> _windowOpacity;
   late final Animation<double> _headphoneOpacity;
   late final Animation<double> _logoOpacity;
   late final Animation<double> _textTransition;
 
   bool _didPrecacheImages = false;
+  late final Future<AuthSession?> _sessionRestoreFuture;
 
   @override
   void initState() {
     super.initState();
+
+    _sessionRestoreFuture = ref.read(authProvider.notifier).restoreSession();
 
     _controller = AnimationController(
       vsync: this,
       duration: _entranceDuration,
     );
 
-    // 실제 이동은 초반 약 0.8~1초 안에 끝낸다.
-    // 남은 시간은 완성된 화면을 잠깐 보여 준 뒤 로그인으로 넘어간다.
-    _windowEntrance = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.00, 0.38, curve: Curves.easeOutCubic),
-    );
     _headphoneEntrance = CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.03, 0.43, curve: Curves.easeOutCubic),
@@ -59,10 +60,6 @@ class _AuthSplashPageState extends State<AuthSplashPage>
       curve: const Interval(0.08, 0.48, curve: Curves.easeOutCubic),
     );
 
-    _windowOpacity = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.00, 0.18, curve: Curves.easeOut),
-    );
     _headphoneOpacity = CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.03, 0.20, curve: Curves.easeOut),
@@ -88,7 +85,6 @@ class _AuthSplashPageState extends State<AuthSplashPage>
     }
 
     _didPrecacheImages = true;
-    precacheImage(const AssetImage(_windowAsset), context);
     precacheImage(const AssetImage(_headphoneAsset), context);
   }
 
@@ -100,15 +96,30 @@ class _AuthSplashPageState extends State<AuthSplashPage>
     }
 
     await _controller.forward();
+    final session = await _sessionRestoreFuture;
 
     if (!mounted) {
       return;
     }
 
+    _navigateAfterSplash(session);
+  }
+
+  void _navigateAfterSplash(AuthSession? session) {
+    final Widget nextPage;
+
+    if (session == null) {
+      nextPage = const SigninPage();
+    } else if (session.createdProfile) {
+      nextPage = const MainShell();
+    } else {
+      nextPage = const CreateProfilePage();
+    }
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (_, animation, secondaryAnimation) => const SigninPage(),
+        pageBuilder: (_, animation, secondaryAnimation) => nextPage,
         transitionsBuilder: (_, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -175,10 +186,8 @@ class _AuthSplashPageState extends State<AuthSplashPage>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // BackdropFilter는 이미 그려진 픽셀만 흐릴 수 있으므로
-          // 헤드셋을 먼저 그리고 유리 패널을 그 위에 올린다.
           _buildHeadphone(width: width, height: height),
-          _buildWindow(
+          _buildGlassPanes(
             context,
             width: width,
             height: height,
@@ -194,82 +203,158 @@ class _AuthSplashPageState extends State<AuthSplashPage>
     );
   }
 
-  Widget _buildWindow(
+  Widget _buildGlassPanes(
     BuildContext context, {
     required double width,
     required double height,
   }) {
-    final colors = Theme.of(context).colorScheme;
+    final glassWidth = width * 0.57;
+    final paneWidth = glassWidth / _glassPaneCount;
 
-    return Opacity(
-      opacity: _windowOpacity.value,
-      child: Transform.translate(
-        offset: Offset(
-          0,
-          -height * 0.72 * (1 - _windowEntrance.value),
-        ),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            // 레퍼런스처럼 화면 좌측 절반을 유리 패널 영역으로 사용한다.
-            width: width * 0.5,
-            height: height,
-            child: ClipRect(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Figma Background Blur에 대응하는 실시간 블러.
-                  // 이 레이어보다 먼저 그려진 헤드셋이 실제로 흐려진다.
-                  BackdropFilter(
-                    filter: ui.ImageFilter.blur(
-                      sigmaX: 15,
-                      sigmaY: 15,
-                    ),
-                    child: ColoredBox(
-                      color: colors.onSurface.withValues(alpha: 0.018),
-                    ),
-                  ),
+    // 각 패널마다 아주 미세하게 다른 굴절량을 줘서
+    // 하나의 큰 blur가 아니라 여러 장의 유리가 이어진 느낌을 만든다.
+    const refractionOffsets = <double>[-12, 9, -7, 13, -10, 8, -5];
+    const refractionScales = <double>[1.035, 0.985, 1.045, 0.975, 1.04, 0.99, 1.025];
 
-                  // 아주 약한 유리 틴트와 가장자리 하이라이트.
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        right: BorderSide(
-                          color: colors.onSurface.withValues(alpha: 0.10),
-                          width: 1,
-                        ),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          colors.onSurface.withValues(alpha: 0.055),
-                          colors.onSurface.withValues(alpha: 0.018),
-                          colors.onSurface.withValues(alpha: 0.035),
-                        ],
-                        stops: const [0, 0.52, 1],
-                      ),
-                    ),
-                  ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        width: glassWidth,
+        height: height,
+        child: Stack(
+          children: List.generate(_glassPaneCount, (index) {
+            final paneLeft = paneWidth * index;
+            final paneProgress = _glassPaneProgress(index);
+            final paneOffsetY = -height * 0.78 * (1 - paneProgress);
 
-                  // 기존 window.png는 블러를 대신하는 이미지가 아니라,
-                  // 세로 반사선/굴절 질감을 더하는 오버레이로만 사용한다.
-                  IgnorePointer(
-                    child: Image.asset(
-                      _windowAsset,
-                      width: width * 0.5,
-                      height: height,
-                      fit: BoxFit.fill,
-                      filterQuality: FilterQuality.high,
-                    ),
-                  ),
-                ],
+            return Positioned(
+              left: paneLeft,
+              top: 0,
+              width: paneWidth + 0.5,
+              height: height,
+              child: Transform.translate(
+                offset: Offset(0, paneOffsetY),
+                child: _buildGlassPane(
+                  context,
+                  width: width,
+                  height: height,
+                  paneLeft: paneLeft,
+                  paneWidth: paneWidth,
+                  paneOffsetY: paneOffsetY,
+                  refractionOffsetX: refractionOffsets[index],
+                  refractionScaleX: refractionScales[index],
+                  index: index,
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         ),
       ),
     );
+  }
+
+  Widget _buildGlassPane(
+    BuildContext context, {
+    required double width,
+    required double height,
+    required double paneLeft,
+    required double paneWidth,
+    required double paneOffsetY,
+    required double refractionOffsetX,
+    required double refractionScaleX,
+    required int index,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final headphoneOffsetY = -height * 0.70 * (1 - _headphoneEntrance.value);
+
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 실제 뒤 레이어를 살짝만 흐린다. 굴절감은 아래 복제 레이어가 담당한다.
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(
+              sigmaX: 2.8,
+              sigmaY: 1.8,
+            ),
+            child: ColoredBox(
+              color: colors.onSurface.withValues(alpha: 0.015),
+            ),
+          ),
+
+          // 패널 안에서만 헤드셋을 다시 그려 위치와 폭을 조금씩 틀어준다.
+          // 이 레이어가 각 유리 조각마다 서로 다른 굴절을 만드는 핵심이다.
+          Opacity(
+            opacity: _headphoneOpacity.value * 0.50,
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              minWidth: width,
+              maxWidth: width,
+              minHeight: height,
+              maxHeight: height,
+              child: Transform.translate(
+                offset: Offset(
+                  -paneLeft + refractionOffsetX,
+                  headphoneOffsetY - paneOffsetY,
+                ),
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()..scale(refractionScaleX, 1.0),
+                  child: SizedBox(
+                    width: width,
+                    height: height,
+                    child: _buildHeadphoneArtwork(
+                      width: width,
+                      entranceScale: _headphoneEntrance.value,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 유리 가장자리의 빛과 음영을 각각의 사각 패널에 따로 준다.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: colors.onSurface.withValues(
+                    alpha: index == 0 ? 0.12 : 0.06,
+                  ),
+                  width: 0.6,
+                ),
+                right: BorderSide(
+                  color: colors.onSurface.withValues(alpha: 0.16),
+                  width: 0.8,
+                ),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  colors.onSurface.withValues(alpha: 0.045),
+                  colors.onSurface.withValues(alpha: 0.012),
+                  colors.surface.withValues(alpha: 0.055),
+                  colors.onSurface.withValues(alpha: 0.035),
+                ],
+                stops: const [0, 0.18, 0.78, 1],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _glassPaneProgress(int index) {
+    final start = 0.010 * index;
+    final end = 0.38 + (0.010 * index);
+
+    return Interval(
+      start,
+      end,
+      curve: Curves.easeOutCubic,
+    ).transform(_controller.value);
   }
 
   Widget _buildHeadphone({
@@ -277,27 +362,37 @@ class _AuthSplashPageState extends State<AuthSplashPage>
     required double height,
   }) {
     return Opacity(
-      opacity: _headphoneOpacity.value,
+      // 요청한 대로 원본 헤드셋 자체는 50% 투명도로 표시한다.
+      opacity: _headphoneOpacity.value * 0.50,
       child: Transform.translate(
         offset: Offset(
           0,
           -height * 0.70 * (1 - _headphoneEntrance.value),
         ),
-        child: Align(
-          // 최종 헤드셋 중심은 화면 중앙보다 살짝 위, 오른쪽에 둔다.
-          alignment: const Alignment(0.10, -0.18),
-          child: Transform.scale(
-            scale: 0.98 + (0.02 * _headphoneEntrance.value),
-            child: Image.asset(
-              _headphoneAsset,
-              // 원본 883 x 883 중 실제 헤드셋 픽셀은 중앙 약 59% 폭만 차지한다.
-              // 따라서 canvas 자체를 화면 폭과 비슷하게 잡아야 최종 오브젝트가
-              // 레퍼런스처럼 화면의 약 60% 폭으로 보인다.
-              width: width * 1.05,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-            ),
+        child: SizedBox.expand(
+          child: _buildHeadphoneArtwork(
+            width: width,
+            entranceScale: _headphoneEntrance.value,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeadphoneArtwork({
+    required double width,
+    required double entranceScale,
+  }) {
+    return Align(
+      // 레퍼런스처럼 우측 컵이 화면 바깥으로 일부 잘릴 정도로 크게 배치한다.
+      alignment: const Alignment(0.22, -0.14),
+      child: Transform.scale(
+        scale: 0.97 + (0.03 * entranceScale),
+        child: Image.asset(
+          _headphoneAsset,
+          width: width * 1.34,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
         ),
       ),
     );
@@ -310,7 +405,6 @@ class _AuthSplashPageState extends State<AuthSplashPage>
     required Color textColor,
   }) {
     return Align(
-      // 로고가 헤드셋 중앙부를 가로지르고 문구가 바로 아래 붙도록 배치한다.
       alignment: const Alignment(0, -0.05),
       child: Column(
         mainAxisSize: MainAxisSize.min,
