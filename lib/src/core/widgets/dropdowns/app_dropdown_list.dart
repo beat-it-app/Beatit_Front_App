@@ -15,6 +15,7 @@ class AppDropdownItem {
   const AppDropdownItem({
     required this.label,
     required this.onPressed,
+    this.svgLink = null,
     this.enabled = true,
   });
 
@@ -23,6 +24,8 @@ class AppDropdownItem {
 
   /// 해당 항목을 눌렀을 때 실행할 동작
   final VoidCallback onPressed;
+
+  final String? svgLink;
 
   /// 항목 활성화 여부
   final bool enabled;
@@ -142,19 +145,13 @@ class _AppDropdownListState extends State<AppDropdownList> {
       controller: _menuController,
       useRootOverlay: widget.useRootOverlay,
 
-      // 첫 번째와 마지막 항목의 눌림 배경이
-      // 메뉴 바깥으로 튀어나오지 않도록 자른다.
       clipBehavior: Clip.antiAlias,
 
-      // 오른쪽 정렬을 포함해 직접 계산된 offset을 사용한다.
       alignmentOffset: _resolvedAlignmentOffset,
 
       style: MenuStyle(
-        // 오른쪽 정렬도 실제로는 왼쪽 기준에서 직접 계산한다.
-        // 그래야 alignmentOffset.dx가 정상적으로 반영된다.
         alignment: Alignment.topLeft,
 
-        // 메뉴 너비 고정
         minimumSize: WidgetStatePropertyAll(Size(widget.width, 0)),
         maximumSize: WidgetStatePropertyAll(
           Size(widget.width, double.infinity),
@@ -318,6 +315,18 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
                         )
                       : const SizedBox.shrink(key: ValueKey('empty-check')),
                 ),
+                widget.item.svgLink != null
+                    ? Center(
+                        child: SvgPicture.asset(
+                          widget.item.svgLink ?? '',
+                          colorFilter: ColorFilter.mode(
+                            textColor,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                const SizedBox(width: AppSpacing.x8),
                 Expanded(
                   child: Text(
                     widget.item.label,

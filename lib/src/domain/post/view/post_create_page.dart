@@ -32,11 +32,17 @@ class PostCreatePage extends ConsumerStatefulWidget {
 }
 
 class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+  static const int _maxImageBytes = 50 * 1024 * 1024;
+  static const int _maxUploadRequestBytes = 300 * 1024 * 1024;
+  static const Set<String> _allowedImageExtensions = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic',
+  };
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
   late final List<String> _existingImageUrls;
 
   final List<XFile> _images = [];
+  final Map<String, int> _imageSizeBytes = <String, int>{};
 
   int? _pendingDeleteExistingImageIndex;
   int? _pendingDeleteImageIndex;
@@ -65,17 +71,78 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final selected = await ImagePicker().pickMultiImage();
     if (!mounted || selected.isEmpty) return;
 
-    setState(() {
-      final existingPaths = _images.map((image) => image.path).toSet();
-      for (final image in selected) {
-        if (existingPaths.add(image.path)) {
-          _images.add(image);
-        }
+    final existingPaths = _images.map((image) => image.path).toSet();
+    final validImages = <XFile>[];
+    final validSizes = <String, int>{};
+    var pendingUploadBytes = _imageSizeBytes.values.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
+    var hasOversizeImage = false;
+    var hasUnsupportedImage = false;
+    var exceedsRequestLimit = false;
+
+    for (final image in selected) {
+      if (!existingPaths.add(image.path)) continue;
+
+      final extension = _imageExtension(image.name);
+      if (!_allowedImageExtensions.contains(extension)) {
+        hasUnsupportedImage = true;
+        continue;
       }
-      _pendingDeleteExistingImageIndex = null;
-      _pendingDeleteImageIndex = null;
-      _refreshImagesChanged();
-    });
+
+      final byteLength = await image.length();
+      if (byteLength > _maxImageBytes) {
+        hasOversizeImage = true;
+        continue;
+      }
+      if (byteLength <= 0) continue;
+      if (pendingUploadBytes + byteLength > _maxUploadRequestBytes) {
+        exceedsRequestLimit = true;
+        continue;
+      }
+
+      pendingUploadBytes += byteLength;
+      validImages.add(image);
+      validSizes[image.path] = byteLength;
+    }
+
+    if (!mounted) return;
+
+    if (validImages.isNotEmpty) {
+      setState(() {
+        _images.addAll(validImages);
+        _imageSizeBytes.addAll(validSizes);
+        _pendingDeleteExistingImageIndex = null;
+        _pendingDeleteImageIndex = null;
+        _refreshImagesChanged();
+      });
+    }
+
+    if (hasOversizeImage) {
+      await _showImageBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
+    } else if (exceedsRequestLimit) {
+      await _showImageBlockedPopup('한 번에 업로드하는 이미지는 총 300MB를 넘을 수 없습니다.');
+    } else if (hasUnsupportedImage) {
+      await _showImageBlockedPopup('지원하지 않는 이미지 형식이 포함되어 있습니다.');
+    }
+  }
+
+  Future<void> _showImageBlockedPopup(String content) async {
+    if (!mounted) return;
+    await AppPopup.show(
+      context,
+      title: '업로드할 수 없는 파일입니다.',
+      content: content,
+      warningType: WarningType.triangle,
+      confirmText: '확인',
+    );
+  }
+
+  String _imageExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex == fileName.length - 1) return '';
+    return fileName.substring(dotIndex + 1).toLowerCase();
   }
 
   void _handleExistingImageTap(int index) {
@@ -97,7 +164,8 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   void _handleImageTap(int index) {
     if (_pendingDeleteImageIndex == index) {
       setState(() {
-        _images.removeAt(index);
+        final removed = _images.removeAt(index);
+        _imageSizeBytes.remove(removed.path);
         _pendingDeleteImageIndex = null;
         _refreshImagesChanged();
       });

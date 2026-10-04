@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -106,26 +107,43 @@ class _CloudFileUploadBottomSheetState
       final fileSize = await file.length() ?? 0;
       final extension = _extensionOf(file.name);
 
-      String? errorText;
-
       if (path == null || path.trim().isEmpty) {
-        errorText = '선택한 파일의 경로를 확인할 수 없습니다.';
-      } else if (extension == null || !_allowedExtensions.contains(extension)) {
-        errorText = '지원하지 않는 파일 형식입니다.';
-      } else if (fileSize <= 0) {
-        errorText = '빈 파일은 등록할 수 없습니다.';
-      } else if (fileSize > _maxFileSize) {
-        errorText = '파일은 최대 300MB까지 등록할 수 있습니다.';
-      }
-
-      if (!mounted) {
+        if (!mounted) return;
+        setState(() {
+          _selectedFile = null;
+          _selectedFileSize = null;
+          _errorText = '선택한 파일의 경로를 확인할 수 없습니다.';
+        });
         return;
       }
 
+      if (extension == null || !_allowedExtensions.contains(extension)) {
+        if (!mounted) return;
+        await _showBlockedPopup('지원하지 않는 파일 형식입니다.');
+        return;
+      }
+
+      if (fileSize <= 0) {
+        if (!mounted) return;
+        setState(() {
+          _selectedFile = null;
+          _selectedFileSize = null;
+          _errorText = '빈 파일은 등록할 수 없습니다.';
+        });
+        return;
+      }
+
+      if (fileSize > _maxFileSize) {
+        if (!mounted) return;
+        await _showBlockedPopup('300MB를 초과하는 파일은 업로드할 수 없습니다.');
+        return;
+      }
+
+      if (!mounted) return;
       setState(() {
         _selectedFile = file;
         _selectedFileSize = fileSize;
-        _errorText = errorText;
+        _errorText = null;
       });
     } finally {
       if (mounted) {
@@ -134,6 +152,22 @@ class _CloudFileUploadBottomSheetState
         });
       }
     }
+  }
+
+  Future<void> _showBlockedPopup(String content) async {
+    if (!mounted) return;
+    setState(() {
+      _selectedFile = null;
+      _selectedFileSize = null;
+      _errorText = null;
+    });
+    await AppPopup.show(
+      context,
+      title: '업로드할 수 없는 파일입니다.',
+      content: content,
+      warningType: WarningType.triangle,
+      confirmText: '확인',
+    );
   }
 
   void _submit() {
