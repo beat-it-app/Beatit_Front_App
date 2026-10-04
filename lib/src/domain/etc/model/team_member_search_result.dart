@@ -21,7 +21,7 @@ class TeamMemberSearchResult {
     return TeamMemberSearchResult(
       userId: _toNullableInt(json['id'] ?? json['userId']),
       userPublicId: json['userPublicId']?.toString() ?? '',
-      userName: json['userName']?.toString() ?? '',
+      userName: (json['userName'] ?? json['name'])?.toString() ?? '',
       profileImageUrl: json['profileImageUrl']?.toString(),
       teamRole: json['teamRole']?.toString() ?? 'MEMBER',
       position: json['position']?.toString(),
@@ -49,7 +49,7 @@ class TeamMemberListData {
   final bool hasNext;
 
   factory TeamMemberListData.fromJson(Map<String, dynamic> json) {
-    final rawMembers = json['memberListResponse'];
+    final rawMembers = json['members'] ?? json['memberListResponse'];
     final members = rawMembers is List
         ? rawMembers
               .whereType<Map>()
@@ -63,7 +63,9 @@ class TeamMemberListData {
 
     return TeamMemberListData(
       members: members,
-      totalCount: _toInt(json['totalCount']),
+      totalCount: json['totalCount'] == null
+          ? members.length
+          : _toInt(json['totalCount']),
       hasNext: json['hasNext'] == true,
     );
   }
