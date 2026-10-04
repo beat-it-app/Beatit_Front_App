@@ -41,6 +41,29 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   static final DateTime _lastScheduleDate = DateTime(2035, 12, 31);
   static const int _maxMusicCount = 10;
   static const int _maxFileCount = 10;
+  static const int _maxUploadFileBytes = 50 * 1024 * 1024;
+  static const int _maxUploadRequestBytes = 300 * 1024 * 1024;
+  static const Set<String> _allowedUploadExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
+    'mp3',
+    'wav',
+    'm4a',
+    'aac',
+    'ogg',
+    'flac',
+    'mp4',
+    'mov',
+    'avi',
+    'pdf',
+    'zip',
+    'hwp',
+    'docx',
+  };
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
@@ -876,11 +899,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           text:
                               '음원 (${_selectedMusics.length}/$_maxMusicCount)',
                         ),
-                        const SizedBox(height: AppSpacing.x8),
+                        const SizedBox(height: AppSpacing.x12),
                         _buildMusicSection(),
                         const SizedBox(height: AppSpacing.x20),
                         _SectionLabel(text: '파일 ($_fileCount/$_maxFileCount)'),
-                        const SizedBox(height: AppSpacing.x8),
+                        const SizedBox(height: AppSpacing.x12),
                         _buildFileSection(),
                         const SizedBox(height: AppSpacing.x16),
                       ],

@@ -147,18 +147,17 @@ class _ScheduleDetailContent extends StatefulWidget {
 }
 
 class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
+  static const Duration _previewLimit = Duration(seconds: 30);
+
   final AudioPlayer _player = AudioPlayer();
 
   StreamSubscription<Duration>? _positionSubscription;
-  StreamSubscription<Duration?>? _durationSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
 
-  int? _expandedMusicId;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
+  int? _activeMusicId;
   bool _isPlaying = false;
   bool _isLoadingMusic = false;
-  String? _playbackErrorMessage;
+  bool _isStoppingPreview = false;
   int _loadRequestId = 0;
 
   ScheduleDetailData get schedule => widget.schedule;
@@ -173,114 +172,104 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
   void didUpdateWidget(covariant _ScheduleDetailContent oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final expandedMusicId = _expandedMusicId;
-    if (expandedMusicId == null) {
+    final activeMusicId = _activeMusicId;
+    if (activeMusicId == null) {
       return;
     }
 
     final stillExists = schedule.musics.any(
-      (music) => music.musicId == expandedMusicId,
+      (music) => music.musicId == activeMusicId,
     );
 
     if (!stillExists) {
-      unawaited(_closePlayer());
+      unawaited(_stopPreview());
     }
   }
 
   void _bindPlayerStreams() {
     _positionSubscription = _player.positionStream.listen((position) {
-      if (!mounted || _expandedMusicId == null) {
+      if (!mounted || _activeMusicId == null || _isStoppingPreview) {
         return;
       }
 
-      final nextPosition = _clampDuration(position, Duration.zero, _duration);
-
-      setState(() {
-        _position = nextPosition;
-      });
-    });
-
-    _durationSubscription = _player.durationStream.listen((duration) {
-      if (!mounted || _expandedMusicId == null || duration == null) {
-        return;
+      if (position >= _previewLimit) {
+        unawaited(_stopPreview());
       }
-
-      setState(() {
-        _duration = duration;
-      });
     });
 
     _playerStateSubscription = _player.playerStateStream.listen((state) {
-      if (!mounted || _expandedMusicId == null) {
+      if (!mounted || _activeMusicId == null || _isStoppingPreview) {
         return;
       }
 
-      setState(() {
-        _isPlaying =
-            state.playing && state.processingState != ProcessingState.completed;
+      if (state.processingState == ProcessingState.completed) {
+        setState(() {
+          _activeMusicId = null;
+          _isPlaying = false;
+          _isLoadingMusic = false;
+        });
+        return;
+      }
 
-        if (state.processingState == ProcessingState.completed) {
-          _position = _duration;
-        }
-      });
+      final isBuffering =
+          state.processingState == ProcessingState.loading ||
+          state.processingState == ProcessingState.buffering;
+      final isPlaying =
+          state.playing && state.processingState == ProcessingState.ready;
+
+      if (_isLoadingMusic != isBuffering || _isPlaying != isPlaying) {
+        setState(() {
+          _isLoadingMusic = isBuffering;
+          _isPlaying = isPlaying;
+        });
+      }
     });
   }
 
   Future<void> _handleMusicTap(ScheduleDetailMusic music) async {
-    if (_expandedMusicId == music.musicId) {
-      await _closePlayer();
+    if (_activeMusicId == music.musicId) {
+      await _stopPreview();
       return;
     }
 
-    await _openPlayer(music);
+    await _playPreview(music);
   }
 
-  Future<void> _openPlayer(ScheduleDetailMusic music) async {
-    final requestId = ++_loadRequestId;
+  Future<void> _playPreview(ScheduleDetailMusic music) async {
     final previewUrl = music.musicPreviewUrl?.trim();
+    if (previewUrl == null || previewUrl.isEmpty) {
+      _showPlaybackMessage('미리듣기 음원이 없습니다.');
+      return;
+    }
+
+    final requestId = ++_loadRequestId;
 
     setState(() {
-      _expandedMusicId = music.musicId;
-      _position = Duration.zero;
-      _duration = Duration.zero;
+      _activeMusicId = music.musicId;
       _isPlaying = false;
       _isLoadingMusic = true;
-      _playbackErrorMessage = null;
     });
 
-    await _player.stop();
-
-    if (!mounted || requestId != _loadRequestId) {
-      return;
-    }
-
-    if (previewUrl == null || previewUrl.isEmpty) {
-      setState(() {
-        _isLoadingMusic = false;
-        _playbackErrorMessage = '미리듣기 음원이 없습니다.';
-      });
-      return;
-    }
-
     try {
-      final resolvedDuration = await _player.setUrl(previewUrl);
+      await _player.stop();
 
       if (!mounted || requestId != _loadRequestId) {
         return;
       }
 
-      final duration = resolvedDuration ?? _player.duration;
-      if (duration == null || duration <= Duration.zero) {
-        setState(() {
-          _isLoadingMusic = false;
-          _playbackErrorMessage = '미리듣기 음원을 불러오지 못했습니다.';
-        });
+      await _player.setUrl(previewUrl);
+
+      if (!mounted || requestId != _loadRequestId) {
+        return;
+      }
+
+      await _player.seek(Duration.zero);
+
+      if (!mounted || requestId != _loadRequestId) {
         return;
       }
 
       setState(() {
-        _duration = duration;
-        _position = Duration.zero;
         _isLoadingMusic = false;
       });
 
@@ -294,68 +283,50 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
       }
 
       setState(() {
-        _isLoadingMusic = false;
+        _activeMusicId = null;
         _isPlaying = false;
-        _playbackErrorMessage = '미리듣기 음원을 불러오지 못했습니다.';
+        _isLoadingMusic = false;
       });
+      _showPlaybackMessage('미리듣기 음원을 불러오지 못했습니다.');
     }
   }
 
-  Future<void> _closePlayer() async {
-    ++_loadRequestId;
-
-    if (mounted) {
-      setState(() {
-        _expandedMusicId = null;
-        _position = Duration.zero;
-        _duration = Duration.zero;
-        _isPlaying = false;
-        _isLoadingMusic = false;
-        _playbackErrorMessage = null;
-      });
-    }
-
-    await _player.stop();
-  }
-
-  Future<void> _seek(Duration target) async {
-    if (_expandedMusicId == null ||
-        _isLoadingMusic ||
-        _playbackErrorMessage != null ||
-        _duration <= Duration.zero) {
+  Future<void> _stopPreview() async {
+    if (_isStoppingPreview) {
       return;
     }
 
-    final clamped = _clampDuration(target, Duration.zero, _duration);
-    final shouldResume =
-        _isPlaying || _player.processingState == ProcessingState.completed;
+    _isStoppingPreview = true;
+    ++_loadRequestId;
 
-    setState(() {
-      _position = clamped;
-    });
-
-    await _player.seek(clamped);
-
-    if (shouldResume && clamped < _duration && !_player.playing) {
-      unawaited(_player.play());
+    try {
+      await _player.stop();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _activeMusicId = null;
+          _isPlaying = false;
+          _isLoadingMusic = false;
+        });
+      }
+      _isStoppingPreview = false;
     }
   }
 
-  Duration _clampDuration(Duration value, Duration minimum, Duration maximum) {
-    if (value < minimum) {
-      return minimum;
+  void _showPlaybackMessage(String message) {
+    if (!mounted) {
+      return;
     }
-    if (value > maximum) {
-      return maximum;
-    }
-    return value;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   void dispose() {
     ++_loadRequestId;
     unawaited(_positionSubscription?.cancel());
-    unawaited(_durationSubscription?.cancel());
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player.dispose());
     super.dispose();
@@ -421,7 +392,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
               iconAddress: 'assets/icons/cal/music_symbol.svg',
               value: '연습곡',
             ),
-            const SizedBox(height: AppSpacing.x4),
+            const SizedBox(height: AppSpacing.x8),
             ..._buildMusicItems(context, schedule.musics),
           ],
           if (hasParticipants) ...[
@@ -464,21 +435,16 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     return List.generate(musics.length, (index) {
       final music = musics[index];
       final isLast = index == musics.length - 1;
-      final isExpanded = _expandedMusicId == music.musicId;
+      final isActive = _activeMusicId == music.musicId;
 
       return Column(
         children: [
           MusicListItem(
             trackText: _displayText(music.musicTitle, fallback: '제목 없음'),
             artistText: _displayText(music.musicArtist, fallback: '아티스트 정보 없음'),
-            isExpanded: isExpanded,
-            isPlaying: isExpanded && _isPlaying,
-            isLoading: isExpanded && _isLoadingMusic,
-            position: isExpanded ? _position : Duration.zero,
-            duration: isExpanded ? _duration : Duration.zero,
-            errorMessage: isExpanded ? _playbackErrorMessage : null,
+            isPlaying: isActive && _isPlaying,
+            isLoading: isActive && _isLoadingMusic,
             onTap: () => unawaited(_handleMusicTap(music)),
-            onSeek: (position) => unawaited(_seek(position)),
           ),
           if (!isLast) Divider(color: context.grays.gray7, height: 1),
         ],
