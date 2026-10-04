@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_add_button.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
@@ -478,7 +479,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                                 );
                               }),
                               const SizedBox(width: AppSpacing.x8),
-                              _AddButton(onPressed: _chooseMembers),
+                              AppAddButton(onPressed: _chooseMembers),
                               const SizedBox(width: AppSpacing.x8),
                             ],
                           ),
@@ -587,35 +588,6 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        height: 34.0,
-        width: 34.0,
-        decoration: ShapeDecoration(
-          color: context.grays.gray8,
-          shape: const OvalBorder(),
-        ),
-        child: Center(
-          child: SvgPicture.asset(
-            'assets/icons/cal/plus.svg',
-            width: 24.0,
-            height: 24.0,
-            fit: BoxFit.contain,
           ),
         ),
       ),
