@@ -49,7 +49,13 @@ class ChatAttachmentMessageCard extends StatelessWidget {
 
     final fileName = resolveFileName(message).toLowerCase();
     const audioExtensions = <String>{
-      '.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.wma',
+      '.mp3',
+      '.wav',
+      '.m4a',
+      '.aac',
+      '.flac',
+      '.ogg',
+      '.wma',
     };
     if (audioExtensions.any(fileName.endsWith)) {
       return 'assets/icons/cloud/music_simbol.svg';
@@ -68,20 +74,19 @@ class ChatAttachmentMessageCard extends StatelessWidget {
 
     final content = Container(
       width: 280,
-      constraints: const BoxConstraints(minHeight: 80),
+      constraints: const BoxConstraints(minHeight: 70),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.x12,
+        horizontal: AppSpacing.x16,
         vertical: AppSpacing.x10,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: context.grays.gray7),
+        color: context.grays.gray8,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         children: [
           _AttachmentIcon(path: iconPathFor(message)),
-          const SizedBox(width: AppSpacing.x10),
+          const SizedBox(width: AppSpacing.x16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,14 +147,14 @@ class _AttachmentNameAndSize extends StatelessWidget {
             fileName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: FontStyles.med14.copyWith(color: context.grays.black),
+            style: FontStyles.med16.copyWith(color: context.grays.black),
           ),
         ),
         if (sizeLabel != null) ...[
           const SizedBox(width: AppSpacing.x4),
           Text(
             '($sizeLabel)',
-            style: FontStyles.med12.copyWith(color: context.grays.gray5),
+            style: FontStyles.med16.copyWith(color: context.grays.gray4),
           ),
         ],
       ],
@@ -166,7 +171,7 @@ class _AttachmentDate extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       dateLabel,
-      style: FontStyles.med11.copyWith(color: context.grays.gray5),
+      style: FontStyles.med14.copyWith(color: context.grays.gray5),
     );
   }
 }

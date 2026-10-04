@@ -85,7 +85,7 @@ class _ChatMessageComposerState extends State<ChatMessageComposer> {
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.x4,
+                  5.0,
                   AppSpacing.x4,
                   AppSpacing.x12,
                   AppSpacing.x4,

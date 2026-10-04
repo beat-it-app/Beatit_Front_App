@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
@@ -53,6 +54,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool _isLoadingOlderWithOffset = false;
 
@@ -179,28 +181,91 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final pickedFiles = await FilePicker.pickFiles();
     if (!mounted || pickedFiles.isEmpty) return;
 
-    await _sendPickedFile(pickedFiles.first, ChatMessageType.file);
+    final file = pickedFiles.first;
+    final path = file.path;
+    if (path == null || path.isEmpty) {
+      _showMessage('선택한 파일을 불러올 수 없습니다.');
+      return;
+    }
+
+    final fileSizeBytes = await file.length() ?? 0;
+    await _sendPickedAttachment(
+      path: path,
+      fileName: file.name,
+      fileSizeBytes: fileSizeBytes,
+      messageType: ChatMessageType.file,
+    );
   }
 
   Future<void> _handleMediaPressed() async {
     if (!_canSendAttachment()) return;
 
-    final pickedFiles = await FilePicker.pickFiles();
-    if (!mounted || pickedFiles.isEmpty) return;
+    final messageType = await _showMediaTypePicker();
+    if (!mounted || messageType == null) return;
 
-    final file = pickedFiles.first;
-    final extension = _extensionOf(file.name);
+    final XFile? pickedMedia;
+    if (messageType == ChatMessageType.video) {
+      pickedMedia = await _imagePicker.pickVideo(source: ImageSource.gallery);
+    } else {
+      pickedMedia = await _imagePicker.pickImage(source: ImageSource.gallery);
+    }
+
+    if (!mounted || pickedMedia == null) return;
+
+    final extension = _extensionOf(pickedMedia.name);
     if (!_mediaExtensions.contains(extension)) {
-      await _showUploadBlockedPopup(
-        '이미지/영상 메뉴에서는 이미지 또는 영상만 선택할 수 있습니다.\n음원·문서 파일은 파일 메뉴를 이용해주세요.',
-      );
+      await _showUploadBlockedPopup('지원하지 않는 이미지 또는 영상 형식입니다.');
       return;
     }
 
-    final messageType = _isVideoFile(file.name)
-        ? ChatMessageType.video
-        : ChatMessageType.image;
-    await _sendPickedFile(file, messageType);
+    await _sendPickedAttachment(
+      path: pickedMedia.path,
+      fileName: pickedMedia.name,
+      fileSizeBytes: await pickedMedia.length(),
+      messageType: messageType,
+    );
+  }
+
+  Future<ChatMessageType?> _showMediaTypePicker() {
+    return showModalBottomSheet<ChatMessageType>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.image_outlined),
+                title: Text(
+                  '사진',
+                  style: FontStyles.med16.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(ChatMessageType.image),
+              ),
+              ListTile(
+                leading: const Icon(Icons.videocam_outlined),
+                title: Text(
+                  '동영상',
+                  style: FontStyles.med16.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: () => Navigator.of(
+                  sheetContext,
+                ).pop(ChatMessageType.video),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   bool _canSendAttachment() {
@@ -212,23 +277,18 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     return !state.isSendingMessage;
   }
 
-  Future<void> _sendPickedFile(
-    PlatformFile file,
-    ChatMessageType messageType,
-  ) async {
-    final path = file.path;
-    if (path == null || path.isEmpty) {
-      _showMessage('선택한 파일을 불러올 수 없습니다.');
-      return;
-    }
-
-    final extension = _extensionOf(file.name);
+  Future<void> _sendPickedAttachment({
+    required String path,
+    required String fileName,
+    required int fileSizeBytes,
+    required ChatMessageType messageType,
+  }) async {
+    final extension = _extensionOf(fileName);
     if (!_allowedUploadExtensions.contains(extension)) {
       await _showUploadBlockedPopup('지원하지 않는 파일 형식입니다.');
       return;
     }
 
-    final fileSizeBytes = await file.length() ?? 0;
     if (fileSizeBytes <= 0) {
       _showMessage('빈 파일은 전송할 수 없습니다.');
       return;
@@ -243,7 +303,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
         .sendAttachmentMessage(
           messageType: messageType,
           filePath: path,
-          fileName: file.name,
+          fileName: fileName,
           fileSizeBytes: fileSizeBytes,
         );
     _scrollToBottom();
@@ -405,21 +465,13 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     );
   }
 
-  bool _isVideoFile(String fileName) {
-    return _videoExtensions.contains(_extensionOf(fileName));
-  }
-
   String _extensionOf(String fileName) {
     final index = fileName.lastIndexOf('.');
     if (index < 0 || index == fileName.length - 1) return '';
     return fileName.substring(index + 1).toLowerCase();
   }
 
-  static const Set<String> _videoExtensions = {
-    'mp4',
-    'mov',
-    'avi',
-  };
+  static const Set<String> _videoExtensions = {'mp4', 'mov', 'avi'};
   static const Set<String> _imageExtensions = {
     'jpg',
     'jpeg',
@@ -767,14 +819,11 @@ class _ChatSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
-      child: Center(
-        child: Text(
-          text,
-          style: FontStyles.med12.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+    return Center(
+      child: Text(
+        text,
+        style: FontStyles.med16.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -815,17 +864,18 @@ class _EmptyRoomContent extends StatelessWidget {
         children: [
           _ChatSectionLabel(text: _formatToday()),
           const SizedBox(height: AppSpacing.x70),
+          const SizedBox(height: AppSpacing.x20),
           GroupChatProfile(
             imageUrls: profileImageUrls,
             size: isGroup ? 96 : 88,
           ),
-          const SizedBox(height: AppSpacing.x16),
+          const SizedBox(height: AppSpacing.x20),
           Text(
             memberNames,
             textAlign: TextAlign.center,
-            style: FontStyles.med16.copyWith(color: context.grays.black),
+            style: FontStyles.med18.copyWith(color: context.grays.black),
           ),
-          const SizedBox(height: AppSpacing.x30),
+          const SizedBox(height: AppSpacing.x40),
           Text(
             isGroup ? '단체 채팅 준비가 완료되었습니다.' : '채팅 기록이 없습니다.',
             textAlign: TextAlign.center,

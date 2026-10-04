@@ -61,14 +61,14 @@ class ChatRoomAppBar extends StatelessWidget implements PreferredSizeWidget {
               roomName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.semi18.copyWith(color: colors.onSurface),
+              style: FontStyles.semi20.copyWith(color: context.grays.black),
             ),
           ),
           if (showParticipantCount) ...[
             const SizedBox(width: 4),
             Text(
               '$participantCount',
-              style: FontStyles.semi18.copyWith(color: context.grays.gray5),
+              style: FontStyles.semi20.copyWith(color: context.grays.gray4),
             ),
           ],
         ],

@@ -13,6 +13,13 @@ class ChatApi {
 
   static const String _chatRoomsPath = '/chatrooms';
 
+  // Backend FileService가 파일당 최대 50MB를 허용하므로,
+  // 대용량 첨부파일은 공통 Dio의 10초 send/receive timeout을 사용하지 않는다.
+  // 50MB가 느린 모바일 네트워크에서도 전송될 수 있도록 채팅 첨부 요청에만
+  // 충분한 시간을 별도로 부여한다.
+  static const Duration _attachmentSendTimeout = Duration(minutes: 10);
+  static const Duration _attachmentReceiveTimeout = Duration(minutes: 10);
+
   Future<ChatRoomListData> getChatRooms() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(_chatRoomsPath);
@@ -272,10 +279,15 @@ class ChatApi {
         );
       }
 
+      final isAttachment = filePath != null;
       final response = await _dio.post<Map<String, dynamic>>(
         '$_chatRoomsPath/$chatId/messages',
         data: formData,
-        options: Options(contentType: Headers.multipartFormDataContentType),
+        options: Options(
+          contentType: Headers.multipartFormDataContentType,
+          sendTimeout: isAttachment ? _attachmentSendTimeout : null,
+          receiveTimeout: isAttachment ? _attachmentReceiveTimeout : null,
+        ),
         onSendProgress: onSendProgress,
       );
       final body = _requireSuccessBody(
@@ -393,6 +405,20 @@ class ChatApi {
   }
 
   ChatApiException _mapDioException(DioException error) {
+    if (error.type == DioExceptionType.sendTimeout) {
+      return ChatApiException(
+        message: '파일 전송 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.',
+        statusCode: error.response?.statusCode,
+      );
+    }
+
+    if (error.type == DioExceptionType.receiveTimeout) {
+      return ChatApiException(
+        message: '서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+        statusCode: error.response?.statusCode,
+      );
+    }
+
     final rawData = error.response?.data;
     if (rawData is Map) {
       final data = Map<String, dynamic>.from(rawData);

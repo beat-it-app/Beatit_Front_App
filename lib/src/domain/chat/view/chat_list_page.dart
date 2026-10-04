@@ -153,7 +153,7 @@ class _ChatListBody extends StatelessWidget {
 
           return ChatListItem(
             roomName: room.roomName,
-            lastMessage: room.lastMessage ?? '채팅을 시작해보세요.',
+            lastMessage: _formatLastMessage(room.lastMessage),
             timeText: _formatListTime(room.lastMessageTime),
             unreadCount: room.unreadCount,
             profileImageUrls: room.profileImage,
@@ -163,6 +163,68 @@ class _ChatListBody extends StatelessWidget {
       ),
     );
   }
+
+  String _formatLastMessage(String? lastMessage) {
+    final value = lastMessage?.trim();
+    if (value == null || value.isEmpty) {
+      return '채팅을 시작해보세요.';
+    }
+
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty ||
+        uri.pathSegments.isEmpty) {
+      return value;
+    }
+
+    if (uri.pathSegments.first.toLowerCase() != 'chat') {
+      return value;
+    }
+
+    final fileName = Uri.decodeComponent(uri.pathSegments.last).toLowerCase();
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex == fileName.length - 1) {
+      return value;
+    }
+
+    final extension = fileName.substring(dotIndex + 1);
+    if (_imageExtensions.contains(extension)) {
+      return '사진을 보냈습니다.';
+    }
+    if (_videoExtensions.contains(extension)) {
+      return '동영상을 보냈습니다.';
+    }
+    if (_fileExtensions.contains(extension)) {
+      return '파일을 보냈습니다.';
+    }
+
+    return value;
+  }
+
+  static const Set<String> _imageExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
+  };
+
+  static const Set<String> _videoExtensions = {'mp4', 'mov', 'avi'};
+
+  static const Set<String> _fileExtensions = {
+    'mp3',
+    'wav',
+    'm4a',
+    'aac',
+    'ogg',
+    'flac',
+    'pdf',
+    'zip',
+    'hwp',
+    'docx',
+  };
 
   String _formatListTime(DateTime? value) {
     if (value == null) {

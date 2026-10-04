@@ -22,8 +22,7 @@ class ChatPendingAttachmentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isFailed =
-        attachment.status == ChatPendingAttachmentStatus.failed;
+    final isFailed = attachment.status == ChatPendingAttachmentStatus.failed;
 
     return Align(
       alignment: Alignment.centerRight,
@@ -98,10 +97,9 @@ class _PendingImage extends StatelessWidget {
             if (attachment.status == ChatPendingAttachmentStatus.uploading)
               Positioned.fill(
                 child: ColoredBox(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .scrim
-                      .withValues(alpha: 0.28),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.scrim.withValues(alpha: 0.28),
                   child: Center(
                     child: CircularProgressIndicator(
                       value: attachment.progress > 0
@@ -131,7 +129,7 @@ class _PendingFileCard extends StatelessWidget {
 
     return Container(
       width: 280,
-      constraints: const BoxConstraints(minHeight: 80),
+      constraints: const BoxConstraints(minHeight: 65),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.x12,
         vertical: AppSpacing.x10,
@@ -150,7 +148,7 @@ class _PendingFileCard extends StatelessWidget {
             width: 22,
             height: 22,
           ),
-          const SizedBox(width: AppSpacing.x10),
+          const SizedBox(width: AppSpacing.x16),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -163,7 +161,7 @@ class _PendingFileCard extends StatelessWidget {
                         attachment.fileName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FontStyles.med14.copyWith(
+                        style: FontStyles.med16.copyWith(
                           color: context.grays.black,
                         ),
                       ),
@@ -171,7 +169,7 @@ class _PendingFileCard extends StatelessWidget {
                     const SizedBox(width: AppSpacing.x4),
                     Text(
                       '(${_formatBytes(attachment.fileSizeBytes)})',
-                      style: FontStyles.med12.copyWith(
+                      style: FontStyles.med16.copyWith(
                         color: context.grays.gray5,
                       ),
                     ),
@@ -180,9 +178,7 @@ class _PendingFileCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.x4),
                 Text(
                   dateLabel,
-                  style: FontStyles.med11.copyWith(
-                    color: context.grays.gray5,
-                  ),
+                  style: FontStyles.med14.copyWith(color: context.grays.gray5),
                 ),
               ],
             ),
@@ -216,10 +212,7 @@ class _FailedActions extends StatelessWidget {
       children: [
         Icon(Icons.error_outline, size: 16, color: colors.error),
         const SizedBox(width: AppSpacing.x4),
-        Text(
-          '전송 실패',
-          style: FontStyles.med12.copyWith(color: colors.error),
-        ),
+        Text('전송 실패', style: FontStyles.med12.copyWith(color: colors.error)),
         const SizedBox(width: AppSpacing.x8),
         TextButton(onPressed: onRetry, child: const Text('다시 보내기')),
         TextButton(onPressed: onDelete, child: const Text('삭제')),
