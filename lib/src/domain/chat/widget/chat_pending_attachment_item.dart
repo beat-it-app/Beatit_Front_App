@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -30,7 +31,11 @@ class ChatPendingAttachmentItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (attachment.messageType == ChatMessageType.image)
+          if (ChatAttachmentMessageCard.kindFor(
+                messageType: attachment.messageType,
+                fileName: attachment.fileName,
+              ) ==
+              ChatAttachmentKind.image)
             _PendingImage(attachment: attachment)
           else
             _PendingFileCard(attachment: attachment),
@@ -142,9 +147,10 @@ class _PendingFileCard extends StatelessWidget {
       child: Row(
         children: [
           SvgPicture.asset(
-            attachment.messageType == ChatMessageType.video
-                ? 'assets/icons/cloud/video.svg'
-                : 'assets/icons/cloud/file.svg',
+            ChatAttachmentMessageCard.iconPathForValues(
+              messageType: attachment.messageType,
+              fileName: attachment.fileName,
+            ),
             width: 22,
             height: 22,
           ),
@@ -154,26 +160,9 @@ class _PendingFileCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        attachment.fileName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: FontStyles.med16.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.x4),
-                    Text(
-                      '(${_formatBytes(attachment.fileSizeBytes)})',
-                      style: FontStyles.med16.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                  ],
+                _PendingFileName(
+                  fileName: attachment.fileName,
+                  sizeLabel: _formatBytes(attachment.fileSizeBytes),
                 ),
                 const SizedBox(height: AppSpacing.x4),
                 Text(
@@ -197,6 +186,45 @@ class _PendingFileCard extends StatelessWidget {
   }
 }
 
+class _PendingFileName extends StatelessWidget {
+  const _PendingFileName({
+    required this.fileName,
+    required this.sizeLabel,
+  });
+
+  final String fileName;
+  final String sizeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseName = ChatAttachmentMessageCard.baseNameOf(fileName);
+    final extension = ChatAttachmentMessageCard.visibleExtensionOf(fileName);
+
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            baseName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: FontStyles.med16.copyWith(color: context.grays.black),
+          ),
+        ),
+        if (extension.isNotEmpty)
+          Text(
+            extension,
+            style: FontStyles.med16.copyWith(color: context.grays.black),
+          ),
+        const SizedBox(width: AppSpacing.x4),
+        Text(
+          '($sizeLabel)',
+          style: FontStyles.med16.copyWith(color: context.grays.gray5),
+        ),
+      ],
+    );
+  }
+}
+
 class _FailedActions extends StatelessWidget {
   const _FailedActions({required this.onRetry, required this.onDelete});
 
@@ -207,16 +235,98 @@ class _FailedActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.error_outline, size: 16, color: colors.error),
-        const SizedBox(width: AppSpacing.x4),
-        Text('전송 실패', style: FontStyles.med12.copyWith(color: colors.error)),
-        const SizedBox(width: AppSpacing.x8),
-        TextButton(onPressed: onRetry, child: const Text('다시 보내기')),
-        TextButton(onPressed: onDelete, child: const Text('삭제')),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 15, color: colors.error),
+            const SizedBox(width: AppSpacing.x4),
+            Text(
+              '전송 실패',
+              style: FontStyles.med12.copyWith(color: colors.error),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.x8),
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            border: Border.all(color: context.grays.gray7),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _FailedActionButton(
+                icon: Icons.refresh_rounded,
+                label: '다시 시도',
+                onPressed: onRetry,
+              ),
+              SizedBox(
+                height: 20,
+                child: VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: context.grays.gray7,
+                ),
+              ),
+              _FailedActionButton(
+                icon: Icons.delete_outline_rounded,
+                label: '삭제',
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
+
+class _FailedActionButton extends StatelessWidget {
+  const _FailedActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.x10,
+          vertical: AppSpacing.x8,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: AppSpacing.x4),
+            Text(
+              label,
+              style: FontStyles.med12.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

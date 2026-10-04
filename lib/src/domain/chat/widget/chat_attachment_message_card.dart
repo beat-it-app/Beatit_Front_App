@@ -7,6 +7,8 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 
+enum ChatAttachmentKind { image, video, audio, document, file }
+
 class ChatAttachmentMessageCard extends StatelessWidget {
   const ChatAttachmentMessageCard({
     super.key,
@@ -16,6 +18,26 @@ class ChatAttachmentMessageCard extends StatelessWidget {
 
   final ChatMessage message;
   final VoidCallback? onTap;
+
+  static const Set<String> imageExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
+  };
+
+  static const Set<String> videoExtensions = {'mp4', 'mov', 'avi'};
+
+  static const Set<String> audioExtensions = {
+    'mp3',
+    'wav',
+    'm4a',
+    'aac',
+    'ogg',
+    'flac',
+  };
 
   static String resolveFileName(ChatMessage message) {
     final localName = message.attachmentName?.trim();
@@ -33,6 +55,50 @@ class ChatAttachmentMessageCard extends StatelessWidget {
     return match?.group(1) ?? rawName;
   }
 
+  static String extensionOf(String fileName) {
+    final index = fileName.lastIndexOf('.');
+    if (index < 0 || index == fileName.length - 1) return '';
+    return fileName.substring(index + 1).toLowerCase();
+  }
+
+  static String baseNameOf(String fileName) {
+    final index = fileName.lastIndexOf('.');
+    if (index <= 0 || index == fileName.length - 1) return fileName;
+    return fileName.substring(0, index);
+  }
+
+  static String visibleExtensionOf(String fileName) {
+    final extension = extensionOf(fileName);
+    return extension.isEmpty ? '' : '.$extension';
+  }
+
+  static ChatAttachmentKind kindFor({
+    required ChatMessageType messageType,
+    required String fileName,
+  }) {
+    final extension = extensionOf(fileName);
+
+    if (messageType == ChatMessageType.image) {
+      return ChatAttachmentKind.image;
+    }
+    if (messageType == ChatMessageType.video) {
+      return ChatAttachmentKind.video;
+    }
+    if (imageExtensions.contains(extension)) {
+      return ChatAttachmentKind.image;
+    }
+    if (videoExtensions.contains(extension)) {
+      return ChatAttachmentKind.video;
+    }
+    if (audioExtensions.contains(extension)) {
+      return ChatAttachmentKind.audio;
+    }
+    if (extension == 'pdf') {
+      return ChatAttachmentKind.document;
+    }
+    return ChatAttachmentKind.file;
+  }
+
   static String? formatFileSize(int? bytes) {
     if (bytes == null || bytes <= 0) return null;
     if (bytes < 1024) return '${bytes}B';
@@ -43,25 +109,21 @@ class ChatAttachmentMessageCard extends StatelessWidget {
   }
 
   static String iconPathFor(ChatMessage message) {
-    if (message.messageType == ChatMessageType.video) {
-      return 'assets/icons/cloud/video.svg';
-    }
+    return iconPathForValues(
+      messageType: message.messageType,
+      fileName: resolveFileName(message),
+    );
+  }
 
-    final fileName = resolveFileName(message).toLowerCase();
-    const audioExtensions = <String>{
-      '.mp3',
-      '.wav',
-      '.m4a',
-      '.aac',
-      '.flac',
-      '.ogg',
-      '.wma',
+  static String iconPathForValues({
+    required ChatMessageType messageType,
+    required String fileName,
+  }) {
+    return switch (kindFor(messageType: messageType, fileName: fileName)) {
+      ChatAttachmentKind.video => 'assets/icons/cloud/video.svg',
+      ChatAttachmentKind.audio => 'assets/icons/cloud/music_simbol.svg',
+      _ => 'assets/icons/cloud/file.svg',
     };
-    if (audioExtensions.any(fileName.endsWith)) {
-      return 'assets/icons/cloud/music_simbol.svg';
-    }
-
-    return 'assets/icons/cloud/file.svg';
   }
 
   @override
@@ -140,16 +202,24 @@ class _AttachmentNameAndSize extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseName = ChatAttachmentMessageCard.baseNameOf(fileName);
+    final extension = ChatAttachmentMessageCard.visibleExtensionOf(fileName);
+
     return Row(
       children: [
         Flexible(
           child: Text(
-            fileName,
+            baseName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: FontStyles.med16.copyWith(color: context.grays.black),
           ),
         ),
+        if (extension.isNotEmpty)
+          Text(
+            extension,
+            style: FontStyles.med16.copyWith(color: context.grays.black),
+          ),
         if (sizeLabel != null) ...[
           const SizedBox(width: AppSpacing.x4),
           Text(

@@ -188,12 +188,19 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       return;
     }
 
+    final extension = _extensionOf(file.name);
+    final messageType = _imageExtensions.contains(extension)
+        ? ChatMessageType.image
+        : _videoExtensions.contains(extension)
+        ? ChatMessageType.video
+        : ChatMessageType.file;
+
     final fileSizeBytes = await file.length() ?? 0;
     await _sendPickedAttachment(
       path: path,
       fileName: file.name,
       fileSizeBytes: fileSizeBytes,
-      messageType: ChatMessageType.file,
+      messageType: messageType,
     );
   }
 
@@ -386,6 +393,25 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 
   void _openAttachmentPreview(ChatMessage message) {
+    final fileName = ChatAttachmentMessageCard.resolveFileName(message);
+    final kind = ChatAttachmentMessageCard.kindFor(
+      messageType: message.messageType,
+      fileName: fileName,
+    );
+
+    if (kind == ChatAttachmentKind.image) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatImagePreviewPage(
+            images: [message],
+            initialMessageId: message.messageId,
+            onDownloadPressed: _downloadChatMessage,
+          ),
+        ),
+      );
+      return;
+    }
+
     final previewItem = _toCloudPreviewItem(message);
     final preview = switch (previewItem.type) {
       CloudPreviewFileType.audio => CloudAudioPreview(
@@ -417,14 +443,16 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
 
   CloudFilePreviewItem _toCloudPreviewItem(ChatMessage message) {
     final fileName = ChatAttachmentMessageCard.resolveFileName(message);
-    final extension = _extensionOf(fileName);
-    final type = message.messageType == ChatMessageType.video
-        ? CloudPreviewFileType.video
-        : _audioExtensions.contains(extension)
-        ? CloudPreviewFileType.audio
-        : extension == 'pdf'
-        ? CloudPreviewFileType.document
-        : CloudPreviewFileType.other;
+    final kind = ChatAttachmentMessageCard.kindFor(
+      messageType: message.messageType,
+      fileName: fileName,
+    );
+    final type = switch (kind) {
+      ChatAttachmentKind.audio => CloudPreviewFileType.audio,
+      ChatAttachmentKind.video => CloudPreviewFileType.video,
+      ChatAttachmentKind.document => CloudPreviewFileType.document,
+      _ => CloudPreviewFileType.other,
+    };
     final local = message.createdAt.toLocal();
 
     return CloudFilePreviewItem(
