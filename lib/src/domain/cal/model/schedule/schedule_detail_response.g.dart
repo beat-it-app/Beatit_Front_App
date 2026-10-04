@@ -104,7 +104,7 @@ Map<String, dynamic> _$ScheduleDetailFileToJson(_ScheduleDetailFile instance) =>
 
 _ScheduleDetailMusic _$ScheduleDetailMusicFromJson(Map<String, dynamic> json) =>
     _ScheduleDetailMusic(
-      musicId: (json['musicId'] as num).toInt(),
+      musicId: (json['scheduleMusicId'] as num).toInt(),
       musicTitle: json['musicTitle'] as String?,
       musicArtist: json['musicArtist'] as String?,
       musicPreviewUrl: json['musicPreviewUrl'] as String?,
@@ -113,7 +113,7 @@ _ScheduleDetailMusic _$ScheduleDetailMusicFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ScheduleDetailMusicToJson(
   _ScheduleDetailMusic instance,
 ) => <String, dynamic>{
-  'musicId': instance.musicId,
+  'scheduleMusicId': instance.musicId,
   'musicTitle': instance.musicTitle,
   'musicArtist': instance.musicArtist,
   'musicPreviewUrl': instance.musicPreviewUrl,

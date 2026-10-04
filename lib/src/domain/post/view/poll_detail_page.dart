@@ -1,20 +1,23 @@
+import 'dart:async';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/music/music_preview_list_item.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
-import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:just_audio/just_audio.dart';
 
 class PollDetailPage extends ConsumerStatefulWidget {
   const PollDetailPage({
@@ -69,7 +72,22 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   void _showOptionsPreview() {
     final data = _data;
     if (data == null) return;
-    final isMusic = data.pollType == 'MUSIC';
+
+    if (data.pollType == 'MUSIC') {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: context.grays.white,
+        builder: (sheetContext) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.58,
+            child: _PollMusicPreviewSheet(items: data.pollItems),
+          ),
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -86,7 +104,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                     const SizedBox(width: 24),
                     Expanded(
                       child: Text(
-                        isMusic ? '음악 미리듣기' : '장소 미리보기',
+                        '장소 미리보기',
                         textAlign: TextAlign.center,
                         style: FontStyles.bold20.copyWith(
                           color: context.grays.black,
@@ -105,55 +123,17 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                   itemCount: data.pollItems.length,
                   itemBuilder: (context, index) {
                     final item = data.pollItems[index];
-                    if (!isMusic) {
-                      return LocationResultWidget(
-                        name: item.locationName ?? item.location ?? '장소',
-                        address: item.roadAddress ?? '',
-                        onTap: item.locationId == null
-                            ? null
-                            : () {
-                                Navigator.of(sheetContext).pop();
-                                Navigator.of(this.context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LocationMapPreviewPage(
-                                      locationId: item.locationId!,
-                                    ),
-                                  ),
-                                );
-                              },
-                      );
-                    }
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.x20,
-                      ),
-                      leading: SvgPicture.asset(
-                        'assets/icons/post/music_symbol.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: ColorFilter.mode(
-                          context.brands.beatOrange1,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                      title: Text(
-                        item.title ?? '',
-                        style: FontStyles.med16.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
-                      subtitle: Text(item.artist ?? ''),
-                      onTap: item.previewUrl == null || item.previewUrl!.isEmpty
+                    return LocationResultWidget(
+                      name: item.locationName ?? item.location ?? '장소',
+                      address: item.roadAddress ?? '',
+                      onTap: item.locationId == null
                           ? null
                           : () {
                               Navigator.of(sheetContext).pop();
                               Navigator.of(this.context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => MusicPreviewPage(
-                                    musicTitle: item.title ?? '',
-                                    artist: item.artist ?? '',
-                                    imageUrl: '',
-                                    previewUrl: item.previewUrl!,
+                                  builder: (_) => LocationMapPreviewPage(
+                                    locationId: item.locationId!,
                                   ),
                                 ),
                               );
@@ -532,6 +512,204 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         ),
       ),
     );
+  }
+}
+
+class _PollMusicPreviewSheet extends StatefulWidget {
+  const _PollMusicPreviewSheet({required this.items});
+
+  final List<PollDetailItem> items;
+
+  @override
+  State<_PollMusicPreviewSheet> createState() => _PollMusicPreviewSheetState();
+}
+
+class _PollMusicPreviewSheetState extends State<_PollMusicPreviewSheet> {
+  static const Duration _previewLimit = Duration(seconds: 30);
+
+  final AudioPlayer _player = AudioPlayer();
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  int? _activeItemId;
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  bool _isStopping = false;
+  int _loadRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _bindPlayerStreams();
+  }
+
+  void _bindPlayerStreams() {
+    _positionSubscription = _player.positionStream.listen((position) {
+      if (!mounted || _activeItemId == null || _isStopping) return;
+      if (position >= _previewLimit) {
+        unawaited(_stopPreview());
+      }
+    });
+
+    _playerStateSubscription = _player.playerStateStream.listen((state) {
+      if (!mounted || _activeItemId == null || _isStopping) return;
+
+      if (state.processingState == ProcessingState.completed) {
+        setState(() {
+          _activeItemId = null;
+          _isPlaying = false;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final isBuffering =
+          state.processingState == ProcessingState.loading ||
+          state.processingState == ProcessingState.buffering;
+      final isPlaying =
+          state.playing && state.processingState == ProcessingState.ready;
+
+      if (_isLoading != isBuffering || _isPlaying != isPlaying) {
+        setState(() {
+          _isLoading = isBuffering;
+          _isPlaying = isPlaying;
+        });
+      }
+    });
+  }
+
+  Future<void> _handleTap(PollDetailItem item) async {
+    if (_activeItemId == item.itemId) {
+      await _stopPreview();
+      return;
+    }
+
+    final previewUrl = item.previewUrl?.trim();
+    if (previewUrl == null || previewUrl.isEmpty) {
+      _showMessage('미리듣기 음원이 없습니다.');
+      return;
+    }
+
+    final requestId = ++_loadRequestId;
+    setState(() {
+      _activeItemId = item.itemId;
+      _isPlaying = false;
+      _isLoading = true;
+    });
+
+    try {
+      await _player.stop();
+      if (!mounted || requestId != _loadRequestId) return;
+
+      await _player.setUrl(previewUrl);
+      if (!mounted || requestId != _loadRequestId) return;
+
+      await _player.seek(Duration.zero);
+      if (!mounted || requestId != _loadRequestId) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+      unawaited(_player.play());
+    } catch (error, stackTrace) {
+      debugPrint('[PollDetailPage] music preview load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted || requestId != _loadRequestId) return;
+      setState(() {
+        _activeItemId = null;
+        _isPlaying = false;
+        _isLoading = false;
+      });
+      _showMessage('미리듣기 음원을 불러오지 못했습니다.');
+    }
+  }
+
+  Future<void> _stopPreview() async {
+    if (_isStopping) return;
+
+    _isStopping = true;
+    ++_loadRequestId;
+    try {
+      await _player.stop();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _activeItemId = null;
+          _isPlaying = false;
+          _isLoading = false;
+        });
+      }
+      _isStopping = false;
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    ++_loadRequestId;
+    unawaited(_positionSubscription?.cancel());
+    unawaited(_playerStateSubscription?.cancel());
+    unawaited(_player.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.x20),
+          child: Row(
+            children: [
+              const SizedBox(width: 24),
+              Expanded(
+                child: Text(
+                  '음악 미리듣기',
+                  textAlign: TextAlign.center,
+                  style: FontStyles.bold20.copyWith(color: context.grays.black),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x12),
+            itemCount: widget.items.length,
+            separatorBuilder: (_, __) =>
+                Divider(color: context.grays.gray7, height: 1),
+            itemBuilder: (context, index) {
+              final item = widget.items[index];
+              final isActive = _activeItemId == item.itemId;
+
+              return MusicPreviewListItem(
+                trackText: _displayText(item.title, fallback: '제목 없음'),
+                artistText: _displayText(item.artist, fallback: '아티스트 정보 없음'),
+                isPlaying: isActive && _isPlaying,
+                isLoading: isActive && _isLoading,
+                onTap: () => unawaited(_handleTap(item)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _displayText(String? value, {required String fallback}) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? fallback : trimmed;
   }
 }
 

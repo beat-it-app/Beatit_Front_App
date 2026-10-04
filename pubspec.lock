@@ -813,6 +813,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  loading_indicator:
+    dependency: "direct main"
+    description:
+      name: loading_indicator
+      sha256: "2307a5160ddb888a09afbdb923a34d68b0d77c81f28cf3e54c4d6da593bd0c28"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.2"
   logging:
     dependency: transitive
     description:
