@@ -69,9 +69,14 @@ class ChatListItem extends StatelessWidget {
                       lastMessage,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray3,
-                      ),
+                      style: (unreadCount > 0
+                              ? FontStyles.med14
+                              : FontStyles.reg14)
+                          .copyWith(
+                            color: unreadCount > 0
+                                ? context.grays.black
+                                : context.grays.gray3,
+                          ),
                     ),
                   ],
                 ),

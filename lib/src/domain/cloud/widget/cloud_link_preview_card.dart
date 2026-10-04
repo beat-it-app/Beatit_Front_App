@@ -23,9 +23,8 @@ class CloudLinkPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Ink(
       decoration: BoxDecoration(
-        border: Border.all(color: context.grays.gray7),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        color: context.grays.white,
+        color: context.grays.gray8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,7 +41,7 @@ class CloudLinkPreviewCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: FontStyles.reg18.copyWith(color: context.grays.black),
                 ),

@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/bottomsheets/app_time_bottomsheet.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_add_button.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
@@ -122,10 +123,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           .toSet() ??
       const <int>{};
 
-  Set<int> get _currentParticipantUserIds => _selectedMembers
-      .map((member) => member.userId)
-      .whereType<int>()
-      .toSet();
+  Set<int> get _currentParticipantUserIds =>
+      _selectedMembers.map((member) => member.userId).whereType<int>().toSet();
 
   bool get _participantsChanged {
     if (!_isEditMode || !_membersWereEdited) {
@@ -306,34 +305,36 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
         if (member.userId != null) member.userId!: member,
     };
 
-    final hydratedMembers = schedule.participants.map((participant) {
-      final member = membersByUserId[participant.userId];
-      if (member == null) {
-        return _SelectedMember(
-          userPublicId: '',
-          userId: participant.userId,
-          name: '사용자 ${participant.userId}',
-          part: '멤버',
-        );
-      }
+    final hydratedMembers = schedule.participants
+        .map((participant) {
+          final member = membersByUserId[participant.userId];
+          if (member == null) {
+            return _SelectedMember(
+              userPublicId: '',
+              userId: participant.userId,
+              name: '사용자 ${participant.userId}',
+              part: '멤버',
+            );
+          }
 
-      final viewMember = MemberSelectionMember(
-        id: member.userPublicId,
-        userId: member.userId,
-        name: member.userName,
-        role: MemberSelectionRole.fromApiValue(member.teamRole),
-        profileImageUrl: member.profileImageUrl,
-        position: member.position,
-      );
+          final viewMember = MemberSelectionMember(
+            id: member.userPublicId,
+            userId: member.userId,
+            name: member.userName,
+            role: MemberSelectionRole.fromApiValue(member.teamRole),
+            profileImageUrl: member.profileImageUrl,
+            position: member.position,
+          );
 
-      return _SelectedMember(
-        userPublicId: viewMember.id,
-        userId: viewMember.userId,
-        name: viewMember.name,
-        part: _memberPart(viewMember),
-        profileImageUrl: viewMember.profileImageUrl,
-      );
-    }).toList(growable: false);
+          return _SelectedMember(
+            userPublicId: viewMember.id,
+            userId: viewMember.userId,
+            name: viewMember.name,
+            part: _memberPart(viewMember),
+            profileImageUrl: viewMember.profileImageUrl,
+          );
+        })
+        .toList(growable: false);
 
     setState(() {
       _selectedMembers
@@ -732,11 +733,16 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
     final addedFiles = <_SelectedFile>[];
     var skippedPathCount = 0;
+    var hasOversizeFile = false;
+    var hasUnsupportedFile = false;
+    var exceedsRequestLimit = false;
+    var pendingUploadBytes = _selectedFiles.fold<int>(
+      0,
+      (sum, item) => sum + item.sizeBytes,
+    );
 
     for (final file in pickedFiles) {
-      if (addedFiles.length >= remainingCount) {
-        break;
-      }
+      if (addedFiles.length >= remainingCount) break;
 
       final path = file.path;
       if (path == null || path.trim().isEmpty) {
@@ -745,23 +751,40 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       }
 
       final isDuplicate = _selectedFiles.any((item) => item.path == path);
-      if (isDuplicate) {
+      if (isDuplicate) continue;
+
+      final extension = _fileExtension(file.name);
+      if (!_allowedUploadExtensions.contains(extension)) {
+        hasUnsupportedFile = true;
         continue;
       }
 
       final byteLength = await file.length() ?? 0;
+      if (byteLength > _maxUploadFileBytes) {
+        hasOversizeFile = true;
+        continue;
+      }
+      if (byteLength <= 0) {
+        skippedPathCount++;
+        continue;
+      }
+      if (pendingUploadBytes + byteLength > _maxUploadRequestBytes) {
+        exceedsRequestLimit = true;
+        continue;
+      }
+
+      pendingUploadBytes += byteLength;
       addedFiles.add(
         _SelectedFile.fromFile(
           path: path,
           name: file.name,
+          sizeBytes: byteLength,
           sizeText: _formatFileSize(byteLength),
         ),
       );
     }
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (addedFiles.isNotEmpty) {
       setState(() {
@@ -769,11 +792,34 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       });
     }
 
-    if (pickedFiles.length > remainingCount) {
+    if (hasOversizeFile) {
+      await _showFileBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
+    } else if (exceedsRequestLimit) {
+      await _showFileBlockedPopup('한 번에 업로드하는 파일은 총 300MB를 넘을 수 없습니다.');
+    } else if (hasUnsupportedFile) {
+      await _showFileBlockedPopup('지원하지 않는 파일 형식이 포함되어 있습니다.');
+    } else if (pickedFiles.length > remainingCount) {
       _showLimitMessage('파일은 최대 $_maxFileCount개까지 추가할 수 있습니다.');
     } else if (skippedPathCount > 0) {
       _showLimitMessage('업로드할 수 없는 파일은 제외했습니다.');
     }
+  }
+
+  Future<void> _showFileBlockedPopup(String content) async {
+    if (!mounted) return;
+    await AppPopup.show(
+      context,
+      title: '업로드할 수 없는 파일입니다.',
+      content: content,
+      warningType: WarningType.triangle,
+      confirmText: '확인',
+    );
+  }
+
+  String _fileExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex == fileName.length - 1) return '';
+    return fileName.substring(dotIndex + 1).toLowerCase();
   }
 
   void _showLimitMessage(String message) {
@@ -1099,10 +1145,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     if (_selectedMembers.isEmpty) {
-      return AddMemberButton(
-        text: '인원 선택하기',
-        onPressed: _openMemberSelector,
-      );
+      return AddMemberButton(text: '인원 선택하기', onPressed: _openMemberSelector);
     }
 
     return SingleChildScrollView(
@@ -1122,7 +1165,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             );
           }),
           const SizedBox(width: AppSpacing.x8),
-          _AddButton(onPressed: _openMemberSelector),
+          AppAddButton(onPressed: _openMemberSelector),
           const SizedBox(width: AppSpacing.x8),
         ],
       ),
@@ -1145,7 +1188,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           );
         }),
         if (_selectedMusics.length < _maxMusicCount)
-          Center(child: _AddButton(onPressed: _openMusicSelector)),
+          Center(child: AppAddButton(onPressed: _openMusicSelector)),
       ],
     );
   }
@@ -1184,7 +1227,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           );
         }),
         if (_fileCount < _maxFileCount)
-          Center(child: _AddButton(onPressed: _openFileSelector)),
+          Center(child: AppAddButton(onPressed: _openFileSelector)),
       ],
     );
   }
@@ -1212,36 +1255,6 @@ class _SectionLabel extends StatelessWidget {
               style: style.copyWith(color: colors.primary),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 34,
-        width: 34,
-        decoration: ShapeDecoration(
-          color: context.grays.gray8,
-          shape: const OvalBorder(),
-        ),
-        child: Center(
-          child: SvgPicture.asset(
-            'assets/icons/cal/plus.svg',
-            width: 24,
-            height: 24,
-            fit: BoxFit.contain,
-          ),
-        ),
       ),
     );
   }
@@ -1608,12 +1621,14 @@ class _SelectedFile {
     required this.originalName,
     required this.baseName,
     required this.extension,
+    required this.sizeBytes,
     required this.sizeText,
   });
 
   factory _SelectedFile.fromFile({
     required String path,
     required String name,
+    required int sizeBytes,
     required String sizeText,
   }) {
     final dotIndex = name.lastIndexOf('.');
@@ -1624,6 +1639,7 @@ class _SelectedFile {
       originalName: name,
       baseName: hasExtension ? name.substring(0, dotIndex) : name,
       extension: hasExtension ? name.substring(dotIndex + 1) : '',
+      sizeBytes: sizeBytes,
       sizeText: sizeText,
     );
   }
@@ -1632,6 +1648,7 @@ class _SelectedFile {
   final String originalName;
   final String baseName;
   final String extension;
+  final int sizeBytes;
   final String sizeText;
 
   String get uploadName {
@@ -1651,6 +1668,7 @@ class _SelectedFile {
       originalName: originalName,
       baseName: value,
       extension: extension,
+      sizeBytes: sizeBytes,
       sizeText: sizeText,
     );
   }
