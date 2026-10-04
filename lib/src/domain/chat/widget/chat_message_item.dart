@@ -16,11 +16,17 @@ class ChatMessageItem extends StatelessWidget {
     required this.message,
     this.onImagePressed,
     this.onAttachmentPressed,
+    this.showProfile = true,
+    this.showSenderName = true,
+    this.showTime = true,
   });
 
   final ChatMessage message;
   final VoidCallback? onImagePressed;
   final VoidCallback? onAttachmentPressed;
+  final bool showProfile;
+  final bool showSenderName;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +39,7 @@ class ChatMessageItem extends StatelessWidget {
         message: message,
         onImagePressed: onImagePressed,
         onAttachmentPressed: onAttachmentPressed,
+        showTime: showTime,
       );
     }
 
@@ -40,6 +47,9 @@ class ChatMessageItem extends StatelessWidget {
       message: message,
       onImagePressed: onImagePressed,
       onAttachmentPressed: onAttachmentPressed,
+      showProfile: showProfile,
+      showSenderName: showSenderName,
+      showTime: showTime,
     );
   }
 }
@@ -49,11 +59,17 @@ class _ReceivedMessage extends StatelessWidget {
     required this.message,
     required this.onImagePressed,
     required this.onAttachmentPressed,
+    required this.showProfile,
+    required this.showSenderName,
+    required this.showTime,
   });
 
   final ChatMessage message;
   final VoidCallback? onImagePressed;
   final VoidCallback? onAttachmentPressed;
+  final bool showProfile;
+  final bool showSenderName;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -62,17 +78,24 @@ class _ReceivedMessage extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ChatProfileImage(imageUrl: message.profileImageUrl, size: 36),
+          if (showProfile)
+            _ChatProfileImage(imageUrl: message.profileImageUrl, size: 36)
+          else
+            const SizedBox(width: 36),
           const SizedBox(width: AppSpacing.x8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  message.senderName,
-                  style: FontStyles.med12.copyWith(color: context.grays.black),
-                ),
-                const SizedBox(height: AppSpacing.x4),
+                if (showSenderName) ...[
+                  Text(
+                    message.senderName,
+                    style: FontStyles.med12.copyWith(
+                      color: context.grays.black,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x4),
+                ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -84,8 +107,10 @@ class _ReceivedMessage extends StatelessWidget {
                         onAttachmentPressed: onAttachmentPressed,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.x8),
-                    _MessageTime(createdAt: message.createdAt),
+                    if (showTime) ...[
+                      const SizedBox(width: AppSpacing.x8),
+                      _MessageTime(createdAt: message.createdAt),
+                    ],
                   ],
                 ),
               ],
@@ -102,11 +127,13 @@ class _SentMessage extends StatelessWidget {
     required this.message,
     required this.onImagePressed,
     required this.onAttachmentPressed,
+    required this.showTime,
   });
 
   final ChatMessage message;
   final VoidCallback? onImagePressed;
   final VoidCallback? onAttachmentPressed;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +143,10 @@ class _SentMessage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _MessageTime(createdAt: message.createdAt),
-          const SizedBox(width: AppSpacing.x8),
+          if (showTime) ...[
+            _MessageTime(createdAt: message.createdAt),
+            const SizedBox(width: AppSpacing.x8),
+          ],
           Flexible(
             child: _MessageContent(
               message: message,

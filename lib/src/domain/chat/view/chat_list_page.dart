@@ -171,15 +171,12 @@ class _ChatListBody extends StatelessWidget {
 
     final dateTime = value.toLocal();
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (!difference.isNegative && difference.inMinutes < 60) {
-      final minutes = difference.inMinutes.clamp(1, 59);
-      return '$minutes분 전';
-    }
 
     if (_isSameDate(now, dateTime)) {
-      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      final period = dateTime.hour < 12 ? '오전' : '오후';
+      final hour12 = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      return '$period $hour12:$minute';
     }
 
     return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';

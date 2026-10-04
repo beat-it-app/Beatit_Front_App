@@ -208,6 +208,24 @@ class ChatApi {
     }
   }
 
+  Future<void> markChatRoomRead({
+    required int chatId,
+    required int messageId,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '$_chatRoomsPath/$chatId/read',
+        queryParameters: {'messageId': messageId},
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '읽음 상태를 갱신하지 못했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> leaveChatRoom({required int chatId}) async {
     try {
       final response = await _dio.delete<Map<String, dynamic>>(

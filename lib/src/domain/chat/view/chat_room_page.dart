@@ -191,7 +191,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final file = pickedFiles.first;
     final extension = _extensionOf(file.name);
     if (!_mediaExtensions.contains(extension)) {
-      await _showUploadBlockedPopup('이미지 또는 영상 파일만 전송할 수 있습니다.');
+      await _showUploadBlockedPopup(
+        '이미지/영상 메뉴에서는 이미지 또는 영상만 선택할 수 있습니다.\n음원·문서 파일은 파일 메뉴를 이용해주세요.',
+      );
       return;
     }
 
@@ -470,14 +472,22 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     });
   }
 
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.maxScrollExtent - position.pixels <= 160;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<ChatRoomState>(chatRoomProvider, (previous, next) {
-      final receivedInitialMessages =
-          previous?.messages.isEmpty == true &&
-          next.messages.isNotEmpty &&
-          !next.isLoadingOlderMessages;
-      if (receivedInitialMessages) _scrollToBottom();
+      final previousCount = previous?.messages.length ?? 0;
+      final receivedNewMessage =
+          next.messages.length > previousCount && !next.isLoadingOlderMessages;
+
+      if (receivedNewMessage && _isNearBottom()) {
+        _scrollToBottom();
+      }
     });
 
     final state = ref.watch(chatRoomProvider);
@@ -671,9 +681,25 @@ class _ChatMessageList extends StatelessWidget {
         final previousMessage = messageIndex > 0
             ? messages[messageIndex - 1]
             : null;
+        final nextMessage = messageIndex < messages.length - 1
+            ? messages[messageIndex + 1]
+            : null;
         final showDateLabel =
             previousMessage == null ||
             !_isSameDate(previousMessage.createdAt, message.createdAt);
+        final isGroupStart =
+            previousMessage == null ||
+            !_isSameMessageGroup(previousMessage, message);
+        final isGroupEnd =
+            nextMessage == null || !_isSameMessageGroup(message, nextMessage);
+        final isLastMessage =
+            messageIndex == messages.length - 1 && pendingAttachments.isEmpty;
+
+        final messageGap = isLastMessage
+            ? 0.0
+            : isGroupEnd
+            ? AppSpacing.x16
+            : AppSpacing.x4;
 
         return Column(
           children: [
@@ -684,6 +710,9 @@ class _ChatMessageList extends StatelessWidget {
             ChatMessageItem(
               key: ValueKey(message.messageId),
               message: message,
+              showProfile: isGroupStart,
+              showSenderName: isGroupStart,
+              showTime: isGroupEnd,
               onImagePressed: message.messageType == ChatMessageType.image
                   ? () => onImagePressed(message)
                   : null,
@@ -693,11 +722,27 @@ class _ChatMessageList extends StatelessWidget {
                   ? () => onAttachmentPressed(message)
                   : null,
             ),
-            const SizedBox(height: AppSpacing.x16),
+            if (messageGap > 0) SizedBox(height: messageGap),
           ],
         );
       },
     );
+  }
+
+  static bool _isSameMessageGroup(ChatMessage a, ChatMessage b) {
+    if (a.messageType == ChatMessageType.system ||
+        b.messageType == ChatMessageType.system) {
+      return false;
+    }
+    if (a.senderId != b.senderId) return false;
+
+    final first = a.createdAt.toLocal();
+    final second = b.createdAt.toLocal();
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day &&
+        first.hour == second.hour &&
+        first.minute == second.minute;
   }
 
   static bool _isSameDate(DateTime a, DateTime b) {
