@@ -1,19 +1,22 @@
-import 'package:dio/dio.dart';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
+import '../api/team_archive_api.dart';
 import '../model/team_archive_model.dart';
 
 class TeamArchiveState {
   final bool isLoading;
   final List<TeamArchiveItemModel> items;
   final int totalCount;
+  final bool hasNext;
   final String? errorMessage;
 
   TeamArchiveState({
     this.isLoading = false,
     this.items = const [],
     this.totalCount = 0,
+    this.hasNext = false,
     this.errorMessage,
   });
 
@@ -21,6 +24,7 @@ class TeamArchiveState {
     bool? isLoading,
     List<TeamArchiveItemModel>? items,
     int? totalCount,
+    bool? hasNext,
     String? errorMessage,
     bool clearError = false,
   }) {
@@ -28,6 +32,8 @@ class TeamArchiveState {
       isLoading: isLoading ?? this.isLoading,
       items: items ?? this.items,
       totalCount: totalCount ?? this.totalCount,
+      hasNext: hasNext ?? this.hasNext,
+      // 💡 항상 기본 false 또는 기존 bool 유지
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
@@ -39,43 +45,53 @@ class TeamArchiveNotifier extends Notifier<TeamArchiveState> {
     return TeamArchiveState();
   }
 
-  Future<void> fetchArchives({String? keyword}) async {
+  /// 아카이브 목록 조회 (GET /teams/archives)
+  Future<void> fetchArchives({int? teamId, String? keyword}) async {
+    // 💡 초기 로딩 진입 시 hasNext에 null이 들어가지 않도록 방어
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final dio = ref.read(dioProvider);
+      final resolvedTeamId =
+          teamId ?? ref.read(teamDetailProvider).teamDetail?.teamId ?? 10;
 
-      // 현재 활성화된 팀 ID 가져오기
-      final currentTeamId = ref.read(teamDetailProvider).teamDetail?.teamId;
-
-      final response = await dio.get(
-        '/teams/archives',
-        queryParameters: {
-          if (currentTeamId != null) 'teamId': currentTeamId,
-          if (keyword != null && keyword.trim().isNotEmpty)
-            'keyword': keyword.trim(),
-          'page': 0,
-          'size': 50,
-        },
+      final api = ref.read(teamArchiveApiProvider);
+      final items = await api.getArchives(
+        teamId: resolvedTeamId,
+        keyword: keyword?.trim(),
       );
 
-      final resData = response.data;
-      if (resData is Map<String, dynamic> && resData['data'] != null) {
-        final archiveData = TeamArchiveResponseModel.fromJson(
-          resData['data'] as Map<String, dynamic>,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          items: archiveData.items,
-          totalCount: archiveData.totalCount,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, items: []);
-      }
-    } on DioException catch (e) {
-      final msg = e.response?.data?['message'] ?? '연습실 기록을 불러오지 못했습니다.';
-      state = state.copyWith(isLoading: false, errorMessage: msg);
+      state = state.copyWith(
+        isLoading: false,
+        items: items,
+        totalCount: items.length,
+        hasNext: false,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  /// 아카이브 등록 (POST /teams/archives)
+  Future<bool> createArchive({
+    required String title,
+    required int locationId,
+    required String description,
+    List<File>? images,
+    int? teamId,
+  }) async {
+    try {
+      final api = ref.read(teamArchiveApiProvider);
+      await api.createArchive(
+        title: title,
+        locationId: locationId,
+        description: description,
+        images: images,
+      );
+
+      // 등록 성공 시 최신 목록 재조회
+      await fetchArchives(teamId: teamId);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 }

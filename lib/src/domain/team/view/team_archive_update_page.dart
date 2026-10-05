@@ -1,6 +1,10 @@
-import 'package:beatit_front_app/src/domain/team/view/team_archive_detail_page.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -11,44 +15,156 @@ import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/team/api/team_archive_api.dart';
+import 'package:beatit_front_app/src/domain/team/model/team_archive_detail_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_archive_provider.dart';
 
-class TeamArchiveUpdatePage extends StatefulWidget {
-  const TeamArchiveUpdatePage({super.key});
+class TeamArchiveUpdatePage extends ConsumerStatefulWidget {
+  final TeamArchiveDetailModel detail;
+
+  const TeamArchiveUpdatePage({super.key, required this.detail});
 
   @override
-  State<TeamArchiveUpdatePage> createState() => _TeamArchiveUpdatePageState();
+  ConsumerState<TeamArchiveUpdatePage> createState() =>
+      _TeamArchiveUpdatePageState();
 }
 
-class _TeamArchiveUpdatePageState extends State<TeamArchiveUpdatePage> {
-  // 기존에 입력되어 있던 데이터를 가정하여 기본값을 채워둡니다.
+class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
   late final TextEditingController _descriptionController;
 
+  late int _selectedLocationId;
+  bool _isSubmitting = false;
+
+  // 기존 등록된 사진 (URL) 및 삭제 관리
+  late List<String> _existingImages;
+  final Set<int> _activeExistingOverlayIndices = {};
+
+  // 새로 추가할 사진 (File) 및 삭제 관리
+  final List<File> _newImages = [];
+  final Set<int> _activeNewOverlayIndices = {};
+
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: '그라운드 합주실');
-    _locationController = TextEditingController(text: '그라운드합주실 본점 A3');
-    _descriptionController = TextEditingController(
-      text:
-          '홍대에 위치해서 합주하러 만나기 가장 편한 장소!\n악기 대여 잘 되고, 연습실도 깨끗해요. 관리자님도 친절함.\n항상 소모임에서 1순위로 선정되는 합주실이에요.',
+    _nameController = TextEditingController(text: widget.detail.title);
+    _locationController = TextEditingController(
+      text: widget.detail.roadAddress ?? '',
     );
+    _descriptionController = TextEditingController(
+      text: widget.detail.description,
+    );
+    _selectedLocationId = widget.detail.locationId;
+    _existingImages = List<String>.from(widget.detail.archiveImageUrls);
   }
 
   bool get _canSubmit {
     return _nameController.text.trim().isNotEmpty &&
-        _locationController.text.trim().isNotEmpty &&
-        _descriptionController.text.trim().isNotEmpty;
+        _descriptionController.text.trim().isNotEmpty &&
+        !_isSubmitting;
   }
 
-  void _navigateToArchiveDetail() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const TeamArchiveDetailPage()),
-      (route) => route.isFirst,
+  String _displayLocationName(LocationData location) {
+    final name = location.locationName?.trim();
+    return name == null || name.isEmpty ? '장소 ID ${location.locationId}' : name;
+  }
+
+  Future<void> _openLocationSelector() async {
+    FocusScope.of(context).unfocus();
+
+    final selectedLocation = await Navigator.of(context).push<LocationData>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const LocationSearchPage(returnRegisteredLocationOnSelect: true),
+      ),
     );
+
+    if (!mounted || selectedLocation == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedLocationId = selectedLocation.locationId;
+      _locationController.text = _displayLocationName(selectedLocation);
+    });
+  }
+
+  Future<void> _pickImages() async {
+    final pickedFiles = await _picker.pickMultiImage(imageQuality: 85);
+
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        for (final file in pickedFiles) {
+          _newImages.add(File(file.path));
+        }
+        _activeNewOverlayIndices.clear();
+      });
+    }
+  }
+
+  void _removeExistingImage(int index) {
+    setState(() {
+      _existingImages.removeAt(index);
+      _activeExistingOverlayIndices.clear();
+    });
+  }
+
+  void _removeNewImage(int index) {
+    setState(() {
+      _newImages.removeAt(index);
+      _activeNewOverlayIndices.clear();
+    });
+  }
+
+  Future<void> _submitUpdate() async {
+    if (!_canSubmit) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final api = ref.read(teamArchiveApiProvider);
+      await api.updateArchive(
+        archiveId: widget.detail.archiveId,
+        title: _nameController.text.trim(),
+        locationId: _selectedLocationId,
+        description: _descriptionController.text.trim(),
+        newImages: _newImages,
+      );
+
+      ref.read(teamArchiveProvider.notifier).fetchArchives();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('수정이 완료되었습니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('수정 실패: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -82,7 +198,7 @@ class _TeamArchiveUpdatePageState extends State<TeamArchiveUpdatePage> {
           if (!context.mounted) return;
 
           if (confirmed == true) {
-            _navigateToArchiveDetail();
+            Navigator.of(context).pop();
           }
         },
       ),
@@ -112,23 +228,21 @@ class _TeamArchiveUpdatePageState extends State<TeamArchiveUpdatePage> {
 
                       const SizedBox(height: AppSpacing.x20),
 
-                      // 2. 장소 (필수)
+                      // 2. 장소 (필수, 검색 페이지 연동)
                       AppTextField(
                         label: '장소',
                         requiredMark: true,
                         hintText: '모임 장소를 검색하세요.',
                         controller: _locationController,
-                        onChanged: (_) => setState(() {}),
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: SvgPicture.asset(
-                            'assets/icons/cal/search.svg',
-                            width: 24,
-                            height: 24,
-                            colorFilter: ColorFilter.mode(
-                              context.grays.gray5,
-                              BlendMode.srcIn,
-                            ),
+                        readOnly: true,
+                        onTap: _openLocationSelector,
+                        suffixIcon: SvgPicture.asset(
+                          'assets/icons/cal/search.svg',
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(
+                            context.grays.gray5,
+                            BlendMode.srcIn,
                           ),
                         ),
                       ),
@@ -155,26 +269,175 @@ class _TeamArchiveUpdatePageState extends State<TeamArchiveUpdatePage> {
                           color: colors.onSurface,
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.x8),
 
-                      const SizedBox(height: AppSpacing.x4),
+                      // 4-1. 기존 등록된 사진 목록 (딤드 및 삭제 가능)
+                      if (_existingImages.isNotEmpty) ...[
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _existingImages.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: AppSpacing.x12),
+                          itemBuilder: (context, index) {
+                            final imageUrl = _existingImages[index];
+                            final isOverlayActive =
+                                _activeExistingOverlayIndices.contains(index);
 
-                      // 이미 등록된 기존 사진 (요청하신 대로 회색 박스로 표현)
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: context.grays.gray8,
-                          borderRadius: BorderRadius.circular(8),
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                setState(() {
+                                  if (isOverlayActive) {
+                                    _activeExistingOverlayIndices.remove(index);
+                                  } else {
+                                    _activeExistingOverlayIndices.add(index);
+                                  }
+                                });
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 220,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Image.network(
+                                        imageUrl,
+                                        width: double.infinity,
+                                        height: 220,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: context.grays.gray8,
+                                          child: const Icon(Icons.broken_image),
+                                        ),
+                                      ),
+                                      if (isOverlayActive) ...[
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.white.withOpacity(
+                                              0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _removeExistingImage(index),
+                                          child: Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: context.grays.gray3,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: SvgPicture.asset(
+                                              'assets/icons/team/delete2.svg',
+                                              width: 26,
+                                              height: 26,
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                    Colors.white,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        // 필요시 삭제 버튼 등을 이 내부에 추가할 수 있습니다.
-                      ),
+                        const SizedBox(height: AppSpacing.x12),
+                      ],
 
-                      const SizedBox(height: AppSpacing.x12),
+                      // 4-2. 새로 추가한 사진 목록 (딤드 및 삭제 가능)
+                      if (_newImages.isNotEmpty) ...[
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _newImages.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: AppSpacing.x12),
+                          itemBuilder: (context, index) {
+                            final imageFile = _newImages[index];
+                            final isOverlayActive = _activeNewOverlayIndices
+                                .contains(index);
 
-                      // 추가 사진 등록 버튼
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                setState(() {
+                                  if (isOverlayActive) {
+                                    _activeNewOverlayIndices.remove(index);
+                                  } else {
+                                    _activeNewOverlayIndices.add(index);
+                                  }
+                                });
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 220,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Image.file(
+                                        imageFile,
+                                        width: double.infinity,
+                                        height: 220,
+                                        fit: BoxFit.cover,
+                                      ),
+                                      if (isOverlayActive) ...[
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.white.withOpacity(
+                                              0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () => _removeNewImage(index),
+                                          child: Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: context.grays.gray3,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: SvgPicture.asset(
+                                              'assets/icons/team/delete2.svg',
+                                              width: 26,
+                                              height: 26,
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                    Colors.white,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.x12),
+                      ],
+
+                      // 사진 등록/추가 버튼
                       AppUploadButton(
                         text: '연습실/합주실 사진 등록하기',
-                        onPressed: () {},
+                        onPressed: _pickImages,
                       ),
 
                       const SizedBox(height: AppSpacing.x24),
@@ -183,17 +446,15 @@ class _TeamArchiveUpdatePageState extends State<TeamArchiveUpdatePage> {
                 ),
               ),
 
-              const SizedBox(height: AppSpacing.x70),
+              const SizedBox(height: AppSpacing.x24),
 
-              // 5. 저장하기 버튼 (클릭 시 TeamDetailPage로 이동)
+              // 5. 저장하기 버튼
               AppButton(
-                text: '저장하기',
+                text: _isSubmitting ? '수정 중...' : '저장하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
-                variant: _canSubmit
-                    ? ButtonVariant.primary
-                    : ButtonVariant.black,
-                onPressed: _canSubmit ? _navigateToArchiveDetail : null,
+                variant: ButtonVariant.primary,
+                onPressed: _canSubmit ? _submitUpdate : null,
               ),
             ],
           ),
