@@ -7,6 +7,8 @@ import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_main_page.dart';
+import 'package:beatit_front_app/src/domain/post/view/post_main_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
 import 'package:flutter/material.dart';
 
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
