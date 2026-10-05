@@ -1,57 +1,78 @@
 class TeamArchiveItemModel {
-  final int rehearsalRecordId;
+  final int archiveId;
+  final int teamId;
+  final int writerId;
   final String title;
-  final String? placeName;
-  final int likeCount;
-  final int dislikeCount;
+  final String? roadAddress;
+  final String? archiveImageUrl;
+  final double averageRating;
   final int commentCount;
-  final String createdAt;
 
   TeamArchiveItemModel({
-    required this.rehearsalRecordId,
+    required this.archiveId,
+    required this.teamId,
+    required this.writerId,
     required this.title,
-    this.placeName,
-    required this.likeCount,
-    required this.dislikeCount,
+    this.roadAddress,
+    this.archiveImageUrl,
+    required this.averageRating,
     required this.commentCount,
-    required this.createdAt,
   });
 
   factory TeamArchiveItemModel.fromJson(Map<String, dynamic> json) {
     return TeamArchiveItemModel(
-      rehearsalRecordId: json['rehearsal_record_id'] as int? ?? 0,
+      archiveId: json['archiveId'] as int? ?? 0,
+      teamId: json['teamId'] as int? ?? 0,
+      writerId: json['writerId'] as int? ?? 0,
       title: json['title'] as String? ?? '',
-      placeName: json['place_name'] as String?,
-      likeCount: json['like_count'] as int? ?? 0,
-      dislikeCount: json['dislike_count'] as int? ?? 0,
-      commentCount: json['comment_count'] as int? ?? 0,
-      createdAt: json['created_at'] as String? ?? '',
+      roadAddress: json['roadAddress'] as String?,
+      archiveImageUrl: json['archiveImageUrl'] as String?,
+      averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
+      commentCount: json['commentCount'] as int? ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'archiveId': archiveId,
+      'teamId': teamId,
+      'writerId': writerId,
+      'title': title,
+      'roadAddress': roadAddress,
+      'archiveImageUrl': archiveImageUrl,
+      'averageRating': averageRating,
+      'commentCount': commentCount,
+    };
   }
 }
 
 class TeamArchiveResponseModel {
-  final List<TeamArchiveItemModel> items;
-  final int page;
-  final int size;
+  final List<TeamArchiveItemModel> archives;
   final int totalCount;
+  final bool hasNext;
 
   TeamArchiveResponseModel({
-    required this.items,
-    required this.page,
-    required this.size,
+    required this.archives,
     required this.totalCount,
+    required this.hasNext,
   });
 
   factory TeamArchiveResponseModel.fromJson(Map<String, dynamic> json) {
-    final list = json['items'] as List<dynamic>? ?? [];
+    final list = json['archives'] as List<dynamic>? ?? [];
     return TeamArchiveResponseModel(
-      items: list
+      archives: list
           .map((e) => TeamArchiveItemModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      page: json['page'] as int? ?? 0,
-      size: json['size'] as int? ?? 20,
-      totalCount: json['total_count'] as int? ?? 0,
+      totalCount: json['totalCount'] as int? ?? 0,
+      hasNext: json['hasNext'] as bool? ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'archives': archives.map((e) => e.toJson()).toList(),
+      'totalCount': totalCount,
+      'hasNext': hasNext,
+    };
   }
 }

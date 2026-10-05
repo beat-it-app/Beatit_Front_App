@@ -1,40 +1,143 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart'; // 💡 TeamDetailPage 임포트 추가
+import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_archive_provider.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
 
-class TeamArchivePage extends StatefulWidget {
+class TeamArchivePage extends ConsumerStatefulWidget {
   const TeamArchivePage({super.key});
 
   @override
-  State<TeamArchivePage> createState() => _TeamArchivePageState();
+  ConsumerState<TeamArchivePage> createState() => _TeamArchivePageState();
 }
 
-class _TeamArchivePageState extends State<TeamArchivePage> {
+class _TeamArchivePageState extends ConsumerState<TeamArchivePage> {
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  int? _selectedLocationId;
+  bool _isSubmitting = false;
+
+  final List<File> _selectedImages = [];
+  final Set<int> _activeOverlayIndices = {};
+  final ImagePicker _picker = ImagePicker();
+
   bool get _canSubmit {
     return _nameController.text.trim().isNotEmpty &&
-        _locationController.text.trim().isNotEmpty &&
-        _descriptionController.text.trim().isNotEmpty;
+        _selectedLocationId != null &&
+        _descriptionController.text.trim().isNotEmpty &&
+        !_isSubmitting;
   }
 
-  void _navigateToTeamDetail() {
+  void _navigateToArchiveList() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const TeamDetailPage()),
+      MaterialPageRoute(builder: (context) => const TeamArchiveListPage()),
       (route) => route.isFirst,
     );
+  }
+
+  String _displayLocationName(LocationData location) {
+    final name = location.locationName?.trim();
+    return name == null || name.isEmpty ? '장소 ID ${location.locationId}' : name;
+  }
+
+  Future<void> _openLocationSelector() async {
+    FocusScope.of(context).unfocus();
+
+    final selectedLocation = await Navigator.of(context).push<LocationData>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const LocationSearchPage(returnRegisteredLocationOnSelect: true),
+      ),
+    );
+
+    if (!mounted || selectedLocation == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedLocationId = selectedLocation.locationId;
+      _locationController.text = _displayLocationName(selectedLocation);
+    });
+  }
+
+  Future<void> _pickImages() async {
+    final pickedFiles = await _picker.pickMultiImage(imageQuality: 85);
+
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        for (final file in pickedFiles) {
+          _selectedImages.add(File(file.path));
+        }
+        _activeOverlayIndices.clear();
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+      _activeOverlayIndices.clear();
+    });
+  }
+
+  // 💡 placeName 제거 및 파라미터 규격 동기화
+  Future<void> _handleSubmit() async {
+    if (!_canSubmit) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    final success = await ref
+        .read(teamArchiveProvider.notifier)
+        .createArchive(
+          title: _nameController.text.trim(),
+          locationId: _selectedLocationId!,
+          description: _descriptionController.text.trim(),
+          images: _selectedImages,
+        );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSubmitting = false;
+    });
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('연습실 기록이 성공적으로 등록되었습니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _navigateToArchiveList();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('기록 등록에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   @override
@@ -51,7 +154,6 @@ class _TeamArchivePageState extends State<TeamArchivePage> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      // 💡 X 버튼 클릭 -> 작성 중단 팝업 -> '확인' 클릭 시 TeamDetailPage로 이동
       appBar: AppTopAppBar.closeOnly(
         onClosePressed: () async {
           final confirmed = await AppPopup.show(
@@ -69,7 +171,7 @@ class _TeamArchivePageState extends State<TeamArchivePage> {
           if (!context.mounted) return;
 
           if (confirmed == true) {
-            _navigateToTeamDetail();
+            Navigator.of(context).pop();
           }
         },
       ),
@@ -105,17 +207,15 @@ class _TeamArchivePageState extends State<TeamArchivePage> {
                         requiredMark: true,
                         hintText: '모임 장소를 검색하세요.',
                         controller: _locationController,
-                        onChanged: (_) => setState(() {}),
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: SvgPicture.asset(
-                            'assets/icons/cal/search.svg',
-                            width: 24,
-                            height: 24,
-                            colorFilter: ColorFilter.mode(
-                              context.grays.gray5,
-                              BlendMode.srcIn,
-                            ),
+                        readOnly: true,
+                        onTap: _openLocationSelector,
+                        suffixIcon: SvgPicture.asset(
+                          'assets/icons/cal/search.svg',
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(
+                            context.grays.gray5,
+                            BlendMode.srcIn,
                           ),
                         ),
                       ),
@@ -142,12 +242,90 @@ class _TeamArchivePageState extends State<TeamArchivePage> {
                           color: colors.onSurface,
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.x8),
 
-                      const SizedBox(height: AppSpacing.x4),
+                      // 등록된 이미지 카드 목록
+                      if (_selectedImages.isNotEmpty) ...[
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _selectedImages.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: AppSpacing.x12),
+                          itemBuilder: (context, index) {
+                            final imageFile = _selectedImages[index];
+                            final isOverlayActive = _activeOverlayIndices
+                                .contains(index);
+
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                setState(() {
+                                  if (isOverlayActive) {
+                                    _activeOverlayIndices.remove(index);
+                                  } else {
+                                    _activeOverlayIndices.add(index);
+                                  }
+                                });
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 220,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Image.file(
+                                        imageFile,
+                                        width: double.infinity,
+                                        height: 220,
+                                        fit: BoxFit.cover,
+                                      ),
+                                      if (isOverlayActive) ...[
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.white.withOpacity(
+                                              0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () => _removeImage(index),
+                                          child: Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: context.grays.gray3,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: SvgPicture.asset(
+                                              'assets/icons/team/delete2.svg',
+                                              width: 26,
+                                              height: 26,
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                    Colors.white,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.x12),
+                      ],
 
                       AppUploadButton(
                         text: '연습실/합주실 사진 등록하기',
-                        onPressed: () {},
+                        onPressed: _pickImages,
                       ),
 
                       const SizedBox(height: AppSpacing.x24),
@@ -158,15 +336,13 @@ class _TeamArchivePageState extends State<TeamArchivePage> {
 
               const SizedBox(height: AppSpacing.x24),
 
-              // 5. 등록하기 버튼 (클릭 시 TeamDetailPage로 이동)
+              // 5. 등록하기 버튼
               AppButton(
-                text: '등록하기',
+                text: _isSubmitting ? '등록 중...' : '등록하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
-                variant: _canSubmit
-                    ? ButtonVariant.black
-                    : ButtonVariant.primary,
-                onPressed: _canSubmit ? _navigateToTeamDetail : null,
+                variant: ButtonVariant.primary,
+                onPressed: _canSubmit ? _handleSubmit : null,
               ),
             ],
           ),
