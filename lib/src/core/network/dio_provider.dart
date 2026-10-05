@@ -6,7 +6,7 @@ import 'auth_token_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://3.34.225.157:8083',
+  defaultValue: 'http://3.34.225.157',
 );
 
 BaseOptions _createBaseOptions() {
@@ -16,9 +16,7 @@ BaseOptions _createBaseOptions() {
     receiveTimeout: const Duration(seconds: 10),
     sendTimeout: const Duration(seconds: 10),
     contentType: Headers.jsonContentType,
-    headers: const {
-      'Accept': 'application/json',
-    },
+    headers: const {'Accept': 'application/json'},
   );
 }
 
