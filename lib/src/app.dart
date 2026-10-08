@@ -1,4 +1,6 @@
 import 'package:beatit_front_app/src/domain/chat/view/chat_list_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_main_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_main_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
@@ -87,7 +89,9 @@ class _TemporaryMainPage extends StatelessWidget {
             TextButton(
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => CloudMainPage()),
+                  MaterialPageRoute(
+                    builder: (context) => PerformanceInformationPage(),
+                  ),
                 );
               },
               child: const Text('버튼'),

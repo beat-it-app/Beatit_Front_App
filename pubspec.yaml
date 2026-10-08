@@ -97,6 +97,7 @@ flutter:
     - assets/icons/team/
     - assets/icons/etc/
     - assets/icons/chat/
+    - assets/icons/performance/
 
   fonts:
     - family: Pretendard
