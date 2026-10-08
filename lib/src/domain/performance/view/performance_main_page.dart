@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
 import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_detail_page.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_item_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -16,11 +17,16 @@ class PerformanceMainPage extends StatefulWidget {
     super.key,
     this.performances,
     this.onPerformanceTap,
+    this.previewDraft,
+    this.onSubmit,
   });
 
   /// API 연결 전에는 예시 카드가 보인다. API 연결 후에는 실제 목록을 전달한다.
   final List<PerformanceSummary>? performances;
   final ValueChanged<PerformanceSummary>? onPerformanceTap;
+  /// 마이페이지 UI 테스트 시에만 더미 입력값을 전달한다.
+  final PerformanceCreateData? previewDraft;
+  final ValueChanged<PerformanceCreateData>? onSubmit;
 
   @override
   State<PerformanceMainPage> createState() => _PerformanceMainPageState();
@@ -76,7 +82,10 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
   void _openCreatePage() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const PerformanceInformationPage(),
+        builder: (_) => PerformanceInformationPage(
+          initialDraft: widget.previewDraft,
+          onSubmit: widget.onSubmit,
+        ),
       ),
     );
   }
@@ -126,36 +135,19 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
                         ),
                       ),
                     )
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        final posterWidth =
-                            (constraints.maxWidth - AppSpacing.x20 * 3) / 2;
-                        return GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.x20,
-                            0,
-                            AppSpacing.x20,
-                            90,
+                  : PerformanceGrid(
+                      performances: items,
+                      onTap: (item) {
+                        if (widget.onPerformanceTap != null) {
+                          widget.onPerformanceTap!(item);
+                          return;
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PerformanceDetailPage(
+                              performance: PerformanceDetailData.fromSummary(item),
+                            ),
                           ),
-                          itemCount: items.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: AppSpacing.x20,
-                                mainAxisSpacing: AppSpacing.x20,
-                                mainAxisExtent: posterWidth * (210 / 165) + 65,
-                              ),
-                          itemBuilder: (context, index) {
-                            final item = items[index];
-                            return PerformanceItem(
-                              name: item.title,
-                              date: item.startsAt,
-                              imageUrl: item.imageUrl,
-                              onTap: widget.onPerformanceTap == null
-                                  ? null
-                                  : () => widget.onPerformanceTap!(item),
-                            );
-                          },
                         );
                       },
                     ),

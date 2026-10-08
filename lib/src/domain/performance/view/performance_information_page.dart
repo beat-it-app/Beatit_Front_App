@@ -20,10 +20,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 class PerformanceInformationPage extends StatefulWidget {
-  const PerformanceInformationPage({super.key, this.onSubmit});
+  const PerformanceInformationPage({super.key, this.onSubmit, this.initialDraft});
 
   /// 공연 API가 준비되면 부모 화면에서 실제 등록 콜백을 전달한다.
   final ValueChanged<PerformanceCreateData>? onSubmit;
+
+  /// UI 미리보기/수정 화면에서 기존 내용을 채울 때 사용한다.
+  final PerformanceCreateData? initialDraft;
 
   @override
   State<PerformanceInformationPage> createState() =>
@@ -52,6 +55,32 @@ class _PerformanceInformationPageState
   LocationData? _location;
   XFile? _poster;
   bool _validate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final info = widget.initialDraft?.information;
+    if (info == null) return;
+    _title.text = info.title;
+    _startsAt = info.startsAt;
+    _startsAtText.text = PerformanceDateTimePicker.format(info.startsAt);
+    _location = info.location;
+    _locationText.text = info.location.locationName ?? info.location.roadAddress ?? '';
+    _introduction.text = info.introduction;
+    _poster = info.poster;
+    _ticketTypes.addAll(info.ticketTypes);
+    for (final entry in info.ticketPrices.entries) {
+      _prices[entry.key]?.text = entry.value;
+    }
+    _bookingClosesAt = info.bookingClosesAt;
+    if (info.bookingClosesAt != null) {
+      _bookingClosesAtText.text = PerformanceDateTimePicker.format(info.bookingClosesAt!);
+    }
+    _bookingUrl.text = info.bookingUrl;
+    _hostName.text = info.hostName;
+    _hostType = info.hostContactType;
+    _hostContact.text = info.hostContact;
+  }
 
   bool get _usesBooking =>
       _ticketTypes.contains(PerformanceTicketType.advance) ||
@@ -189,6 +218,7 @@ class _PerformanceInformationPageState
       MaterialPageRoute<void>(
         builder: (_) => PerformanceDetailInformationPage(
           information: information,
+          initialData: widget.initialDraft,
           onSubmit: widget.onSubmit,
           onDiscard: () {
             if (mounted) Navigator.of(context).pop();

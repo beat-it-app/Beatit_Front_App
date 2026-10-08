@@ -16,11 +16,13 @@ class PerformanceDetailInformationPage extends StatefulWidget {
   const PerformanceDetailInformationPage({
     super.key,
     required this.information,
+    this.initialData,
     this.onSubmit,
     this.onDiscard,
   });
 
   final PerformanceInformation information;
+  final PerformanceCreateData? initialData;
   final ValueChanged<PerformanceCreateData>? onSubmit;
   final VoidCallback? onDiscard;
 
@@ -36,6 +38,16 @@ class _PerformanceDetailInformationPageState
   final List<XFile> _images = [];
   bool _hasNoDetails = false;
   bool _validate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.initialData;
+    if (draft == null) return;
+    _images.addAll(draft.detailImages.take(_maxImages));
+    _description.text = draft.detailDescription;
+    _hasNoDetails = draft.hasNoDetails;
+  }
 
   @override
   void dispose() {
@@ -134,23 +146,21 @@ class _PerformanceDetailInformationPageState
                           setState(() => _images.removeAt(index)),
                     ),
                     const SizedBox(height: AppSpacing.x20),
-                    AppTextArea(
-                      label: '상세 정보',
-                      requiredMark: true,
-                      hintText: '공연 상세 정보를 입력해주세요.',
-                      controller: _description,
-                      enabled: !_hasNoDetails,
-                      maxLength: 200,
-                      fieldHeight: 200,
-                      errorText:
-                          _validate &&
-                              !_hasNoDetails &&
-                              _description.text.trim().isEmpty
-                          ? '상세 정보를 입력하거나 상세 정보 미제공을 선택해주세요.'
-                          : null,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSpacing.x12),
+                    if (!_hasNoDetails) ...[
+                      AppTextArea(
+                        label: '상세 정보',
+                        requiredMark: true,
+                        hintText: '공연 상세 정보를 입력해주세요.',
+                        controller: _description,
+                        maxLength: 200,
+                        fieldHeight: 200,
+                        errorText: _validate && _description.text.trim().isEmpty
+                            ? '상세 정보를 입력하거나 상세 정보 미제공을 선택해주세요.'
+                            : null,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: AppSpacing.x12),
+                    ],
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () =>

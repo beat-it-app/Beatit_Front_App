@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:beatit_front_app/src/domain/performance/widget/performance_xfile_image.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -187,20 +186,10 @@ class _PerformanceImagePreview extends StatelessWidget {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          child: Image.file(
-            File(image.path),
+          child: PerformanceXFileImage(
+            file: image,
             width: double.infinity,
             fit: BoxFit.fitWidth,
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: double.infinity,
-              height: 180,
-              color: context.colors.errorContainer,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.image_not_supported_outlined,
-                color: context.colors.onErrorContainer,
-              ),
-            ),
           ),
         ),
         if (pendingDelete) ...[
