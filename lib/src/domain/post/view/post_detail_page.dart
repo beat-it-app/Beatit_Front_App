@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/should_show_updated_at.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -245,8 +246,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                               color: context.grays.gray4,
                                             ),
                                           ),
-                                          if (!_data!.updatedAt.isAtSameMomentAs(
+                                          if (shouldShowUpdatedAt(
                                             _data!.createdAt,
+                                            _data!.updatedAt,
                                           ))
                                             TextSpan(
                                               text:
