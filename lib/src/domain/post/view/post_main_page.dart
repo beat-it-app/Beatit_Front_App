@@ -9,6 +9,7 @@ import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.da
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_main_provider.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
@@ -77,7 +78,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
       if (!mounted) {
         return;
       }
-      _loadSelected(keyword: '');
+      if (!widget.searchOnly) _loadSelected(keyword: '');
       if (widget.searchOnly) _searchFocusNode.requestFocus();
     });
   }
@@ -93,6 +94,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
   Future<void> _loadSelected({String? keyword}) async {
     final query =
         keyword ?? (_isSearchOpen ? _searchController.text.trim() : '');
+    if (_isSearchOpen && query.isEmpty) return;
     final notifier = ref.read(postMainProvider.notifier);
 
     switch (_selectedType) {
@@ -328,6 +330,7 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
                         hintText: '${_selectedType.title} 검색',
                         onSearchPressed: _submitSearch,
                         onChanged: (value) {
+                          setState(() {});
                           _loadSelected(keyword: value.trim());
                         },
                       ),
@@ -368,7 +371,9 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
                       duration: const Duration(milliseconds: 220),
                       child: KeyedSubtree(
                         key: ValueKey<PostMainType>(_selectedType),
-                        child: _buildSelectedContent(state),
+                      child: _searchController.text.trim().isEmpty
+                          ? const SizedBox.shrink()
+                          : _buildSelectedContent(state),
                       ),
                     ),
                   ),
@@ -1135,11 +1140,7 @@ class _PostMetaChip extends StatelessWidget {
 }
 
 String _formatDateTime(DateTime dateTime) {
-  final local = dateTime.toLocal();
-  String twoDigits(int value) => value.toString().padLeft(2, '0');
-
-  return '${local.year}.${twoDigits(local.month)}.${twoDigits(local.day)} '
-      '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+  return formatPostDateTime(dateTime);
 }
 
 bool _isClosingWithinOneDay(DateTime? closeAt) {

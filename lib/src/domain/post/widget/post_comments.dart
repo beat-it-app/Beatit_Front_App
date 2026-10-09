@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
@@ -261,9 +262,7 @@ class _SwipeCommentState extends State<_SwipeComment> {
     );
   }
 
-  static String _formatDate(DateTime date) =>
-      '${date.year}.${date.month.toString().padLeft(2, '0')}.'
-      '${date.day.toString().padLeft(2, '0')}';
+  static String _formatDate(DateTime date) => formatPostDateTime(date);
 
   static TextSpan _mentionText(
     BuildContext context,

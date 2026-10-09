@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
@@ -248,11 +249,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   }
 
   String _formatDateTime(DateTime dateTime) {
-    String twoDigits(int value) => value.toString().padLeft(2, '0');
-
-    return '${dateTime.year}.${twoDigits(dateTime.month)}.'
-        '${twoDigits(dateTime.day)} ${twoDigits(dateTime.hour)}:'
-        '${twoDigits(dateTime.minute)}';
+    return formatPostDateTime(dateTime);
   }
 
   @override

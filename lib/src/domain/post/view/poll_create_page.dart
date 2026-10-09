@@ -15,6 +15,7 @@ import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_search_page.dart';
 import 'package:beatit_front_app/src/domain/etc/view/music_search_page.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_add_box.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _deadlineController = TextEditingController();
+  final TextEditingController _deadlineDateController = TextEditingController();
+  final TextEditingController _deadlineTimeController = TextEditingController();
 
   final _optionKey = GlobalKey<PollAddBoxState>();
   final Map<int, MusicSearchResult> _musicChoices = {};
@@ -53,6 +55,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   final List<String> _voteOptions = ['익명 투표', '중복 투표'];
 
   DateTime? _closeAt;
+  DateTime? _selectedDeadlineDate;
+  TimeOfDay? _selectedDeadlineTime;
   bool _remindBeforeClose = false;
   bool _submitting = false;
 
@@ -90,7 +94,13 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
 
     _closeAt = initial.closeAt?.toLocal();
     if (_closeAt != null) {
-      _deadlineController.text = _formatDeadline(_closeAt!);
+      _selectedDeadlineDate = DateUtils.dateOnly(_closeAt!);
+      _selectedDeadlineTime = TimeOfDay.fromDateTime(_closeAt!);
+      _deadlineDateController.text = formatPostDate(_closeAt!);
+      _deadlineTimeController.text = formatPostTime(
+        _closeAt!.hour,
+        _closeAt!.minute,
+      );
     }
 
     _remindBeforeClose = widget.initialRemindBeforeClose;
@@ -106,7 +116,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
-    _deadlineController.dispose();
+    _deadlineDateController.dispose();
+    _deadlineTimeController.dispose();
     super.dispose();
   }
 
@@ -189,9 +200,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     );
   }
 
-  Future<void> _pickDeadline() async {
+  Future<void> _pickDeadlineDate() async {
     final now = DateTime.now();
-    final initialDate = _closeAt ?? now;
+    final initialDate = _selectedDeadlineDate ?? now;
     final date = await AppTimeBottomSheet.showDatePicker(
       context,
       title: '투표 마감 날짜',
@@ -201,9 +212,19 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     );
     if (date == null || !mounted) return;
 
-    final initialTime = TimeOfDay.fromDateTime(
-      _closeAt ?? _roundUpToTenMinutes(now.add(const Duration(hours: 1))),
-    );
+    setState(() {
+      _selectedDeadlineDate = DateUtils.dateOnly(date);
+      _deadlineDateController.text = formatPostDate(date);
+      _updateDeadline();
+    });
+  }
+
+  Future<void> _pickDeadlineTime() async {
+    final now = DateTime.now();
+    final initialTime = _selectedDeadlineTime ??
+        TimeOfDay.fromDateTime(
+          _roundUpToTenMinutes(now.add(const Duration(hours: 1))),
+        );
     final time = await AppTimeBottomSheet.showTimePicker(
       context,
       title: '투표 마감 시간',
@@ -212,6 +233,22 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     );
     if (time == null || !mounted) return;
 
+    setState(() {
+      _selectedDeadlineTime = time;
+      _deadlineTimeController.text = formatPostTime(time.hour, time.minute);
+      _updateDeadline();
+    });
+  }
+
+  void _updateDeadline() {
+    final date = _selectedDeadlineDate;
+    final time = _selectedDeadlineTime;
+    if (date == null || time == null) {
+      _closeAt = null;
+      _deadlineError = null;
+      return;
+    }
+
     final deadline = DateTime(
       date.year,
       date.month,
@@ -219,23 +256,10 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       time.hour,
       time.minute,
     );
-    setState(() {
-      _closeAt = deadline;
-      _deadlineController.text = _formatDeadline(deadline);
-      _deadlineError = deadline.isAfter(DateTime.now())
-          ? null
-          : '투표 마감 시간은 현재 시간 이후여야 합니다.';
-    });
-  }
-
-  String _formatDeadline(DateTime dateTime) {
-    String twoDigits(int value) => value.toString().padLeft(2, '0');
-    const weekdays = <String>['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
-    final period = dateTime.hour < 12 ? '오전' : '오후';
-
-    return '${dateTime.year}. ${twoDigits(dateTime.month)}. '
-        '${twoDigits(dateTime.day)} ${weekdays[dateTime.weekday - 1]} '
-        '$period ${twoDigits(dateTime.hour)}:${twoDigits(dateTime.minute)}';
+    _closeAt = deadline;
+    _deadlineError = deadline.isAfter(DateTime.now())
+        ? null
+        : '투표 마감 시간은 현재 시간 이후여야 합니다.';
   }
 
   DateTime _roundUpToTenMinutes(DateTime dateTime) {
@@ -349,9 +373,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
           : title.length > _maxTitleLength
           ? '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.'
           : null;
-      _contentError = content.isEmpty
-          ? '투표 내용을 입력해주세요.'
-          : content.length > _maxContentLength
+      _contentError = content.length > _maxContentLength
           ? '투표 내용은 $_maxContentLength자 이하로 입력해주세요.'
           : null;
       _pollOptionsError = _pollOptionsValidationMessage();
@@ -384,11 +406,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     final content = value.trim();
 
     setState(() {
-      if (content.length > _maxContentLength) {
-        _contentError = '투표 내용은 $_maxContentLength자 이하로 입력해주세요.';
-      } else if (_contentError != null) {
-        _contentError = content.isEmpty ? '투표 내용을 입력해주세요.' : null;
-      }
+      _contentError = content.length > _maxContentLength
+          ? '투표 내용은 $_maxContentLength자 이하로 입력해주세요.'
+          : null;
     });
   }
 
@@ -520,7 +540,6 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                       _RequiredLabel(
                         text: '내용',
                         color: colors.onSurface,
-                        requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       AppTextArea(
@@ -564,17 +583,48 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
-                      AppTextField(
-                        hintText: '투표 마감 시간을 설정하세요.',
-                        controller: _deadlineController,
-                        readOnly: true,
-                        onTap: _pickDeadline,
-                        suffixIcon: SvgPicture.asset(
-                          'assets/icons/post/clock.svg',
-                        ),
-                        errorText: _deadlineError,
-                        onChanged: (_) {},
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              hintText: '날짜 선택',
+                              controller: _deadlineDateController,
+                              readOnly: true,
+                              onTap: _pickDeadlineDate,
+                              suffixIcon: SvgPicture.asset(
+                                'assets/icons/cal/calendar.svg',
+                              ),
+                              isError: _deadlineError != null,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.x8),
+                          Expanded(
+                            child: AppTextField(
+                              hintText: '시간 선택',
+                              controller: _deadlineTimeController,
+                              readOnly: true,
+                              onTap: _pickDeadlineTime,
+                              suffixIcon: SvgPicture.asset(
+                                'assets/icons/post/clock.svg',
+                              ),
+                              isError: _deadlineError != null,
+                            ),
+                          ),
+                        ],
                       ),
+                      if (_closeAt != null) ...[
+                        const SizedBox(height: AppSpacing.x8),
+                        Text(
+                          formatPostDateTime(_closeAt!),
+                          style: FontStyles.med14.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      if (_deadlineError != null) ...[
+                        const SizedBox(height: AppSpacing.x4),
+                        AppFieldMessage(text: _deadlineError!, isError: true),
+                      ],
                       const SizedBox(height: AppSpacing.x20),
                       Row(
                         children: [

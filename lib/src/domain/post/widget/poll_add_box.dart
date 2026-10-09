@@ -128,10 +128,11 @@ class PollAddBoxState extends State<PollAddBox> {
 
     setState(() {
       _selectedType = type;
+      for (final item in _items) {
+        item.controller.clear();
+      }
     });
 
-    // 타입을 잘못 눌렀다가 돌아오는 경우를 고려해
-    // 기존 입력값은 임의로 삭제하지 않는다.
     _notifyChanged();
   }
 
