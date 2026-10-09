@@ -134,9 +134,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     _pollOptionType = type;
     _pollOptions = options;
 
-    if (_pollOptionsError != null && _arePollOptionsValid()) {
-      _pollOptionsError = null;
-    }
+    _pollOptionsError = null;
 
     // PollAddBox가 initState에서 초기 값을 전달할 수 있으므로,
     // 부모 build 중 setState가 발생하지 않도록 다음 프레임에 버튼 상태를 갱신한다.
@@ -237,6 +235,18 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       _selectedDeadlineTime = time;
       _deadlineTimeController.text = formatPostTime(time.hour, time.minute);
       _updateDeadline();
+    });
+  }
+
+  void _clearDeadline() {
+    setState(() {
+      _selectedDeadlineDate = null;
+      _selectedDeadlineTime = null;
+      _deadlineDateController.clear();
+      _deadlineTimeController.clear();
+      _closeAt = null;
+      _deadlineError = null;
+      _remindBeforeClose = false;
     });
   }
 
@@ -366,6 +376,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     final deadline = _closeAt;
+    final hasPartialDeadline =
+        (_selectedDeadlineDate == null) != (_selectedDeadlineTime == null);
 
     setState(() {
       _titleError = title.isEmpty
@@ -377,11 +389,11 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
           ? '투표 내용은 $_maxContentLength자 이하로 입력해주세요.'
           : null;
       _pollOptionsError = _pollOptionsValidationMessage();
-      _deadlineError = deadline == null
-          ? '투표 마감 시간을 설정해주세요.'
-          : !deadline.isAfter(DateTime.now())
-          ? '투표 마감 시간은 현재 시간 이후여야 합니다.'
-          : null;
+      _deadlineError = hasPartialDeadline
+          ? '투표 마감 날짜와 시간을 모두 선택해주세요.'
+          : deadline != null && !deadline.isAfter(DateTime.now())
+              ? '투표 마감 시간은 현재 시간 이후여야 합니다.'
+              : null;
     });
 
     return _titleError == null &&
@@ -397,7 +409,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       if (title.length > _maxTitleLength) {
         _titleError = '투표 제목은 $_maxTitleLength자 이하로 입력해주세요.';
       } else if (_titleError != null) {
-        _titleError = title.isEmpty ? '투표 제목을 입력해주세요.' : null;
+        _titleError = null;
       }
     });
   }
@@ -474,13 +486,20 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       pollList: options,
       allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
       isAnonymous: _voteSelectedOptions.contains('익명 투표'),
-      remindBeforeClose: _remindBeforeClose,
+      remindBeforeClose: _closeAt != null && _remindBeforeClose,
       closeAt: _closeAt,
     );
   }
 
+  bool get _hasRequiredInputs {
+    return _titleController.text.trim().isNotEmpty &&
+        _pollOptions.length >= 2 &&
+        _pollOptions.every((option) => option.value.trim().isNotEmpty);
+  }
+
   Future<void> _submitPoll() async {
-    if (_submitting || (widget.isEditing && !_hasChanges)) return;
+    if (_submitting || !_hasRequiredInputs ||
+        (widget.isEditing && !_hasChanges)) return;
     if (!_validateRequiredFields()) return;
 
     final request = _buildRequest();
@@ -580,12 +599,12 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                       _RequiredLabel(
                         text: '투표 마감 시간 설정',
                         color: colors.onSurface,
-                        requiredColor: colors.primary,
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       Row(
                         children: [
                           Expanded(
+                            flex: 6,
                             child: AppTextField(
                               hintText: '날짜 선택',
                               controller: _deadlineDateController,
@@ -599,6 +618,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                           ),
                           const SizedBox(width: AppSpacing.x8),
                           Expanded(
+                            flex: 4,
                             child: AppTextField(
                               hintText: '시간 선택',
                               controller: _deadlineTimeController,
@@ -612,6 +632,15 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                           ),
                         ],
                       ),
+                      if (_selectedDeadlineDate != null ||
+                          _selectedDeadlineTime != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _clearDeadline,
+                            child: const Text('마감 시간 삭제'),
+                          ),
+                        ),
                       if (_closeAt != null) ...[
                         const SizedBox(height: AppSpacing.x8),
                         Text(
@@ -647,14 +676,20 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                               ],
                             ),
                           ),
-                          AppSwitch(
-                            value: _remindBeforeClose,
-                            onChanged: (value) {
-                              setState(() => _remindBeforeClose = value);
-                            },
-                            height: 27.0,
-                            width: 50.0,
-                            ballPadding: 2.0,
+                          IgnorePointer(
+                            ignoring: _closeAt == null,
+                            child: Opacity(
+                              opacity: _closeAt == null ? 0.45 : 1,
+                              child: AppSwitch(
+                                value: _remindBeforeClose,
+                                onChanged: (value) {
+                                  setState(() => _remindBeforeClose = value);
+                                },
+                                height: 27.0,
+                                width: 50.0,
+                                ballPadding: 2.0,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -692,7 +727,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitting || (widget.isEditing && !_hasChanges)
+                onPressed: _submitting || !_hasRequiredInputs ||
+                    (widget.isEditing && !_hasChanges)
                     ? null
                     : _submitPoll,
               ),

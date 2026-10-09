@@ -10,9 +10,9 @@ import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
+import 'package:beatit_front_app/src/domain/post/widget/poll_options_preview_sheet.dart';
+import 'package:beatit_front_app/src/domain/post/widget/poll_voters_sheet.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
-import 'package:beatit_front_app/src/domain/etc/view/music_preview_page.dart';
-import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -70,102 +70,36 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   void _showOptionsPreview() {
     final data = _data;
     if (data == null) return;
-    final isMusic = data.pollType == 'MUSIC';
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: context.grays.white,
-      builder: (sheetContext) => SafeArea(
-        child: FractionallySizedBox(
-          heightFactor: 0.58,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.x20),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Text(
-                        isMusic ? '음악 미리듣기' : '장소 미리보기',
-                        textAlign: TextAlign.center,
-                        style: FontStyles.bold20.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: data.pollItems.length,
-                  itemBuilder: (context, index) {
-                    final item = data.pollItems[index];
-                    if (!isMusic) {
-                      return LocationResultWidget(
-                        name: item.locationName ?? item.location ?? '장소',
-                        address: item.roadAddress ?? '',
-                        onTap: item.locationId == null
-                            ? null
-                            : () {
-                                Navigator.of(sheetContext).pop();
-                                Navigator.of(this.context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LocationMapPreviewPage(
-                                      locationId: item.locationId!,
-                                    ),
-                                  ),
-                                );
-                              },
-                      );
-                    }
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.x20,
-                      ),
-                      leading: SvgPicture.asset(
-                        'assets/icons/post/music_symbol.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: ColorFilter.mode(
-                          context.brands.beatOrange1,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                      title: Text(
-                        item.title ?? '',
-                        style: FontStyles.med16.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
-                      subtitle: Text(item.artist ?? ''),
-                      onTap: item.previewUrl == null || item.previewUrl!.isEmpty
-                          ? null
-                          : () {
-                              Navigator.of(sheetContext).pop();
-                              Navigator.of(this.context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => MusicPreviewPage(
-                                    musicTitle: item.title ?? '',
-                                    artist: item.artist ?? '',
-                                    imageUrl: '',
-                                    previewUrl: item.previewUrl!,
-                                  ),
-                                ),
-                              );
-                            },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+      backgroundColor: context.colors.surface,
+      builder: (sheetContext) => PollOptionsPreviewSheet(
+        items: data.pollItems,
+        isMusic: data.pollType == 'MUSIC',
+        onLocationTap: (locationId) {
+          Navigator.of(sheetContext).pop();
+          Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => LocationMapPreviewPage(locationId: locationId),
+          ));
+        },
+      ),
+    );
+  }
+
+  void _showOptionVoters(int index) {
+    final data = _data;
+    if (data == null || data.isAnonymous ||
+        !data.pollItems.any((item) => item.isVoted) ||
+        index < 0 || index >= data.pollItems.length) return;
+    final optionId = data.pollItems[index].itemId;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.colors.surface,
+      isScrollControlled: true,
+      builder: (_) => PollVotersSheet(
+        loadVoters: () => ref.read(postApiProvider)
+            .getPollOptionVoters(widget.pollId, optionId),
       ),
     );
   }
@@ -455,6 +389,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                                 return false;
                               }
                             },
+                            onParticipantTap: _showOptionVoters,
                             onMapTap: (index) {
                               final locationId =
                                   _data!.pollItems[index].locationId;

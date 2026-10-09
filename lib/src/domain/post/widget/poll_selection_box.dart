@@ -384,7 +384,11 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                       trailing: _showResults
                           ? _PollNumWidget(
                               text: '${_voteCounts[i]}명',
-                              onTap: () => widget.onParticipantTap?.call(i),
+                              onTap: widget.onParticipantTap != null &&
+                                  !widget.isAnonymous && _hasVoted &&
+                                  _voteCounts[i] > 0
+                              ? () => widget.onParticipantTap?.call(i)
+                              : null,
                               color:
                                   _maxVoteCount > 0 &&
                                       _voteCounts[i] == _maxVoteCount
@@ -421,7 +425,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
         ),
         const SizedBox(height: AppSpacing.x12),
 
-        if (!_showResults && widget.onPreviewTap != null) ...[
+        if (widget.onPreviewTap != null) ...[
           Container(
             height: 28.0,
             alignment: Alignment.centerRight,
@@ -565,7 +569,7 @@ class _TextLinkButton extends StatelessWidget {
   final String text;
   final String iconLink;
   final double iconSize;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color color;
 
   @override
@@ -625,13 +629,13 @@ class _PollNumWidget extends StatelessWidget {
   });
 
   final String text;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true,
+      button: onTap != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

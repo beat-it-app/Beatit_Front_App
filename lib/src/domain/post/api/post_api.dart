@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:beatit_front_app/src/domain/post/model/poll_voter.dart';
 
 import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
@@ -122,6 +123,27 @@ class PostApi {
         data: PollDetailResponse.fromJson(body).data,
         remindBeforeClose: remindBeforeClose,
       );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
+  Future<List<PollVoter>> getPollOptionVoters(int pollId, int optionId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_pollPath/$pollId/options/$optionId/voters',
+      );
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '투표자 명단을 불러오지 못했습니다.',
+      );
+      final data = body['data'];
+      if (data is! List) {
+        throw const FormatException('투표자 명단 응답 형식이 올바르지 않습니다.');
+      }
+      return data.whereType<Map>().map((item) => PollVoter.fromJson(
+        Map<String, dynamic>.from(item),
+      )).toList(growable: false);
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
