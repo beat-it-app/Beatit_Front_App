@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/domain/auth/view/mypage/my_page.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_list_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_main_page.dart';
@@ -36,8 +37,7 @@ class _MainShellState extends State<MainShell> {
 
     ListChatPage(),
 
-    // TODO: 실제 마이페이지 화면으로 교체
-    _TemporaryMainPage(title: '마이페이지'),
+    MyPageView(),
   ];
 
   @override
