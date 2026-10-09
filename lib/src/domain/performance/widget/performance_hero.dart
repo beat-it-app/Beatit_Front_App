@@ -16,10 +16,14 @@ class PerformanceHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final until = performance.bookingClosesAt ?? performance.startsAt;
-    final remaining = DateUtils.dateOnly(until)
-        .difference(DateUtils.dateOnly(DateTime.now())).inDays;
-    final dayLabel = remaining == 0 ? 'D-Day'
-        : remaining > 0 ? 'D-$remaining' : 'D+${-remaining}';
+    final remaining = DateUtils.dateOnly(
+      until,
+    ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+    final dayLabel = remaining == 0
+        ? 'D-Day'
+        : remaining > 0
+        ? 'D-$remaining'
+        : 'D+${-remaining}';
 
     return SizedBox(
       height: 600,
@@ -39,19 +43,23 @@ class PerformanceHero extends StatelessWidget {
             bottom: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.x20, 68, AppSpacing.x20, AppSpacing.x30,
+                AppSpacing.x20,
+                68,
+                AppSpacing.x20,
+                AppSpacing.x30,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
-                    width: 208,
+                    width: 242,
                     child: AspectRatio(
-                      aspectRatio: 165 / 210,
+                      aspectRatio: 242 / 307,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(2),
-                        child: (performance.posterUrl?.isNotEmpty ?? false) ||
-                              performance.posterFile != null
+                        child:
+                            (performance.posterUrl?.isNotEmpty ?? false) ||
+                                performance.posterFile != null
                             ? _poster(fit: BoxFit.cover)
                             : const ColoredBox(color: AppColor.gray8),
                       ),
@@ -60,26 +68,35 @@ class PerformanceHero extends StatelessWidget {
                   const SizedBox(height: AppSpacing.x24),
                   Text(
                     '${performance.startsAt.year}. ${performance.startsAt.month}. ${performance.startsAt.day}.',
-                    style: FontStyles.med14.copyWith(color: AppColor.beatOrange2),
+                    style: FontStyles.med15.copyWith(
+                      color: AppColor.beatOrange2,
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.x8),
+                  const SizedBox(height: AppSpacing.x10),
                   Text(
                     performance.title,
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: FontStyles.bold22.copyWith(color: AppColor.white),
+                    style: FontStyles.bold26.copyWith(color: AppColor.white),
                   ),
-                  const SizedBox(height: AppSpacing.x12),
+                  const SizedBox(height: AppSpacing.x20),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColor.beatOrange2),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Text(dayLabel,
-                        style: FontStyles.med12.copyWith(color: AppColor.beatOrange2)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        dayLabel,
+                        style: FontStyles.reg14.copyWith(
+                          color: AppColor.beatOrange2,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -96,7 +113,8 @@ class PerformanceHero extends StatelessWidget {
       return PerformanceXFileImage(file: performance.posterFile!, fit: fit);
     }
     return Image.network(
-      performance.posterUrl!, fit: fit,
+      performance.posterUrl!,
+      fit: fit,
       errorBuilder: (_, __, ___) => const ColoredBox(color: AppColor.gray8),
     );
   }

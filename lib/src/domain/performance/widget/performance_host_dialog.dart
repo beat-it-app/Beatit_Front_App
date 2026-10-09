@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/domain/performance/model/performance_data.d
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// team_invite_dialog의 간격·제목·회색 정보 박스·버튼 배치를 따른다.
 Future<void> showPerformanceHostDialog({
@@ -25,20 +26,21 @@ Future<void> showPerformanceHostDialog({
               ? raw
               : 'https://$raw',
         );
-        if (uri == null || !uri.hasAuthority ||
+        if (uri == null ||
+            !uri.hasAuthority ||
             !(await launchUrl(uri, mode: LaunchMode.externalApplication))) {
           if (!dialogContext.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('링크를 열 수 없습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('링크를 열 수 없습니다.')));
         }
       } else {
         await Clipboard.setData(ClipboardData(text: contact));
         if (!dialogContext.mounted) return;
         Navigator.of(dialogContext).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('연락처가 복사되었습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('연락처가 복사되었습니다.')));
       }
     }
 
@@ -50,13 +52,15 @@ Future<void> showPerformanceHostDialog({
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.x20,
-            vertical: 44,
+            vertical: 33,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('공연 호스트 정보',
-                  style: FontStyles.bold22.copyWith(color: context.grays.black)),
+              Text(
+                '공연 호스트 정보',
+                style: FontStyles.bold22.copyWith(color: context.grays.black),
+              ),
               const SizedBox(height: AppSpacing.x20),
               Text(
                 isLink
@@ -76,19 +80,31 @@ Future<void> showPerformanceHostDialog({
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('[$hostName] 문의하기',
-                        style: FontStyles.semi16.copyWith(
-                          color: context.grays.black,
-                        )),
+                    Text(
+                      '[$hostName] 문의하기',
+                      style: FontStyles.semi16.copyWith(
+                        color: context.grays.black,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.x8),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Icon(isLink ? Icons.link : Icons.call,
-                            size: 20, color: context.grays.gray2),
+                        SvgPicture.asset(
+                          isLink
+                              ? 'assets/icons/performance/link.svg'
+                              : 'assets/icons/performance/call.svg',
+                          colorFilter: ColorFilter.mode(
+                            context.grays.gray1,
+                            BlendMode.srcIn,
+                          ),
+                          width: 16.0,
+                          height: 16.0,
+                        ),
                         const SizedBox(width: AppSpacing.x8),
                         Expanded(
-                          child: Text(contact,
+                          child: Text(
+                            contact,
                             style: FontStyles.reg16.copyWith(
                               color: isLink
                                   ? context.brands.beatOrange2
@@ -105,7 +121,9 @@ Future<void> showPerformanceHostDialog({
               const SizedBox(height: AppSpacing.x12),
               _DialogActionButton(
                 text: isLink ? '링크로 이동' : '연락처 복사',
-                icon: isLink ? Icons.link : Icons.copy_rounded,
+                iconLink: isLink
+                    ? 'assets/icons/performance/link.svg'
+                    : 'assets/icons/performance/copy.svg',
                 onPressed: act,
                 primary: true,
               ),
@@ -128,13 +146,13 @@ class _DialogActionButton extends StatelessWidget {
     required this.text,
     required this.onPressed,
     required this.primary,
-    this.icon,
+    this.iconLink,
   });
 
   final String text;
   final VoidCallback onPressed;
   final bool primary;
-  final IconData? icon;
+  final String? iconLink;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -150,12 +168,20 @@ class _DialogActionButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 20,
-              color: primary ? context.grays.white : context.grays.gray4),
+          if (iconLink != null) ...[
+            SvgPicture.asset(
+              iconLink!,
+              colorFilter: ColorFilter.mode(
+                context.grays.white,
+                BlendMode.srcIn,
+              ),
+              width: 20.0,
+              height: 20.0,
+            ),
             const SizedBox(width: AppSpacing.x8),
           ],
-          Text(text,
+          Text(
+            text,
             style: FontStyles.semi16.copyWith(
               color: primary ? context.grays.white : context.grays.gray4,
             ),

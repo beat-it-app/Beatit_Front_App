@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/domain/performance/model/performance_data.d
 import 'package:beatit_front_app/src/domain/performance/widget/performance_host_dialog.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_location_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PerformanceInfoSection extends StatelessWidget {
@@ -24,7 +25,10 @@ class PerformanceInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(
-      AppSpacing.x20, AppSpacing.x24, AppSpacing.x20, AppSpacing.x40,
+      AppSpacing.x20,
+      AppSpacing.x24,
+      AppSpacing.x20,
+      AppSpacing.x40,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,7 +38,8 @@ class PerformanceInfoSection extends StatelessWidget {
         _InfoItem(
           label: '공연 소개',
           content: performance.introduction.isEmpty
-              ? '등록된 공연 소개가 없습니다.' : performance.introduction,
+              ? '등록된 공연 소개가 없습니다.'
+              : performance.introduction,
         ),
         _InfoItem(
           label: '공연 시간',
@@ -43,10 +48,7 @@ class PerformanceInfoSection extends StatelessWidget {
         if (performance.location != null)
           PerformanceLocationSection(location: performance.location!),
         if (performance.ticketTypes.isNotEmpty)
-          _InfoItem(
-            label: '티켓 정보',
-            content: _ticketDescription(performance),
-          ),
+          _InfoItem(label: '티켓 정보', content: _ticketDescription(performance)),
         if (performance.bookingUrl.trim().isNotEmpty)
           _InfoItem(
             label: '예매 링크',
@@ -54,17 +56,33 @@ class PerformanceInfoSection extends StatelessWidget {
             onTap: () => _launchExternalLink(context, performance.bookingUrl),
           ),
         if (performance.hostName.trim().isNotEmpty) ...[
-          Text('호스트',
-              style: FontStyles.reg12.copyWith(color: context.grays.gray5)),
+          Row(
+            children: [
+              SvgPicture.asset(
+                'assets/icons/performance/lines.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray5,
+                  BlendMode.srcIn,
+                ),
+              ),
+              Text(
+                '호스트',
+                style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.x8),
           Row(
             children: [
-              Expanded(
-                child: Text(performance.hostName,
-                    style: FontStyles.med16.copyWith(
-                      color: context.colors.onSurface,
-                    )),
+              Text(
+                performance.hostName,
+                style: FontStyles.med16.copyWith(
+                  color: context.colors.onSurface,
+                ),
               ),
+              const SizedBox(width: AppSpacing.x8),
               if (performance.hostContact.trim().isNotEmpty &&
                   performance.hostContactType != null)
                 InkWell(
@@ -74,12 +92,14 @@ class PerformanceInfoSection extends StatelessWidget {
                     contactType: performance.hostContactType!,
                     contact: performance.hostContact,
                   ),
-                  child: Text('문의하기',
+                  child: Text(
+                    '문의하기',
                     style: FontStyles.med14.copyWith(
                       color: context.brands.beatOrange2,
                       decoration: TextDecoration.underline,
                       decorationColor: context.brands.beatOrange2,
-                    )),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -89,7 +109,8 @@ class PerformanceInfoSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.x8),
           AppButton(
             text: '응답 보기',
-            onPressed: onViewResponses ??
+            onPressed:
+                onViewResponses ??
                 () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('응답 조회 기능은 아직 연결되지 않았습니다.')),
                 ),
@@ -101,11 +122,7 @@ class PerformanceInfoSection extends StatelessWidget {
 }
 
 class _InfoItem extends StatelessWidget {
-  const _InfoItem({
-    required this.label,
-    required this.content,
-    this.onTap,
-  });
+  const _InfoItem({required this.label, required this.content, this.onTap});
 
   final String label;
   final String content;
@@ -117,19 +134,40 @@ class _InfoItem extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: FontStyles.reg12.copyWith(color: context.grays.gray5)),
+        Row(
+          children: [
+            SvgPicture.asset(
+              'assets/icons/performance/lines.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                context.grays.gray5,
+                BlendMode.srcIn,
+              ),
+            ),
+            Text(
+              label,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.x8),
         InkWell(
           onTap: onTap,
-          child: Text(content,
-            style: FontStyles.reg14.copyWith(
+          child: Text(
+            content,
+            style: FontStyles.med16.copyWith(
               color: onTap == null
-                  ? context.colors.onSurface
+                  ? context.grays.gray2
                   : context.brands.beatOrange2,
               decoration: onTap == null
-                  ? TextDecoration.none : TextDecoration.underline,
-            )),
+                  ? TextDecoration.none
+                  : TextDecoration.underline,
+              decorationColor: onTap == null
+                  ? null
+                  : context.brands.beatOrange2,
+            ),
+          ),
         ),
       ],
     ),
@@ -144,7 +182,10 @@ class PerformanceDetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(
-      AppSpacing.x20, AppSpacing.x24, AppSpacing.x20, AppSpacing.x40,
+      AppSpacing.x20,
+      AppSpacing.x24,
+      AppSpacing.x20,
+      AppSpacing.x40,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,17 +210,21 @@ class PerformanceDetailSection extends StatelessWidget {
         ],
         if (!performance.hasNoDetails &&
             performance.detailDescription.trim().isNotEmpty)
-          Text(performance.detailDescription,
-              style: FontStyles.reg14.copyWith(
-                color: context.colors.onSurface,
-                height: 1.5,
-              )),
+          Text(
+            performance.detailDescription,
+            style: FontStyles.reg14.copyWith(
+              color: context.colors.onSurface,
+              height: 1.5,
+            ),
+          ),
         if ((performance.detailImageUrls.isEmpty &&
                 performance.detailImageFiles.isEmpty) &&
             (performance.hasNoDetails ||
                 performance.detailDescription.trim().isEmpty))
-          Text('등록된 상세 정보가 없습니다.',
-              style: FontStyles.reg14.copyWith(color: context.grays.gray5)),
+          Text(
+            '등록된 상세 정보가 없습니다.',
+            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          ),
       ],
     ),
   );
@@ -201,8 +246,9 @@ String _ticketDescription(PerformanceDetailData data) {
   ]) {
     if (data.ticketTypes.contains(entry.$1)) {
       final price = data.ticketPrices[entry.$1];
-      parts.add(price == null || price.isEmpty
-          ? entry.$2 : '${entry.$2} ${price}원');
+      parts.add(
+        price == null || price.isEmpty ? entry.$2 : '${entry.$2} ${price}원',
+      );
     }
   }
   return parts.join(' / ');
@@ -212,13 +258,15 @@ Future<void> _launchExternalLink(BuildContext context, String url) async {
   final raw = url.trim();
   final uri = Uri.tryParse(
     raw.startsWith('http://') || raw.startsWith('https://')
-        ? raw : 'https://$raw',
+        ? raw
+        : 'https://$raw',
   );
-  if (uri == null || !uri.hasAuthority ||
+  if (uri == null ||
+      !uri.hasAuthority ||
       !(await launchUrl(uri, mode: LaunchMode.externalApplication))) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('예매 링크를 열 수 없습니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('예매 링크를 열 수 없습니다.')));
   }
 }

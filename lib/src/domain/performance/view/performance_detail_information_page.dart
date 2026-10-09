@@ -169,12 +169,12 @@ class _PerformanceDetailInformationPageState
                         children: [
                           SvgPicture.asset(
                             'assets/icons/check/check.svg',
-                            width: 16,
-                            height: 16,
+                            width: 24,
+                            height: 24,
                             colorFilter: ColorFilter.mode(
                               _hasNoDetails
                                   ? context.brands.beatOrange1
-                                  : context.grays.gray5,
+                                  : context.grays.gray6,
                               BlendMode.srcIn,
                             ),
                           ),
@@ -182,8 +182,8 @@ class _PerformanceDetailInformationPageState
                           Expanded(
                             child: Text(
                               '이 공연은 상세 정보를 제공하지 않습니다.',
-                              style: FontStyles.reg14.copyWith(
-                                color: context.grays.gray4,
+                              style: FontStyles.semi14.copyWith(
+                                color: context.grays.black,
                               ),
                             ),
                           ),

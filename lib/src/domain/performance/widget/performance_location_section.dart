@@ -74,15 +74,19 @@ class _PerformanceLocationSectionState
         name: location.locationName ?? location.roadAddress ?? '공연 장소',
       );
     }
-    return ref.watch(locationDetailProvider(location.locationId)).when(
-      loading: () => _locationContent(name: location.locationName ?? '장소 불러오는 중...'),
-      error: (_, __) => _locationContent(name: location.locationName ?? '공연 장소'),
-      data: (detail) => _locationContent(
-        name: detail.locationName ?? location.locationName ?? '공연 장소',
-        latitude: detail.latitude,
-        longitude: detail.longitude,
-      ),
-    );
+    return ref
+        .watch(locationDetailProvider(location.locationId))
+        .when(
+          loading: () =>
+              _locationContent(name: location.locationName ?? '장소 불러오는 중...'),
+          error: (_, __) =>
+              _locationContent(name: location.locationName ?? '공연 장소'),
+          data: (detail) => _locationContent(
+            name: detail.locationName ?? location.locationName ?? '공연 장소',
+            latitude: detail.latitude,
+            longitude: detail.longitude,
+          ),
+        );
   }
 
   Widget _locationContent({
@@ -101,13 +105,16 @@ class _PerformanceLocationSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('공연 장소',
-              style: FontStyles.reg12.copyWith(color: context.grays.gray5)),
+          Text(
+            '공연 장소',
+            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          ),
           const SizedBox(height: AppSpacing.x8),
           Row(
             children: [
               Expanded(
-                child: Text(name,
+                child: Text(
+                  name,
                   style: FontStyles.reg14.copyWith(
                     color: context.colors.onSurface,
                   ),
@@ -119,21 +126,25 @@ class _PerformanceLocationSectionState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('지도보기',
+                      Text(
+                        '지도보기',
                         style: FontStyles.med14.copyWith(
                           color: context.brands.beatOrange2,
                           decoration: TextDecoration.underline,
                           decorationColor: context.brands.beatOrange2,
-                        )),
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.x4),
                       AnimatedRotation(
                         turns: _showMap ? 0.5 : 0,
                         duration: const Duration(milliseconds: 220),
                         child: SvgPicture.asset(
                           'assets/icons/cal/toggle_down.svg',
-                          width: 20, height: 20,
+                          width: 20,
+                          height: 20,
                           colorFilter: ColorFilter.mode(
-                            context.brands.beatOrange2, BlendMode.srcIn,
+                            context.brands.beatOrange2,
+                            BlendMode.srcIn,
                           ),
                         ),
                       ),
@@ -171,4 +182,3 @@ class _PerformanceLocationSectionState
     );
   }
 }
-

@@ -56,8 +56,9 @@ class _PerformanceDetailPageState extends State<PerformanceDetailPage> {
     }
   }
 
-  void _unavailable(String message) => ScaffoldMessenger.of(context)
-    .showSnackBar(SnackBar(content: Text(message)));
+  void _unavailable(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
@@ -81,32 +82,37 @@ class _PerformanceDetailPageState extends State<PerformanceDetailPage> {
                       context: context,
                       removeTop: true,
                       child: Theme(
-                      // 헤더의 배경만 투명하게. 아이콘 색상은 optional parameter로
-                      // 지정해서 드롭다운 글씨까지 흰색으로 바뀌지 않게 한다.
-                      data: Theme.of(context).copyWith(
-                        scaffoldBackgroundColor: Colors.transparent,
-                      ),
-                      child: widget.isMine
-                          ? AppTopAppBar.backMore(
-                              actionIconColor: AppColor.white,
-                              onBackPressed: () => Navigator.of(context).maybePop(),
-                              moreMenuOffset: const Offset(-16, 56),
-                              moreMenuItems: [
-                                AppDropdownItem(
-                                  label: '수정하기',
-                                  onPressed: widget.onEdit ?? () =>
-                                      _unavailable('공연 수정 기능은 아직 연결되지 않았습니다.'),
-                                ),
-                                AppDropdownItem(
-                                  label: '삭제하기',
-                                  onPressed: _confirmDelete,
-                                ),
-                              ],
-                            )
-                          : AppTopAppBar.backOnly(
-                              actionIconColor: AppColor.white,
-                              onBackPressed: () => Navigator.of(context).maybePop(),
-                            ),
+                        // 헤더의 배경만 투명하게. 아이콘 색상은 optional parameter로
+                        // 지정해서 드롭다운 글씨까지 흰색으로 바뀌지 않게 한다.
+                        data: Theme.of(
+                          context,
+                        ).copyWith(scaffoldBackgroundColor: Colors.transparent),
+                        child: widget.isMine
+                            ? AppTopAppBar.backMore(
+                                actionIconColor: AppColor.white,
+                                onBackPressed: () =>
+                                    Navigator.of(context).maybePop(),
+                                moreMenuOffset: const Offset(-16, 56),
+                                moreMenuItems: [
+                                  AppDropdownItem(
+                                    label: '수정하기',
+                                    onPressed:
+                                        widget.onEdit ??
+                                        () => _unavailable(
+                                          '공연 수정 기능은 아직 연결되지 않았습니다.',
+                                        ),
+                                  ),
+                                  AppDropdownItem(
+                                    label: '삭제하기',
+                                    onPressed: _confirmDelete,
+                                  ),
+                                ],
+                              )
+                            : AppTopAppBar.backOnly(
+                                actionIconColor: AppColor.white,
+                                onBackPressed: () =>
+                                    Navigator.of(context).maybePop(),
+                              ),
                       ),
                     ),
                   ),
@@ -142,10 +148,14 @@ class _BookingDeadlineBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deadline = performance.bookingClosesAt;
-    final remaining = DateUtils.dateOnly(deadline ?? performance.startsAt)
-        .difference(DateUtils.dateOnly(DateTime.now())).inDays;
-    final dayLabel = remaining == 0 ? 'D-Day'
-        : remaining > 0 ? 'D-$remaining' : 'D+${-remaining}';
+    final remaining = DateUtils.dateOnly(
+      deadline ?? performance.startsAt,
+    ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+    final dayLabel = remaining == 0
+        ? 'D-Day'
+        : remaining > 0
+        ? 'D-$remaining'
+        : 'D+${-remaining}';
     final dateText = deadline == null
         ? '공연일 ${_formatDate(performance.startsAt)}'
         : '공연 예매 마감일 ${_formatDate(deadline)}';
@@ -153,8 +163,8 @@ class _BookingDeadlineBand extends StatelessWidget {
     return Container(
       color: AppColor.black,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.x16,
-        vertical: AppSpacing.x12,
+        horizontal: AppSpacing.x20,
+        vertical: AppSpacing.x16,
       ),
       child: Row(
         children: [
@@ -164,16 +174,19 @@ class _BookingDeadlineBand extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Text(dayLabel,
-                style: FontStyles.med12.copyWith(color: AppColor.beatOrange2)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: Text(
+                dayLabel,
+                style: FontStyles.reg14.copyWith(color: AppColor.beatOrange2),
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.x10),
           Expanded(
-            child: Text(dateText,
+            child: Text(
+              dateText,
               maxLines: 2,
-              style: FontStyles.med14.copyWith(color: AppColor.beatOrange2),
+              style: FontStyles.med15.copyWith(color: AppColor.beatOrange2),
             ),
           ),
         ],
@@ -184,8 +197,8 @@ class _BookingDeadlineBand extends StatelessWidget {
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
   String _formatDate(DateTime date) =>
-    '${date.year}. ${date.month}. ${date.day}. '
-    '(${_weekdays[date.weekday - 1]}) '
-    '${date.hour.toString().padLeft(2, '0')}:'
-    '${date.minute.toString().padLeft(2, '0')}';
+      '${date.year}. ${date.month}. ${date.day}. '
+      '(${_weekdays[date.weekday - 1]}) '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
 }
