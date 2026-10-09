@@ -13,6 +13,7 @@ class LocationApi {
 
   Future<List<LocationSearchResult>> searchLocations({
     required String query,
+    int page = 0,
     double? latitude,
     double? longitude,
   }) async {
@@ -21,6 +22,7 @@ class LocationApi {
         _searchPath,
         queryParameters: {
           'query': query,
+          'page': page,
           if (latitude != null) 'latitude': latitude,
           if (longitude != null) 'longitude': longitude,
         },

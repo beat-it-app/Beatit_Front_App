@@ -47,7 +47,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
   }
 
   void _handleSearchChanged(String value) {
-    if (value.trim().isEmpty) {
+    if (value.trim() != ref.read(locationSearchProvider).query) {
       ref.read(locationSearchProvider.notifier).clearSearchResults();
     }
   }
@@ -75,7 +75,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
       _refreshMainSearchWithoutReferenceIfNeeded();
     }
 
-    if (value.trim().isEmpty) {
+    if (value.trim() != ref.read(locationSearchProvider).referenceQuery) {
       ref.read(locationSearchProvider.notifier).clearReferenceSearchResults();
     }
   }
@@ -167,6 +167,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
     final searchState = ref.watch(locationSearchProvider);
     final showReferenceResults =
         searchState.isReferenceLoading ||
+        searchState.isReferenceLoadingMore ||
         searchState.referenceErrorMessage != null ||
         searchState.referenceResults.isNotEmpty;
 
@@ -236,12 +237,20 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
                     child: showReferenceResults
                         ? _LocationResultList(
                             isLoading: searchState.isReferenceLoading,
+                            isLoadingMore: searchState.isReferenceLoadingMore,
+                            hasMore: searchState.referenceHasMore,
+                            onLoadMore: () => ref.read(locationSearchProvider.notifier)
+                                .loadMoreReferenceLocations(),
                             errorMessage: searchState.referenceErrorMessage,
                             results: searchState.referenceResults,
                             onTap: _handleReferenceSelected,
                           )
                         : _LocationResultList(
                             isLoading: searchState.isLoading,
+                            isLoadingMore: searchState.isLoadingMore,
+                            hasMore: searchState.hasMore,
+                            onLoadMore: () => ref.read(locationSearchProvider.notifier)
+                                .loadMoreLocations(),
                             errorMessage: searchState.errorMessage,
                             results: searchState.results,
                             selectedLocation: searchState.selectedLocation,
@@ -265,6 +274,9 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
 class _LocationResultList extends StatelessWidget {
   const _LocationResultList({
     required this.isLoading,
+    required this.isLoadingMore,
+    required this.hasMore,
+    required this.onLoadMore,
     required this.results,
     required this.onTap,
     this.errorMessage,
@@ -272,6 +284,9 @@ class _LocationResultList extends StatelessWidget {
   });
 
   final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final VoidCallback onLoadMore;
   final String? errorMessage;
   final List<LocationSearchResult> results;
   final LocationSearchResult? selectedLocation;
@@ -283,7 +298,7 @@ class _LocationResultList extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (errorMessage != null) {
+    if (errorMessage != null && results.isEmpty) {
       return Center(
         child: Text(
           errorMessage!,
@@ -297,10 +312,29 @@ class _LocationResultList extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return ListView.builder(
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.extentAfter < 240 && hasMore && !isLoadingMore &&
+            errorMessage == null) {
+          onLoadMore();
+        }
+        return false;
+      },
+      child: ListView.builder(
       padding: EdgeInsets.zero,
-      itemCount: results.length,
+      itemCount: results.length + (isLoadingMore || errorMessage != null ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == results.length) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.x16),
+            child: isLoadingMore
+                ? const CircularProgressIndicator()
+                : TextButton(
+                    onPressed: onLoadMore,
+                    child: const Text('검색 결과 더 불러오기'),
+                  ),
+          ));
+        }
         final location = results[index];
 
         return LocationResultWidget(
@@ -311,6 +345,7 @@ class _LocationResultList extends StatelessWidget {
           onTap: () => onTap(location),
         );
       },
+      ),
     );
   }
 }
