@@ -245,21 +245,30 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                       Positioned.fill(
                         child: Container(color: Colors.black.withOpacity(0.5)),
                       ),
-
+                      Positioned(
+                        top: AppSpacing.x20,
+                        right: AppSpacing.x20,
+                        child: Image.asset(
+                          'assets/images/auth/profile_orange.png',
+                          width: 46,
+                          height: 46,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.all(AppSpacing.x20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              currentTeam?.type ?? 'Band',
+                              currentTeam?.type ?? '',
                               style: FontStyles.med14.copyWith(
                                 color: context.colors.primary,
                               ),
                             ),
                             const Spacer(),
                             Text(
-                              currentTeam?.name ?? '소속된 팀이 없습니다',
+                              currentTeam?.name ?? '현재 참여 중인 팀이 없습니다.',
                               style: FontStyles.bold22.copyWith(
                                 color: Colors.white,
                               ),
@@ -268,7 +277,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                             Text(
                               currentTeam != null
                                   ? '${currentTeam.leaderName} 외 ${currentTeam.memberCount > 1 ? currentTeam.memberCount - 1 : 0}명'
-                                  : '팀을 생성하거나 참여해보세요',
+                                  : '+ 버튼을 눌러 팀을 생성해보세요.',
                               style: FontStyles.reg16.copyWith(
                                 color: Colors.white70,
                               ),

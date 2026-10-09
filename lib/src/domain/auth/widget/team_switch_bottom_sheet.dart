@@ -112,21 +112,39 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SizedBox(width: 24),
-                Text(
-                  '팀 전환하기',
-                  style: FontStyles.bold20.copyWith(color: colors.onSurface),
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: Icon(Icons.close, color: colors.onSurface, size: 24),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
+            SizedBox(
+              height: 62,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    top: 24,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Text(
+                        '팀 전환하기',
+                        style: FontStyles.bold26.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Positioned(
+                    top: 10,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Icon(
+                        Icons.close,
+                        color: colors.onSurface,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.x20),
