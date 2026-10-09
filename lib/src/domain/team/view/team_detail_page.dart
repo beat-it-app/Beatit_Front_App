@@ -1,4 +1,3 @@
-import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,33 +8,33 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/domain/team/model/team_detail_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_member_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 
 class TeamDetailPage extends ConsumerStatefulWidget {
-  const TeamDetailPage({super.key});
+  // 💡 TeamEntryPage에서 이미 가져온 팀 데이터를 직접 주입받을 수 있도록 설정
+  final TeamDetailModel? teamDetail;
+
+  const TeamDetailPage({super.key, this.teamDetail});
 
   @override
   ConsumerState<TeamDetailPage> createState() => _TeamDetailPageState();
 }
 
 class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
-  bool _hasFetched = false;
-  bool _isNavigatingBack = false;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_hasFetched && mounted) {
-        _hasFetched = true;
-        // GET /teams 호출
+    // 외부에서 데이터를 주입받지 않은 경우(예: 직접 라우팅된 경우)에만 자체 API 호출
+    if (widget.teamDetail == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(teamDetailProvider.notifier).fetchTeamDetail();
-      }
-    });
+      });
+    }
   }
 
   Future<void> _launchUrlString(String urlStr) async {
@@ -50,26 +49,17 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    ref.listen<TeamDetailState>(teamDetailProvider, (previous, next) {
-      if (next.navigateToSelectPage && !_isNavigatingBack && mounted) {
-        _isNavigatingBack = true;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const TeamSelectPage()),
-        );
-      }
-    });
-
+    // 💡 주입받은 데이터가 있으면 사용하고, 없으면 teamDetailProvider 상태 사용
     final state = ref.watch(teamDetailProvider);
+    final TeamDetailModel? detail = widget.teamDetail ?? state.teamDetail;
 
-    // 로딩 중이거나 선택 페이지로 리다이렉트 중일 때 인디케이터 표시
-    if (state.isLoading || state.navigateToSelectPage) {
+    if (detail == null && state.isLoading) {
       return Scaffold(
         backgroundColor: colors.surface,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    final detail = state.teamDetail;
     if (detail == null) {
       return Scaffold(
         backgroundColor: colors.surface,
@@ -101,6 +91,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                         ),
                       )
                       .then((_) {
+                        // 수정 후 복귀 시 최신 데이터 갱신
+                        ref.invalidate(currentTeamProvider);
                         ref.read(teamDetailProvider.notifier).fetchTeamDetail();
                       });
                 }
@@ -288,7 +280,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
       width: double.infinity,
       child: Stack(
         children: [
-          // 1. 프로필 배경 사진
           Positioned.fill(
             child: hasImage
                 ? Image.network(
@@ -304,8 +295,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                     fit: BoxFit.cover,
                   ),
           ),
-
-          // 2. 그라데이션 오버레이
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -320,8 +309,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
               ),
             ),
           ),
-
-          // 3. 프로필 타이틀 및 SNS
           Positioned(
             top: 190,
             left: 0,
@@ -343,8 +330,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   style: FontStyles.reg12.copyWith(color: context.grays.gray4),
                 ),
                 const SizedBox(height: 18),
-
-                // 유효한 SNS 링크만 가운데 정렬 렌더링
                 _buildDynamicSocialLinks(detail.links),
               ],
             ),
@@ -473,7 +458,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // members를 사용한 멤버 목록 가로 스크롤
+  // 멤버 목록 가로 스크롤
   Widget _buildMemberList(BuildContext context, TeamDetailModel detail) {
     if (detail.members.isEmpty) {
       return SizedBox(
@@ -531,7 +516,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           as ImageProvider,
               ),
               const SizedBox(height: 6),
-              // 멤버 이름
               Text(
                 member.userName.isNotEmpty ? member.userName : '이름 없음',
                 style: FontStyles.semi16.copyWith(
@@ -539,7 +523,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                 ),
               ),
               const SizedBox(height: 2),
-              // 멤버 포지션
               Text(
                 (member.position != null && member.position!.trim().isNotEmpty)
                     ? member.position!
@@ -553,7 +536,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 4. 다가오는 일정 섹션 (데이터 없을 때 Empty Box 렌더링)
+  // 다가오는 일정 섹션 (빈 상태)
   Widget _buildScheduleSection(BuildContext context) {
     return _buildEmptyBox(
       context,
@@ -569,7 +552,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 5. 다가오는 LIVE 공연 섹션 (데이터 없을 때 Empty Box 렌더링)
+  // 다가오는 LIVE 공연 섹션 (빈 상태)
   Widget _buildLiveConcertList(BuildContext context) {
     return _buildEmptyBox(
       context,
@@ -585,7 +568,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // Empty State 공통 박스 위젯
   Widget _buildEmptyBox(
     BuildContext context, {
     required Widget iconWidget,
@@ -636,7 +618,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 하단 액션 버튼
   Widget _buildActionButton(
     BuildContext context, {
     required String svgPath,
