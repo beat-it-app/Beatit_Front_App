@@ -144,12 +144,34 @@ class AuthApi {
     }
   }
 
-  Future<AuthLoginResult> login(LoginRequest request) {
-    return _authenticate(path: _loginPath, data: request.toJson());
+  Future<AuthLoginResult> login(
+    LoginRequest request, {
+    Map<String, dynamic> deviceFields = const {},
+  }) {
+    return _authenticate(
+      path: _loginPath,
+      data: {...request.toJson(), ...deviceFields},
+    );
   }
 
-  Future<AuthLoginResult> loginWithGoogle(GoogleLoginRequest request) {
-    return _authenticate(path: _googleLoginPath, data: request.toJson());
+  Future<AuthLoginResult> loginWithGoogle(
+    GoogleLoginRequest request, {
+    Map<String, dynamic> deviceFields = const {},
+  }) {
+    return _authenticate(
+      path: _googleLoginPath,
+      data: {...request.toJson(), ...deviceFields},
+    );
+  }
+
+  /// 자동 로그인 복구 및 FCM 토큰 갱신 시 사용한다.
+  /// 로그인 응답 자체는 이 API의 성공 여부에 의존하지 않는다.
+  Future<void> registerPushToken(Map<String, dynamic> registration) async {
+    try {
+      await _dio.post<Map<String, dynamic>>('/push-tokens', data: registration);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
   Future<AuthLoginResult> reissueLogin({required String refreshToken}) async {
@@ -161,10 +183,7 @@ class AuthApi {
         ),
       );
 
-      return _parseAuthResult(
-        response,
-        fallbackMessage: '로그인 세션 복구에 실패했습니다.',
-      );
+      return _parseAuthResult(response, fallbackMessage: '로그인 세션 복구에 실패했습니다.');
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
@@ -175,16 +194,28 @@ class AuthApi {
     required Map<String, dynamic> data,
   }) async {
     try {
+      assert(() {
+        debugPrint('========== AUTH REQUEST ==========');
+        debugPrint('API: $path');
+        debugPrint('Request keys: ${data.keys.toList()}');
+        debugPrint('rememberMe: ${data['rememberMe']}');
+        debugPrint('deviceId exists: ${data['deviceId'] != null}');
+        debugPrint('platformType: ${data['platformType']}');
+        debugPrint('pushToken exists: ${data['pushToken'] != null}');
+        debugPrint('appVersion: ${data['appVersion']}');
+        debugPrint('==================================');
+        return true;
+      }());
+
       final response = await _dio.post<Map<String, dynamic>>(
         path,
         data: data,
         options: _publicRequestOptions(),
       );
 
-      return _parseAuthResult(
-        response,
-        fallbackMessage: '로그인에 실패했습니다.',
-      );
+      debugPrint('[AuthApi] Login HTTP Status: ${response.statusCode}');
+
+      return _parseAuthResult(response, fallbackMessage: '로그인에 실패했습니다.');
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
@@ -401,10 +432,7 @@ class AuthApi {
   }
 
   Options _publicRequestOptions({Map<String, dynamic>? headers}) {
-    return Options(
-      headers: headers,
-      extra: const {'requiresAuth': false},
-    );
+    return Options(headers: headers, extra: const {'requiresAuth': false});
   }
 
   String? _extractBearerToken(String? authorization) {
