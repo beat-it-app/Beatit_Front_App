@@ -37,7 +37,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
   }
 
   void _handleSearchChanged(String value) {
-    if (value.trim().isEmpty) {
+    if (value.trim() != ref.read(musicSearchProvider).query) {
       ref.read(musicSearchProvider.notifier).clear();
     }
   }
@@ -110,7 +110,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (searchState.errorMessage != null) {
+    if (searchState.errorMessage != null && searchState.results.isEmpty) {
       return Center(
         child: Text(
           searchState.errorMessage!,
@@ -124,10 +124,31 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
       return const SizedBox.shrink();
     }
 
-    return ListView.builder(
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.extentAfter < 240 &&
+            searchState.hasMore && !searchState.isLoadingMore &&
+            searchState.errorMessage == null) {
+          ref.read(musicSearchProvider.notifier).loadMore();
+        }
+        return false;
+      },
+      child: ListView.builder(
       padding: EdgeInsets.zero,
-      itemCount: searchState.results.length,
+      itemCount: searchState.results.length +
+          (searchState.isLoadingMore || searchState.errorMessage != null ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == searchState.results.length) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.x16),
+            child: searchState.isLoadingMore
+                ? const CircularProgressIndicator()
+                : TextButton(
+                    onPressed: () => ref.read(musicSearchProvider.notifier).loadMore(),
+                    child: const Text('검색 결과 더 불러오기'),
+                  ),
+          ));
+        }
         final music = searchState.results[index];
 
         return MusicResultWidget(
@@ -138,6 +159,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
           onTap: () => _handleMusicSelected(music),
         );
       },
+      ),
     );
   }
 }
