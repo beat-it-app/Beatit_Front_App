@@ -153,6 +153,18 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
     }
   }
 
+  void _loadMoreLocations() {
+    if (mounted) {
+      ref.read(locationSearchProvider.notifier).loadMoreLocations();
+    }
+  }
+
+  void _loadMoreReferenceLocations() {
+    if (mounted) {
+      ref.read(locationSearchProvider.notifier).loadMoreReferenceLocations();
+    }
+  }
+
   void _refreshMainSearchWithoutReferenceIfNeeded() {
     final mainQuery = _searchController.text.trim();
     if (mainQuery.isEmpty) {
@@ -238,6 +250,11 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
                             isLoading: searchState.isReferenceLoading,
                             errorMessage: searchState.referenceErrorMessage,
                             results: searchState.referenceResults,
+                            hasMore: searchState.referenceHasMore,
+                            isLoadingMore: searchState.isReferenceLoadingMore,
+                            loadMoreErrorMessage:
+                                searchState.referenceLoadMoreErrorMessage,
+                            onLoadMore: _loadMoreReferenceLocations,
                             onTap: _handleReferenceSelected,
                           )
                         : _LocationResultList(
@@ -245,6 +262,10 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
                             errorMessage: searchState.errorMessage,
                             results: searchState.results,
                             selectedLocation: searchState.selectedLocation,
+                            hasMore: searchState.hasMore,
+                            isLoadingMore: searchState.isLoadingMore,
+                            loadMoreErrorMessage: searchState.loadMoreErrorMessage,
+                            onLoadMore: _loadMoreLocations,
                             onTap: _handleLocationSelected,
                           ),
                   ),
@@ -267,6 +288,10 @@ class _LocationResultList extends StatelessWidget {
     required this.isLoading,
     required this.results,
     required this.onTap,
+    required this.onLoadMore,
+    required this.hasMore,
+    required this.isLoadingMore,
+    this.loadMoreErrorMessage,
     this.errorMessage,
     this.selectedLocation,
   });
@@ -276,6 +301,10 @@ class _LocationResultList extends StatelessWidget {
   final List<LocationSearchResult> results;
   final LocationSearchResult? selectedLocation;
   final ValueChanged<LocationSearchResult> onTap;
+  final VoidCallback onLoadMore;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final String? loadMoreErrorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -297,20 +326,62 @@ class _LocationResultList extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final location = results[index];
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.depth != 0 ||
+            !hasMore ||
+            isLoadingMore ||
+            loadMoreErrorMessage != null) {
+          return false;
+        }
 
-        return LocationResultWidget(
-          name: location.locationName,
-          address: location.roadAddress,
-          distance: location.distance,
-          isSelected: identical(selectedLocation, location),
-          onTap: () => onTap(location),
-        );
+        // 목록이 렌더링됐다는 이유로 다음 페이지를 요청하지 않습니다.
+        // 사용자가 아래쪽으로 스크롤해 끝에 가까워졌을 때만 한 페이지씩 요청합니다.
+        final isScrollingDown = notification is ScrollUpdateNotification &&
+            (notification.scrollDelta ?? 0) > 0;
+        final isOverscrollingDown = notification is OverscrollNotification &&
+            notification.overscroll > 0;
+        if ((isScrollingDown || isOverscrollingDown) &&
+            notification.metrics.extentAfter < 180) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onLoadMore());
+        }
+        return false;
       },
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        // 결과가 화면에 다 차지 않아도 사용자가 스와이프하면 다음 페이지를 조회할 수 있습니다.
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: results.length +
+            (isLoadingMore || loadMoreErrorMessage != null ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == results.length) {
+            if (loadMoreErrorMessage != null) {
+              return Padding(
+                padding: const EdgeInsets.all(AppSpacing.x16),
+                child: Center(
+                  child: TextButton(
+                    onPressed: onLoadMore,
+                    child: const Text('장소를 불러오지 못했습니다. 다시 시도'),
+                  ),
+                ),
+              );
+            }
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.x16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final location = results[index];
+          return LocationResultWidget(
+            name: location.locationName,
+            address: location.roadAddress,
+            distance: location.distance,
+            isSelected: identical(selectedLocation, location),
+            onTap: () => onTap(location),
+          );
+        },
+      ),
     );
   }
 }
