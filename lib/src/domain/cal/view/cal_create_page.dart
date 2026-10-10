@@ -79,6 +79,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  late final DateTime _defaultCreateDate;
+  late final TimeOfDay _defaultCreateTime;
+  late final TimeOfDay _defaultEndTime;
   int? _selectedLocationId;
 
   final List<_SelectedMember> _selectedMembers = <_SelectedMember>[];
@@ -102,7 +105,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     final startsAt = _combineDateAndTime(_selectedDate!, _startTime!);
-    final endsAt = _combineDateAndTime(_selectedDate!, _endTime!);
+    final endsAt = _combineEndDateAndTime(
+      _selectedDate!,
+      _startTime!,
+      _endTime!,
+    );
 
     return endsAt.isAfter(startsAt);
   }
@@ -161,7 +168,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     final currentStartsAt = _combineDateAndTime(_selectedDate!, _startTime!);
-    final currentEndsAt = _combineDateAndTime(_selectedDate!, _endTime!);
+    final currentEndsAt = _combineEndDateAndTime(
+      _selectedDate!,
+      _startTime!,
+      _endTime!,
+    );
     if (!_sameLocalMinute(currentStartsAt, initial.startsAt) ||
         !_sameLocalMinute(currentEndsAt, initial.endsAt)) {
       return true;
@@ -205,11 +216,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     return _titleController.text.trim().isNotEmpty ||
-        _selectedDate != null ||
+        _selectedDate != _defaultCreateDate ||
         _selectedLocationId != null ||
         _locationController.text.trim().isNotEmpty ||
-        _startTime != null ||
-        _endTime != null ||
+        _startTime != _defaultCreateTime ||
+        _endTime != _defaultEndTime ||
         _contentController.text.trim().isNotEmpty ||
         _selectedMembers.isNotEmpty ||
         _selectedMusics.isNotEmpty ||
@@ -219,6 +230,18 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _defaultCreateDate = DateUtils.dateOnly(now);
+    _defaultCreateTime = TimeOfDay(hour: now.hour, minute: 0);
+    _defaultEndTime = TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
+    if (!_isEditMode) {
+      _selectedDate = _defaultCreateDate;
+      _dateController.text = _formatDate(_defaultCreateDate);
+      _startTime = _defaultCreateTime;
+      _endTime = _defaultEndTime;
+      _startTimeController.text = _formatTime(_defaultCreateTime);
+      _endTimeController.text = _formatTime(_defaultEndTime);
+    }
     _applyInitialSchedule();
   }
 
@@ -501,7 +524,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
     final selectedDate = _selectedDate!;
     final startsAt = _combineDateAndTime(selectedDate, _startTime!);
-    final endsAt = _combineDateAndTime(selectedDate, _endTime!);
+    final endsAt = _combineEndDateAndTime(
+      selectedDate,
+      _startTime!,
+      _endTime!,
+    );
     final notifier = ref.read(calMutationProvider.notifier);
 
     final result = _isEditMode
@@ -880,6 +907,25 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  DateTime _combineEndDateAndTime(
+    DateTime date,
+    TimeOfDay startTime,
+    TimeOfDay endTime,
+  ) {
+    final startsAt = _combineDateAndTime(date, startTime);
+    final endsAt = _combineDateAndTime(date, endTime);
+    // 23:00 -> 00:00처럼 자정을 넘는 일정은 다음 날 종료로 저장합니다.
+    return endsAt.isBefore(startsAt)
+        ? DateTime(
+            date.year,
+            date.month,
+            date.day + 1,
+            endTime.hour,
+            endTime.minute,
+          )
+        : endsAt;
   }
 
   String _formatDate(DateTime date) {
@@ -1516,27 +1562,67 @@ class _EditableSelectedFileRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Expanded(
-            child: TextFormField(
-              initialValue: baseName,
-              onChanged: onNameChanged,
-              maxLines: 1,
-              cursorColor: context.colors.primary,
-              style: FontStyles.reg18.copyWith(color: context.colors.onSurface),
-              decoration: const InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final nameStyle = FontStyles.reg18.copyWith(
+                  color: context.colors.onSurface,
+                );
+                final textDirection = Directionality.of(context);
+                final namePainter = TextPainter(
+                  text: TextSpan(
+                    text: baseName.isEmpty ? ' ' : baseName,
+                    style: nameStyle,
+                  ),
+                  maxLines: 1,
+                  textDirection: textDirection,
+                )..layout();
+                final extensionPainter = TextPainter(
+                  text: TextSpan(text: '.$extension', style: nameStyle),
+                  maxLines: 1,
+                  textDirection: textDirection,
+                )..layout();
+                final suffixWidth = extension.isEmpty
+                    ? 0.0
+                    : extensionPainter.width + AppSpacing.x8;
+                final availableNameWidth = (constraints.maxWidth - suffixWidth)
+                    .clamp(24.0, double.infinity)
+                    .toDouble();
+                // 입력 길이만큼 필드가 넓어지고, 확장자는 편집 영역 밖에 둡니다.
+                final nameWidth = (namePainter.width + AppSpacing.x8)
+                    .clamp(24.0, availableNameWidth)
+                    .toDouble();
+                namePainter.dispose();
+                extensionPainter.dispose();
+
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: nameWidth,
+                      child: TextFormField(
+                        initialValue: baseName,
+                        onChanged: onNameChanged,
+                        maxLines: 1,
+                        cursorColor: context.colors.primary,
+                        style: nameStyle,
+                        decoration: const InputDecoration(
+                          isCollapsed: true,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                      ),
+                    ),
+                    if (extension.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.x4),
+                      Text('.$extension', style: nameStyle),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
-          if (extension.isNotEmpty)
-            Text(
-              '.$extension',
-              style: FontStyles.reg18.copyWith(color: context.colors.onSurface),
-            ),
           if (fileSize.trim().isNotEmpty) ...[
             const SizedBox(width: AppSpacing.x8),
             Text(

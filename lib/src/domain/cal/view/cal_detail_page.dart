@@ -15,6 +15,8 @@ import 'package:beatit_front_app/src/domain/cal/widget/label_box.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/music_list_item.dart';
 import 'package:beatit_front_app/src/domain/cal/widget/schedule_file_item.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/location_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
+import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/view/location_map_preview_page.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/kakao_static_map_widget.dart';
 import 'package:flutter/material.dart';
@@ -362,12 +364,18 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
             ),
           ),
           const SizedBox(height: AppSpacing.x4),
-          Text(
-            !hasBeenUpdated
-                ? '${_formatDateTime(schedule.createdAt)}'
-                      ' ｜ 최종수정일 ${_formatDateTime(schedule.updatedAt)}'
-                : _formatDateTime(schedule.createdAt),
-            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          Row(
+            children: [
+              Text(
+                _formatDateTime(schedule.createdAt),
+                style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+              ),
+              if (hasBeenUpdated)
+                Text(
+                  ' ｜ 최종수정일  ${_formatDateTime(schedule.updatedAt)}',
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                ),
+            ],
           ),
           if (hasContent) ...[
             const SizedBox(height: AppSpacing.x16),
@@ -386,15 +394,6 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
             const SizedBox(height: AppSpacing.x10),
             _LocationInfo(locationId: schedule.locationId!),
           ],
-          if (hasMusics) ...[
-            const SizedBox(height: AppSpacing.x20),
-            const LabelBox(
-              iconAddress: 'assets/icons/cal/music_symbol.svg',
-              value: '연습곡',
-            ),
-            const SizedBox(height: AppSpacing.x8),
-            ..._buildMusicItems(context, schedule.musics),
-          ],
           if (hasParticipants) ...[
             const SizedBox(height: AppSpacing.x20),
             const LabelBox(
@@ -402,17 +401,16 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
               value: '참여자',
             ),
             const SizedBox(height: AppSpacing.x14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: schedule.participants
-                    .map(
-                      (participant) =>
-                          _ParticipantItem(userId: participant.userId),
-                    )
-                    .toList(growable: false),
-              ),
+            _ParticipantsSection(participants: schedule.participants),
+          ],
+          if (hasMusics) ...[
+            const SizedBox(height: AppSpacing.x20),
+            const LabelBox(
+              iconAddress: 'assets/icons/cal/music_symbol.svg',
+              value: '음원',
             ),
+            const SizedBox(height: AppSpacing.x8),
+            ..._buildMusicItems(context, schedule.musics),
           ],
           if (hasFiles) ...[
             const SizedBox(height: AppSpacing.x20),
@@ -496,7 +494,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
   static String _formatDateTime(DateTime dateTime) {
     final value = dateTime.toLocal();
 
-    return '${value.year}.${_two(value.month)}.${_two(value.day)} '
+    return '${value.year}. ${_two(value.month)}. ${_two(value.day)}  '
         '${_two(value.hour)}:${_two(value.minute)}';
   }
 
@@ -798,34 +796,102 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _ParticipantItem extends StatelessWidget {
-  const _ParticipantItem({required this.userId});
+/// 상세 응답은 참여자 ID만 제공합니다. 팀 멤버 목록의 사용자 프로필과 연결해
+/// 이름과 이미지를 표시하되, 팀원 조회가 실패해도 일정 상세 자체는 표시합니다.
+class _ParticipantsSection extends ConsumerStatefulWidget {
+  const _ParticipantsSection({required this.participants});
 
-  final int userId;
+  final List<ScheduleDetailParticipant> participants;
+
+  @override
+  ConsumerState<_ParticipantsSection> createState() =>
+      _ParticipantsSectionState();
+}
+
+class _ParticipantsSectionState extends ConsumerState<_ParticipantsSection> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(memberSelectionProvider.notifier).loadMembers();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final members = ref.watch(memberSelectionProvider).members;
+    final byUserId = <int, TeamMemberSearchResult>{
+      for (final member in members)
+        if (member.userId != null) member.userId!: member,
+    };
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: widget.participants
+            .map((participant) {
+              final member = byUserId[participant.userId];
+              return _ParticipantItem(
+                userId: participant.userId,
+                name: member?.userName,
+                imageUrl: member?.profileImageUrl,
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
+class _ParticipantItem extends StatelessWidget {
+  const _ParticipantItem({required this.userId, this.name, this.imageUrl});
+
+  final int userId;
+  final String? name;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl?.trim();
+    final displayName = name?.trim();
+    final fallback = Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: context.grays.gray8,
+      ),
+      alignment: Alignment.center,
+      child: Icon(Icons.person, color: context.grays.gray5),
+    );
+
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.x16),
       child: SizedBox(
         width: 64,
         child: Column(
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: context.grays.gray8,
-              ),
-              alignment: Alignment.center,
-              child: Icon(Icons.person, color: context.grays.gray5),
-            ),
+            url == null || url.isEmpty
+                ? fallback
+                : ClipOval(
+                    child: Image.network(
+                      url,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => fallback,
+                    ),
+                  ),
             const SizedBox(height: AppSpacing.x4),
             Text(
-              '$userId',
+              displayName == null || displayName.isEmpty
+                  ? '사용자 $userId'
+                  : displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: FontStyles.med14.copyWith(color: context.colors.onSurface),
             ),
           ],

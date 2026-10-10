@@ -63,10 +63,9 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   }
 
   Future<void> _loadMonth(DateTime month) {
-    return ref.read(calMainProvider.notifier).loadMonth(
-      year: month.year,
-      month: month.month,
-    );
+    return ref
+        .read(calMainProvider.notifier)
+        .loadMonth(year: month.year, month: month.month);
   }
 
   Future<void> _loadSelectedDate(DateTime day) {
@@ -78,15 +77,10 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     required DateTime day,
   }) async {
     await Future.wait(<Future<void>>[
-      ref.read(calMainProvider.notifier).loadMonth(
-        year: month.year,
-        month: month.month,
-        force: true,
-      ),
-      ref.read(calMainProvider.notifier).loadDate(
-        day: day,
-        force: true,
-      ),
+      ref
+          .read(calMainProvider.notifier)
+          .loadMonth(year: month.year, month: month.month, force: true),
+      ref.read(calMainProvider.notifier).loadDate(day: day, force: true),
     ]);
   }
 
@@ -112,9 +106,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
 
   Future<void> _goToCalDetailPage(int scheduleId) async {
     final didChange = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => CalDetailPage(scheduleId: scheduleId),
-      ),
+      MaterialPageRoute(builder: (_) => CalDetailPage(scheduleId: scheduleId)),
     );
 
     if (!mounted || didChange != true) {
@@ -201,25 +193,21 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   ) {
     final targetDay = _dateKey(day);
 
-    return schedules.where((schedule) {
-      final startDay = _dateKey(_toKst(schedule.startsAt));
-      final endDay = _dateKey(_toKst(schedule.endsAt));
+    return schedules
+        .where((schedule) {
+          final startDay = _dateKey(_toKst(schedule.startsAt));
+          final endDay = _dateKey(_toKst(schedule.endsAt));
 
-      return !targetDay.isBefore(startDay) && !targetDay.isAfter(endDay);
-    }).toList(growable: false);
+          return !targetDay.isBefore(startDay) && !targetDay.isAfter(endDay);
+        })
+        .toList(growable: false);
   }
 
-  bool _hasSchedule(
-    DateTime day,
-    List<CalendarSchedule> schedules,
-  ) {
+  bool _hasSchedule(DateTime day, List<CalendarSchedule> schedules) {
     return _calendarSchedulesForDay(day, schedules).isNotEmpty;
   }
 
-  String? _labelForDay(
-    DateTime day,
-    List<CalendarSchedule> schedules,
-  ) {
+  String? _labelForDay(DateTime day, List<CalendarSchedule> schedules) {
     final daySchedules = _calendarSchedulesForDay(day, schedules);
 
     if (daySchedules.isEmpty) {
@@ -256,7 +244,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   String _formatMonth(DateTime date) {
     final month = date.month.toString().padLeft(2, '0');
 
-    return '${date.year}.$month';
+    return '${date.year}. $month';
   }
 
   String _formatSelectedDate(DateTime date) {
@@ -270,7 +258,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
 
-    return '${date.year}.$month.$day';
+    return '${date.year}. $month. $day ';
   }
 
   String _formatTime(DateTime date) {
@@ -330,81 +318,79 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                   0,
                 ),
                 child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.only(bottom: AppSpacing.x30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildMonthHeader(context),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.only(bottom: AppSpacing.x30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMonthHeader(context),
 
-                const SizedBox(height: AppSpacing.x24),
+                      const SizedBox(height: AppSpacing.x24),
 
-                CalendarMonthView(
-                  firstDay: _firstCalendarDay,
-                  lastDay: _lastCalendarDay,
-                  focusedDay: _focusedDay,
-                  selectedDay: _selectedDay,
-                  today: _today,
-                  hasSchedule: (day) => _hasSchedule(
-                    day,
-                    calState.monthSchedules,
+                      CalendarMonthView(
+                        firstDay: _firstCalendarDay,
+                        lastDay: _lastCalendarDay,
+                        focusedDay: _focusedDay,
+                        selectedDay: _selectedDay,
+                        today: _today,
+                        hasSchedule: (day) =>
+                            _hasSchedule(day, calState.monthSchedules),
+                        isHoliday: _isHoliday,
+                        labelForDay: (day) =>
+                            _labelForDay(day, calState.monthSchedules),
+                        onDaySelected: _handleDaySelected,
+                        onPageChanged: _handlePageChanged,
+                      ),
+
+                      if (calState.monthError != null) ...[
+                        const SizedBox(height: AppSpacing.x8),
+                        _buildInlineError(
+                          context,
+                          message: calState.monthError!,
+                          onRetry: () {
+                            ref
+                                .read(calMainProvider.notifier)
+                                .loadMonth(
+                                  year: _focusedDay.year,
+                                  month: _focusedDay.month,
+                                  force: true,
+                                );
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: AppSpacing.x20),
+
+                      Text(
+                        _formatSelectedDate(_selectedDay),
+                        style: FontStyles.semi16.copyWith(
+                          color: context.colors.onSurface,
+                        ),
+                      ),
+
+                      const SizedBox(height: AppSpacing.x20),
+
+                      if (calState.isDateLoading)
+                        _buildScheduleLoading(context)
+                      else if (calState.dateError != null)
+                        _buildInlineError(
+                          context,
+                          message: calState.dateError!,
+                          onRetry: () {
+                            ref
+                                .read(calMainProvider.notifier)
+                                .loadDate(day: _selectedDay, force: true);
+                          },
+                        )
+                      else if (selectedSchedules.isEmpty)
+                        _buildEmptySchedule(context)
+                      else
+                        _buildScheduleList(selectedSchedules, locationCache),
+                    ],
                   ),
-                  isHoliday: _isHoliday,
-                  labelForDay: (day) => _labelForDay(
-                    day,
-                    calState.monthSchedules,
-                  ),
-                  onDaySelected: _handleDaySelected,
-                  onPageChanged: _handlePageChanged,
                 ),
-
-                if (calState.monthError != null) ...[
-                  const SizedBox(height: AppSpacing.x8),
-                  _buildInlineError(
-                    context,
-                    message: calState.monthError!,
-                    onRetry: () {
-                      ref.read(calMainProvider.notifier).loadMonth(
-                        year: _focusedDay.year,
-                        month: _focusedDay.month,
-                        force: true,
-                      );
-                    },
-                  ),
-                ],
-
-                const SizedBox(height: AppSpacing.x20),
-
-                Text(
-                  _formatSelectedDate(_selectedDay),
-                  style: FontStyles.semi16.copyWith(
-                    color: context.colors.onSurface,
-                  ),
-                ),
-
-                const SizedBox(height: AppSpacing.x20),
-
-                if (calState.isDateLoading)
-                  _buildScheduleLoading(context)
-                else if (calState.dateError != null)
-                  _buildInlineError(
-                    context,
-                    message: calState.dateError!,
-                    onRetry: () {
-                      ref.read(calMainProvider.notifier).loadDate(
-                        day: _selectedDay,
-                        force: true,
-                      );
-                    },
-                  )
-                else if (selectedSchedules.isEmpty)
-                  _buildEmptySchedule(context)
-                else
-                  _buildScheduleList(selectedSchedules, locationCache),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }
@@ -466,9 +452,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     return const SizedBox(
       width: double.infinity,
       height: 80,
-      child: Center(
-        child: CircularProgressIndicator(),
-      ),
+      child: Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -484,15 +468,10 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: FontStyles.reg14.copyWith(
-              color: context.colors.error,
-            ),
+            style: FontStyles.reg14.copyWith(color: context.colors.error),
           ),
           const SizedBox(height: AppSpacing.x8),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('다시 시도'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],
       ),
     );
@@ -512,10 +491,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     );
   }
 
-  String _locationText(
-    int? locationId,
-    Map<int, LocationData> locationCache,
-  ) {
+  String _locationText(int? locationId, Map<int, LocationData> locationCache) {
     if (locationId == null) {
       return '장소 미등록';
     }
