@@ -157,9 +157,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     return switch (type) {
       PollOptionType.text => item.content ?? '',
       PollOptionType.music => [
-          item.title,
-          item.artist,
-        ].whereType<String>().where((value) => value.isNotEmpty).join(' - '),
+        item.title,
+        item.artist,
+      ].whereType<String>().where((value) => value.isNotEmpty).join(' - '),
       PollOptionType.place =>
         item.locationName ?? item.location ?? item.roadAddress ?? '',
     };
@@ -219,7 +219,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
 
   Future<void> _pickDeadlineTime() async {
     final now = DateTime.now();
-    final initialTime = _selectedDeadlineTime ??
+    final initialTime =
+        _selectedDeadlineTime ??
         TimeOfDay.fromDateTime(
           _roundUpToTenMinutes(now.add(const Duration(hours: 1))),
         );
@@ -392,8 +393,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       _deadlineError = hasPartialDeadline
           ? '투표 마감 날짜와 시간을 모두 선택해주세요.'
           : deadline != null && !deadline.isAfter(DateTime.now())
-              ? '투표 마감 시간은 현재 시간 이후여야 합니다.'
-              : null;
+          ? '투표 마감 시간은 현재 시간 이후여야 합니다.'
+          : null;
     });
 
     return _titleError == null &&
@@ -470,7 +471,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
           location: type == 'LOCATION'
               ? (place != null
                     ? (place.locationName ?? place.roadAddress ?? text)
-                    : (initialItem?.location ?? initialItem?.locationName ?? text))
+                    : (initialItem?.location ??
+                          initialItem?.locationName ??
+                          text))
               : null,
           locationId: type == 'LOCATION'
               ? (place?.locationId ?? initialItem?.locationId)
@@ -498,8 +501,10 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _submitPoll() async {
-    if (_submitting || !_hasRequiredInputs ||
-        (widget.isEditing && !_hasChanges)) return;
+    if (_submitting ||
+        !_hasRequiredInputs ||
+        (widget.isEditing && !_hasChanges))
+      return;
     if (!_validateRequiredFields()) return;
 
     final request = _buildRequest();
@@ -556,10 +561,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         onChanged: _handleTitleChanged,
                       ),
                       const SizedBox(height: AppSpacing.x20),
-                      _RequiredLabel(
-                        text: '내용',
-                        color: colors.onSurface,
-                      ),
+                      _RequiredLabel(text: '내용', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
                       AppTextArea(
                         hintText: '투표 내용을 작성해주세요.',
@@ -582,8 +584,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         initialValues: widget.initialData == null
                             ? const <String>[]
                             : _pollOptions
-                                .map((option) => option.value)
-                                .toList(growable: false),
+                                  .map((option) => option.value)
+                                  .toList(growable: false),
                         onChanged: _handlePollOptionsChanged,
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
@@ -632,24 +634,24 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                           ),
                         ],
                       ),
-                      if (_selectedDeadlineDate != null ||
-                          _selectedDeadlineTime != null)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _clearDeadline,
-                            child: const Text('마감 시간 삭제'),
-                          ),
-                        ),
-                      if (_closeAt != null) ...[
-                        const SizedBox(height: AppSpacing.x8),
-                        Text(
-                          formatPostDateTime(_closeAt!),
-                          style: FontStyles.med14.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                      // if (_selectedDeadlineDate != null ||
+                      //     _selectedDeadlineTime != null)
+                      //   Align(
+                      //     alignment: Alignment.centerRight,
+                      //     child: TextButton(
+                      //       onPressed: _clearDeadline,
+                      //       child: const Text('마감 시간 삭제'),
+                      //     ),
+                      //   ),
+                      // if (_closeAt != null) ...[
+                      //   const SizedBox(height: AppSpacing.x8),
+                      //   Text(
+                      //     formatPostDateTime(_closeAt!),
+                      //     style: FontStyles.med14.copyWith(
+                      //       color: colors.onSurfaceVariant,
+                      //     ),
+                      //   ),
+                      // ],
                       if (_deadlineError != null) ...[
                         const SizedBox(height: AppSpacing.x4),
                         AppFieldMessage(text: _deadlineError!, isError: true),
@@ -727,8 +729,10 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
-                onPressed: _submitting || !_hasRequiredInputs ||
-                    (widget.isEditing && !_hasChanges)
+                onPressed:
+                    _submitting ||
+                        !_hasRequiredInputs ||
+                        (widget.isEditing && !_hasChanges)
                     ? null
                     : _submitPoll,
               ),

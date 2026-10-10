@@ -1,8 +1,10 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/post/model/poll_voter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// TeamMemberPage의 일반 멤버 행(프로필 · 이름 · 포지션)을 차용하고
 /// 역할 배지는 제외한다. 선택지별 명단은 비익명 투표에서만 노출한다.
@@ -39,7 +41,9 @@ class _PollVotersSheetState extends State<PollVotersSheet> {
                   Expanded(
                     child: Text(
                       '투표한 사람',
-                      style: FontStyles.bold20.copyWith(color: context.colors.onSurface),
+                      style: FontStyles.bold20.copyWith(
+                        color: context.colors.onSurface,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -58,35 +62,69 @@ class _PollVotersSheetState extends State<PollVotersSheet> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return Center(child: Text(
-                      '투표자 명단을 불러오지 못했습니다.',
-                      style: FontStyles.med14.copyWith(color: context.grays.gray5),
-                    ));
+                    return Center(
+                      child: Text(
+                        '투표자 명단을 불러오지 못했습니다.',
+                        style: FontStyles.med14.copyWith(
+                          color: context.grays.gray5,
+                        ),
+                      ),
+                    );
                   }
                   final voters = snapshot.data ?? const <PollVoter>[];
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.x20,
-                          vertical: AppSpacing.x8,
-                        ),
-                        child: Text(
-                          '총 ${voters.length}명',
-                          style: FontStyles.med14.copyWith(color: context.grays.gray4),
+                        padding: const EdgeInsets.only(left: AppSpacing.x20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 6.0,
+                            horizontal: 12.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.grays.gray8,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/icons/post/people.svg',
+                                width: 16,
+                                height: 16,
+                                colorFilter: ColorFilter.mode(
+                                  context.grays.gray2,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.x4),
+                              Text(
+                                '${voters.length}명',
+                                style: FontStyles.med14.copyWith(
+                                  color: context.grays.gray2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.x16),
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.x20,
+                          ),
                           itemCount: voters.length,
                           separatorBuilder: (_, __) => Divider(
                             color: context.grays.gray6,
                             thickness: 1,
                             height: AppSpacing.x16,
                           ),
-                          itemBuilder: (context, index) => _VoterRow(voter: voters[index]),
+                          itemBuilder: (context, index) =>
+                              _VoterRow(voter: voters[index]),
                         ),
                       ),
                     ],
@@ -133,13 +171,15 @@ class _VoterRow extends StatelessWidget {
               children: [
                 Text(
                   voter.name,
-                  style: FontStyles.semi20.copyWith(color: context.colors.onSurface),
+                  style: FontStyles.semi20.copyWith(
+                    color: context.colors.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   (voter.position?.trim().isNotEmpty ?? false)
                       ? voter.position!
-                      : '미지정',
+                      : '',
                   style: FontStyles.reg16.copyWith(color: context.grays.gray5),
                 ),
               ],
@@ -150,8 +190,6 @@ class _VoterRow extends StatelessWidget {
     );
   }
 
-  Widget _fallbackImage() => Image.asset(
-    'assets/images/auth/profile_orange.png',
-    fit: BoxFit.cover,
-  );
+  Widget _fallbackImage() =>
+      Image.asset('assets/images/auth/profile_orange.png', fit: BoxFit.cover);
 }

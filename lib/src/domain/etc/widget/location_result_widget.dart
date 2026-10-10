@@ -29,8 +29,8 @@ class LocationResultWidget extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(
             top: AppSpacing.x20,
-            left: AppSpacing.x16,
-            right: AppSpacing.x16,
+            left: AppSpacing.x4,
+            right: AppSpacing.x4,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

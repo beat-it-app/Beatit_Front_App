@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/widget/poll_selection_box.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/model/poll_voter.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
@@ -33,6 +34,7 @@ class PollDetailPage extends ConsumerStatefulWidget {
 
 class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   PollDetailData? _data;
+  Map<int, List<PollVoter>> _votersByOption = const {};
   bool _remindBeforeClose = false;
   String? _error;
   final _composerKey = GlobalKey<PostCommentComposerState>();
@@ -53,6 +55,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
       if (!mounted) return;
       setState(() {
         _data = result.data;
+        _votersByOption = result.votersByOption;
         _remindBeforeClose = result.remindBeforeClose;
         _error = null;
       });
@@ -94,13 +97,13 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         !data.pollItems.any((item) => item.isVoted) ||
         index < 0 || index >= data.pollItems.length) return;
     final optionId = data.pollItems[index].itemId;
+    final voters = _votersByOption[optionId] ?? const <PollVoter>[];
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.colors.surface,
       isScrollControlled: true,
       builder: (_) => PollVotersSheet(
-        loadVoters: () => ref.read(postApiProvider)
-            .getPollOptionVoters(widget.pollId, optionId),
+        loadVoters: () async => voters,
       ),
     );
   }
@@ -343,7 +346,12 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                                 ? PollStatus.completed
                                 : PollStatus.inProgress,
                             isAnonymous: _data!.isAnonymous,
-                            participantCount: widget.participantCount ?? 0,
+                            participantCount: _data!.isAnonymous
+                                ? (widget.participantCount ?? 0)
+                                : _votersByOption.values
+                                    .expand((voters) => voters.map((voter) => voter.userId))
+                                    .toSet()
+                                    .length,
                             selectionMode: _data!.allowMultipleChoice
                                 ? PollSelectionMode.multiple
                                 : PollSelectionMode.single,
@@ -373,17 +381,20 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                                 : null,
                             onVoteSubmitted: (indexes) async {
                               try {
-                                await ref
-                                    .read(postApiProvider)
-                                    .votePoll(
-                                      widget.pollId,
-                                      indexes
-                                          .map(
-                                            (index) =>
-                                                _data!.pollItems[index].itemId,
-                                          )
-                                          .toList(),
-                                    );
+                                final api = ref.read(postApiProvider);
+                                if (indexes.isEmpty) {
+                                  await api.cancelVote(widget.pollId);
+                                } else {
+                                  await api.votePoll(
+                                    widget.pollId,
+                                    indexes
+                                        .map(
+                                          (index) =>
+                                              _data!.pollItems[index].itemId,
+                                        )
+                                        .toList(),
+                                  );
+                                }
                                 if (mounted) await _load();
                                 return true;
                               } catch (error) {
