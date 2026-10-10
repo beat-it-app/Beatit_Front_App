@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_date_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_month_response.dart';
@@ -88,7 +89,15 @@ class CalApi {
         fallbackMessage: '일정 상세 정보를 불러오지 못했습니다.',
       );
 
-      return ScheduleDetailResponse.fromJson(body);
+      try {
+        return ScheduleDetailResponse.fromJson(body);
+      } catch (error, stackTrace) {
+        debugPrint('[CalApi] Unexpected schedule detail response: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        throw const CalApiException(
+          message: '일정 상세 정보의 응답 형식이 올바르지 않습니다.',
+        );
+      }
     } on DioException catch (error) {
       throw _mapDioException(error);
     }

@@ -2,11 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
 
-/// 백엔드 일정 상세 응답에 musics가 포함되기 전까지, 현재 앱 세션에서 생성/수정한
-/// 일정의 음원을 상세 화면에 즉시 반영하기 위한 임시 캐시입니다.
-///
-/// 서버가 musics를 내려주기 시작하면 calDetailProvider가 서버 값을 우선 사용하므로
-/// 이 캐시는 자연스럽게 fallback 역할만 하게 됩니다.
+/// 구버전 서버가 상세 응답에 musics를 포함하지 않을 때만 사용하는 세션 캐시입니다.
+/// 최신 서버가 내려준 musics가 있으면 항상 서버 데이터를 우선합니다.
 final calScheduleMusicCacheProvider = NotifierProvider<
   CalScheduleMusicCacheNotifier,
   Map<int, List<ScheduleDetailMusic>>
