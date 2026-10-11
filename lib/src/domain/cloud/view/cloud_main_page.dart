@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -125,11 +126,13 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       return;
     }
 
-    final success = await ref.read(cloudMutationProvider.notifier).uploadFile(
-      filePath: selection.path,
-      fileName: selection.name,
-      fileSize: selection.size,
-    );
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .uploadFile(
+          filePath: selection.path,
+          fileName: selection.name,
+          fileSize: selection.size,
+        );
     if (!mounted) return;
     _showMutationResult(success, successMessage: '파일을 등록했습니다.');
   }
@@ -138,10 +141,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     final result = await showLinkCreateBottomsheet(context: context);
     if (!mounted || result == null) return;
 
-    final success = await ref.read(cloudMutationProvider.notifier).createLink(
-      itemName: result.title,
-      linkUrl: result.url,
-    );
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .createLink(itemName: result.title, linkUrl: result.url);
     if (!mounted) return;
     _showMutationResult(success, successMessage: '링크를 등록했습니다.');
   }
@@ -197,10 +199,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     _showMutationResult(success, successMessage: '삭제했습니다.');
   }
 
-  Future<void> _moveItems(
-    List<int> itemIds, {
-    String? displayName,
-  }) async {
+  Future<void> _moveItems(List<int> itemIds, {String? displayName}) async {
     if (itemIds.isEmpty || _hasSelectedFolders) return;
     final moved = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
@@ -218,9 +217,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
 
   Future<void> _downloadItems(List<int> itemIds, CloudListData data) async {
     if (ref.read(cloudDownloadProvider).isDownloading) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('다른 파일을 다운로드하고 있습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('다른 파일을 다운로드하고 있습니다.')));
       return;
     }
 
@@ -260,9 +259,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     }
 
     if (requests.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('다운로드할 수 있는 파일이 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('다운로드할 수 있는 파일이 없습니다.')));
       return;
     }
 
@@ -298,7 +297,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     final message = success
         ? successMessage
         : mutation.errorMessage ?? '요청 처리 중 오류가 발생했습니다.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showUnsupportedRename() {
@@ -315,15 +316,20 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     final cloudList = ref.watch(cloudListProvider(null));
     final mutation = ref.watch(cloudMutationProvider);
     final download = ref.watch(cloudDownloadProvider);
-    final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
+    final currentUserName = ref
+        .watch(cloudCurrentUserNameProvider)
+        .asData
+        ?.value;
     final data = cloudList.asData?.value;
     final allOwned = _allSelectedAreMine(data, currentUserName);
     final canDelete = _hasSelection && allOwned;
-    final canMove = _selectedItemIds.isNotEmpty && !_hasSelectedFolders && allOwned;
+    final canMove =
+        _selectedItemIds.isNotEmpty && !_hasSelectedFolders && allOwned;
     final selectedItems = data?.items
         .where((item) => _selectedItemIds.contains(item.itemId))
         .toList(growable: false);
-    final canDownload = selectedItems?.isNotEmpty == true &&
+    final canDownload =
+        selectedItems?.isNotEmpty == true &&
         !_hasSelectedFolders &&
         selectedItems!.every((item) => item.linkUrl?.trim().isEmpty ?? true) &&
         !download.isDownloading;
@@ -516,10 +522,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       AppDropdownItem(
         label: '이동하기',
         enabled: isMine,
-        onPressed: () => _moveItems(
-          [item.itemId],
-          displayName: item.itemName,
-        ),
+        onPressed: () => _moveItems([item.itemId], displayName: item.itemName),
       ),
     ];
 
@@ -616,8 +619,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    return '${local.year}. ${local.month.toString().padLeft(2, '0')}. ${local.day.toString().padLeft(2, '0')}';
+    return AppDateTimeFormatter.formatDate(date);
   }
 }
 

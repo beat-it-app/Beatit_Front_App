@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_image_message.dart';
@@ -289,9 +290,8 @@ class _MessageTime extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final local = createdAt.toLocal();
     return Text(
-      '${local.hour.toString()}:${local.minute.toString().padLeft(2, '0')}',
+      AppDateTimeFormatter.formatTime(createdAt),
       style: FontStyles.med11.copyWith(color: context.grays.gray5),
     );
   }

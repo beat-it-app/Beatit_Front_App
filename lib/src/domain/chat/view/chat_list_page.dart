@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
@@ -235,13 +236,10 @@ class _ChatListBody extends StatelessWidget {
     final now = DateTime.now();
 
     if (_isSameDate(now, dateTime)) {
-      final period = dateTime.hour < 12 ? '오전' : '오후';
-      final hour12 = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
-      final minute = dateTime.minute.toString().padLeft(2, '0');
-      return '$period $hour12:$minute';
+      return AppDateTimeFormatter.formatTimeWithPeriod(dateTime);
     }
 
-    return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';
+    return AppDateTimeFormatter.formatDate(dateTime);
   }
 
   bool _isSameDate(DateTime a, DateTime b) {
