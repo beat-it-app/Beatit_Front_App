@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 
 enum ChatAttachmentKind { image, video, audio, document, file }
@@ -142,9 +143,7 @@ class ChatAttachmentMessageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fileName = resolveFileName(message);
     final sizeLabel = formatFileSize(message.attachmentSizeBytes);
-    final local = message.createdAt.toLocal();
-    final dateLabel =
-        '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+    final dateLabel = AppDateTimeFormatter.formatDate(message.createdAt);
 
     final content = Container(
       width: 280,

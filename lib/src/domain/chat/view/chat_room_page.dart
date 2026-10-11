@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
@@ -492,13 +493,10 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       ChatAttachmentKind.document => CloudPreviewFileType.document,
       _ => CloudPreviewFileType.other,
     };
-    final local = message.createdAt.toLocal();
-
     return CloudFilePreviewItem(
       itemId: message.messageId,
       name: fileName,
-      uploadedAt:
-          '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}',
+      uploadedAt: AppDateTimeFormatter.formatDate(message.createdAt),
       uploaderName: message.senderName,
       type: type,
       iconPath: ChatAttachmentMessageCard.iconPathFor(message),

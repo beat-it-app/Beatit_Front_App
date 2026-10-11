@@ -232,7 +232,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                     ),
                   ),
                 ),
-                if (target.itemCount != null) ...[
+                if (target.itemCount != null && !isCurrent) ...[
                   Text(
                     '${target.itemCount}',
                     style: FontStyles.med16.copyWith(
@@ -281,4 +281,3 @@ class _MoveTarget {
   final String label;
   final int? itemCount;
 }
-

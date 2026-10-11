@@ -24,7 +24,7 @@ class AuthSplashPage extends ConsumerStatefulWidget {
 class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     with SingleTickerProviderStateMixin {
   static const _introDelay = Duration(seconds: 1);
-  static const _entranceDuration = Duration(seconds: 2);
+  static const _entranceDuration = Duration(seconds: 3);
 
   static const _headphoneAsset = 'assets/images/auth/headphone.png';
   static const _logoAsset = 'assets/icons/auth/main_logo.svg';
