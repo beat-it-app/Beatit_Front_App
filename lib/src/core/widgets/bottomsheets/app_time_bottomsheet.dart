@@ -24,6 +24,7 @@ class AppTimeBottomSheet extends StatefulWidget {
   final AppTimePickerMode mode;
   final String? title;
   final TimeOfDay? initialTime;
+
   /// 시간 선택 간격입니다. 기본값은 기존 동작과 같은 1분입니다.
   final int minuteInterval;
   final DateTime? initialDate;
@@ -174,16 +175,6 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
             const SizedBox(height: AppSpacing.x20),
             Center(
               child: Text(
@@ -364,7 +355,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             onSelectedItemChanged: (index) =>
                 setState(() => _selectedMinuteIndex = index),
             children: List.generate(60 ~/ widget.minuteInterval, (index) {
-              final minute = (index * widget.minuteInterval).toString().padLeft(2, '0');
+              final minute = (index * widget.minuteInterval).toString().padLeft(
+                2,
+                '0',
+              );
               return Center(
                 child: Text(
                   minute,

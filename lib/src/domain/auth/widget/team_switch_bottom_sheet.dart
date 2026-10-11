@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 
 import '../../team/model/my_team_model.dart';
+import '../../team/provider/current_team_provider.dart';
 import '../../team/provider/team_select_provider.dart';
 import '../provider/mypage_provider.dart';
 import '../view/mypage/team_add_option_page.dart';
@@ -46,6 +47,7 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
     });
   }
 
+  // 1. 팀 선택 시 처리: 마이페이지 최신 데이터 즉시 fetch
   Future<void> _handleTeamSelected(MyTeamModel team) async {
     if (_isSelecting) return;
 
@@ -60,36 +62,33 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
     if (!mounted) return;
 
     if (success) {
-      // 서버에서 현재 팀이 변경되었으므로 MyPage 정보도 다시 조회
-      await ref.read(myPageProvider.notifier).fetchMyPage();
+      ref.read(myPageProvider.notifier).fetchMyPage();
+      ref.invalidate(currentTeamProvider);
 
-      if (!mounted) return;
-
+      Navigator.of(context).pop();
+    } else {
       setState(() {
         _isSelecting = false;
       });
 
-      Navigator.of(context).pop();
-      return;
-    }
-
-    setState(() {
-      _isSelecting = false;
-    });
-
-    final errorMessage = ref.read(teamSelectProvider).errorMessage;
-
-    if (errorMessage != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      final errorMessage = ref.read(teamSelectProvider).errorMessage;
+      if (errorMessage != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
     }
   }
 
-  void _openTeamAddOptionPage() {
-    Navigator.of(
+  // 2. '+' 버튼 클릭 시: 팀 추가 화면에서 완료(pop(true))되어 돌아오면 목록 새로고침
+  Future<void> _openTeamAddOptionPage() async {
+    final result = await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const TeamAddOptionPage()));
+    ).push<bool>(MaterialPageRoute(builder: (_) => const TeamAddOptionPage()));
+
+    if (result == true && mounted) {
+      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+    }
   }
 
   @override
@@ -130,7 +129,6 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                       ),
                     ),
                   ),
-
                   Positioned(
                     top: 10,
                     right: 0,
@@ -146,9 +144,7 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                 ],
               ),
             ),
-
             const SizedBox(height: AppSpacing.x20),
-
             if (state.isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.x40),
@@ -174,14 +170,11 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                       const SizedBox(height: AppSpacing.x12),
                   itemBuilder: (context, index) {
                     final team = teams[index];
-
                     return _buildTeamCard(context, team);
                   },
                 ),
               ),
-
             const SizedBox(height: AppSpacing.x16),
-
             GestureDetector(
               onTap: _openTeamAddOptionPage,
               behavior: HitTestBehavior.opaque,
@@ -215,15 +208,12 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
 
   Widget _buildTeamCard(BuildContext context, MyTeamModel team) {
     final rawDate = team.createdAt;
-
     final formattedDate = rawDate.length >= 10
         ? rawDate.substring(0, 10).replaceAll('-', '.')
         : rawDate;
 
     final String? imageUrl = team.teamImageUrl;
-
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
-
     final bool isCurrent = widget.currentTeamPublicId == team.teamPublicId;
 
     if (!hasImage) {
@@ -260,7 +250,6 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   ),
                 ],
               ),
-
               if (!isCurrent)
                 Positioned(
                   right: 0,
@@ -302,11 +291,9 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   },
                 ),
               ),
-
               Positioned.fill(
                 child: Container(color: Colors.black.withOpacity(0.45)),
               ),
-
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.x20),
                 child: Column(
@@ -331,7 +318,6 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   ],
                 ),
               ),
-
               if (!isCurrent)
                 Positioned(
                   right: 20,

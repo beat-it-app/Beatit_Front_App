@@ -34,6 +34,7 @@ class MyPageResponseModel {
 }
 
 class MyPageTeamModel {
+  final int teamId;
   final String type;
   final String name;
   final String? imageUrl;
@@ -41,6 +42,7 @@ class MyPageTeamModel {
   final int memberCount;
 
   MyPageTeamModel({
+    required this.teamId,
     required this.type,
     required this.name,
     this.imageUrl,
@@ -50,7 +52,8 @@ class MyPageTeamModel {
 
   factory MyPageTeamModel.fromJson(Map<String, dynamic> json) {
     return MyPageTeamModel(
-      type: json['type'] as String? ?? 'BAND',
+      teamId: json['teamId'] as int? ?? 0,
+      type: json['type'] as String? ?? '',
       name: json['name'] as String? ?? '',
       imageUrl: json['imageUrl'] as String?,
       leaderName: json['leaderName'] as String? ?? '',
