@@ -486,16 +486,16 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
     final weekday = weekdays[start.weekday - 1];
 
-    return '${start.year}.${_two(start.month)}.${_two(start.day)} '
-        '$weekday요일 ${_two(start.hour)}:${_two(start.minute)}'
-        '-${_two(end.hour)}:${_two(end.minute)}';
+    return '${start.year}. ${start.month}. ${start.day} '
+        '$weekday요일 ${start.hour}:${_two(start.minute)}'
+        '-${end.hour}:${_two(end.minute)}';
   }
 
   static String _formatDateTime(DateTime dateTime) {
     final value = dateTime.toLocal();
 
-    return '${value.year}. ${_two(value.month)}. ${_two(value.day)}  '
-        '${_two(value.hour)}:${_two(value.minute)}';
+    return '${value.year}. ${value.month}. ${value.day}  '
+        '${value.hour}:${_two(value.minute)}';
   }
 
   static String _two(int value) => value.toString().padLeft(2, '0');

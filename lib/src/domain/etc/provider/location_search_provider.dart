@@ -22,6 +22,8 @@ class LocationSearchState {
     this.isReferenceLoadingMore = false,
     this.hasMore = false,
     this.referenceHasMore = false,
+    this.query = '',
+    this.referenceQuery = '',
     this.page = 0,
     this.referencePage = 0,
     this.errorMessage,
@@ -40,6 +42,8 @@ class LocationSearchState {
   final bool isReferenceLoadingMore;
   final bool hasMore;
   final bool referenceHasMore;
+  final String query;
+  final String referenceQuery;
   final int page;
   final int referencePage;
   final String? loadMoreErrorMessage;
@@ -60,6 +64,8 @@ class LocationSearchState {
     bool? isReferenceLoadingMore,
     bool? hasMore,
     bool? referenceHasMore,
+    String? query,
+    String? referenceQuery,
     int? page,
     int? referencePage,
     String? loadMoreErrorMessage,
@@ -83,9 +89,12 @@ class LocationSearchState {
       isLoading: isLoading ?? this.isLoading,
       isReferenceLoading: isReferenceLoading ?? this.isReferenceLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      isReferenceLoadingMore: isReferenceLoadingMore ?? this.isReferenceLoadingMore,
+      isReferenceLoadingMore:
+          isReferenceLoadingMore ?? this.isReferenceLoadingMore,
       hasMore: hasMore ?? this.hasMore,
       referenceHasMore: referenceHasMore ?? this.referenceHasMore,
+      query: query ?? this.query,
+      referenceQuery: referenceQuery ?? this.referenceQuery,
       page: page ?? this.page,
       referencePage: referencePage ?? this.referencePage,
       loadMoreErrorMessage: clearLoadMoreErrorMessage
@@ -106,11 +115,10 @@ class LocationSearchState {
 
 class LocationSearchNotifier extends Notifier<LocationSearchState> {
   static const int _pageSize = 10;
-  static const int _lastPage = 44; // 백엔드에서 page >= 45는 빈 목록을 반환합니다.
+  // 백엔드에서 page >= 45는 빈 목록을 반환합니다.
+  static const int _lastPage = 44;
   int _searchRequestId = 0;
   int _referenceSearchRequestId = 0;
-  String _mainQuery = '';
-  String _referenceQuery = '';
 
   @override
   LocationSearchState build() => const LocationSearchState();
@@ -123,7 +131,6 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     }
 
     final requestId = ++_searchRequestId;
-    _mainQuery = normalizedQuery;
     final referenceLocation = state.referenceLocation;
 
     state = state.copyWith(
@@ -132,6 +139,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
       hasMore: false,
       isLoading: true,
       isLoadingMore: false,
+      query: normalizedQuery,
       clearErrorMessage: true,
       clearLoadMoreErrorMessage: true,
       clearSelectedLocation: true,
@@ -177,7 +185,6 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     }
 
     final requestId = ++_referenceSearchRequestId;
-    _referenceQuery = normalizedQuery;
 
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
@@ -185,6 +192,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
       referenceHasMore: false,
       isReferenceLoading: true,
       isReferenceLoadingMore: false,
+      referenceQuery: normalizedQuery,
       clearReferenceErrorMessage: true,
       clearReferenceLoadMoreErrorMessage: true,
     );
@@ -225,7 +233,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
   /// 현재 검색어와 기준 좌표를 유지하면서 다음 페이지만 추가합니다.
   Future<void> loadMoreLocations() async {
     if (state.isLoading || state.isLoadingMore || !state.hasMore ||
-        _mainQuery.isEmpty) return;
+        state.query.isEmpty || state.page >= _lastPage) return;
 
     final requestId = _searchRequestId;
     final nextPage = state.page + 1;
@@ -237,7 +245,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
     try {
       final next = await ref.read(locationApiProvider).searchLocations(
-        query: _mainQuery,
+        query: state.query,
         latitude: referenceLocation?.latitude,
         longitude: referenceLocation?.longitude,
         page: nextPage,
@@ -255,14 +263,18 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
       if (requestId != _searchRequestId) return;
       state = state.copyWith(
         isLoadingMore: false,
-        loadMoreErrorMessage: _getErrorMessage(error, fallback: '다음 장소를 불러오지 못했습니다.'),
+        loadMoreErrorMessage: _getErrorMessage(
+          error,
+          fallback: '다음 장소를 불러오지 못했습니다.',
+        ),
       );
     }
   }
 
   Future<void> loadMoreReferenceLocations() async {
     if (state.isReferenceLoading || state.isReferenceLoadingMore ||
-        !state.referenceHasMore || _referenceQuery.isEmpty) return;
+        !state.referenceHasMore || state.referenceQuery.isEmpty ||
+        state.referencePage >= _lastPage) return;
 
     final requestId = _referenceSearchRequestId;
     final nextPage = state.referencePage + 1;
@@ -273,7 +285,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
     try {
       final next = await ref.read(locationApiProvider).searchLocations(
-        query: _referenceQuery,
+        query: state.referenceQuery,
         page: nextPage,
         limit: _pageSize,
       );
@@ -312,10 +324,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
   void selectReferenceLocation(LocationSearchResult location) {
     _referenceSearchRequestId++;
-    _referenceQuery = '';
     state = state.copyWith(
       referenceLocation: location,
       referenceResults: const <LocationSearchResult>[],
+      referenceQuery: '',
       referencePage: 0,
       referenceHasMore: false,
       isReferenceLoading: false,
@@ -327,9 +339,9 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
   void clearSearchResults() {
     _searchRequestId++;
-    _mainQuery = '';
     state = state.copyWith(
       results: const <LocationSearchResult>[],
+      query: '',
       page: 0,
       hasMore: false,
       isLoading: false,
@@ -342,9 +354,9 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
   void clearReferenceSearchResults() {
     _referenceSearchRequestId++;
-    _referenceQuery = '';
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
+      referenceQuery: '',
       referencePage: 0,
       referenceHasMore: false,
       isReferenceLoading: false,
@@ -356,9 +368,9 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
   void clearReferenceLocation() {
     _referenceSearchRequestId++;
-    _referenceQuery = '';
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
+      referenceQuery: '',
       referencePage: 0,
       referenceHasMore: false,
       isReferenceLoading: false,

@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/domain/etc/model/music_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/music_search_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/music_result_widget.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/search_pagination_listener.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -110,7 +111,7 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (searchState.errorMessage != null && searchState.results.isEmpty) {
+    if (searchState.errorMessage != null) {
       return Center(
         child: Text(
           searchState.errorMessage!,
@@ -121,44 +122,62 @@ class _MusicSearchPageState extends ConsumerState<MusicSearchPage> {
     }
 
     if (searchState.results.isEmpty) {
-      return const SizedBox.shrink();
+      return searchState.query.isEmpty
+          ? const SizedBox.shrink()
+          : Center(
+              child: Text(
+                '검색 결과가 없습니다.',
+                style: FontStyles.med14.copyWith(color: context.grays.gray5),
+              ),
+            );
     }
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification.metrics.extentAfter < 240 &&
-            searchState.hasMore && !searchState.isLoadingMore &&
-            searchState.errorMessage == null) {
+    return SearchPaginationListener(
+      canLoadMore: searchState.hasMore &&
+          !searchState.isLoadingMore &&
+          searchState.loadMoreErrorMessage == null,
+      onLoadMore: () {
+        if (mounted) {
           ref.read(musicSearchProvider.notifier).loadMore();
         }
-        return false;
       },
       child: ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: searchState.results.length +
-          (searchState.isLoadingMore || searchState.errorMessage != null ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == searchState.results.length) {
-          return Center(child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.x16),
-            child: searchState.isLoadingMore
-                ? const CircularProgressIndicator()
-                : TextButton(
-                    onPressed: () => ref.read(musicSearchProvider.notifier).loadMore(),
-                    child: const Text('검색 결과 더 불러오기'),
+        padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: searchState.results.length +
+            (searchState.isLoadingMore ||
+                    searchState.loadMoreErrorMessage != null
+                ? 1
+                : 0),
+        itemBuilder: (context, index) {
+          if (index == searchState.results.length) {
+            if (searchState.loadMoreErrorMessage != null) {
+              return Padding(
+                padding: const EdgeInsets.all(AppSpacing.x16),
+                child: Center(
+                  child: TextButton(
+                    onPressed: () =>
+                        ref.read(musicSearchProvider.notifier).loadMore(),
+                    child: const Text('음악을 불러오지 못했습니다. 다시 시도'),
                   ),
-          ));
-        }
-        final music = searchState.results[index];
+                ),
+              );
+            }
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.x16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        return MusicResultWidget(
-          musicTitle: music.title,
-          artist: music.artist,
-          imageUrl: music.imageUrl ?? '',
-          isSelected: identical(searchState.selectedMusic, music),
-          onTap: () => _handleMusicSelected(music),
-        );
-      },
+          final music = searchState.results[index];
+          return MusicResultWidget(
+            musicTitle: music.title,
+            artist: music.artist,
+            imageUrl: music.imageUrl ?? '',
+            isSelected: identical(searchState.selectedMusic, music),
+            onTap: () => _handleMusicSelected(music),
+          );
+        },
       ),
     );
   }
