@@ -130,7 +130,7 @@ class _PendingFileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final local = attachment.createdAt.toLocal();
     final dateLabel =
-        '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+        '${local.year}. ${local.month.toString()}. ${local.day.toString().padLeft(2, '0')}';
 
     return Container(
       width: 280,
@@ -187,10 +187,7 @@ class _PendingFileCard extends StatelessWidget {
 }
 
 class _PendingFileName extends StatelessWidget {
-  const _PendingFileName({
-    required this.fileName,
-    required this.sizeLabel,
-  });
+  const _PendingFileName({required this.fileName, required this.sizeLabel});
 
   final String fileName;
   final String sizeLabel;
@@ -311,11 +308,7 @@ class _FailedActionButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: AppSpacing.x4),
             Text(
               label,
@@ -329,4 +322,3 @@ class _FailedActionButton extends StatelessWidget {
     );
   }
 }
-

@@ -55,6 +55,7 @@ class ChatListItem extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       roomName,
@@ -62,21 +63,25 @@ class ChatListItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: FontStyles.semi16.copyWith(
                         color: context.grays.black,
+                        height: 1,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.x8),
+                    const SizedBox(height: AppSpacing.x12),
                     Text(
                       lastMessage,
+
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: (unreadCount > 0
-                              ? FontStyles.med14
-                              : FontStyles.reg14)
-                          .copyWith(
-                            color: unreadCount > 0
-                                ? context.grays.black
-                                : context.grays.gray3,
-                          ),
+                      style:
+                          (unreadCount > 0
+                                  ? FontStyles.med14
+                                  : FontStyles.reg14)
+                              .copyWith(
+                                color: unreadCount > 0
+                                    ? context.grays.black
+                                    : context.grays.gray3,
+                                height: 1,
+                              ),
                     ),
                   ],
                 ),
