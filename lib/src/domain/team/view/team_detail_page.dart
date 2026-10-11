@@ -15,6 +15,8 @@ import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dar
 import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 
+import '../../cloud/view/cloud_main_page.dart';
+
 class TeamDetailPage extends ConsumerStatefulWidget {
   // 💡 TeamEntryPage에서 이미 가져온 팀 데이터를 직접 주입받을 수 있도록 설정
   final TeamDetailModel? teamDetail;
@@ -246,7 +248,14 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                     context,
                     svgPath: 'assets/icons/team/cloud.svg',
                     title: '팀 클라우드',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CloudMainPage(),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: AppSpacing.x40),

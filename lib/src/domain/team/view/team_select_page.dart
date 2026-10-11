@@ -15,6 +15,8 @@ import 'package:beatit_front_app/src/domain/team/provider/team_select_provider.d
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
 
+import '../../auth/provider/mypage_provider.dart';
+
 class TeamSelectPage extends ConsumerStatefulWidget {
   const TeamSelectPage({super.key});
 
@@ -52,7 +54,9 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     if (success) {
       // TeamEntryPage가 상위에서 보고 있는 currentTeamProvider를 무효화하여
       // GET /teams 재호출 및 TeamDetailPage로 자동 전환 유도
+      ref.invalidate(myPageProvider);
       ref.invalidate(currentTeamProvider);
+
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -95,12 +99,15 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
               moreMenuItems: [
                 AppDropdownItem(
                   label: '팀 생성하기',
-                  onPressed: () {
-                    Navigator.of(context).push(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
                       MaterialPageRoute(
                         builder: (context) => const TeamCreatePage(),
                       ),
                     );
+                    if (result == true && mounted) {
+                      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                    }
                   },
                 ),
                 AppDropdownItem(
@@ -158,15 +165,18 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
                 iconPath: 'assets/icons/cal/plus.svg',
                 label: '팀 생성하기',
                 isSelected: _selectedBox == 'create',
-                onTap: () {
+                onTap: () async {
                   setState(() {
                     _selectedBox = 'create';
                   });
-                  Navigator.of(context).push(
+                  final result = await Navigator.of(context).push<bool>(
                     MaterialPageRoute(
                       builder: (context) => const TeamCreatePage(),
                     ),
                   );
+                  if (result == true && mounted) {
+                    ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                  }
                 },
               ),
               const SizedBox(width: AppSpacing.x10),
