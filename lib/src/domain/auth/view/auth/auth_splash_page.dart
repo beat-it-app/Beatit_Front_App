@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:beatit_front_app/src/app.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
@@ -28,7 +29,7 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
   static const _headphoneAsset = 'assets/images/auth/headphone.png';
   static const _logoAsset = 'assets/icons/auth/main_logo.svg';
 
-  static const _glassPaneCount = 7;
+  static const _glassPaneCount = 9;
 
   late final AnimationController _controller;
   late final Animation<double> _headphoneEntrance;
@@ -46,10 +47,7 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
 
     _sessionRestoreFuture = ref.read(authProvider.notifier).restoreSession();
 
-    _controller = AnimationController(
-      vsync: this,
-      duration: _entranceDuration,
-    );
+    _controller = AnimationController(vsync: this, duration: _entranceDuration);
 
     _headphoneEntrance = CurvedAnimation(
       parent: _controller,
@@ -187,11 +185,7 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
         fit: StackFit.expand,
         children: [
           _buildHeadphone(width: width, height: height),
-          _buildGlassPanes(
-            context,
-            width: width,
-            height: height,
-          ),
+          _buildGlassPanes(context, width: width, height: height),
           _buildLogoAndCaption(
             context,
             width: width,
@@ -208,46 +202,74 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     required double width,
     required double height,
   }) {
-    final glassWidth = width * 0.57;
+    final glassWidth = width * 0.50;
     final paneWidth = glassWidth / _glassPaneCount;
 
     // 각 패널마다 아주 미세하게 다른 굴절량을 줘서
     // 하나의 큰 blur가 아니라 여러 장의 유리가 이어진 느낌을 만든다.
-    const refractionOffsets = <double>[-12, 9, -7, 13, -10, 8, -5];
-    const refractionScales = <double>[1.035, 0.985, 1.045, 0.975, 1.04, 0.99, 1.025];
+    const refractionOffsets = <double>[-12, 9, -7, 13, -10, 8, -5, -12, 9];
+    const refractionScales = <double>[
+      1.035,
+      0.985,
+      1.045,
+      0.975,
+      1.04,
+      0.99,
+      1.025,
+      1.035,
+      0.985,
+    ];
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: glassWidth,
-        height: height,
-        child: Stack(
-          children: List.generate(_glassPaneCount, (index) {
-            final paneLeft = paneWidth * index;
-            final paneProgress = _glassPaneProgress(index);
-            final paneOffsetY = -height * 0.78 * (1 - paneProgress);
+      child: ShaderMask(
+        shaderCallback: (bounds) => const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.fromRGBO(255, 255, 255, 0.05),
+            Color.fromRGBO(255, 255, 255, 0.3),
+            Color.fromRGBO(255, 255, 255, 1.0),
+            Color.fromRGBO(255, 255, 255, 0.3),
+            Color.fromRGBO(255, 255, 255, 0.05),
+          ],
+          stops: [0.0, 0.2, 0.5, 0.8, 1.0],
+        ).createShader(bounds),
+        blendMode: BlendMode.dstIn,
+        child: ClipRect(
+          child: SizedBox(
+            width: glassWidth,
+            height: height,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: List.generate(_glassPaneCount, (index) {
+                final paneLeft = paneWidth * index;
+                final paneProgress = _glassPaneProgress(index);
+                final paneOffsetY = -height * (1 - paneProgress);
 
-            return Positioned(
-              left: paneLeft,
-              top: 0,
-              width: paneWidth + 0.5,
-              height: height,
-              child: Transform.translate(
-                offset: Offset(0, paneOffsetY),
-                child: _buildGlassPane(
-                  context,
-                  width: width,
+                return Positioned(
+                  left: paneLeft,
+                  top: 0,
+                  width: paneWidth + 0.5,
                   height: height,
-                  paneLeft: paneLeft,
-                  paneWidth: paneWidth,
-                  paneOffsetY: paneOffsetY,
-                  refractionOffsetX: refractionOffsets[index],
-                  refractionScaleX: refractionScales[index],
-                  index: index,
-                ),
-              ),
-            );
-          }),
+                  child: Transform.translate(
+                    offset: Offset(0, paneOffsetY),
+                    child: _buildGlassPane(
+                      context,
+                      width: width,
+                      height: height,
+                      paneLeft: paneLeft,
+                      paneWidth: paneWidth,
+                      paneOffsetY: paneOffsetY,
+                      refractionOffsetX: refractionOffsets[index],
+                      refractionScaleX: refractionScales[index],
+                      index: index,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
         ),
       ),
     );
@@ -271,19 +293,11 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 실제 뒤 레이어를 살짝만 흐린다. 굴절감은 아래 복제 레이어가 담당한다.
           BackdropFilter(
-            filter: ui.ImageFilter.blur(
-              sigmaX: 2.8,
-              sigmaY: 1.8,
-            ),
-            child: ColoredBox(
-              color: colors.onSurface.withValues(alpha: 0.015),
-            ),
+            filter: ui.ImageFilter.blur(sigmaX: 2.8, sigmaY: 1.8),
+            child: ColoredBox(color: colors.onSurface.withValues(alpha: 0.015)),
           ),
 
-          // 패널 안에서만 헤드셋을 다시 그려 위치와 폭을 조금씩 틀어준다.
-          // 이 레이어가 각 유리 조각마다 서로 다른 굴절을 만드는 핵심이다.
           Opacity(
             opacity: _headphoneOpacity.value * 0.50,
             child: OverflowBox(
@@ -313,7 +327,6 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
             ),
           ),
 
-          // 유리 가장자리의 빛과 음영을 각각의 사각 패널에 따로 준다.
           DecoratedBox(
             decoration: BoxDecoration(
               border: Border(
@@ -357,18 +370,11 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     ).transform(_controller.value);
   }
 
-  Widget _buildHeadphone({
-    required double width,
-    required double height,
-  }) {
+  Widget _buildHeadphone({required double width, required double height}) {
     return Opacity(
-      // 요청한 대로 원본 헤드셋 자체는 50% 투명도로 표시한다.
       opacity: _headphoneOpacity.value * 0.50,
       child: Transform.translate(
-        offset: Offset(
-          0,
-          -height * 0.70 * (1 - _headphoneEntrance.value),
-        ),
+        offset: Offset(0, -height * 0.70 * (1 - _headphoneEntrance.value)),
         child: SizedBox.expand(
           child: _buildHeadphoneArtwork(
             width: width,
@@ -384,7 +390,6 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     required double entranceScale,
   }) {
     return Align(
-      // 레퍼런스처럼 우측 컵이 화면 바깥으로 일부 잘릴 정도로 크게 배치한다.
       alignment: const Alignment(0.22, -0.14),
       child: Transform.scale(
         scale: 0.97 + (0.03 * entranceScale),
@@ -405,24 +410,22 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     required Color textColor,
   }) {
     return Align(
-      alignment: const Alignment(0, -0.05),
+      alignment: const Alignment(0, -0.01),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Opacity(
             opacity: _logoOpacity.value,
             child: Transform.translate(
-              offset: Offset(
-                0,
-                height * 0.44 * (1 - _logoEntrance.value),
-              ),
+              offset: Offset(0, height * 0.44 * (1 - _logoEntrance.value)),
               child: SvgPicture.asset(
                 _logoAsset,
-                width: width * 0.78,
+                width: width * 0.88,
                 fit: BoxFit.contain,
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.x12),
           Transform.translate(
             offset: const Offset(0, -5),
             child: Text.rich(
