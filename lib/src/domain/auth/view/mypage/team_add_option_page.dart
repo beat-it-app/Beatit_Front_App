@@ -16,6 +16,39 @@ class TeamAddOptionPage extends StatefulWidget {
 class _TeamAddOptionPageState extends State<TeamAddOptionPage> {
   String? _selectedBox;
 
+  // 💡 팀 생성 플로우 실행 및 연쇄 pop 처리
+  Future<void> _handleCreateTeam() async {
+    setState(() {
+      _selectedBox = 'create';
+    });
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (context) => const TeamCreatePage()),
+    );
+
+    // 💡 생성 완료 후 TeamCreatePage에서 pop(true)로 돌아왔다면,
+    // 이 TeamAddOptionPage도 닫으면서 이전 '팀 전환 바텀시트'로 true 전달
+    if (result == true && mounted) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  // 💡 팀 참여 플로우 실행 및 연쇄 pop 처리
+  Future<void> _handleJoinTeam() async {
+    setState(() {
+      _selectedBox = 'join';
+    });
+
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (context) => const TeamJoinPage()));
+
+    // 💡 참여 완료 후 pop(true)로 돌아왔을 때 동일하게 바텀시트로 복귀
+    if (result == true && mounted) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -60,32 +93,14 @@ class _TeamAddOptionPageState extends State<TeamAddOptionPage> {
                     iconPath: 'assets/icons/cal/plus.svg',
                     label: '팀 생성하기',
                     isSelected: _selectedBox == 'create',
-                    onTap: () {
-                      setState(() {
-                        _selectedBox = 'create';
-                      });
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamCreatePage(),
-                        ),
-                      );
-                    },
+                    onTap: _handleCreateTeam, // 👈 비동기 대기 및 연쇄 pop 연결
                   ),
                   const SizedBox(width: AppSpacing.x10),
                   _TeamActionBox(
                     iconPath: 'assets/icons/team/plus_team.svg',
                     label: '팀 참여하기',
                     isSelected: _selectedBox == 'join',
-                    onTap: () {
-                      setState(() {
-                        _selectedBox = 'join';
-                      });
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamJoinPage(),
-                        ),
-                      );
-                    },
+                    onTap: _handleJoinTeam, // 👈 비동기 대기 및 연쇄 pop 연결
                   ),
                 ],
               ),

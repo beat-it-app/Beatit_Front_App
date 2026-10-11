@@ -22,6 +22,7 @@ class MyPageApi {
   Future<MyPageResponseModel> getMyPage() async {
     try {
       final response = await _dio.get('/mypage');
+      print('📦 [백엔드 200 응답 원본]: ${response.data}');
       final data = response.data;
 
       if (data is Map<String, dynamic> && data['data'] != null) {

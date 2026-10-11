@@ -26,10 +26,20 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
     });
   }
 
-  void _openTeamSwitchSheet() {
-    TeamSwitchBottomSheet.show(context);
+  // 💡 팀 전환 바텀시트 열기 및 닫힌 후 데이터 동기화
+  Future<void> _openTeamSwitchSheet(String? currentTeamPublicId) async {
+    await TeamSwitchBottomSheet.show(
+      context,
+      currentTeamPublicId: currentTeamPublicId,
+    );
+
+    // 바텀시트가 닫혔을 때 (팀 선택 or 추가 완료 복귀) 최신 상태 재조회
+    if (mounted) {
+      ref.read(myPageProvider.notifier).fetchMyPage();
+    }
   }
 
+  // 소셜 로그인 뱃지 생성 함수
   Widget _buildSocialBadges(List<String> socialAccounts) {
     if (socialAccounts.isEmpty) return const SizedBox.shrink();
 
@@ -43,7 +53,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: socialAccounts.map((account) {
-        final key = account.toUpperCase().trim();
+        final key = account.trim().toUpperCase();
         final iconPath = socialIconPaths[key];
 
         if (iconPath == null) return const SizedBox.shrink();
@@ -69,14 +79,16 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
     }
 
     final data = state.data;
+
+    // 1. 프로필 이미지 URL
     final userProfileUrl = data?.profileImageUrl?.trim();
-
     final bool hasProfileImage =
-        userProfileUrl != null && userProfileUrl.isNotEmpty;
+        userProfileUrl != null &&
+        userProfileUrl.isNotEmpty &&
+        userProfileUrl != 'string';
 
-    // API 변경: teams(List) → team(단일 객체)
+    // 2. 단일 team 객체 바인딩
     final currentTeam = data?.team;
-
     final teamImageUrl = currentTeam?.imageUrl?.trim();
     final bool hasTeamImage =
         teamImageUrl != null &&
@@ -113,27 +125,16 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: context.colors.primary,
-                    child: hasProfileImage
-                        ? ClipOval(
-                            child: Image.network(
-                              userProfileUrl,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.music_note,
-                                  color: Colors.black,
-                                  size: 28,
-                                );
-                              },
-                            ),
-                          )
-                        : const Icon(
+                    backgroundImage: hasProfileImage
+                        ? NetworkImage(userProfileUrl)
+                        : null,
+                    child: !hasProfileImage
+                        ? const Icon(
                             Icons.music_note,
                             color: Colors.black,
                             size: 28,
-                          ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: AppSpacing.x16),
                   Expanded(
@@ -175,6 +176,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
             ),
             const SizedBox(height: AppSpacing.x24),
 
+            // 두께 6 구분선
             Container(
               height: 6,
               width: double.infinity,
@@ -183,7 +185,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             const SizedBox(height: AppSpacing.x16),
 
-            // 현재 팀 타이틀
+            // 현재 팀 타이틀 & 전환 버튼
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
               child: Row(
@@ -193,8 +195,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                     '현재 팀',
                     style: FontStyles.bold18.copyWith(color: colors.onSurface),
                   ),
-
-                  // 다른 팀 전환 API 연결 전까지 아무 동작도 하지 않음
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -207,7 +207,11 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    onPressed: _openTeamSwitchSheet,
+                    onPressed: () => _openTeamSwitchSheet(
+                      currentTeam != null
+                          ? currentTeam.teamId.toString()
+                          : null,
+                    ),
                   ),
                 ],
               ),
@@ -223,6 +227,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                 child: Container(
                   height: 200,
                   width: double.infinity,
+                  color: const Color(0xFF1C1C1E),
                   child: Stack(
                     children: [
                       // 배경 이미지
@@ -241,7 +246,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                                 fit: BoxFit.cover,
                               ),
                       ),
-
+                      // 어두운 오버레이
                       Positioned.fill(
                         child: Container(color: Colors.black.withOpacity(0.5)),
                       ),
@@ -293,13 +298,14 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             const SizedBox(height: AppSpacing.x24),
 
+            // 두께 6 구분선
             Container(
               height: 6,
               width: double.infinity,
               color: context.grays.gray8,
             ),
 
-            // 설정 메뉴 리스트
+            // 설정 목록
             _SettingTile(title: '알림 설정', onTap: () {}),
             _SettingTile(title: '화면 설정', onTap: () {}),
             _SettingTile(title: '서비스 약관', onTap: () {}),

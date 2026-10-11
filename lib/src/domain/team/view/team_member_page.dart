@@ -410,6 +410,8 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                               color: context.grays.gray5,
                             ),
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
