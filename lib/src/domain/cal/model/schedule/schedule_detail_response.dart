@@ -32,9 +32,8 @@ abstract class ScheduleDetailData with _$ScheduleDetailData {
     @Default(<ScheduleDetailParticipant>[]) List<ScheduleDetailParticipant> participants,
     @Default(<ScheduleDetailFile>[]) List<ScheduleDetailFile> files,
 
-    /// 현재 첨부된 백엔드 ScheduleDetailResponse에는 아직 없는 필드입니다.
-    /// 백엔드가 상세 조회 응답에 musics를 추가하면 프론트 수정 없이 표시할 수 있도록
-    /// 기본값을 빈 목록으로 둡니다.
+    /// 현재 백엔드는 musics를 반환합니다. 구버전 응답과도 호환되도록
+    /// 필드가 누락되면 빈 목록을 사용합니다.
     @Default(<ScheduleDetailMusic>[]) List<ScheduleDetailMusic> musics,
   }) = _ScheduleDetailData;
 

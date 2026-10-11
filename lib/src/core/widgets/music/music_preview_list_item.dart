@@ -54,13 +54,14 @@ class MusicPreviewListItem extends StatelessWidget {
                         color: context.colors.onSurface,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.x4),
+                    const SizedBox(height: 2.0),
                     Text(
                       artistText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: FontStyles.med12.copyWith(
                         color: context.grays.gray5,
+                        height: 1,
                       ),
                     ),
                   ],

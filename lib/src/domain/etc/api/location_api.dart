@@ -13,9 +13,10 @@ class LocationApi {
 
   Future<List<LocationSearchResult>> searchLocations({
     required String query,
-    int page = 0,
     double? latitude,
     double? longitude,
+    int page = 0,
+    int limit = 10,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -23,6 +24,7 @@ class LocationApi {
         queryParameters: {
           'query': query,
           'page': page,
+          'limit': limit,
           if (latitude != null) 'latitude': latitude,
           if (longitude != null) 'longitude': longitude,
         },

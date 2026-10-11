@@ -28,6 +28,8 @@ class LocationSearchState {
     this.referencePage = 0,
     this.errorMessage,
     this.referenceErrorMessage,
+    this.loadMoreErrorMessage,
+    this.referenceLoadMoreErrorMessage,
   });
 
   final List<LocationSearchResult> results;
@@ -44,6 +46,8 @@ class LocationSearchState {
   final String referenceQuery;
   final int page;
   final int referencePage;
+  final String? loadMoreErrorMessage;
+  final String? referenceLoadMoreErrorMessage;
   final String? errorMessage;
   final String? referenceErrorMessage;
 
@@ -64,6 +68,10 @@ class LocationSearchState {
     String? referenceQuery,
     int? page,
     int? referencePage,
+    String? loadMoreErrorMessage,
+    bool clearLoadMoreErrorMessage = false,
+    String? referenceLoadMoreErrorMessage,
+    bool clearReferenceLoadMoreErrorMessage = false,
     String? errorMessage,
     bool clearErrorMessage = false,
     String? referenceErrorMessage,
@@ -81,13 +89,20 @@ class LocationSearchState {
       isLoading: isLoading ?? this.isLoading,
       isReferenceLoading: isReferenceLoading ?? this.isReferenceLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      isReferenceLoadingMore: isReferenceLoadingMore ?? this.isReferenceLoadingMore,
+      isReferenceLoadingMore:
+          isReferenceLoadingMore ?? this.isReferenceLoadingMore,
       hasMore: hasMore ?? this.hasMore,
       referenceHasMore: referenceHasMore ?? this.referenceHasMore,
       query: query ?? this.query,
       referenceQuery: referenceQuery ?? this.referenceQuery,
       page: page ?? this.page,
       referencePage: referencePage ?? this.referencePage,
+      loadMoreErrorMessage: clearLoadMoreErrorMessage
+          ? null
+          : loadMoreErrorMessage ?? this.loadMoreErrorMessage,
+      referenceLoadMoreErrorMessage: clearReferenceLoadMoreErrorMessage
+          ? null
+          : referenceLoadMoreErrorMessage ?? this.referenceLoadMoreErrorMessage,
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
@@ -99,7 +114,9 @@ class LocationSearchState {
 }
 
 class LocationSearchNotifier extends Notifier<LocationSearchState> {
-  static const int _pageSize = 15;
+  static const int _pageSize = 10;
+  // 백엔드에서 page >= 45는 빈 목록을 반환합니다.
+  static const int _lastPage = 44;
   int _searchRequestId = 0;
   int _referenceSearchRequestId = 0;
 
@@ -118,21 +135,23 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
     state = state.copyWith(
       results: const <LocationSearchResult>[],
+      page: 0,
+      hasMore: false,
       isLoading: true,
       isLoadingMore: false,
-      hasMore: false,
       query: normalizedQuery,
-      page: 0,
       clearErrorMessage: true,
+      clearLoadMoreErrorMessage: true,
       clearSelectedLocation: true,
     );
 
     try {
       final results = await ref.read(locationApiProvider).searchLocations(
         query: normalizedQuery,
-        page: 0,
         latitude: referenceLocation?.latitude,
         longitude: referenceLocation?.longitude,
+        page: 0,
+        limit: _pageSize,
       );
 
       if (requestId != _searchRequestId) {
@@ -141,6 +160,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
       state = state.copyWith(
         results: results,
+        page: 0,
         hasMore: results.length == _pageSize,
         isLoading: false,
         clearErrorMessage: true,
@@ -168,18 +188,20 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
+      referencePage: 0,
+      referenceHasMore: false,
       isReferenceLoading: true,
       isReferenceLoadingMore: false,
-      referenceHasMore: false,
       referenceQuery: normalizedQuery,
-      referencePage: 0,
       clearReferenceErrorMessage: true,
+      clearReferenceLoadMoreErrorMessage: true,
     );
 
     try {
       final results = await ref.read(locationApiProvider).searchLocations(
         query: normalizedQuery,
         page: 0,
+        limit: _pageSize,
       );
 
       if (requestId != _referenceSearchRequestId) {
@@ -188,6 +210,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
       state = state.copyWith(
         referenceResults: results,
+        referencePage: 0,
         referenceHasMore: results.length == _pageSize,
         isReferenceLoading: false,
         clearReferenceErrorMessage: true,
@@ -207,32 +230,43 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     }
   }
 
+  /// 현재 검색어와 기준 좌표를 유지하면서 다음 페이지만 추가합니다.
   Future<void> loadMoreLocations() async {
     if (state.isLoading || state.isLoadingMore || !state.hasMore ||
-        state.query.isEmpty || state.page >= 44) return;
+        state.query.isEmpty || state.page >= _lastPage) return;
+
     final requestId = _searchRequestId;
     final nextPage = state.page + 1;
-    final reference = state.referenceLocation;
-    state = state.copyWith(isLoadingMore: true, clearErrorMessage: true);
+    final referenceLocation = state.referenceLocation;
+    state = state.copyWith(
+      isLoadingMore: true,
+      clearLoadMoreErrorMessage: true,
+    );
+
     try {
-      final results = await ref.read(locationApiProvider).searchLocations(
+      final next = await ref.read(locationApiProvider).searchLocations(
         query: state.query,
+        latitude: referenceLocation?.latitude,
+        longitude: referenceLocation?.longitude,
         page: nextPage,
-        latitude: reference?.latitude,
-        longitude: reference?.longitude,
+        limit: _pageSize,
       );
       if (requestId != _searchRequestId) return;
+
       state = state.copyWith(
-        results: [...state.results, ...results],
+        results: <LocationSearchResult>[...state.results, ...next],
         page: nextPage,
-        hasMore: results.length == _pageSize && nextPage < 44,
+        hasMore: next.length == _pageSize && nextPage < _lastPage,
         isLoadingMore: false,
       );
     } catch (error) {
       if (requestId != _searchRequestId) return;
       state = state.copyWith(
         isLoadingMore: false,
-        errorMessage: _getErrorMessage(error, fallback: '추가 장소 검색에 실패했습니다.'),
+        loadMoreErrorMessage: _getErrorMessage(
+          error,
+          fallback: '다음 장소를 불러오지 못했습니다.',
+        ),
       );
     }
   }
@@ -240,28 +274,40 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
   Future<void> loadMoreReferenceLocations() async {
     if (state.isReferenceLoading || state.isReferenceLoadingMore ||
         !state.referenceHasMore || state.referenceQuery.isEmpty ||
-        state.referencePage >= 44) return;
+        state.referencePage >= _lastPage) return;
+
     final requestId = _referenceSearchRequestId;
     final nextPage = state.referencePage + 1;
-    state = state.copyWith(isReferenceLoadingMore: true,
-        clearReferenceErrorMessage: true);
+    state = state.copyWith(
+      isReferenceLoadingMore: true,
+      clearReferenceLoadMoreErrorMessage: true,
+    );
+
     try {
-      final results = await ref.read(locationApiProvider).searchLocations(
+      final next = await ref.read(locationApiProvider).searchLocations(
         query: state.referenceQuery,
         page: nextPage,
+        limit: _pageSize,
       );
       if (requestId != _referenceSearchRequestId) return;
+
       state = state.copyWith(
-        referenceResults: [...state.referenceResults, ...results],
+        referenceResults: <LocationSearchResult>[
+          ...state.referenceResults,
+          ...next,
+        ],
         referencePage: nextPage,
-        referenceHasMore: results.length == _pageSize && nextPage < 44,
+        referenceHasMore: next.length == _pageSize && nextPage < _lastPage,
         isReferenceLoadingMore: false,
       );
     } catch (error) {
       if (requestId != _referenceSearchRequestId) return;
       state = state.copyWith(
         isReferenceLoadingMore: false,
-        referenceErrorMessage: _getErrorMessage(error, fallback: '추가 기준 위치 검색에 실패했습니다.'),
+        referenceLoadMoreErrorMessage: _getErrorMessage(
+          error,
+          fallback: '다음 기준 위치를 불러오지 못했습니다.',
+        ),
       );
     }
   }
@@ -281,12 +327,13 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       referenceLocation: location,
       referenceResults: const <LocationSearchResult>[],
-      isReferenceLoading: false,
-      isReferenceLoadingMore: false,
-      referenceHasMore: false,
       referenceQuery: '',
       referencePage: 0,
+      referenceHasMore: false,
+      isReferenceLoading: false,
+      isReferenceLoadingMore: false,
       clearReferenceErrorMessage: true,
+      clearReferenceLoadMoreErrorMessage: true,
     );
   }
 
@@ -294,12 +341,13 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     _searchRequestId++;
     state = state.copyWith(
       results: const <LocationSearchResult>[],
-      isLoading: false,
-      isLoadingMore: false,
-      hasMore: false,
       query: '',
       page: 0,
+      hasMore: false,
+      isLoading: false,
+      isLoadingMore: false,
       clearErrorMessage: true,
+      clearLoadMoreErrorMessage: true,
       clearSelectedLocation: true,
     );
   }
@@ -308,12 +356,13 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     _referenceSearchRequestId++;
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
-      isReferenceLoading: false,
-      isReferenceLoadingMore: false,
-      referenceHasMore: false,
       referenceQuery: '',
       referencePage: 0,
+      referenceHasMore: false,
+      isReferenceLoading: false,
+      isReferenceLoadingMore: false,
       clearReferenceErrorMessage: true,
+      clearReferenceLoadMoreErrorMessage: true,
     );
   }
 
@@ -321,13 +370,14 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     _referenceSearchRequestId++;
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
-      isReferenceLoading: false,
-      isReferenceLoadingMore: false,
-      referenceHasMore: false,
       referenceQuery: '',
       referencePage: 0,
+      referenceHasMore: false,
+      isReferenceLoading: false,
+      isReferenceLoadingMore: false,
       clearReferenceLocation: true,
       clearReferenceErrorMessage: true,
+      clearReferenceLoadMoreErrorMessage: true,
     );
   }
 
