@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:beatit_front_app/src/domain/post/model/poll_voter.dart';
 
 import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
@@ -118,9 +119,32 @@ class PostApi {
           ? dataJson['remindBeforeClose']?.toString() == 'REMIND'
           : false;
 
+      // The latest backend includes the voter list in each poll item of the
+      // detail response. There is no separate voters endpoint.
+      final votersByOption = <int, List<PollVoter>>{};
+      if (dataJson is Map && dataJson['anonymous'] == false) {
+        final pollItems = dataJson['pollItems'];
+        if (pollItems is List) {
+          for (final item in pollItems) {
+            if (item is! Map || item['itemId'] is! num) continue;
+            final optionId = (item['itemId'] as num).toInt();
+            final voters = item['voters'];
+            votersByOption[optionId] = voters is List
+                ? voters
+                    .whereType<Map>()
+                    .map((voter) => PollVoter.fromJson(
+                          Map<String, dynamic>.from(voter),
+                        ))
+                    .toList(growable: false)
+                : const <PollVoter>[];
+          }
+        }
+      }
+
       return PollDetailLoadResult(
         data: PollDetailResponse.fromJson(body).data,
         remindBeforeClose: remindBeforeClose,
+        votersByOption: votersByOption,
       );
     } on DioException catch (error) {
       throw _mapDioException(error);
@@ -341,6 +365,20 @@ class PostApi {
     _requireSuccessBody(response: response, fallbackMessage: '투표에 실패했습니다.');
   }
 
+  Future<void> cancelVote(int id) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        '$_pollPath/$id/votes',
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '투표 취소에 실패했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> commentNotice(int id, String content, {
     int? parentCommentId,
     List<int> mentionedUserIds = const [],
@@ -449,10 +487,12 @@ class PollDetailLoadResult {
   const PollDetailLoadResult({
     required this.data,
     required this.remindBeforeClose,
+    required this.votersByOption,
   });
 
   final PollDetailData data;
   final bool remindBeforeClose;
+  final Map<int, List<PollVoter>> votersByOption;
 }
 
 class PostApiException implements Exception {

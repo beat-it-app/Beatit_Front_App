@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/should_show_updated_at.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -10,6 +11,7 @@ import 'package:beatit_front_app/src/domain/post/view/post_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/widget/post_comments.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -150,11 +152,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   String _formatDateTime(DateTime dateTime) {
-    String twoDigits(int value) => value.toString().padLeft(2, '0');
-
-    return '${dateTime.year}.${twoDigits(dateTime.month)}.'
-        '${twoDigits(dateTime.day)} ${twoDigits(dateTime.hour)}:'
-        '${twoDigits(dateTime.minute)}';
+    return formatPostDateTime(dateTime);
   }
 
   @override
@@ -248,8 +246,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                               color: context.grays.gray4,
                                             ),
                                           ),
-                                          if (!_data!.updatedAt.isAtSameMomentAs(
+                                          if (shouldShowUpdatedAt(
                                             _data!.createdAt,
+                                            _data!.updatedAt,
                                           ))
                                             TextSpan(
                                               text:
