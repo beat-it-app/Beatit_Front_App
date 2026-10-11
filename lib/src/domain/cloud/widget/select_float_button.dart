@@ -62,7 +62,7 @@ class SelectFloatButton extends StatelessWidget {
                       onMovePressed: onMovePressed,
                       onDownloadPressed: onDownloadPressed,
                     ),
-                    _CloudConfirmFloatingButton(onPressed: onConfirmPressed),
+                    CloudConfirmFloatingButton(onPressed: onConfirmPressed),
                   ],
                 ),
               ),
@@ -250,18 +250,25 @@ class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
   }
 }
 
-class _CloudConfirmFloatingButton extends StatefulWidget {
-  const _CloudConfirmFloatingButton({required this.onPressed});
+class CloudConfirmFloatingButton extends StatefulWidget {
+  const CloudConfirmFloatingButton({
+    super.key,
+    required this.onPressed,
+    this.isEnabled = true,
+    this.semanticLabel = '선택 완료',
+  });
 
   final VoidCallback onPressed;
+  final bool isEnabled;
+  final String semanticLabel;
 
   @override
-  State<_CloudConfirmFloatingButton> createState() =>
+  State<CloudConfirmFloatingButton> createState() =>
       _CloudConfirmFloatingButtonState();
 }
 
 class _CloudConfirmFloatingButtonState
-    extends State<_CloudConfirmFloatingButton> {
+    extends State<CloudConfirmFloatingButton> {
   bool _isPressed = false;
 
   void _setPressed(bool value) {
@@ -276,25 +283,33 @@ class _CloudConfirmFloatingButtonState
       context.grays.black.withValues(alpha: 0.12),
       defaultColor,
     );
+    final buttonColor = !widget.isEnabled
+        ? context.grays.gray6
+        : _isPressed
+        ? pressedColor
+        : defaultColor;
 
     return Semantics(
       button: true,
-      label: '선택 완료',
+      label: widget.semanticLabel,
+      enabled: widget.isEnabled,
       child: MouseRegion(
-        cursor: SystemMouseCursors.click,
+        cursor: widget.isEnabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => _setPressed(true),
-          onTapUp: (_) => _setPressed(false),
-          onTapCancel: () => _setPressed(false),
-          onTap: widget.onPressed,
+          onTapDown: widget.isEnabled ? (_) => _setPressed(true) : null,
+          onTapUp: widget.isEnabled ? (_) => _setPressed(false) : null,
+          onTapCancel: widget.isEnabled ? () => _setPressed(false) : null,
+          onTap: widget.isEnabled ? widget.onPressed : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 100),
             curve: Curves.easeOut,
             width: 76.0,
             height: 58.0,
             decoration: BoxDecoration(
-              color: _isPressed ? pressedColor : defaultColor,
+              color: buttonColor,
               borderRadius: BorderRadius.circular(18.0),
               boxShadow: [
                 BoxShadow(

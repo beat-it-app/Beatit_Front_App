@@ -434,7 +434,7 @@ class _CloudAudioWaveformState extends State<CloudAudioWaveform> {
                     selectedWaveformColor: context.grays.gray2,
                     playheadBorderColor: context.grays.gray5,
                     playheadFillColor: context.grays.white,
-                    selectionFillColor: context.brands.beatOrange5.withValues(alpha: 0.35),
+                    selectionFillColor: context.brands.beatOrange5,
                     containerHeight: _containerHeight,
                     playheadExtension: _playheadExtension,
                   ),
@@ -556,7 +556,12 @@ class _CloudAudioWaveformPainter extends CustomPainter {
           waveformRect.width * loadingProgress.clamp(0.0, 1.0),
           2.0,
         ),
-        Paint()..color = unselectedWaveformColor.withValues(alpha: 0.25),
+        Paint()
+          ..color =
+              (isSelectionMode
+                      ? unselectedWaveformColor
+                      : selectedWaveformColor)
+                  .withValues(alpha: 0.25),
       );
     }
 
@@ -720,7 +725,7 @@ class _CloudAudioWaveformPainter extends CustomPainter {
 
   bool _isSelectedTime(Duration time) {
     if (!isSelectionMode) {
-      return false;
+      return true;
     }
 
     return time >= selectionStart && time <= selectionEnd;

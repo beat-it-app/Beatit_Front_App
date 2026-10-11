@@ -289,7 +289,7 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
   bool _isSelectionMode = false;
   Duration _selectionStart = Duration.zero;
   Duration _selectionEnd = Duration.zero;
-  _VideoRepeatMode _repeatMode = _VideoRepeatMode.off;
+  _VideoRepeatMode _repeatMode = _VideoRepeatMode.whole;
   bool _isInternalSeek = false;
 
   VideoPlayerController get _controller => widget.controller;
@@ -423,6 +423,9 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
     }
 
     if (_isSelectionMode) {
+      final nextRepeatMode = _repeatMode == _VideoRepeatMode.off
+          ? _VideoRepeatMode.off
+          : _VideoRepeatMode.whole;
       final keepPosition = _clampDuration(
         _currentPosition,
         _selectionStart,
@@ -435,7 +438,7 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
         _isSelectionMode = false;
         _selectionStart = Duration.zero;
         _selectionEnd = _duration;
-        _repeatMode = _VideoRepeatMode.off;
+        _repeatMode = nextRepeatMode;
       });
       return;
     }
@@ -458,7 +461,7 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
       _isSelectionMode = true;
       _selectionStart = start;
       _selectionEnd = end;
-      _repeatMode = _VideoRepeatMode.off;
+      _repeatMode = _VideoRepeatMode.selection;
     });
   }
 
@@ -576,8 +579,8 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
               children: [
                 _buildSideControl(
                   semanticLabel: _isRepeatEnabled ? '반복재생 끄기' : '반복재생 켜기',
-                  activeIcon: 'assets/icons/cloud/rotate_stop.svg',
-                  defaultIcon: 'assets/icons/cloud/rotate.svg',
+                  activeIcon: 'assets/icons/cloud/rotate.svg',
+                  defaultIcon: 'assets/icons/cloud/rotate_stop.svg',
                   isActive: _isRepeatEnabled,
                   onPressed: () {
                     unawaited(_toggleRepeat());
@@ -596,8 +599,8 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
                 const SizedBox(width: AppSpacing.x24),
                 _buildSideControl(
                   semanticLabel: _isSelectionMode ? '구간 선택 종료' : '재생 구간 선택',
-                  activeIcon: 'assets/icons/cloud/music_loop_stop.svg',
-                  defaultIcon: 'assets/icons/cloud/music_loop.svg',
+                  activeIcon: 'assets/icons/cloud/music_loop.svg',
+                  defaultIcon: 'assets/icons/cloud/music_loop_stop.svg',
                   isActive: _isSelectionMode,
                   onPressed: () {
                     unawaited(_toggleSelectionMode());

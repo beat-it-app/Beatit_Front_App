@@ -1,10 +1,10 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -31,9 +31,8 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
   static const int _rootTargetValue = -1;
   int? _selectedTargetValue;
 
-  int? get _targetFolderId => _selectedTargetValue == _rootTargetValue
-      ? null
-      : _selectedTargetValue;
+  int? get _targetFolderId =>
+      _selectedTargetValue == _rootTargetValue ? null : _selectedTargetValue;
 
   bool get _canConfirm {
     final selected = _selectedTargetValue;
@@ -45,11 +44,13 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
   Future<void> _confirmMove() async {
     if (!_canConfirm) return;
 
-    final success = await ref.read(cloudMutationProvider.notifier).moveItems(
-      itemIds: widget.itemIds,
-      currentFolderId: widget.currentFolderId,
-      targetFolderId: _targetFolderId,
-    );
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .moveItems(
+          itemIds: widget.itemIds,
+          currentFolderId: widget.currentFolderId,
+          targetFolderId: _targetFolderId,
+        );
     if (!mounted) return;
 
     if (success) {
@@ -59,7 +60,9 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
 
     final message =
         ref.read(cloudMutationProvider).errorMessage ?? '파일 이동에 실패했습니다.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -82,10 +85,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
             'assets/icons/appbar/back.svg',
             width: 22,
             height: 22,
-            colorFilter: ColorFilter.mode(
-              context.grays.black,
-              BlendMode.srcIn,
-            ),
+            colorFilter: ColorFilter.mode(context.grays.black, BlendMode.srcIn),
           ),
         ),
         title: Text(
@@ -125,8 +125,8 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                       const SizedBox(height: AppSpacing.x4),
                       Text(
                         '현재 위치: ${widget.currentFolderName}',
-                        style: FontStyles.med12.copyWith(
-                          color: context.grays.gray5,
+                        style: FontStyles.med14.copyWith(
+                          color: context.grays.gray4,
                         ),
                       ),
                     ],
@@ -134,12 +134,12 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                 ),
                 Expanded(
                   child: root.when(
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (error, _) => Center(
                       child: TextButton(
-                        onPressed: () => ref.invalidate(cloudListProvider(null)),
+                        onPressed: () =>
+                            ref.invalidate(cloudListProvider(null)),
                         child: const Text('폴더 목록 다시 불러오기'),
                       ),
                     ),
@@ -151,9 +151,10 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
             Positioned(
               right: AppSpacing.x16,
               bottom: AppSpacing.x16,
-              child: _MoveConfirmButton(
-                enabled: _canConfirm && !mutation.isMoving,
+              child: CloudConfirmFloatingButton(
+                isEnabled: _canConfirm && !mutation.isMoving,
                 onPressed: _confirmMove,
+                semanticLabel: '선택한 위치로 이동',
               ),
             ),
           ],
@@ -214,9 +215,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                   colorFilter: ColorFilter.mode(
                     isCurrent
                         ? context.grays.gray6
-                        : isSelected
-                        ? context.brands.beatOrange1
-                        : context.grays.gray3,
+                        : context.brands.beatOrange1,
                     BlendMode.srcIn,
                   ),
                 ),
@@ -243,10 +242,13 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                   const SizedBox(width: AppSpacing.x4),
                 ],
                 if (isCurrent)
-                  Text(
-                    '현재',
-                    style: FontStyles.med12.copyWith(
-                      color: context.grays.gray5,
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.x8),
+                    child: Text(
+                      '현재 위치',
+                      style: FontStyles.reg14.copyWith(
+                        color: context.grays.gray5,
+                      ),
                     ),
                   )
                 else
@@ -280,44 +282,3 @@ class _MoveTarget {
   final int? itemCount;
 }
 
-class _MoveConfirmButton extends StatelessWidget {
-  const _MoveConfirmButton({
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: '선택한 위치로 이동',
-      child: Material(
-        color: enabled ? context.brands.beatOrange1 : context.grays.gray6,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(18),
-          child: SizedBox(
-            width: 58,
-            height: 58,
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/check/check.svg',
-                width: 22,
-                height: 22,
-                colorFilter: ColorFilter.mode(
-                  context.grays.white,
-                  BlendMode.srcIn,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

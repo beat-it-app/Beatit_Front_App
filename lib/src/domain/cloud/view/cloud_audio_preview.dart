@@ -82,7 +82,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
   late int _currentIndex;
 
   _AudioLoadState _loadState = _AudioLoadState.loading;
-  _AudioRepeatMode _repeatMode = _AudioRepeatMode.off;
+  _AudioRepeatMode _repeatMode = _AudioRepeatMode.whole;
 
   Duration _sourceDuration = Duration.zero;
   Duration _playerPosition = Duration.zero;
@@ -202,7 +202,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
     setState(() {
       _loadState = _AudioLoadState.loading;
-      _repeatMode = _AudioRepeatMode.off;
+      _repeatMode = _AudioRepeatMode.whole;
       _sourceDuration = Duration.zero;
       _playerPosition = Duration.zero;
       _clipStart = Duration.zero;
@@ -221,7 +221,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     }
 
     try {
-      await _player.setLoopMode(LoopMode.off);
+      await _player.setLoopMode(LoopMode.one);
 
       final duration = previewUri.scheme == 'file'
           ? await _player.setFilePath(previewUri.toFilePath())
@@ -639,15 +639,22 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     await _player.setLoopMode(LoopMode.off);
 
     if (_isSelectionMode) {
+      final nextRepeatMode = _repeatMode == _AudioRepeatMode.off
+          ? _AudioRepeatMode.off
+          : _AudioRepeatMode.whole;
+
       await _player.setClip(start: null, end: null);
       await _player.seek(absolutePosition);
+      await _player.setLoopMode(
+        nextRepeatMode == _AudioRepeatMode.off ? LoopMode.off : LoopMode.one,
+      );
 
       if (!mounted) return;
       setState(() {
         _isSelectionMode = false;
         _isClipApplied = false;
         _clipStart = Duration.zero;
-        _repeatMode = _AudioRepeatMode.off;
+        _repeatMode = nextRepeatMode;
         _playerPosition = absolutePosition;
       });
     } else {
@@ -672,13 +679,14 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
       await _player.setClip(start: selectionStart, end: selectionEnd);
       await _player.seek(clampedPosition - selectionStart);
+      await _player.setLoopMode(LoopMode.one);
 
       if (!mounted) return;
       setState(() {
         _isSelectionMode = true;
         _isClipApplied = true;
         _clipStart = selectionStart;
-        _repeatMode = _AudioRepeatMode.off;
+        _repeatMode = _AudioRepeatMode.selection;
         _selectionStart = selectionStart;
         _selectionEnd = selectionEnd;
         _playerPosition = clampedPosition - selectionStart;
@@ -849,8 +857,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 children: [
                   _buildSideControl(
                     semanticLabel: _isRepeatEnabled ? '반복재생 끄기' : '반복재생 켜기',
-                    icon1: 'assets/icons/cloud/rotate_stop.svg',
-                    icon2: 'assets/icons/cloud/rotate.svg',
+                    icon1: 'assets/icons/cloud/rotate.svg',
+                    icon2: 'assets/icons/cloud/rotate_stop.svg',
                     isActive: _isRepeatEnabled,
                     onPressed: () => unawaited(_toggleRepeat()),
                   ),
@@ -865,8 +873,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                   const SizedBox(width: AppSpacing.x24),
                   _buildSideControl(
                     semanticLabel: _isSelectionMode ? '구간 선택 종료' : '재생 구간 선택',
-                    icon1: 'assets/icons/cloud/music_loop_stop.svg',
-                    icon2: 'assets/icons/cloud/music_loop.svg',
+                    icon1: 'assets/icons/cloud/music_loop.svg',
+                    icon2: 'assets/icons/cloud/music_loop_stop.svg',
                     isActive: _isSelectionMode,
                     onPressed: () => unawaited(_toggleSelectionMode()),
                   ),
