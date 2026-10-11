@@ -855,10 +855,8 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
   }
 
   Future<void> _disconnectSocket() async {
-    debugPrint(
-      '[Chat WS] DISCONNECT REQUEST | chatId=$_socketChatId | '
-      'stateChatId=${state.chatId}',
-    );
+    // Called from ref.onDispose as well: never read provider state here.
+    debugPrint('[Chat WS] DISCONNECT REQUEST | chatId=$_socketChatId');
     _realtimeSafetySyncTimer?.cancel();
     _realtimeSafetySyncTimer = null;
     _socketChatId = null;

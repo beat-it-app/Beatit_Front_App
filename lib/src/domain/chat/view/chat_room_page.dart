@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -54,14 +55,19 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  bool _isProgrammaticScroll = false;
   final ImagePicker _imagePicker = ImagePicker();
 
-  bool _isLoadingOlderWithOffset = false;
+  bool _isLoadingOlderPage = false;
+  int? _autoFillRequestedPage;
+  bool _isDownloadingChatAttachment = false;
+  ChatMessage? _latestUnseenMessage;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+    _messageFocusNode.addListener(_handleComposerFocusChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isDraft) {
@@ -89,6 +95,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
+    _messageFocusNode.removeListener(_handleComposerFocusChanged);
     _messageController.dispose();
     _messageFocusNode.dispose();
     _scrollController.dispose();
@@ -96,49 +103,78 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 
   void _handleScroll() {
-    if (!_scrollController.hasClients ||
-        _scrollController.position.pixels > 80) {
-      return;
+    if (!_scrollController.hasClients) return;
+
+    if (_isProgrammaticScroll) return;
+    if (_latestUnseenMessage != null && _isNearBottom()) {
+      setState(() => _latestUnseenMessage = null);
     }
-    _loadOlderMessagesPreservingOffset();
+
+    // Reversed list: position 0 is the newest message, maxScrollExtent is
+    // the oldest currently loaded message. No offset restoration is needed
+    // when an older page is appended to the *top* of the rendered list.
+    final position = _scrollController.position;
+    if (position.maxScrollExtent > 0 &&
+        position.pixels >= position.maxScrollExtent - 80) {
+      _loadOlderMessages();
+    }
   }
 
-  Future<void> _loadOlderMessagesPreservingOffset() async {
+  void _handleComposerFocusChanged() {
+    if (_messageFocusNode.hasFocus) {
+      _goToLatestMessage(animated: false);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_messageFocusNode.hasFocus &&
+        MediaQuery.viewInsetsOf(context).bottom > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _messageFocusNode.hasFocus) {
+          _goToLatestMessage(animated: false);
+        }
+      });
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
     final state = ref.read(chatRoomProvider);
-    if (_isLoadingOlderWithOffset ||
+    if (_isLoadingOlderPage ||
         !state.hasNext ||
         state.isLoadingOlderMessages ||
+        state.isInitialLoading ||
         state.chatId == null) {
       return;
     }
 
-    _isLoadingOlderWithOffset = true;
-    final oldMaxScrollExtent = _scrollController.hasClients
-        ? _scrollController.position.maxScrollExtent
-        : 0.0;
-    final oldOffset = _scrollController.hasClients
-        ? _scrollController.offset
-        : 0.0;
+    _isLoadingOlderPage = true;
+    try {
+      // Newer items keep their indices in the reversed list. Loading an
+      // older page therefore cannot drag the user's viewport down.
+      await ref.read(chatRoomProvider.notifier).loadOlderMessages();
+    } finally {
+      _isLoadingOlderPage = false;
+    }
+  }
 
-    await ref.read(chatRoomProvider.notifier).loadOlderMessages();
+  void _maybeLoadOlderToFill() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final state = ref.read(chatRoomProvider);
+    if (state.isInitialLoading ||
+        state.isLoadingOlderMessages ||
+        !state.hasNext ||
+        state.chatId == null ||
+        _scrollController.position.maxScrollExtent > 0 ||
+        _autoFillRequestedPage == state.currentPage) {
+      return;
+    }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) {
-        _isLoadingOlderWithOffset = false;
-        return;
-      }
-
-      final addedExtent =
-          _scrollController.position.maxScrollExtent - oldMaxScrollExtent;
-      final restoredOffset = (oldOffset + addedExtent)
-          .clamp(
-            _scrollController.position.minScrollExtent,
-            _scrollController.position.maxScrollExtent,
-          )
-          .toDouble();
-      _scrollController.jumpTo(restoredOffset);
-      _isLoadingOlderWithOffset = false;
-    });
+    // Even 30 very short messages may fit in the viewport. In that case
+    // there is no scroll gesture to trigger pagination; load one more page.
+    _autoFillRequestedPage = state.currentPage;
+    _loadOlderMessages();
   }
 
   Future<void> _handleSend(String message) async {
@@ -171,8 +207,11 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       return;
     }
 
-    _messageController.clear();
-    _scrollToBottom();
+    // Keep focus (and the keyboard) while sending; do not erase a newer draft.
+    if (_messageController.text.trim() == message) {
+      _messageController.clear();
+    }
+    _goToLatestMessage();
   }
 
   Future<void> _handleFilePressed() async {
@@ -252,9 +291,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                onTap: () => Navigator.of(
-                  sheetContext,
-                ).pop(ChatMessageType.image),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(ChatMessageType.image),
               ),
               ListTile(
                 leading: const Icon(Icons.videocam_outlined),
@@ -264,9 +302,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                onTap: () => Navigator.of(
-                  sheetContext,
-                ).pop(ChatMessageType.video),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(ChatMessageType.video),
               ),
             ],
           ),
@@ -313,11 +350,11 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
           fileName: fileName,
           fileSizeBytes: fileSizeBytes,
         );
-    _scrollToBottom();
+    _goToLatestMessage();
 
     await uploadFuture;
     if (!mounted) return;
-    _scrollToBottom();
+    _goToLatestMessage();
   }
 
   Future<void> _showUploadBlockedPopup(String content) async {
@@ -377,7 +414,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final images = ref
         .read(chatRoomProvider)
         .messages
-        .where((message) => message.messageType == ChatMessageType.image)
+        .where((message) => _attachmentKind(message) == ChatAttachmentKind.image)
         .toList(growable: false);
     if (images.isEmpty) return;
 
@@ -397,6 +434,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final kind = ChatAttachmentMessageCard.kindFor(
       messageType: message.messageType,
       fileName: fileName,
+      mimeType: message.attachmentMimeType,
     );
 
     if (kind == ChatAttachmentKind.image) {
@@ -446,6 +484,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final kind = ChatAttachmentMessageCard.kindFor(
       messageType: message.messageType,
       fileName: fileName,
+      mimeType: message.attachmentMimeType,
     );
     final type = switch (kind) {
       ChatAttachmentKind.audio => CloudPreviewFileType.audio,
@@ -472,25 +511,39 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 
   Future<void> _downloadChatMessage(ChatMessage message) async {
-    final fileName = ChatAttachmentMessageCard.resolveFileName(message);
-    final success = await ref
-        .read(cloudDownloadProvider.notifier)
-        .downloadFiles([
-          CloudDownloadRequest(
-            itemId: message.messageId,
-            fileName: fileName,
-            fileUrl: message.content,
-            mimeType: message.attachmentMimeType,
-          ),
-        ]);
-    if (!mounted) return;
+    // Repeated taps must not turn a successful in-flight download into a
+    // misleading failure snackbar (downloadFiles returns false when busy).
+    if (_isDownloadingChatAttachment) return;
+    if (ref.read(cloudDownloadProvider).isDownloading) {
+      _showMessage('다른 파일을 다운로드하고 있습니다.');
+      return;
+    }
 
-    final downloadState = ref.read(cloudDownloadProvider);
-    _showMessage(
-      success
-          ? 'Downloads 폴더에 저장했습니다.'
-          : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
-    );
+    _isDownloadingChatAttachment = true;
+    try {
+      final success = await ref
+          .read(cloudDownloadProvider.notifier)
+          .downloadFiles([
+            CloudDownloadRequest(
+              itemId: message.messageId,
+              fileName: ChatAttachmentMessageCard.resolveFileName(message),
+              fileUrl: message.content,
+              mimeType: message.attachmentMimeType,
+            ),
+          ]);
+      if (!mounted) return;
+
+      final downloadState = ref.read(cloudDownloadProvider);
+      _showMessage(
+        success
+            ? 'Downloads 폴더에 저장했습니다.'
+            : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
+      );
+    } catch (error) {
+      if (mounted) _showMessage('파일 다운로드 중 오류가 발생했습니다.');
+    } finally {
+      _isDownloadingChatAttachment = false;
+    }
   }
 
   String _extensionOf(String fileName) {
@@ -536,37 +589,88 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    });
+  ChatAttachmentKind _attachmentKind(ChatMessage message) {
+    return ChatAttachmentMessageCard.kindFor(
+      messageType: message.messageType,
+      fileName: ChatAttachmentMessageCard.resolveFileName(message),
+      mimeType: message.attachmentMimeType,
+    );
+  }
+
+  void _goToLatestMessage({bool animated = true}) {
+    if (_latestUnseenMessage != null) {
+      setState(() => _latestUnseenMessage = null);
+    }
+    if (!_scrollController.hasClients) return;
+
+    // In a reversed list, 0 is the latest edge from the very first frame.
+    // No end-of-list measurement, repeated jump, or post-frame polling.
+    if (!animated) {
+      _isProgrammaticScroll = true;
+      _scrollController.jumpTo(0);
+      _isProgrammaticScroll = false;
+      return;
+    }
+    _isProgrammaticScroll = true;
+    _scrollController
+        .animateTo(
+          0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        )
+        .whenComplete(() {
+          if (mounted) _isProgrammaticScroll = false;
+        });
   }
 
   bool _isNearBottom() {
     if (!_scrollController.hasClients) return true;
-    final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= 160;
+    return _scrollController.position.pixels <= 160;
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen<ChatRoomState>(chatRoomProvider, (previous, next) {
-      final previousCount = previous?.messages.length ?? 0;
-      final receivedNewMessage =
-          next.messages.length > previousCount && !next.isLoadingOlderMessages;
+      // Reset the pagination autofill gate when a different room is opened.
+      if (previous?.chatId != next.chatId ||
+          (next.isInitialLoading && previous?.isInitialLoading == false)) {
+        _autoFillRequestedPage = null;
+        _latestUnseenMessage = null;
+      }
 
-      if (receivedNewMessage && _isNearBottom()) {
-        _scrollToBottom();
+      // The first page already appears at offset 0; no initial scroll call.
+      // If the loaded page does not fill the screen, fetch older pages until
+      // the room becomes scrollable or the server reports hasNext=false.
+      if (!next.isInitialLoading && next.hasNext &&
+          (previous?.isInitialLoading == true ||
+              previous?.currentPage != next.currentPage)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _maybeLoadOlderToFill();
+        });
+      }
+
+      final previousLatest = previous?.messages.isNotEmpty == true
+          ? previous!.messages.last.messageId
+          : null;
+      final latest = next.messages.isNotEmpty ? next.messages.last : null;
+      final receivedNewMessage =
+          latest != null &&
+          !next.isInitialLoading &&
+          !next.isLoadingOlderMessages &&
+          previousLatest != null &&
+          latest.messageId > previousLatest;
+
+      if (receivedNewMessage) {
+        if (_isNearBottom()) {
+          _goToLatestMessage(animated: false);
+        } else {
+          setState(() => _latestUnseenMessage = latest);
+        }
       }
     });
 
@@ -574,7 +678,6 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final roomName = _resolvedRoomName(state);
     final participantCount = _resolvedParticipantCount(state);
     final menuEnabled = !state.isDraft && state.chatId != null;
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: ChatRoomAppBar(
@@ -599,7 +702,23 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
         top: false,
         child: Column(
           children: [
-            Expanded(child: _buildContent(state)),
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(child: _buildContent(state)),
+                  if (_latestUnseenMessage != null)
+                    Positioned(
+                      left: AppSpacing.x16,
+                      right: AppSpacing.x16,
+                      bottom: AppSpacing.x12,
+                      child: _ChatNewMessageBanner(
+                        message: _latestUnseenMessage!,
+                        onPressed: _goToLatestMessage,
+                      ),
+                    ),
+                ],
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.x8,
@@ -611,7 +730,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                 controller: _messageController,
                 focusNode: _messageFocusNode,
                 hintText: '대화 시작하기',
-                enabled: !state.isBusy,
+                // Keep the input focused while async send state changes.
+                canSend: !state.isBusy,
                 onSend: _handleSend,
                 onFilePressed: _handleFilePressed,
                 onMediaPressed: _handleMediaPressed,
@@ -646,19 +766,40 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       );
     }
 
-    return _ChatMessageList(
-      controller: _scrollController,
-      messages: state.messages,
-      pendingAttachments: state.pendingAttachments,
-      isLoadingOlderMessages: state.isLoadingOlderMessages,
-      onImagePressed: _openImagePreview,
-      onAttachmentPressed: _openAttachmentPreview,
-      onRetryPending: (localId) {
-        ref.read(chatRoomProvider.notifier).retryAttachment(localId);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        // A gesture must take precedence over a tap-to-latest animation.
+        if (notification is ScrollStartNotification &&
+            notification.dragDetails != null) {
+          _isProgrammaticScroll = false;
+        }
+        return false;
       },
-      onDeletePending: (localId) {
-        ref.read(chatRoomProvider.notifier).removePendingAttachment(localId);
-      },
+      child: NotificationListener<ScrollMetricsNotification>(
+        onNotification: (notification) {
+          if (notification.metrics.axis == Axis.vertical &&
+              notification.metrics.maxScrollExtent <= 0) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _maybeLoadOlderToFill();
+            });
+          }
+          return false;
+        },
+        child: _ChatMessageList(
+          controller: _scrollController,
+          messages: state.messages,
+          pendingAttachments: state.pendingAttachments,
+          isLoadingOlderMessages: state.isLoadingOlderMessages,
+          onImagePressed: _openImagePreview,
+          onAttachmentPressed: _openAttachmentPreview,
+          onRetryPending: (localId) {
+            ref.read(chatRoomProvider.notifier).retryAttachment(localId);
+          },
+          onDeletePending: (localId) {
+            ref.read(chatRoomProvider.notifier).removePendingAttachment(localId);
+          },
+        ),
+      ),
     );
   }
 
@@ -693,6 +834,100 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 }
 
+class _ChatNewMessageBanner extends StatelessWidget {
+  const _ChatNewMessageBanner({
+    required this.message,
+    required this.onPressed,
+  });
+
+  final ChatMessage message;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = ChatAttachmentMessageCard.kindFor(
+      messageType: message.messageType,
+      fileName: ChatAttachmentMessageCard.resolveFileName(message),
+      mimeType: message.attachmentMimeType,
+    );
+    final preview = switch (kind) {
+      ChatAttachmentKind.video => '동영상을 보냈습니다.',
+      ChatAttachmentKind.image => '사진을 보냈습니다.',
+      ChatAttachmentKind.audio => '음성 파일을 보냈습니다.',
+      ChatAttachmentKind.document || ChatAttachmentKind.file =>
+        '파일을 보냈습니다.',
+    };
+    final text = message.messageType == ChatMessageType.text ||
+            message.messageType == ChatMessageType.unknown ||
+            message.messageType == ChatMessageType.system
+        ? message.content
+        : preview;
+
+    final profileUrl = message.profileImageUrl;
+
+    return Material(
+      color: context.grays.white.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(AppRadius.xxl),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x12,
+            AppSpacing.x8,
+            AppSpacing.x8,
+            AppSpacing.x8,
+          ),
+          child: Row(
+            children: [
+              GroupChatProfile(
+                imageUrls: profileUrl != null && profileUrl.trim().isNotEmpty
+                    ? <String>[profileUrl]
+                    : const <String>[],
+                size: 36,
+              ),
+              const SizedBox(width: AppSpacing.x8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      message.isMine ? '나' : message.senderName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: FontStyles.semi14.copyWith(
+                        color: context.grays.black,
+                      ),
+                    ),
+                    Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: FontStyles.med14.copyWith(
+                        color: context.grays.gray2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x12),
+              CircleAvatar(
+                backgroundColor: context.brands.beatOrange1,
+                child: Icon(
+                  Icons.arrow_downward_rounded,
+                  color: context.grays.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ChatMessageList extends StatelessWidget {
   const _ChatMessageList({
     required this.controller,
@@ -716,96 +951,115 @@ class _ChatMessageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final leadingItemCount = isLoadingOlderMessages ? 1 : 0;
+    final contentCount = messages.length + pendingAttachments.length;
 
-    return ListView.builder(
-      controller: controller,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.x16,
-        0,
-        AppSpacing.x16,
-        AppSpacing.x24,
-      ),
-      itemCount: messages.length + pendingAttachments.length + leadingItemCount,
-      itemBuilder: (context, index) {
-        if (isLoadingOlderMessages && index == 0) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.x12),
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    // Index 0 is the newest item, rendered at the bottom when scrollable.
+    // shrinkWrap + Align keeps short conversations at the top. Only the
+    // initial 30-item page needs shrinkWrap; for additional loaded pages,
+    // use a normal lazy viewport to avoid repeated size calculations.
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ListView.builder(
+        controller: controller,
+        reverse: true,
+        shrinkWrap: contentCount <= 30,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.x16,
+          0,
+          AppSpacing.x16,
+          AppSpacing.x10,
+        ),
+        itemCount: contentCount + (isLoadingOlderMessages ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == contentCount) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.x12),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
-            ),
-          );
-        }
+            );
+          }
 
-        final contentIndex = index - leadingItemCount;
-        if (contentIndex >= messages.length) {
-          final pending = pendingAttachments[contentIndex - messages.length];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.x16),
-            child: ChatPendingAttachmentItem(
-              key: ValueKey(pending.localId),
-              attachment: pending,
-              onRetry: () => onRetryPending(pending.localId),
-              onDelete: () => onDeletePending(pending.localId),
-            ),
-          );
-        }
+          if (index < pendingAttachments.length) {
+            final pending = pendingAttachments[
+                pendingAttachments.length - index - 1];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.x16),
+              child: ChatPendingAttachmentItem(
+                key: ValueKey(pending.localId),
+                attachment: pending,
+                onRetry: () => onRetryPending(pending.localId),
+                onDelete: () => onDeletePending(pending.localId),
+              ),
+            );
+          }
 
-        final messageIndex = contentIndex;
-        final message = messages[messageIndex];
-        final previousMessage = messageIndex > 0
-            ? messages[messageIndex - 1]
-            : null;
-        final nextMessage = messageIndex < messages.length - 1
-            ? messages[messageIndex + 1]
-            : null;
-        final showDateLabel =
-            previousMessage == null ||
-            !_isSameDate(previousMessage.createdAt, message.createdAt);
-        final isGroupStart =
-            previousMessage == null ||
-            !_isSameMessageGroup(previousMessage, message);
-        final isGroupEnd =
-            nextMessage == null || !_isSameMessageGroup(message, nextMessage);
-        final isLastMessage =
-            messageIndex == messages.length - 1 && pendingAttachments.isEmpty;
+          final messageIndex =
+              messages.length - 1 - (index - pendingAttachments.length);
+          final message = messages[messageIndex];
+          final previousMessage = messageIndex > 0
+              ? messages[messageIndex - 1]
+              : null;
+          final nextMessage = messageIndex < messages.length - 1
+              ? messages[messageIndex + 1]
+              : null;
+          final showDateLabel =
+              previousMessage == null ||
+              !_isSameDate(previousMessage.createdAt, message.createdAt);
+          final isGroupStart =
+              previousMessage == null ||
+              !_isSameMessageGroup(previousMessage, message);
+          final isGroupEnd =
+              nextMessage == null || !_isSameMessageGroup(message, nextMessage);
+          final isLastMessage =
+              messageIndex == messages.length - 1 && pendingAttachments.isEmpty;
 
-        final messageGap = isLastMessage
-            ? 0.0
-            : isGroupEnd
-            ? AppSpacing.x16
-            : AppSpacing.x4;
+          final messageGap = isLastMessage
+              ? 0.0
+              : isGroupEnd
+              ? AppSpacing.x16
+              : AppSpacing.x4;
 
-        return Column(
-          children: [
-            if (showDateLabel) ...[
-              _ChatSectionLabel(text: _formatDate(message.createdAt)),
-              const SizedBox(height: AppSpacing.x8),
+          return Column(
+            children: [
+              if (showDateLabel) ...[
+                _ChatSectionLabel(text: _formatDate(message.createdAt)),
+                const SizedBox(height: AppSpacing.x8),
+              ],
+              ChatMessageItem(
+                key: ValueKey(message.messageId),
+                message: message,
+                showProfile: isGroupStart,
+                showSenderName: isGroupStart,
+                showTime: isGroupEnd,
+                onImagePressed: _kindOf(message) == ChatAttachmentKind.image
+                    ? () => onImagePressed(message)
+                    : null,
+                onAttachmentPressed:
+                    _kindOf(message) != ChatAttachmentKind.image &&
+                            message.messageType != ChatMessageType.text &&
+                            message.messageType != ChatMessageType.system
+                        ? () => onAttachmentPressed(message)
+                        : null,
+              ),
+              if (messageGap > 0) SizedBox(height: messageGap),
             ],
-            ChatMessageItem(
-              key: ValueKey(message.messageId),
-              message: message,
-              showProfile: isGroupStart,
-              showSenderName: isGroupStart,
-              showTime: isGroupEnd,
-              onImagePressed: message.messageType == ChatMessageType.image
-                  ? () => onImagePressed(message)
-                  : null,
-              onAttachmentPressed:
-                  message.messageType == ChatMessageType.file ||
-                      message.messageType == ChatMessageType.video
-                  ? () => onAttachmentPressed(message)
-                  : null,
-            ),
-            if (messageGap > 0) SizedBox(height: messageGap),
-          ],
-        );
-      },
+          );
+        },
+      ),
+    );
+  }
+
+  static ChatAttachmentKind _kindOf(ChatMessage message) {
+    return ChatAttachmentMessageCard.kindFor(
+      messageType: message.messageType,
+      fileName: ChatAttachmentMessageCard.resolveFileName(message),
+      mimeType: message.attachmentMimeType,
     );
   }
 

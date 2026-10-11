@@ -106,6 +106,14 @@ class ChatApi {
                 fieldName: 'createdAt',
               ),
               isMine: _boolOrDefault(message['mine'] ?? message['isMine']),
+              attachmentName:
+                  (message['attachmentName'] ?? message['fileName'])?.toString(),
+              attachmentSizeBytes: _optionalInt(
+                message['attachmentSizeBytes'] ?? message['fileSizeBytes'],
+              ),
+              attachmentMimeType:
+                  (message['attachmentMimeType'] ?? message['mimeType'])
+                      ?.toString(),
             );
           })
           .toList(growable: false);
@@ -391,6 +399,11 @@ class ChatApi {
         .map((item) => item.toString())
         .where((item) => item.trim().isNotEmpty)
         .toList(growable: false);
+  }
+
+  int? _optionalInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
   }
 
   ChatMessageType _messageType(dynamic value) {
