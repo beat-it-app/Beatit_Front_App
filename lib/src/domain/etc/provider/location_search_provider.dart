@@ -18,6 +18,14 @@ class LocationSearchState {
     this.referenceLocation,
     this.isLoading = false,
     this.isReferenceLoading = false,
+    this.isLoadingMore = false,
+    this.isReferenceLoadingMore = false,
+    this.hasMore = false,
+    this.referenceHasMore = false,
+    this.query = '',
+    this.referenceQuery = '',
+    this.page = 0,
+    this.referencePage = 0,
     this.errorMessage,
     this.referenceErrorMessage,
   });
@@ -28,6 +36,14 @@ class LocationSearchState {
   final LocationSearchResult? referenceLocation;
   final bool isLoading;
   final bool isReferenceLoading;
+  final bool isLoadingMore;
+  final bool isReferenceLoadingMore;
+  final bool hasMore;
+  final bool referenceHasMore;
+  final String query;
+  final String referenceQuery;
+  final int page;
+  final int referencePage;
   final String? errorMessage;
   final String? referenceErrorMessage;
 
@@ -40,6 +56,14 @@ class LocationSearchState {
     bool clearReferenceLocation = false,
     bool? isLoading,
     bool? isReferenceLoading,
+    bool? isLoadingMore,
+    bool? isReferenceLoadingMore,
+    bool? hasMore,
+    bool? referenceHasMore,
+    String? query,
+    String? referenceQuery,
+    int? page,
+    int? referencePage,
     String? errorMessage,
     bool clearErrorMessage = false,
     String? referenceErrorMessage,
@@ -56,6 +80,14 @@ class LocationSearchState {
           : referenceLocation ?? this.referenceLocation,
       isLoading: isLoading ?? this.isLoading,
       isReferenceLoading: isReferenceLoading ?? this.isReferenceLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isReferenceLoadingMore: isReferenceLoadingMore ?? this.isReferenceLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      referenceHasMore: referenceHasMore ?? this.referenceHasMore,
+      query: query ?? this.query,
+      referenceQuery: referenceQuery ?? this.referenceQuery,
+      page: page ?? this.page,
+      referencePage: referencePage ?? this.referencePage,
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
@@ -67,6 +99,7 @@ class LocationSearchState {
 }
 
 class LocationSearchNotifier extends Notifier<LocationSearchState> {
+  static const int _pageSize = 15;
   int _searchRequestId = 0;
   int _referenceSearchRequestId = 0;
 
@@ -86,6 +119,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       results: const <LocationSearchResult>[],
       isLoading: true,
+      isLoadingMore: false,
+      hasMore: false,
+      query: normalizedQuery,
+      page: 0,
       clearErrorMessage: true,
       clearSelectedLocation: true,
     );
@@ -93,6 +130,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     try {
       final results = await ref.read(locationApiProvider).searchLocations(
         query: normalizedQuery,
+        page: 0,
         latitude: referenceLocation?.latitude,
         longitude: referenceLocation?.longitude,
       );
@@ -103,6 +141,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
       state = state.copyWith(
         results: results,
+        hasMore: results.length == _pageSize,
         isLoading: false,
         clearErrorMessage: true,
       );
@@ -130,12 +169,17 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
       isReferenceLoading: true,
+      isReferenceLoadingMore: false,
+      referenceHasMore: false,
+      referenceQuery: normalizedQuery,
+      referencePage: 0,
       clearReferenceErrorMessage: true,
     );
 
     try {
       final results = await ref.read(locationApiProvider).searchLocations(
         query: normalizedQuery,
+        page: 0,
       );
 
       if (requestId != _referenceSearchRequestId) {
@@ -144,6 +188,7 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
 
       state = state.copyWith(
         referenceResults: results,
+        referenceHasMore: results.length == _pageSize,
         isReferenceLoading: false,
         clearReferenceErrorMessage: true,
       );
@@ -158,6 +203,65 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
           error,
           fallback: '기준 위치 검색에 실패했습니다.',
         ),
+      );
+    }
+  }
+
+  Future<void> loadMoreLocations() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore ||
+        state.query.isEmpty || state.page >= 44) return;
+    final requestId = _searchRequestId;
+    final nextPage = state.page + 1;
+    final reference = state.referenceLocation;
+    state = state.copyWith(isLoadingMore: true, clearErrorMessage: true);
+    try {
+      final results = await ref.read(locationApiProvider).searchLocations(
+        query: state.query,
+        page: nextPage,
+        latitude: reference?.latitude,
+        longitude: reference?.longitude,
+      );
+      if (requestId != _searchRequestId) return;
+      state = state.copyWith(
+        results: [...state.results, ...results],
+        page: nextPage,
+        hasMore: results.length == _pageSize && nextPage < 44,
+        isLoadingMore: false,
+      );
+    } catch (error) {
+      if (requestId != _searchRequestId) return;
+      state = state.copyWith(
+        isLoadingMore: false,
+        errorMessage: _getErrorMessage(error, fallback: '추가 장소 검색에 실패했습니다.'),
+      );
+    }
+  }
+
+  Future<void> loadMoreReferenceLocations() async {
+    if (state.isReferenceLoading || state.isReferenceLoadingMore ||
+        !state.referenceHasMore || state.referenceQuery.isEmpty ||
+        state.referencePage >= 44) return;
+    final requestId = _referenceSearchRequestId;
+    final nextPage = state.referencePage + 1;
+    state = state.copyWith(isReferenceLoadingMore: true,
+        clearReferenceErrorMessage: true);
+    try {
+      final results = await ref.read(locationApiProvider).searchLocations(
+        query: state.referenceQuery,
+        page: nextPage,
+      );
+      if (requestId != _referenceSearchRequestId) return;
+      state = state.copyWith(
+        referenceResults: [...state.referenceResults, ...results],
+        referencePage: nextPage,
+        referenceHasMore: results.length == _pageSize && nextPage < 44,
+        isReferenceLoadingMore: false,
+      );
+    } catch (error) {
+      if (requestId != _referenceSearchRequestId) return;
+      state = state.copyWith(
+        isReferenceLoadingMore: false,
+        referenceErrorMessage: _getErrorMessage(error, fallback: '추가 기준 위치 검색에 실패했습니다.'),
       );
     }
   }
@@ -178,6 +282,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
       referenceLocation: location,
       referenceResults: const <LocationSearchResult>[],
       isReferenceLoading: false,
+      isReferenceLoadingMore: false,
+      referenceHasMore: false,
+      referenceQuery: '',
+      referencePage: 0,
       clearReferenceErrorMessage: true,
     );
   }
@@ -187,6 +295,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       results: const <LocationSearchResult>[],
       isLoading: false,
+      isLoadingMore: false,
+      hasMore: false,
+      query: '',
+      page: 0,
       clearErrorMessage: true,
       clearSelectedLocation: true,
     );
@@ -197,6 +309,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
       isReferenceLoading: false,
+      isReferenceLoadingMore: false,
+      referenceHasMore: false,
+      referenceQuery: '',
+      referencePage: 0,
       clearReferenceErrorMessage: true,
     );
   }
@@ -206,6 +322,10 @@ class LocationSearchNotifier extends Notifier<LocationSearchState> {
     state = state.copyWith(
       referenceResults: const <LocationSearchResult>[],
       isReferenceLoading: false,
+      isReferenceLoadingMore: false,
+      referenceHasMore: false,
+      referenceQuery: '',
+      referencePage: 0,
       clearReferenceLocation: true,
       clearReferenceErrorMessage: true,
     );

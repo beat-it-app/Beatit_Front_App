@@ -14,12 +14,20 @@ class MusicSearchState {
     this.results = const <MusicSearchResult>[],
     this.selectedMusic,
     this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = false,
+    this.query = '',
+    this.page = 0,
     this.errorMessage,
   });
 
   final List<MusicSearchResult> results;
   final MusicSearchResult? selectedMusic;
   final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final String query;
+  final int page;
   final String? errorMessage;
 
   MusicSearchState copyWith({
@@ -27,6 +35,10 @@ class MusicSearchState {
     MusicSearchResult? selectedMusic,
     bool clearSelectedMusic = false,
     bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    String? query,
+    int? page,
     String? errorMessage,
     bool clearErrorMessage = false,
   }) {
@@ -36,6 +48,10 @@ class MusicSearchState {
           ? null
           : selectedMusic ?? this.selectedMusic,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      query: query ?? this.query,
+      page: page ?? this.page,
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
@@ -44,6 +60,7 @@ class MusicSearchState {
 }
 
 class MusicSearchNotifier extends Notifier<MusicSearchState> {
+  static const int _pageSize = 10;
   int _requestId = 0;
 
   @override
@@ -61,6 +78,10 @@ class MusicSearchNotifier extends Notifier<MusicSearchState> {
     state = state.copyWith(
       results: const <MusicSearchResult>[],
       isLoading: true,
+      isLoadingMore: false,
+      hasMore: false,
+      query: normalizedQuery,
+      page: 0,
       clearErrorMessage: true,
       clearSelectedMusic: true,
     );
@@ -69,7 +90,7 @@ class MusicSearchNotifier extends Notifier<MusicSearchState> {
       final results = await ref.read(musicApiProvider).searchMusic(
         query: normalizedQuery,
         page: 0,
-        limit: 10,
+        limit: _pageSize,
       );
 
       if (requestId != _requestId) {
@@ -78,6 +99,7 @@ class MusicSearchNotifier extends Notifier<MusicSearchState> {
 
       state = state.copyWith(
         results: results,
+        hasMore: results.length == _pageSize,
         isLoading: false,
         clearErrorMessage: true,
       );
@@ -91,6 +113,36 @@ class MusicSearchNotifier extends Notifier<MusicSearchState> {
         errorMessage: error is EtcApiException
             ? error.message
             : '음악 검색에 실패했습니다.',
+      );
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore ||
+        state.query.isEmpty) return;
+    final requestId = _requestId;
+    final query = state.query;
+    final nextPage = state.page + 1;
+    state = state.copyWith(isLoadingMore: true, clearErrorMessage: true);
+    try {
+      final results = await ref.read(musicApiProvider).searchMusic(
+        query: query,
+        page: nextPage,
+        limit: _pageSize,
+      );
+      if (requestId != _requestId) return;
+      state = state.copyWith(
+        results: [...state.results, ...results],
+        page: nextPage,
+        hasMore: results.length == _pageSize,
+        isLoadingMore: false,
+      );
+    } catch (error) {
+      if (requestId != _requestId) return;
+      state = state.copyWith(
+        isLoadingMore: false,
+        errorMessage: error is EtcApiException
+            ? error.message : '음악 검색 결과를 더 불러오지 못했습니다.',
       );
     }
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/should_show_updated_at.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -339,7 +340,8 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     final hasMusics = schedule.musics.isNotEmpty;
     final hasParticipants = schedule.participants.isNotEmpty;
     final hasFiles = schedule.files.isNotEmpty;
-    final hasBeenUpdated = !schedule.createdAt.isAtSameMomentAs(
+    final hasBeenUpdated = shouldShowUpdatedAt(
+      schedule.createdAt,
       schedule.updatedAt,
     );
 
@@ -363,7 +365,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
           ),
           const SizedBox(height: AppSpacing.x4),
           Text(
-            !hasBeenUpdated
+            hasBeenUpdated
                 ? '${_formatDateTime(schedule.createdAt)}'
                       ' ｜ 최종수정일 ${_formatDateTime(schedule.updatedAt)}'
                 : _formatDateTime(schedule.createdAt),
