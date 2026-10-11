@@ -102,7 +102,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
 
     final content = SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.x24,
+        vertical: AppSpacing.x40,
         horizontal: AppSpacing.x16,
       ),
       child: Column(
@@ -117,9 +117,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
 
           Text(
             '가입한 아이디와 이메일을 인증해주세요.',
-            style: FontStyles.reg12.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: FontStyles.reg12.copyWith(color: colors.onSurfaceVariant),
           ),
 
           const SizedBox(height: AppSpacing.x50),
