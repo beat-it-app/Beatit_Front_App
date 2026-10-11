@@ -7,12 +7,13 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_audio_waveform.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_audio_waveform.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_playback_button.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_media_playback_controls.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_playback_time_labels.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -769,17 +770,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     return value;
   }
 
-  String _formatDuration(Duration duration) {
-    final safe = duration.isNegative ? Duration.zero : duration;
-    final hours = safe.inHours;
-    final minutes = safe.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = safe.inSeconds.remainder(60).toString().padLeft(2, '0');
-
-    return hours > 0
-        ? '$hours:$minutes:$seconds'
-        : '${safe.inMinutes}:$seconds';
-  }
-
   Widget _buildBody() {
     switch (_loadState) {
       case _AudioLoadState.loading:
@@ -852,57 +842,24 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
           const SizedBox(height: AppSpacing.x70),
           Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildSideControl(
-                    semanticLabel: _isRepeatEnabled ? '반복재생 끄기' : '반복재생 켜기',
-                    icon1: 'assets/icons/cloud/rotate.svg',
-                    icon2: 'assets/icons/cloud/rotate_stop.svg',
-                    isActive: _isRepeatEnabled,
-                    onPressed: () => unawaited(_toggleRepeat()),
-                  ),
-                  const SizedBox(width: AppSpacing.x30),
-                  CloudPlaybackButton(
-                    semanticLabel: _isPlaying ? '음원 일시정지' : '음원 재생',
-                    iconPath: _isPlaying
-                        ? 'assets/icons/cloud/pause.svg'
-                        : 'assets/icons/cloud/play.svg',
-                    onPressed: () => unawaited(_togglePlayPause()),
-                  ),
-                  const SizedBox(width: AppSpacing.x24),
-                  _buildSideControl(
-                    semanticLabel: _isSelectionMode ? '구간 선택 종료' : '재생 구간 선택',
-                    icon1: 'assets/icons/cloud/music_loop.svg',
-                    icon2: 'assets/icons/cloud/music_loop_stop.svg',
-                    isActive: _isSelectionMode,
-                    onPressed: () => unawaited(_toggleSelectionMode()),
-                  ),
-                ],
+              AppMediaPlaybackControls(
+                mediaLabel: '음원',
+                isPlaying: _isPlaying,
+                isRepeatEnabled: _isRepeatEnabled,
+                isSelectionMode: _isSelectionMode,
+                onToggleRepeat: () => unawaited(_toggleRepeat()),
+                onTogglePlay: () => unawaited(_togglePlayPause()),
+                onToggleSelection: () => unawaited(_toggleSelectionMode()),
               ),
               const SizedBox(height: AppSpacing.x30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _formatDuration(
-                      _isSelectionMode ? _selectionStart : _displayPosition,
-                    ),
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
-                    ),
-                  ),
-                  Text(
-                    _formatDuration(
-                      _isSelectionMode ? _selectionEnd : _sourceDuration,
-                    ),
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
-                    ),
-                  ),
-                ],
+              AppPlaybackTimeLabels(
+                position: _displayPosition,
+                duration: _sourceDuration,
+                isSelectionMode: _isSelectionMode,
+                selectionStart: _selectionStart,
+                selectionEnd: _selectionEnd,
               ),
-              CloudAudioWaveform(
+              AppAudioWaveform(
                 waveform: _waveform,
                 loadingProgress: _waveformProgress,
                 hasError: _waveformFailed,
@@ -920,29 +877,6 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSideControl({
-    required String semanticLabel,
-    required String icon1,
-    required String icon2,
-    required bool isActive,
-    required VoidCallback onPressed,
-  }) {
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Center(
-          child: SvgPicture.asset(
-            isActive ? icon1 : icon2,
-            width: 27.0,
-            colorFilter: ColorFilter.mode(context.grays.gray1, BlendMode.srcIn),
-          ),
-        ),
       ),
     );
   }

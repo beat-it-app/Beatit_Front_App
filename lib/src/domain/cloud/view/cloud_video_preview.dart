@@ -9,12 +9,12 @@ import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_playback_button.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_media_playback_controls.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_playback_time_labels.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_video_timeline.dart';
+import 'package:beatit_front_app/src/core/widgets/media/app_video_timeline.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 
 enum _VideoPreviewLoadState { loading, ready, error }
@@ -512,46 +512,12 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
     return value;
   }
 
-  String _formatDuration(Duration duration) {
-    final safe = duration.isNegative ? Duration.zero : duration;
-    final hours = safe.inHours;
-    final minutes = safe.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = safe.inSeconds.remainder(60).toString().padLeft(2, '0');
-
-    return hours > 0
-        ? '$hours:$minutes:$seconds'
-        : '${safe.inMinutes}:$seconds';
-  }
-
-  Widget _buildSideControl({
-    required String semanticLabel,
-    required String activeIcon,
-    required String defaultIcon,
-    required bool isActive,
-    required VoidCallback onPressed,
-  }) {
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: SvgPicture.asset(
-          isActive ? activeIcon : defaultIcon,
-          width: 27.0,
-          colorFilter: ColorFilter.mode(context.grays.gray1, BlendMode.srcIn),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<VideoPlayerValue>(
       valueListenable: _controller,
       builder: (context, value, child) {
         final aspectRatio = value.aspectRatio > 0 ? value.aspectRatio : 16 / 9;
-        final leftLabel = _isSelectionMode ? _selectionStart : _currentPosition;
-        final rightLabel = _isSelectionMode ? _selectionEnd : _duration;
 
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -574,65 +540,30 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
               ),
             ),
             const SizedBox(height: AppSpacing.x24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildSideControl(
-                  semanticLabel: _isRepeatEnabled ? '반복재생 끄기' : '반복재생 켜기',
-                  activeIcon: 'assets/icons/cloud/rotate.svg',
-                  defaultIcon: 'assets/icons/cloud/rotate_stop.svg',
-                  isActive: _isRepeatEnabled,
-                  onPressed: () {
-                    unawaited(_toggleRepeat());
-                  },
-                ),
-                const SizedBox(width: AppSpacing.x30),
-                CloudPlaybackButton(
-                  semanticLabel: value.isPlaying ? '영상 일시정지' : '영상 재생',
-                  iconPath: value.isPlaying
-                      ? 'assets/icons/cloud/pause.svg'
-                      : 'assets/icons/cloud/play.svg',
-                  onPressed: () {
-                    unawaited(_togglePlayPause());
-                  },
-                ),
-                const SizedBox(width: AppSpacing.x24),
-                _buildSideControl(
-                  semanticLabel: _isSelectionMode ? '구간 선택 종료' : '재생 구간 선택',
-                  activeIcon: 'assets/icons/cloud/music_loop.svg',
-                  defaultIcon: 'assets/icons/cloud/music_loop_stop.svg',
-                  isActive: _isSelectionMode,
-                  onPressed: () {
-                    unawaited(_toggleSelectionMode());
-                  },
-                ),
-              ],
+            AppMediaPlaybackControls(
+              mediaLabel: '영상',
+              isPlaying: value.isPlaying,
+              isRepeatEnabled: _isRepeatEnabled,
+              isSelectionMode: _isSelectionMode,
+              onToggleRepeat: () => unawaited(_toggleRepeat()),
+              onTogglePlay: () => unawaited(_togglePlayPause()),
+              onToggleSelection: () => unawaited(_toggleSelectionMode()),
             ),
             const SizedBox(height: AppSpacing.x24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _formatDuration(leftLabel),
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
-                    ),
-                  ),
-                  Text(
-                    _formatDuration(rightLabel),
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
-                    ),
-                  ),
-                ],
+              child: AppPlaybackTimeLabels(
+                position: _currentPosition,
+                duration: _duration,
+                isSelectionMode: _isSelectionMode,
+                selectionStart: _selectionStart,
+                selectionEnd: _selectionEnd,
               ),
             ),
             const SizedBox(height: AppSpacing.x8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: CloudVideoTimeline(
+              child: AppVideoTimeline(
                 videoUri: widget.previewUri,
                 requestHeaders: widget.requestHeaders,
                 duration: _duration,
