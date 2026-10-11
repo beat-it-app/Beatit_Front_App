@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/domain/etc/provider/location_search_provide
 import 'package:beatit_front_app/src/domain/etc/widget/location_reference_widget.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/search_pagination_listener.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -47,7 +48,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
   }
 
   void _handleSearchChanged(String value) {
-    if (value.trim().isEmpty) {
+    if (value.trim() != ref.read(locationSearchProvider).query) {
       ref.read(locationSearchProvider.notifier).clearSearchResults();
     }
   }
@@ -75,7 +76,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
       _refreshMainSearchWithoutReferenceIfNeeded();
     }
 
-    if (value.trim().isEmpty) {
+    if (value.trim() != ref.read(locationSearchProvider).referenceQuery) {
       ref.read(locationSearchProvider.notifier).clearReferenceSearchResults();
     }
   }
@@ -153,6 +154,18 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
     }
   }
 
+  void _loadMoreLocations() {
+    if (mounted) {
+      ref.read(locationSearchProvider.notifier).loadMoreLocations();
+    }
+  }
+
+  void _loadMoreReferenceLocations() {
+    if (mounted) {
+      ref.read(locationSearchProvider.notifier).loadMoreReferenceLocations();
+    }
+  }
+
   void _refreshMainSearchWithoutReferenceIfNeeded() {
     final mainQuery = _searchController.text.trim();
     if (mainQuery.isEmpty) {
@@ -167,8 +180,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
     final searchState = ref.watch(locationSearchProvider);
     final showReferenceResults =
         searchState.isReferenceLoading ||
-        searchState.referenceErrorMessage != null ||
-        searchState.referenceResults.isNotEmpty;
+        searchState.referenceQuery.isNotEmpty;
 
     return Scaffold(
       body: SafeArea(
@@ -235,16 +247,29 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
                   Expanded(
                     child: showReferenceResults
                         ? _LocationResultList(
+                            key: const ValueKey('reference-locations'),
                             isLoading: searchState.isReferenceLoading,
                             errorMessage: searchState.referenceErrorMessage,
                             results: searchState.referenceResults,
+                            hasSearched: searchState.referenceQuery.isNotEmpty,
+                            hasMore: searchState.referenceHasMore,
+                            isLoadingMore: searchState.isReferenceLoadingMore,
+                            loadMoreErrorMessage:
+                                searchState.referenceLoadMoreErrorMessage,
+                            onLoadMore: _loadMoreReferenceLocations,
                             onTap: _handleReferenceSelected,
                           )
                         : _LocationResultList(
+                            key: const ValueKey('main-locations'),
                             isLoading: searchState.isLoading,
                             errorMessage: searchState.errorMessage,
                             results: searchState.results,
+                            hasSearched: searchState.query.isNotEmpty,
                             selectedLocation: searchState.selectedLocation,
+                            hasMore: searchState.hasMore,
+                            isLoadingMore: searchState.isLoadingMore,
+                            loadMoreErrorMessage: searchState.loadMoreErrorMessage,
+                            onLoadMore: _loadMoreLocations,
                             onTap: _handleLocationSelected,
                           ),
                   ),
@@ -264,9 +289,15 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
 
 class _LocationResultList extends StatelessWidget {
   const _LocationResultList({
+    super.key,
     required this.isLoading,
     required this.results,
+    required this.hasSearched,
     required this.onTap,
+    required this.onLoadMore,
+    required this.hasMore,
+    required this.isLoadingMore,
+    this.loadMoreErrorMessage,
     this.errorMessage,
     this.selectedLocation,
   });
@@ -274,8 +305,13 @@ class _LocationResultList extends StatelessWidget {
   final bool isLoading;
   final String? errorMessage;
   final List<LocationSearchResult> results;
+  final bool hasSearched;
   final LocationSearchResult? selectedLocation;
   final ValueChanged<LocationSearchResult> onTap;
+  final VoidCallback onLoadMore;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final String? loadMoreErrorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -294,23 +330,54 @@ class _LocationResultList extends StatelessWidget {
     }
 
     if (results.isEmpty) {
-      return const SizedBox.shrink();
+      return !hasSearched
+          ? const SizedBox.shrink()
+          : Center(
+              child: Text(
+                '검색 결과가 없습니다.',
+                style: FontStyles.med14.copyWith(color: context.grays.gray5),
+              ),
+            );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final location = results[index];
+    return SearchPaginationListener(
+      canLoadMore: hasMore && !isLoadingMore && loadMoreErrorMessage == null,
+      onLoadMore: onLoadMore,
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        // 결과가 화면에 다 차지 않아도 사용자가 스와이프하면 다음 페이지를 조회할 수 있습니다.
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: results.length +
+            (isLoadingMore || loadMoreErrorMessage != null ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == results.length) {
+            if (loadMoreErrorMessage != null) {
+              return Padding(
+                padding: const EdgeInsets.all(AppSpacing.x16),
+                child: Center(
+                  child: TextButton(
+                    onPressed: onLoadMore,
+                    child: const Text('장소를 불러오지 못했습니다. 다시 시도'),
+                  ),
+                ),
+              );
+            }
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.x16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        return LocationResultWidget(
-          name: location.locationName,
-          address: location.roadAddress,
-          distance: location.distance,
-          isSelected: identical(selectedLocation, location),
-          onTap: () => onTap(location),
-        );
-      },
+          final location = results[index];
+          return LocationResultWidget(
+            name: location.locationName,
+            address: location.roadAddress,
+            distance: location.distance,
+            isSelected: identical(selectedLocation, location),
+            onTap: () => onTap(location),
+          );
+        },
+      ),
     );
   }
 }

@@ -70,6 +70,7 @@ class PollSelectionBox extends StatefulWidget {
   final bool initialHasVoted;
 
   /// 실제 API 연결 지점입니다. 현재 선택된 option index들을 전달합니다.
+  /// 이미 투표한 사용자가 모든 선택지를 해제하면 빈 Set을 전달해 취소를 요청합니다.
   final Future<bool> Function(Set<int>)? onVoteSubmitted;
 
   /// `지도보기`를 눌렀을 때 option index를 전달합니다.
@@ -251,7 +252,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
   Future<void> _submitVote() async {
     if (!widget.enabled ||
         widget.status != PollStatus.inProgress ||
-        _selectedIndexes.isEmpty ||
+        (_selectedIndexes.isEmpty && !_hasVoted) ||
         _submitting ||
         widget.onVoteSubmitted == null) {
       return;
@@ -259,6 +260,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
 
     final submittedIndexes = Set<int>.from(_selectedIndexes);
     final hadVoted = _hasVoted;
+    final isCancel = hadVoted && submittedIndexes.isEmpty;
     setState(() => _submitting = true);
     try {
       final succeeded = await widget.onVoteSubmitted!(
@@ -267,9 +269,10 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
       if (!mounted || !succeeded) return;
       setState(() {
         if (!hadVoted) _participantCount += 1;
+        if (isCancel && _participantCount > 0) _participantCount -= 1;
         _submittedIndexes = submittedIndexes;
-        _hasVoted = true;
-        _showResults = true;
+        _hasVoted = !isCancel;
+        _showResults = !isCancel;
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -384,7 +387,11 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                       trailing: _showResults
                           ? _PollNumWidget(
                               text: '${_voteCounts[i]}명',
-                              onTap: () => widget.onParticipantTap?.call(i),
+                              onTap: widget.onParticipantTap != null &&
+                                  !widget.isAnonymous && _hasVoted &&
+                                  _voteCounts[i] > 0
+                              ? () => widget.onParticipantTap?.call(i)
+                              : null,
                               color:
                                   _maxVoteCount > 0 &&
                                       _voteCounts[i] == _maxVoteCount
@@ -409,7 +416,15 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                   ],
                   if (widget.status == PollStatus.inProgress)
                     PollButton(
-                      text: _showResults ? '다시 투표하기' : '투표하기',
+                      text: _showResults
+                          ? '다시 투표하기'
+                          : _hasVoted && _selectedIndexes.isEmpty
+                          ? '투표 취소하기'
+                          : '투표하기',
+                      enabled: !_submitting &&
+                          (_showResults ||
+                              _hasVoted ||
+                              _selectedIndexes.isNotEmpty),
                       onPressed: _showResults ? _startRevote : _submitVote,
                     )
                   else
@@ -421,7 +436,7 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
         ),
         const SizedBox(height: AppSpacing.x12),
 
-        if (!_showResults && widget.onPreviewTap != null) ...[
+        if (widget.onPreviewTap != null) ...[
           Container(
             height: 28.0,
             alignment: Alignment.centerRight,
@@ -565,7 +580,7 @@ class _TextLinkButton extends StatelessWidget {
   final String text;
   final String iconLink;
   final double iconSize;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color color;
 
   @override
@@ -625,13 +640,13 @@ class _PollNumWidget extends StatelessWidget {
   });
 
   final String text;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true,
+      button: onTap != null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

@@ -8,15 +8,15 @@ import 'package:beatit_front_app/src/domain/cal/provider/cal_schedule_music_cach
 /// 장소/지도 로딩은 상세 페이지 전체 로딩과 분리해 각 영역에서 처리합니다.
 final calDetailProvider = FutureProvider.autoDispose
     .family<ScheduleDetailData, int>((ref, scheduleId) async {
-      final cachedMusics = ref.watch(calScheduleMusicCacheProvider)[scheduleId];
+      final cachedMusics = ref.read(calScheduleMusicCacheProvider)[scheduleId];
       final response = await ref
           .read(calApiProvider)
           .getScheduleDetail(scheduleId: scheduleId);
       final serverData = response.data;
 
-      // 현재 백엔드 ScheduleDetailResponse에는 musics가 빠져 있어 생성 직후에도
-      // 상세 화면에서는 빈 목록으로 보입니다. 서버가 musics를 내려주는 경우에는
-      // 서버 응답을 우선하고, 그렇지 않을 때만 현재 세션의 생성/수정 값을 보완합니다.
+      // 상세 API가 musics를 반환하면 서버 값이 우선입니다.
+      // 이전 서버 버전과 연동할 때만 현재 세션 캐시로 보완합니다.
+      // 캐시 변화로 상세 API 요청이 불필요하게 반복되지 않도록 read를 사용합니다.
       if (serverData.musics.isNotEmpty || cachedMusics == null) {
         return serverData;
       }
