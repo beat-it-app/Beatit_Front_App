@@ -242,7 +242,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   }
 
   String _formatMonth(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
+    final month = date.month.toString();
 
     return '${date.year}. $month';
   }
@@ -255,14 +255,14 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   }
 
   String _formatScheduleDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString();
+    final day = date.day.toString();
 
     return '${date.year}. $month. $day ';
   }
 
   String _formatTime(DateTime date) {
-    final hour = date.hour.toString().padLeft(2, '0');
+    final hour = date.hour.toString();
     final minute = date.minute.toString().padLeft(2, '0');
 
     return '$hour:$minute';

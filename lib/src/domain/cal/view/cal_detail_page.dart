@@ -703,6 +703,8 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
                         ? TextDecoration.underline
                         : TextDecoration.none,
                     decorationColor: context.brands.beatOrange2,
+                    decorationThickness: 1.06,
+                    height: 1,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.x4),
