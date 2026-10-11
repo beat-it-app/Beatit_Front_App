@@ -78,7 +78,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
 
     final content = SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.x24,
+        vertical: AppSpacing.x40,
         horizontal: AppSpacing.x16,
       ),
       child: Column(
@@ -93,9 +93,7 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
 
           Text(
             '가입한 이메일을 통해 인증 후 아이디를 확인해주세요.',
-            style: FontStyles.reg12.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: FontStyles.reg12.copyWith(color: colors.onSurfaceVariant),
           ),
 
           const SizedBox(height: AppSpacing.x50),
