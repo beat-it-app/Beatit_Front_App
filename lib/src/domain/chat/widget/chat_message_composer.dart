@@ -15,6 +15,7 @@ class ChatMessageComposer extends StatefulWidget {
     required this.onMediaPressed,
     this.hintText = '대화 시작하기',
     this.enabled = true,
+    this.canSend = true,
   });
 
   final TextEditingController controller;
@@ -24,6 +25,7 @@ class ChatMessageComposer extends StatefulWidget {
   final VoidCallback onMediaPressed;
   final String hintText;
   final bool enabled;
+  final bool canSend;
 
   @override
   State<ChatMessageComposer> createState() => _ChatMessageComposerState();
@@ -31,7 +33,9 @@ class ChatMessageComposer extends StatefulWidget {
 
 class _ChatMessageComposerState extends State<ChatMessageComposer> {
   bool get _canSend =>
-      widget.enabled && widget.controller.text.trim().isNotEmpty;
+      widget.enabled &&
+      widget.canSend &&
+      widget.controller.text.trim().isNotEmpty;
 
   @override
   void initState() {

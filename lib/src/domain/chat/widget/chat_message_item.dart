@@ -178,12 +178,19 @@ class _MessageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (message.messageType) {
       case ChatMessageType.image:
-        return ChatImageMessage(
-          imageUrl: message.content,
-          onTap: onImagePressed,
-        );
-      case ChatMessageType.file:
       case ChatMessageType.video:
+      case ChatMessageType.file:
+        final kind = ChatAttachmentMessageCard.kindFor(
+          messageType: message.messageType,
+          fileName: ChatAttachmentMessageCard.resolveFileName(message),
+          mimeType: message.attachmentMimeType,
+        );
+        if (kind == ChatAttachmentKind.image) {
+          return ChatImageMessage(
+            imageUrl: message.content,
+            onTap: onImagePressed,
+          );
+        }
         return ChatAttachmentMessageCard(
           message: message,
           onTap: onAttachmentPressed,
@@ -195,8 +202,9 @@ class _MessageContent extends StatelessWidget {
           return _MessageBubble(content: message.content, isMine: isMine);
         }
         return Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             _MessageBubble(content: message.content, isMine: isMine),
@@ -233,7 +241,7 @@ class _SystemMessage extends StatelessWidget {
         child: Text(
           message.content,
           textAlign: TextAlign.center,
-          style: FontStyles.med12.copyWith(color: context.grays.gray5),
+          style: FontStyles.semi14.copyWith(color: context.grays.gray4),
         ),
       ),
     );
@@ -283,7 +291,7 @@ class _MessageTime extends StatelessWidget {
   Widget build(BuildContext context) {
     final local = createdAt.toLocal();
     return Text(
-      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}',
+      '${local.hour.toString()}:${local.minute.toString().padLeft(2, '0')}',
       style: FontStyles.med11.copyWith(color: context.grays.gray5),
     );
   }
