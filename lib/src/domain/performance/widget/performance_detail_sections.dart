@@ -138,13 +138,14 @@ class _InfoItem extends StatelessWidget {
           children: [
             SvgPicture.asset(
               'assets/icons/performance/lines.svg',
-              width: 24,
-              height: 24,
+              width: 10,
+              height: 16,
               colorFilter: ColorFilter.mode(
                 context.grays.gray5,
                 BlendMode.srcIn,
               ),
             ),
+            const SizedBox(width: AppSpacing.x4),
             Text(
               label,
               style: FontStyles.reg14.copyWith(color: context.grays.gray5),
