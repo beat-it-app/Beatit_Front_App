@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 
 enum ChatAttachmentKind { image, video, audio, document, file }
@@ -44,9 +45,11 @@ class ChatAttachmentMessageCard extends StatelessWidget {
     if (localName != null && localName.isNotEmpty) return localName;
 
     final uri = Uri.tryParse(message.content);
+    // Uri.pathSegments already returns decoded segments. Decoding again can
+    // throw on valid file names containing a literal '%' (e.g. '100%.mp4').
     final rawName = uri == null || uri.pathSegments.isEmpty
         ? message.content
-        : Uri.decodeComponent(uri.pathSegments.last);
+        : uri.pathSegments.last;
 
     final uuidPrefix = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)$',
@@ -75,26 +78,30 @@ class ChatAttachmentMessageCard extends StatelessWidget {
   static ChatAttachmentKind kindFor({
     required ChatMessageType messageType,
     required String fileName,
+    String? mimeType,
   }) {
     final extension = extensionOf(fileName);
+    final mime = mimeType?.toLowerCase() ?? '';
 
-    if (messageType == ChatMessageType.image) {
+    // Some received attachments have an IMAGE type despite containing video.
+    // Trust the actual file extension/MIME before the message-level label.
+    if (videoExtensions.contains(extension) || mime.startsWith('video/')) {
+      return ChatAttachmentKind.video;
+    }
+    if (imageExtensions.contains(extension) || mime.startsWith('image/')) {
       return ChatAttachmentKind.image;
+    }
+    if (audioExtensions.contains(extension) || mime.startsWith('audio/')) {
+      return ChatAttachmentKind.audio;
+    }
+    if (extension == 'pdf' || mime == 'application/pdf') {
+      return ChatAttachmentKind.document;
     }
     if (messageType == ChatMessageType.video) {
       return ChatAttachmentKind.video;
     }
-    if (imageExtensions.contains(extension)) {
+    if (messageType == ChatMessageType.image) {
       return ChatAttachmentKind.image;
-    }
-    if (videoExtensions.contains(extension)) {
-      return ChatAttachmentKind.video;
-    }
-    if (audioExtensions.contains(extension)) {
-      return ChatAttachmentKind.audio;
-    }
-    if (extension == 'pdf') {
-      return ChatAttachmentKind.document;
     }
     return ChatAttachmentKind.file;
   }
@@ -112,14 +119,20 @@ class ChatAttachmentMessageCard extends StatelessWidget {
     return iconPathForValues(
       messageType: message.messageType,
       fileName: resolveFileName(message),
+      mimeType: message.attachmentMimeType,
     );
   }
 
   static String iconPathForValues({
     required ChatMessageType messageType,
     required String fileName,
+    String? mimeType,
   }) {
-    return switch (kindFor(messageType: messageType, fileName: fileName)) {
+    return switch (kindFor(
+      messageType: messageType,
+      fileName: fileName,
+      mimeType: mimeType,
+    )) {
       ChatAttachmentKind.video => 'assets/icons/cloud/video.svg',
       ChatAttachmentKind.audio => 'assets/icons/cloud/music_simbol.svg',
       _ => 'assets/icons/cloud/file.svg',
@@ -130,9 +143,7 @@ class ChatAttachmentMessageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fileName = resolveFileName(message);
     final sizeLabel = formatFileSize(message.attachmentSizeBytes);
-    final local = message.createdAt.toLocal();
-    final dateLabel =
-        '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+    final dateLabel = AppDateTimeFormatter.formatDate(message.createdAt);
 
     final content = Container(
       width: 280,

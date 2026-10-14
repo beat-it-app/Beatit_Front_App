@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/password_validator.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_field_message.dart';
@@ -38,27 +39,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     return _isTermsAgreed && _isPrivacyAgreed;
   }
 
-  bool get _isPasswordValid {
-    final password = passwordController.text;
+  bool get _isPasswordValid => PasswordValidator.isValid(passwordController.text);
 
-    final hasMinLength = password.length >= 8;
-    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
-    final hasSpecial = RegExp(r'[#*]').hasMatch(password);
-
-    return hasMinLength && hasNumber && hasSpecial;
-  }
-
-  String? get _passwordErrorText {
-    if (passwordController.text.isEmpty) {
-      return null;
-    }
-
-    if (!_isPasswordValid) {
-      return '숫자, 특수기호(#,*)를 포함한 8자리 이상 문자여야 합니다.';
-    }
-
-    return null;
-  }
+  String? get _passwordErrorText =>
+      PasswordValidator.errorText(passwordController.text);
 
   String? get _passwordCheckErrorText {
     final password = passwordController.text;

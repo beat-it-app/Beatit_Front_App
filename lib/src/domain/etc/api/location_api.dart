@@ -15,12 +15,16 @@ class LocationApi {
     required String query,
     double? latitude,
     double? longitude,
+    int page = 0,
+    int limit = 10,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         _searchPath,
         queryParameters: {
           'query': query,
+          'page': page,
+          'limit': limit,
           if (latitude != null) 'latitude': latitude,
           if (longitude != null) 'longitude': longitude,
         },

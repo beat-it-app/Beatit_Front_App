@@ -1,18 +1,17 @@
-import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../core/widgets/popups/app_popup.dart';
-import '../provider/team_join_provider.dart';
-import '../widget/team_join_success_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_join_provider.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
+import 'package:beatit_front_app/src/domain/team/widget/team_join_success_popup.dart';
 
 class TeamJoinPage extends ConsumerStatefulWidget {
   const TeamJoinPage({super.key});
@@ -31,9 +30,10 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
   String _teamType = '';
   String _teamName = '';
   String _formattedDate = '';
+  String? _teamImageUrl;
 
   bool get _canSubmit {
-    return inviteCodeController.text.trim().isNotEmpty;
+    return inviteCodeController.text.trim().length == 6;
   }
 
   Future<void> _handleVerifyCode() async {
@@ -54,6 +54,8 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
         _teamPublicId = teamData?.teamPublicId ?? '';
         _teamType = teamData?.teamType ?? '';
         _teamName = teamData?.teamName ?? '';
+        // 💡 이미지 필드 세팅 (모델 필드명에 맞게 설정: teamImageUrl 또는 imageUrl)
+        _teamImageUrl = teamData?.teamImageUrl;
         _formattedDate = teamData != null && teamData.createdAt.length >= 10
             ? teamData.createdAt.substring(0, 10).replaceAll('-', '.')
             : (teamData?.createdAt ?? '');
@@ -61,7 +63,7 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
     } else {
       final err = ref.read(teamJoinProvider).errorMessage;
       setState(() {
-        _errorMessage = '존재하지 않는 코드입니다.';
+        _errorMessage = err ?? '존재하지 않는 코드입니다.';
         _isFound = false;
       });
     }
@@ -90,11 +92,7 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
         context,
         teamName: _teamName,
         onConfirm: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const TeamSelectPage()),
-            (route) => route.isFirst,
-          );
+          Navigator.of(context).pop();
         },
       );
     } else {
@@ -102,8 +100,8 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
       final statusCode = state.statusCode;
       final errorCode = state.errorCode;
       final errorMessage = state.errorMessage ?? '';
-      print(
-        '🚨 [가입 실패 디버깅] statusCode: $statusCode, errorCode: $errorCode, message: $errorMessage',
+      debugPrint(
+        '🚨 [가입 실패] statusCode: $statusCode, errorCode: $errorCode, message: $errorMessage',
       );
 
       if (statusCode == 409 && errorCode == 'TEAM-010') {
@@ -137,6 +135,11 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(teamJoinProvider);
+    final bool hasImage =
+        _teamImageUrl != null &&
+        _teamImageUrl!.trim().isNotEmpty &&
+        _teamImageUrl!.startsWith('http');
+
     return Scaffold(
       appBar: AppTopAppBar.backOnly(
         onBackPressed: () {
@@ -169,8 +172,10 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
                   ),
                   const SizedBox(width: AppSpacing.x8),
                   AppButton(
-                    text: '확인',
-                    variant: ButtonVariant.gray,
+                    text: state.isVerifying ? '확인 중' : '확인',
+                    variant: _canSubmit
+                        ? ButtonVariant.darkGray
+                        : ButtonVariant.gray,
                     height: ButtonHeight.small,
                     width: ButtonWidth.medium,
                     onPressed: state.isVerifying ? null : _handleVerifyCode,
@@ -191,12 +196,69 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
               if (_isFound) ...[
                 Stack(
                   children: [
-                    AppTeamCard(
-                      genre: _teamType,
-                      teamName: _teamName,
-                      date: _formattedDate,
-                      height: 280,
-                    ),
+                    if (hasImage)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        child: Container(
+                          height: 280,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                          ),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Image.network(
+                                  _teamImageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      Container(color: const Color(0xFF1C1C1E)),
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.black.withOpacity(0.45),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(AppSpacing.x20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _teamType,
+                                      style: FontStyles.med14.copyWith(
+                                        color: context.colors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _teamName,
+                                      style: FontStyles.bold28.copyWith(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.x4),
+                                    Text(
+                                      '$_formattedDate 개설',
+                                      style: FontStyles.med14.copyWith(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      AppTeamCard(
+                        genre: _teamType,
+                        teamName: _teamName,
+                        date: _formattedDate,
+                        height: 280,
+                      ),
                     Positioned(
                       left: AppSpacing.x20,
                       right: AppSpacing.x20,

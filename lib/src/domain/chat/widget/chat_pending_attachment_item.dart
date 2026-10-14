@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:flutter/material.dart';
@@ -128,9 +129,7 @@ class _PendingFileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final local = attachment.createdAt.toLocal();
-    final dateLabel =
-        '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+    final dateLabel = AppDateTimeFormatter.formatDate(attachment.createdAt);
 
     return Container(
       width: 280,
@@ -187,10 +186,7 @@ class _PendingFileCard extends StatelessWidget {
 }
 
 class _PendingFileName extends StatelessWidget {
-  const _PendingFileName({
-    required this.fileName,
-    required this.sizeLabel,
-  });
+  const _PendingFileName({required this.fileName, required this.sizeLabel});
 
   final String fileName;
   final String sizeLabel;
@@ -311,11 +307,7 @@ class _FailedActionButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: AppSpacing.x4),
             Text(
               label,
@@ -329,4 +321,3 @@ class _FailedActionButton extends StatelessWidget {
     );
   }
 }
-

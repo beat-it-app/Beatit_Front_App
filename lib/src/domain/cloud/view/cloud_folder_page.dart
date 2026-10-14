@@ -1,6 +1,7 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -619,8 +620,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    return '${local.year}. ${local.month.toString().padLeft(2, '0')}. ${local.day.toString().padLeft(2, '0')}';
+    return AppDateTimeFormatter.formatDate(date);
   }
 }
 

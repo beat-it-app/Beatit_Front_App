@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_image_message.dart';
@@ -178,12 +179,19 @@ class _MessageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (message.messageType) {
       case ChatMessageType.image:
-        return ChatImageMessage(
-          imageUrl: message.content,
-          onTap: onImagePressed,
-        );
-      case ChatMessageType.file:
       case ChatMessageType.video:
+      case ChatMessageType.file:
+        final kind = ChatAttachmentMessageCard.kindFor(
+          messageType: message.messageType,
+          fileName: ChatAttachmentMessageCard.resolveFileName(message),
+          mimeType: message.attachmentMimeType,
+        );
+        if (kind == ChatAttachmentKind.image) {
+          return ChatImageMessage(
+            imageUrl: message.content,
+            onTap: onImagePressed,
+          );
+        }
         return ChatAttachmentMessageCard(
           message: message,
           onTap: onAttachmentPressed,
@@ -195,8 +203,9 @@ class _MessageContent extends StatelessWidget {
           return _MessageBubble(content: message.content, isMine: isMine);
         }
         return Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             _MessageBubble(content: message.content, isMine: isMine),
@@ -233,7 +242,7 @@ class _SystemMessage extends StatelessWidget {
         child: Text(
           message.content,
           textAlign: TextAlign.center,
-          style: FontStyles.med12.copyWith(color: context.grays.gray5),
+          style: FontStyles.semi14.copyWith(color: context.grays.gray4),
         ),
       ),
     );
@@ -281,9 +290,8 @@ class _MessageTime extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final local = createdAt.toLocal();
     return Text(
-      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}',
+      AppDateTimeFormatter.formatTime(createdAt),
       style: FontStyles.med11.copyWith(color: context.grays.gray5),
     );
   }

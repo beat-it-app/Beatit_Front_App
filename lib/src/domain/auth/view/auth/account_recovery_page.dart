@@ -44,18 +44,42 @@ class _AccountRecoveryPageState extends State<AccountRecoveryPage> {
                   return;
                 }
 
+                FocusScope.of(context).unfocus();
                 setState(() {
                   _selectedIndex = index;
                 });
               },
             ),
             Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: const [
-                  FindIdPage(embedded: true),
-                  VerifyPasswordPage(embedded: true),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final pageWidth = constraints.maxWidth;
+                  const pages = <Widget>[
+                    FindIdPage(embedded: true),
+                    VerifyPasswordPage(embedded: true),
+                  ];
+
+                  // 탭 변경 시 양쪽 화면을 함께 밀어주되, 입력 상태는 유지한다.
+                  return ClipRect(
+                    child: Stack(
+                      children: [
+                        for (var index = 0; index < pages.length; index++)
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeInOutCubic,
+                            top: 0,
+                            bottom: 0,
+                            left: (index - _selectedIndex) * pageWidth,
+                            width: pageWidth,
+                            child: IgnorePointer(
+                              ignoring: index != _selectedIndex,
+                              child: pages[index],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],

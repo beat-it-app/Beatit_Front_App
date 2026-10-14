@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
@@ -300,8 +301,7 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
   }
 
   String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    return '${local.year}. ${local.month.toString().padLeft(2, '0')}. ${local.day.toString().padLeft(2, '0')}';
+    return AppDateTimeFormatter.formatDate(date);
   }
 
   Widget _buildResolvedPreview({

@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,10 +10,12 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
 import 'package:beatit_front_app/src/domain/team/model/my_team_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_select_provider.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
-import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
+
+import '../../auth/provider/mypage_provider.dart';
 
 class TeamSelectPage extends ConsumerStatefulWidget {
   const TeamSelectPage({super.key});
@@ -23,19 +26,24 @@ class TeamSelectPage extends ConsumerStatefulWidget {
 
 class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
   String? _selectedBox;
-  bool _isNavigating = false; // 중복 화면 이동 방지 가드
+  bool _isSelecting = false; // 중복 선택 및 이동 방지 가드
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 내 팀 목록 조회 (GET /teams/me)
       ref.read(teamSelectProvider.notifier).fetchMyTeams();
     });
   }
 
-  // 카드 클릭 시 팀 활성화 API(POST /teams/select/{teamPublicId}) 호출 후 이동
+  // 카드 클릭 시 팀 활성화 API(POST /teams/select/{teamPublicId}) 호출
   Future<void> _handleTeamCardTap(MyTeamModel team) async {
-    if (_isNavigating) return;
+    if (_isSelecting) return;
+
+    setState(() {
+      _isSelecting = true;
+    });
 
     final success = await ref
         .read(teamSelectProvider.notifier)
@@ -44,11 +52,18 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     if (!mounted) return;
 
     if (success) {
-      _isNavigating = true;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const TeamDetailPage()),
-      );
+      // TeamEntryPage가 상위에서 보고 있는 currentTeamProvider를 무효화하여
+      // GET /teams 재호출 및 TeamDetailPage로 자동 전환 유도
+      ref.invalidate(myPageProvider);
+      ref.invalidate(currentTeamProvider);
+
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } else {
+      setState(() {
+        _isSelecting = false;
+      });
       final errorMsg = ref.read(teamSelectProvider).errorMessage;
       if (errorMsg != null) {
         ScaffoldMessenger.of(
@@ -62,17 +77,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-
-    // 초기 진입 시 이미 활성 팀이 설정되어 있는 경우에만 자동 이동
-    ref.listen<TeamSelectState>(teamSelectProvider, (previous, next) {
-      if (next.hasActiveTeam && !_isNavigating && mounted) {
-        _isNavigating = true;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const TeamDetailPage()),
-        );
-      }
-    });
-
     final state = ref.watch(teamSelectProvider);
 
     if (state.isLoading) {
@@ -95,22 +99,30 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
               moreMenuItems: [
                 AppDropdownItem(
                   label: '팀 생성하기',
-                  onPressed: () {
-                    Navigator.of(context).push(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
                       MaterialPageRoute(
                         builder: (context) => const TeamCreatePage(),
                       ),
                     );
+                    if (result == true && mounted) {
+                      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                    }
                   },
                 ),
                 AppDropdownItem(
                   label: '팀 참여하기',
-                  onPressed: () {
-                    Navigator.of(context).push(
+                  onPressed: () async {
+                    // 💡 push 뒤에 await를 걸어 pop으로 돌아올 때까지 대기
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const TeamJoinPage(),
                       ),
                     );
+                    // 💡 돌아왔을 때 목록 새로고침!
+                    if (mounted) {
+                      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                    }
                   },
                 ),
               ],
@@ -153,15 +165,18 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
                 iconPath: 'assets/icons/cal/plus.svg',
                 label: '팀 생성하기',
                 isSelected: _selectedBox == 'create',
-                onTap: () {
+                onTap: () async {
                   setState(() {
                     _selectedBox = 'create';
                   });
-                  Navigator.of(context).push(
+                  final result = await Navigator.of(context).push<bool>(
                     MaterialPageRoute(
                       builder: (context) => const TeamCreatePage(),
                     ),
                   );
+                  if (result == true && mounted) {
+                    ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                  }
                 },
               ),
               const SizedBox(width: AppSpacing.x10),
@@ -169,15 +184,19 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
                 iconPath: 'assets/icons/team/plus_team.svg',
                 label: '팀 참여하기',
                 isSelected: _selectedBox == 'join',
-                onTap: () {
+                onTap: () async {
                   setState(() {
                     _selectedBox = 'join';
                   });
-                  Navigator.of(context).push(
+                  // 💡 pop으로 돌아왔을 때 목록 새로고침!
+                  await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => const TeamJoinPage(),
                     ),
                   );
+                  if (mounted) {
+                    ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                  }
                 },
               ),
             ],

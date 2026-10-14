@@ -42,6 +42,9 @@ dependencies:
   background_downloader: ^9.5.9
   web_socket_channel: ^3.0.0
   loading_indicator: ^4.0.2
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+  package_info_plus: ^10.2.2
 
 
 dev_dependencies:

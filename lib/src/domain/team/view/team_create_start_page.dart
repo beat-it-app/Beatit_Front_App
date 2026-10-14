@@ -40,6 +40,17 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
   final List<String> teamTypes = ['band', 'dance', 'vocal', 'team'];
 
+  @override
+  void initState() {
+    super.initState();
+    // 화면 첫 진입 시 오늘 날짜(YYYY-MM-DD)를 기본값으로 세팅
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    teamDateController.text = '$year-$month-$day';
+  }
+
   bool get _isTeamNameValid {
     final text = teamNameController.text.trim();
     return text.isNotEmpty && text.length <= 10;
@@ -53,6 +64,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
   bool get _canSubmit {
     return _isTeamNameValid &&
+        teamDateController.text.trim().isNotEmpty &&
         teamDescriptionController.text.isNotEmpty &&
         selectedTeamType != null;
   }
@@ -98,16 +110,25 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushAndRemoveUntil(
+      // 💡 1. pushAndRemoveUntil 대신 Navigator.push로 완료 화면을 띄우고 결과(true) 대기
+      final isCompleted = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (context) => TeamCreateSuccessPage(
             teamName: teamNameController.text.trim(),
-            teamImageFile: imageFile,
+            establishedOn: teamDateController.text.trim(), // 👈 개설일 전달
+            teamImageFile: imageFile, // 👈 사진 파일 전달
           ),
         ),
-        (route) => route.isFirst,
       );
+
+      if (!mounted) return;
+
+      // 💡 2. '팀 개설 완료' 버튼을 눌러 pop(true)로 돌아왔다면,
+      //    이 TeamCreatePage도 닫으면서 이전 화면(바텀시트 or 팀 선택 화면)으로 true를 넘겨줌
+      if (isCompleted == true) {
+        Navigator.of(context).pop(true);
+      }
     } else {
       final error = ref.read(teamCreateProvider).createError;
       if (error != null) {
@@ -166,16 +187,25 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
                       AppTextField(
                         label: '팀 개설일',
-                        requiredMark: false,
+                        requiredMark: true,
                         hintText: '날짜를 선택해주세요',
                         controller: teamDateController,
                         readOnly: true,
                         onTap: () async {
+                          DateTime initialPickerDate = DateTime.now();
+                          final rawDateText = teamDateController.text.trim();
+                          if (rawDateText.isNotEmpty) {
+                            final parsed = DateTime.tryParse(rawDateText);
+                            if (parsed != null) {
+                              initialPickerDate = parsed;
+                            }
+                          }
+
                           final selectedDate =
                               await AppTimeBottomSheet.showDatePicker(
                                 context,
                                 title: '팀 개설일 선택',
-                                initialDate: DateTime.now(),
+                                initialDate: initialPickerDate,
                                 maxDate: DateTime.now(),
                               );
 
@@ -202,7 +232,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       Wrap(
-                        spacing: AppSpacing.x12,
+                        spacing: AppSpacing.x8,
                         runSpacing: AppSpacing.x8,
                         children: teamTypes.map((type) {
                           final typeUpper = type.toUpperCase();
