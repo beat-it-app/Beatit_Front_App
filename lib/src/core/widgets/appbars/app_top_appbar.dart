@@ -27,6 +27,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.moreMenuItemHeight = 44.0,
     this.moreMenuOffset = const Offset(0, 56),
     this.toolbarHeight = 64.0,
+    this.actionIconColor,
   });
 
   const AppTopAppBar.backTitle({
@@ -48,12 +49,14 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuWidth = 170.0,
        moreMenuItemHeight = 44.0,
        moreMenuOffset = const Offset(0, 56),
-       toolbarHeight = toolbarHeight;
+       toolbarHeight = toolbarHeight,
+       actionIconColor = null;
 
   const AppTopAppBar.backOnly({
     super.key,
     VoidCallback? onBackPressed,
     double toolbarHeight = 64.0,
+    this.actionIconColor,
   }) : title = null,
        showBackButton = true,
        trailing = AppTopAppBarTrailing.none,
@@ -90,7 +93,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onEditPressed = null,
        onSharePressed = null,
        onAlarmPressed = null,
-       toolbarHeight = toolbarHeight;
+       toolbarHeight = toolbarHeight,
+       actionIconColor = null;
 
   const AppTopAppBar.backMore({
     super.key,
@@ -103,6 +107,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.moreMenuItemHeight = 44.0,
     this.moreMenuOffset = const Offset(0, 56),
     double toolbarHeight = 64.0,
+    this.actionIconColor,
   }) : title = title,
        showBackButton = true,
        trailing = AppTopAppBarTrailing.more,
@@ -133,7 +138,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuWidth = 170.0,
        moreMenuItemHeight = 44.0,
        moreMenuOffset = const Offset(0, 56),
-       toolbarHeight = toolbarHeight;
+       toolbarHeight = toolbarHeight,
+       actionIconColor = null;
 
   const AppTopAppBar.alarmOnly({
     super.key,
@@ -155,7 +161,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuWidth = 170.0,
        moreMenuItemHeight = 44.0,
        moreMenuOffset = const Offset(0, 56),
-       toolbarHeight = toolbarHeight;
+       toolbarHeight = toolbarHeight,
+       actionIconColor = null;
 
   final String? title;
   final bool showBackButton;
@@ -191,6 +198,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Offset moreMenuOffset;
 
   final double toolbarHeight;
+  /// 기본값은 기존 grays.black. 상세 헤더에서만 흰 SVG가 필요할 때 지정한다.
+  final Color? actionIconColor;
 
   static void _noop() {}
 
@@ -225,6 +234,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: showBackButton
           ? _AppBarPressIconButton(
               icon: 'assets/icons/appbar/back.svg',
+              iconColor: actionIconColor,
               semanticLabel: '뒤로가기',
               onPressed: onBackPressed ?? _noop,
             )
@@ -305,6 +315,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (moreMenuItems.isEmpty) {
       return _AppBarPressIconButton(
         icon: 'assets/icons/appbar/menu.svg',
+        iconColor: actionIconColor,
         semanticLabel: '더보기',
         onPressed: onMorePressed ?? _noop,
       );
@@ -324,6 +335,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       triggerBuilder: (context, controller) {
         return _AppBarPressIconButton(
           icon: 'assets/icons/appbar/menu.svg',
+          iconColor: actionIconColor,
           semanticLabel: '더보기 메뉴',
           onPressed: () {
             if (controller.isOpen) {
