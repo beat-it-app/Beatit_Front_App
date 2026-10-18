@@ -9,6 +9,8 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import '../../model/mypage/mypage_model.dart';
 import '../../provider/mypage_provider.dart';
 import '../../widget/team_switch_bottom_sheet.dart';
+import 'display_setting_page.dart';
+import 'profile_edit_page.dart'; // 💡 프로필 수정 페이지 import
 
 class MyPageView extends ConsumerStatefulWidget {
   const MyPageView({super.key});
@@ -27,13 +29,22 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
   }
 
   // 💡 팀 전환 바텀시트 열기 및 닫힌 후 데이터 동기화
-  Future<void> _openTeamSwitchSheet(String? currentTeamPublicId) async {
-    await TeamSwitchBottomSheet.show(
-      context,
-      currentTeamPublicId: currentTeamPublicId,
-    );
+  Future<void> _openTeamSwitchSheet(int? currentTeamId) async {
+    await TeamSwitchBottomSheet.show(context, currentTeamId: currentTeamId);
 
     // 바텀시트가 닫혔을 때 (팀 선택 or 추가 완료 복귀) 최신 상태 재조회
+    if (mounted) {
+      ref.read(myPageProvider.notifier).fetchMyPage();
+    }
+  }
+
+  // 💡 프로필 수정 페이지 이동 및 복귀 시 최신 프로필 재조회
+  Future<void> _openProfileEditPage() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileEditPage()));
+
+    // 프로필 수정 페이지에서 수정 후 뒤로가기로 복귀했을 때 최신 데이터 갱신
     if (mounted) {
       ref.read(myPageProvider.notifier).fetchMyPage();
     }
@@ -117,61 +128,65 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 프로필 정보 영역
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: context.colors.primary,
-                    backgroundImage: hasProfileImage
-                        ? NetworkImage(userProfileUrl)
-                        : null,
-                    child: !hasProfileImage
-                        ? const Icon(
-                            Icons.music_note,
-                            color: Colors.black,
-                            size: 28,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: AppSpacing.x16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data?.userName ?? '사용자',
-                          style: FontStyles.semi20.copyWith(
-                            color: colors.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _buildSocialBadges(data?.socialAccounts ?? []),
-                            Text(
-                              data?.email ?? '',
-                              style: FontStyles.reg16.copyWith(
-                                color: context.grays.gray3,
-                              ),
+            // 💡 프로필 정보 영역 (탭 시 프로필 수정 페이지로 이동)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openProfileEditPage,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: context.colors.primary,
+                      backgroundImage: hasProfileImage
+                          ? NetworkImage(userProfileUrl)
+                          : null,
+                      child: !hasProfileImage
+                          ? const Icon(
+                              Icons.music_note,
+                              color: Colors.black,
+                              size: 28,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.x16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data?.userName ?? '사용자',
+                            style: FontStyles.semi20.copyWith(
+                              color: colors.onSurface,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildSocialBadges(data?.socialAccounts ?? []),
+                              Text(
+                                data?.email ?? '',
+                                style: FontStyles.reg16.copyWith(
+                                  color: context.grays.gray3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  SvgPicture.asset(
-                    'assets/icons/auth/back.svg',
-                    width: 16,
-                    height: 16,
-                    colorFilter: ColorFilter.mode(
-                      colors.onSurface,
-                      BlendMode.srcIn,
+                    SvgPicture.asset(
+                      'assets/icons/auth/back.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: ColorFilter.mode(
+                        colors.onSurface,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.x24),
@@ -207,11 +222,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    onPressed: () => _openTeamSwitchSheet(
-                      currentTeam != null
-                          ? currentTeam.teamId.toString()
-                          : null,
-                    ),
+                    onPressed: () => _openTeamSwitchSheet(currentTeam?.teamId),
                   ),
                 ],
               ),
@@ -307,7 +318,14 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             // 설정 목록
             _SettingTile(title: '알림 설정', onTap: () {}),
-            _SettingTile(title: '화면 설정', onTap: () {}),
+            _SettingTile(
+              title: '화면 설정',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DisplaySettingPage()),
+                );
+              },
+            ),
             _SettingTile(title: '서비스 약관', onTap: () {}),
             _SettingTile(title: '고객 지원', onTap: () {}),
             _SettingTile(title: '로그아웃', onTap: () {}),
