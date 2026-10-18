@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "942214017804",
+    "project_id": "beat-it-879f1",
+    "storage_bucket": "beat-it-879f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942214017804:android:314d8c44e66541ae75cf29",
+        "android_client_info": {
+          "package_name": "com.beatit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4FDcWFDypQo-VBxpQH6msw_2-FMG4_jw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

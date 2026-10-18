@@ -114,7 +114,7 @@ _PollListItem _$PollListItemFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['closeAt'] as String),
       pollCount: (json['pollCount'] as num).toInt(),
-      isVoted: json['voted'] as bool,
+      isVoted: json['isVoted'] as bool,
     );
 
 Map<String, dynamic> _$PollListItemToJson(_PollListItem instance) =>
@@ -123,7 +123,7 @@ Map<String, dynamic> _$PollListItemToJson(_PollListItem instance) =>
       'title': instance.title,
       'closeAt': instance.closeAt?.toIso8601String(),
       'pollCount': instance.pollCount,
-      'voted': instance.isVoted,
+      'isVoted': instance.isVoted,
     };
 
 _MeetitListResponse _$MeetitListResponseFromJson(Map<String, dynamic> json) =>

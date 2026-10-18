@@ -313,9 +313,8 @@ $ScheduleDetailDataCopyWith<$Res> get data {
 /// @nodoc
 mixin _$ScheduleDetailData {
 
- int get scheduleId; int get teamId; int get userId; int? get locationId; String get title; String? get content; DateTime get startsAt; DateTime get endsAt; DateTime get createdAt; DateTime get updatedAt; List<ScheduleDetailParticipant> get participants; List<ScheduleDetailFile> get files;/// 현재 첨부된 백엔드 ScheduleDetailResponse에는 아직 없는 필드입니다.
-/// 백엔드가 상세 조회 응답에 musics를 추가하면 프론트 수정 없이 표시할 수 있도록
-/// 기본값을 빈 목록으로 둡니다.
+ int get scheduleId; int get teamId; int get userId; int? get locationId; String get title; String? get content; DateTime get startsAt; DateTime get endsAt; DateTime get createdAt; DateTime get updatedAt; List<ScheduleDetailParticipant> get participants; List<ScheduleDetailFile> get files;/// 현재 백엔드는 musics를 반환합니다. 구버전 응답과도 호환되도록
+/// 필드가 누락되면 빈 목록을 사용합니다.
  List<ScheduleDetailMusic> get musics;
 /// Create a copy of ScheduleDetailData
 /// with the given fields replaced by the non-null parameter values.
@@ -554,13 +553,11 @@ class _ScheduleDetailData implements ScheduleDetailData {
   return EqualUnmodifiableListView(_files);
 }
 
-/// 현재 첨부된 백엔드 ScheduleDetailResponse에는 아직 없는 필드입니다.
-/// 백엔드가 상세 조회 응답에 musics를 추가하면 프론트 수정 없이 표시할 수 있도록
-/// 기본값을 빈 목록으로 둡니다.
+/// 현재 백엔드는 musics를 반환합니다. 구버전 응답과도 호환되도록
+/// 필드가 누락되면 빈 목록을 사용합니다.
  final  List<ScheduleDetailMusic> _musics;
-/// 현재 첨부된 백엔드 ScheduleDetailResponse에는 아직 없는 필드입니다.
-/// 백엔드가 상세 조회 응답에 musics를 추가하면 프론트 수정 없이 표시할 수 있도록
-/// 기본값을 빈 목록으로 둡니다.
+/// 현재 백엔드는 musics를 반환합니다. 구버전 응답과도 호환되도록
+/// 필드가 누락되면 빈 목록을 사용합니다.
 @override@JsonKey() List<ScheduleDetailMusic> get musics {
   if (_musics is EqualUnmodifiableListView) return _musics;
   // ignore: implicit_dynamic_type

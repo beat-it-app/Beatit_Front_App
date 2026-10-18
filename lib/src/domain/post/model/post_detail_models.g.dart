@@ -13,8 +13,8 @@ _PostComment _$PostCommentFromJson(Map<String, dynamic> json) => _PostComment(
   content: json['content'] as String,
   createdAt: DateTime.parse(json['createdAt'] as String),
   profileImageUrl: json['profileImageUrl'] as String?,
-  isWriter: json['writer'] as bool? ?? false,
-  isMine: json['mine'] as bool? ?? false,
+  isWriter: json['isWriter'] as bool? ?? false,
+  isMine: json['isMine'] as bool? ?? false,
   mentionedUsers:
       (json['mentionedUsers'] as List<dynamic>?)
           ?.map((e) => PostMentionUser.fromJson(e as Map<String, dynamic>))
@@ -35,8 +35,8 @@ Map<String, dynamic> _$PostCommentToJson(_PostComment instance) =>
       'content': instance.content,
       'createdAt': instance.createdAt.toIso8601String(),
       'profileImageUrl': instance.profileImageUrl,
-      'writer': instance.isWriter,
-      'mine': instance.isMine,
+      'isWriter': instance.isWriter,
+      'isMine': instance.isMine,
       'mentionedUsers': instance.mentionedUsers,
       'replies': instance.replies,
     };
@@ -86,7 +86,7 @@ _NoticeDetailData _$NoticeDetailDataFromJson(
   images:
       (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const <String>[],
-  isWriter: json['writer'] as bool? ?? false,
+  isWriter: json['isWriter'] as bool? ?? false,
   reaction: NoticeReaction.fromJson(json['reaction'] as Map<String, dynamic>),
   commentList:
       (json['commentList'] as List<dynamic>?)
@@ -105,7 +105,7 @@ Map<String, dynamic> _$NoticeDetailDataToJson(_NoticeDetailData instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
       'images': instance.images,
-      'writer': instance.isWriter,
+      'isWriter': instance.isWriter,
       'reaction': instance.reaction,
       'commentList': instance.commentList,
     };
@@ -114,8 +114,8 @@ _NoticeReaction _$NoticeReactionFromJson(Map<String, dynamic> json) =>
     _NoticeReaction(
       likeCount: (json['likeCount'] as num).toInt(),
       dislikeCount: (json['dislikeCount'] as num).toInt(),
-      isLiked: json['liked'] as bool? ?? false,
-      isDisliked: json['disliked'] as bool? ?? false,
+      isLiked: json['isLiked'] as bool? ?? false,
+      isDisliked: json['isDisliked'] as bool? ?? false,
       commentCount: (json['commentCount'] as num).toInt(),
     );
 
@@ -123,8 +123,8 @@ Map<String, dynamic> _$NoticeReactionToJson(_NoticeReaction instance) =>
     <String, dynamic>{
       'likeCount': instance.likeCount,
       'dislikeCount': instance.dislikeCount,
-      'liked': instance.isLiked,
-      'disliked': instance.isDisliked,
+      'isLiked': instance.isLiked,
+      'isDisliked': instance.isDisliked,
       'commentCount': instance.commentCount,
     };
 
@@ -151,7 +151,7 @@ _PollDetailData _$PollDetailDataFromJson(Map<String, dynamic> json) =>
       content: json['content'] as String?,
       pollType: json['pollType'] as String,
       allowMultipleChoice: json['allowMultipleChoice'] as bool,
-      isAnonymous: json['anonymous'] as bool,
+      isAnonymous: json['isAnonymous'] as bool,
       closeAt: json['closeAt'] == null
           ? null
           : DateTime.parse(json['closeAt'] as String),
@@ -164,7 +164,7 @@ _PollDetailData _$PollDetailDataFromJson(Map<String, dynamic> json) =>
               ?.map((e) => PollDetailItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <PollDetailItem>[],
-      isWriter: json['writer'] as bool? ?? false,
+      isWriter: json['isWriter'] as bool? ?? false,
       commentCount: (json['commentCount'] as num).toInt(),
       commentList:
           (json['commentList'] as List<dynamic>?)
@@ -180,14 +180,14 @@ Map<String, dynamic> _$PollDetailDataToJson(_PollDetailData instance) =>
       'content': instance.content,
       'pollType': instance.pollType,
       'allowMultipleChoice': instance.allowMultipleChoice,
-      'anonymous': instance.isAnonymous,
+      'isAnonymous': instance.isAnonymous,
       'closeAt': instance.closeAt?.toIso8601String(),
       'writerName': instance.writerName,
       'writerProfileImageUrl': instance.writerProfileImageUrl,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
       'pollItems': instance.pollItems,
-      'writer': instance.isWriter,
+      'isWriter': instance.isWriter,
       'commentCount': instance.commentCount,
       'commentList': instance.commentList,
     };
@@ -196,7 +196,7 @@ _PollDetailItem _$PollDetailItemFromJson(Map<String, dynamic> json) =>
     _PollDetailItem(
       itemId: (json['itemId'] as num).toInt(),
       voteCount: (json['voteCount'] as num).toInt(),
-      isVoted: json['voted'] as bool? ?? false,
+      isVoted: json['isVoted'] as bool? ?? false,
       content: json['content'] as String?,
       title: json['title'] as String?,
       artist: json['artist'] as String?,
@@ -211,7 +211,7 @@ Map<String, dynamic> _$PollDetailItemToJson(_PollDetailItem instance) =>
     <String, dynamic>{
       'itemId': instance.itemId,
       'voteCount': instance.voteCount,
-      'voted': instance.isVoted,
+      'isVoted': instance.isVoted,
       'content': instance.content,
       'title': instance.title,
       'artist': instance.artist,

@@ -313,7 +313,7 @@ $LoginDataCopyWith<$Res> get data {
 /// @nodoc
 mixin _$LoginData {
 
- int get userId; Role get role; bool get createdProfile; SocialProvider? get socialProvider;
+ int get userId; Role get role;@JsonKey(name: 'isCreatedProfile') bool get createdProfile; SocialProvider? get socialProvider;
 /// Create a copy of LoginData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -351,7 +351,7 @@ abstract mixin class $LoginDataCopyWith<$Res>  {
   factory $LoginDataCopyWith(LoginData value, $Res Function(LoginData) _then) = _$LoginDataCopyWithImpl;
 @useResult
 $Res call({
- int userId, Role role, bool createdProfile, SocialProvider? socialProvider
+ int userId, Role role,@JsonKey(name: 'isCreatedProfile') bool createdProfile, SocialProvider? socialProvider
 });
 
 
@@ -459,7 +459,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int userId,  Role role,  bool createdProfile,  SocialProvider? socialProvider)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int userId,  Role role, @JsonKey(name: 'isCreatedProfile')  bool createdProfile,  SocialProvider? socialProvider)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LoginData() when $default != null:
 return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvider);case _:
@@ -480,7 +480,7 @@ return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvide
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int userId,  Role role,  bool createdProfile,  SocialProvider? socialProvider)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int userId,  Role role, @JsonKey(name: 'isCreatedProfile')  bool createdProfile,  SocialProvider? socialProvider)  $default,) {final _that = this;
 switch (_that) {
 case _LoginData():
 return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvider);case _:
@@ -500,7 +500,7 @@ return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvide
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int userId,  Role role,  bool createdProfile,  SocialProvider? socialProvider)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int userId,  Role role, @JsonKey(name: 'isCreatedProfile')  bool createdProfile,  SocialProvider? socialProvider)?  $default,) {final _that = this;
 switch (_that) {
 case _LoginData() when $default != null:
 return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvider);case _:
@@ -515,12 +515,12 @@ return $default(_that.userId,_that.role,_that.createdProfile,_that.socialProvide
 @JsonSerializable()
 
 class _LoginData implements LoginData {
-  const _LoginData({required this.userId, required this.role, required this.createdProfile, this.socialProvider});
+  const _LoginData({required this.userId, required this.role, @JsonKey(name: 'isCreatedProfile') required this.createdProfile, this.socialProvider});
   factory _LoginData.fromJson(Map<String, dynamic> json) => _$LoginDataFromJson(json);
 
 @override final  int userId;
 @override final  Role role;
-@override final  bool createdProfile;
+@override@JsonKey(name: 'isCreatedProfile') final  bool createdProfile;
 @override final  SocialProvider? socialProvider;
 
 /// Create a copy of LoginData
@@ -558,7 +558,7 @@ abstract mixin class _$LoginDataCopyWith<$Res> implements $LoginDataCopyWith<$Re
   factory _$LoginDataCopyWith(_LoginData value, $Res Function(_LoginData) _then) = __$LoginDataCopyWithImpl;
 @override @useResult
 $Res call({
- int userId, Role role, bool createdProfile, SocialProvider? socialProvider
+ int userId, Role role,@JsonKey(name: 'isCreatedProfile') bool createdProfile, SocialProvider? socialProvider
 });
 
 

@@ -9,6 +9,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import '../../model/mypage/mypage_model.dart';
 import '../../provider/mypage_provider.dart';
 import '../../widget/team_switch_bottom_sheet.dart';
+import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 
 class MyPageView extends ConsumerStatefulWidget {
   const MyPageView({super.key});
@@ -108,7 +109,11 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
               height: 24,
               colorFilter: ColorFilter.mode(colors.onSurface, BlendMode.srcIn),
             ),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AlarmMainPage()),
+              );
+            },
           ),
           const SizedBox(width: AppSpacing.x8),
         ],
