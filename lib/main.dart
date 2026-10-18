@@ -12,10 +12,8 @@ Future<void> main() async {
 
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     try {
-      // 네이티브 Firebase 설정 파일로 앱 시작 시 한 번 초기화한다.
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
     } catch (error) {
-      // Firebase 설정이 미완료여도 로그인 화면은 실행할 수 있어야 한다.
       debugPrint('[Firebase] initialization failed: $error');
     }
   }
