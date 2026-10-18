@@ -122,7 +122,7 @@ class PostApi {
       // The latest backend includes the voter list in each poll item of the
       // detail response. There is no separate voters endpoint.
       final votersByOption = <int, List<PollVoter>>{};
-      if (dataJson is Map && dataJson['anonymous'] == false) {
+      if (dataJson is Map && dataJson['isAnonymous'] == false) {
         final pollItems = dataJson['pollItems'];
         if (pollItems is List) {
           for (final item in pollItems) {

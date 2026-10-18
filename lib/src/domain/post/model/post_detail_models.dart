@@ -12,8 +12,8 @@ abstract class PostComment with _$PostComment {
     required String content,
     required DateTime createdAt,
     String? profileImageUrl,
-    @JsonKey(name: 'writer') @Default(false) bool isWriter,
-    @JsonKey(name: 'mine') @Default(false) bool isMine,
+    @JsonKey(name: 'isWriter') @Default(false) bool isWriter,
+    @JsonKey(name: 'isMine') @Default(false) bool isMine,
     @Default(<PostMentionUser>[]) List<PostMentionUser> mentionedUsers,
     @Default(<PostComment>[]) List<PostComment> replies,
   }) = _PostComment;
@@ -58,7 +58,7 @@ abstract class NoticeDetailData with _$NoticeDetailData {
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default(<String>[]) List<String> images,
-    @JsonKey(name: 'writer') @Default(false) bool isWriter,
+    @JsonKey(name: 'isWriter') @Default(false) bool isWriter,
     required NoticeReaction reaction,
     @Default(<PostComment>[]) List<PostComment> commentList,
   }) = _NoticeDetailData;
@@ -72,8 +72,8 @@ abstract class NoticeReaction with _$NoticeReaction {
   const factory NoticeReaction({
     required int likeCount,
     required int dislikeCount,
-    @JsonKey(name: 'liked') @Default(false) bool isLiked,
-    @JsonKey(name: 'disliked') @Default(false) bool isDisliked,
+    @JsonKey(name: 'isLiked') @Default(false) bool isLiked,
+    @JsonKey(name: 'isDisliked') @Default(false) bool isDisliked,
     required int commentCount,
   }) = _NoticeReaction;
 
@@ -102,14 +102,14 @@ abstract class PollDetailData with _$PollDetailData {
     String? content,
     required String pollType,
     required bool allowMultipleChoice,
-    @JsonKey(name: 'anonymous') required bool isAnonymous,
+    @JsonKey(name: 'isAnonymous') required bool isAnonymous,
     DateTime? closeAt,
     required String writerName,
     String? writerProfileImageUrl,
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default(<PollDetailItem>[]) List<PollDetailItem> pollItems,
-    @JsonKey(name: 'writer') @Default(false) bool isWriter,
+    @JsonKey(name: 'isWriter') @Default(false) bool isWriter,
     required int commentCount,
     @Default(<PostComment>[]) List<PostComment> commentList,
   }) = _PollDetailData;
@@ -123,7 +123,7 @@ abstract class PollDetailItem with _$PollDetailItem {
   const factory PollDetailItem({
     required int itemId,
     required int voteCount,
-    @JsonKey(name: 'voted') @Default(false) bool isVoted,
+    @JsonKey(name: 'isVoted') @Default(false) bool isVoted,
     String? content,
     String? title,
     String? artist,

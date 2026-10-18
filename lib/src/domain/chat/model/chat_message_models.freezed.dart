@@ -598,7 +598,7 @@ as bool,
 /// @nodoc
 mixin _$ChatMessage {
 
- int get messageId; int get senderId; String get senderName; String? get profileImageUrl; String get content;@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType get messageType; DateTime get createdAt;@JsonKey(name: 'mine') bool get isMine; String? get attachmentName; int? get attachmentSizeBytes; String? get attachmentMimeType;
+ int get messageId; int get senderId; String get senderName; String? get profileImageUrl; String get content;@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType get messageType; DateTime get createdAt;@JsonKey(name: 'isMine') bool get isMine; String? get attachmentName; int? get attachmentSizeBytes; String? get attachmentMimeType;
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -636,7 +636,7 @@ abstract mixin class $ChatMessageCopyWith<$Res>  {
   factory $ChatMessageCopyWith(ChatMessage value, $Res Function(ChatMessage) _then) = _$ChatMessageCopyWithImpl;
 @useResult
 $Res call({
- int messageId, int senderId, String senderName, String? profileImageUrl, String content,@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType messageType, DateTime createdAt,@JsonKey(name: 'mine') bool isMine, String? attachmentName, int? attachmentSizeBytes, String? attachmentMimeType
+ int messageId, int senderId, String senderName, String? profileImageUrl, String content,@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType messageType, DateTime createdAt,@JsonKey(name: 'isMine') bool isMine, String? attachmentName, int? attachmentSizeBytes, String? attachmentMimeType
 });
 
 
@@ -751,7 +751,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'mine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'isMine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
 return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileImageUrl,_that.content,_that.messageType,_that.createdAt,_that.isMine,_that.attachmentName,_that.attachmentSizeBytes,_that.attachmentMimeType);case _:
@@ -772,7 +772,7 @@ return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileIma
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'mine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'isMine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage():
 return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileImageUrl,_that.content,_that.messageType,_that.createdAt,_that.isMine,_that.attachmentName,_that.attachmentSizeBytes,_that.attachmentMimeType);case _:
@@ -792,7 +792,7 @@ return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileIma
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'mine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int messageId,  int senderId,  String senderName,  String? profileImageUrl,  String content, @JsonKey(unknownEnumValue: ChatMessageType.unknown)  ChatMessageType messageType,  DateTime createdAt, @JsonKey(name: 'isMine')  bool isMine,  String? attachmentName,  int? attachmentSizeBytes,  String? attachmentMimeType)?  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
 return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileImageUrl,_that.content,_that.messageType,_that.createdAt,_that.isMine,_that.attachmentName,_that.attachmentSizeBytes,_that.attachmentMimeType);case _:
@@ -807,7 +807,7 @@ return $default(_that.messageId,_that.senderId,_that.senderName,_that.profileIma
 @JsonSerializable()
 
 class _ChatMessage implements ChatMessage {
-  const _ChatMessage({required this.messageId, required this.senderId, required this.senderName, this.profileImageUrl, required this.content, @JsonKey(unknownEnumValue: ChatMessageType.unknown) required this.messageType, required this.createdAt, @JsonKey(name: 'mine') required this.isMine, this.attachmentName, this.attachmentSizeBytes, this.attachmentMimeType});
+  const _ChatMessage({required this.messageId, required this.senderId, required this.senderName, this.profileImageUrl, required this.content, @JsonKey(unknownEnumValue: ChatMessageType.unknown) required this.messageType, required this.createdAt, @JsonKey(name: 'isMine') required this.isMine, this.attachmentName, this.attachmentSizeBytes, this.attachmentMimeType});
   factory _ChatMessage.fromJson(Map<String, dynamic> json) => _$ChatMessageFromJson(json);
 
 @override final  int messageId;
@@ -817,7 +817,7 @@ class _ChatMessage implements ChatMessage {
 @override final  String content;
 @override@JsonKey(unknownEnumValue: ChatMessageType.unknown) final  ChatMessageType messageType;
 @override final  DateTime createdAt;
-@override@JsonKey(name: 'mine') final  bool isMine;
+@override@JsonKey(name: 'isMine') final  bool isMine;
 @override final  String? attachmentName;
 @override final  int? attachmentSizeBytes;
 @override final  String? attachmentMimeType;
@@ -857,7 +857,7 @@ abstract mixin class _$ChatMessageCopyWith<$Res> implements $ChatMessageCopyWith
   factory _$ChatMessageCopyWith(_ChatMessage value, $Res Function(_ChatMessage) _then) = __$ChatMessageCopyWithImpl;
 @override @useResult
 $Res call({
- int messageId, int senderId, String senderName, String? profileImageUrl, String content,@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType messageType, DateTime createdAt,@JsonKey(name: 'mine') bool isMine, String? attachmentName, int? attachmentSizeBytes, String? attachmentMimeType
+ int messageId, int senderId, String senderName, String? profileImageUrl, String content,@JsonKey(unknownEnumValue: ChatMessageType.unknown) ChatMessageType messageType, DateTime createdAt,@JsonKey(name: 'isMine') bool isMine, String? attachmentName, int? attachmentSizeBytes, String? attachmentMimeType
 });
 
 
