@@ -1,4 +1,5 @@
 import 'package:beatit_front_app/src/domain/alarm/model/alarm_notification.dart';
+import 'package:beatit_front_app/src/domain/alarm/model/alarm_setting_models.dart';
 import 'package:dio/dio.dart';
 
 class AlarmApiException implements Exception {
@@ -79,6 +80,41 @@ class AlarmApi {
       throw const AlarmApiException('전체 읽음 처리 응답이 올바르지 않습니다.');
     } on TypeError {
       throw const AlarmApiException('전체 읽음 처리 응답이 올바르지 않습니다.');
+    }
+  }
+
+  Future<AlarmSettingsData> getSettings() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/notifications/settings',
+      );
+      final body = _requireSuccessBody(response.data);
+      return AlarmSettingsResponse.fromJson(body).data;
+    } on DioException catch (error) {
+      throw _mapError(error, '알림 설정을 불러오지 못했습니다.');
+    } on FormatException {
+      throw const AlarmApiException('알림 설정 응답이 올바르지 않습니다.');
+    } on TypeError {
+      throw const AlarmApiException('알림 설정 응답이 올바르지 않습니다.');
+    }
+  }
+
+  /// 서버가 상위/하위 값을 연쇄 변경하므로 하나의 설정만 PATCH한다.
+  /// 갱신된 전체 설정을 그대로 돌려받아 화면에 사용한다.
+  Future<AlarmSettingsData> updateSetting(String field, bool value) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '/notifications/settings',
+        data: {field: value},
+      );
+      final body = _requireSuccessBody(response.data);
+      return AlarmSettingsResponse.fromJson(body).data;
+    } on DioException catch (error) {
+      throw _mapError(error, '알림 설정을 변경하지 못했습니다.');
+    } on FormatException {
+      throw const AlarmApiException('알림 설정 응답이 올바르지 않습니다.');
+    } on TypeError {
+      throw const AlarmApiException('알림 설정 응답이 올바르지 않습니다.');
     }
   }
 

@@ -68,9 +68,9 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
 
   void _showError(String? message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message ?? '알림을 처리하지 못했습니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message ?? '알림을 처리하지 못했습니다.')));
   }
 
   Future<void> _markAllAsRead() async {
@@ -82,7 +82,8 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
     final teamState = ref.read(currentTeamProvider);
     final activeTeamId = teamState.asData?.value.teamId;
     final alarmState = ref.read(alarmProvider);
-    final differentTeam = activeTeamId != null &&
+    final differentTeam =
+        activeTeamId != null &&
         alarmState.teamId != null &&
         activeTeamId != alarmState.teamId;
 
@@ -95,7 +96,8 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
       );
     } else {
       // 현재 팀에서 보는 인앱 알림은 읽음 API로 처리한다.
-      target = await ref.read(alarmProvider.notifier)
+      target = await ref
+          .read(alarmProvider.notifier)
           .readNotification(notification.id);
     }
 
@@ -108,7 +110,8 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
     // PATCH /read는 팀을 전환하지 않는다. 조회 후 서버의 팀이 변경된
     // 경합 상황에도 /click으로 서버/클라이언트 팀을 일치시킨다.
     bool switchedTeam = differentTeam;
-    if (!differentTeam && activeTeamId != null &&
+    if (!differentTeam &&
+        activeTeamId != null &&
         activeTeamId != target.targetTeamId) {
       final switched = await _openTeamLoading(
         teamName: target.targetTeamName,
@@ -142,7 +145,8 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
       MaterialPageRoute(
         builder: (_) => AlarmLoadingPage(
           teamName: teamName,
-          switchTeam: () => ref.read(alarmProvider.notifier)
+          switchTeam: () => ref
+              .read(alarmProvider.notifier)
               .readNotification(notificationId, switchTeam: true),
         ),
       ),
@@ -151,7 +155,10 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
 
   /// 서버의 directTo/targetId만으로 판단한다. 매핑되지 않는 경로는
   /// 부정확한 상세 화면을 보여주는 대신 팀 홈으로 이동한다.
-  Widget? _detailFor(AlarmClickResponse target, {required String notificationTitle}) {
+  Widget? _detailFor(
+    AlarmClickResponse target, {
+    required String notificationTitle,
+  }) {
     final path = target.directTo;
     final id = target.targetId;
     if (path == '/teams/members') return const TeamMemberPage();
@@ -250,69 +257,75 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
           AppDropdownItem(label: '모두 읽음으로 표시', onPressed: _markAllAsRead),
           AppDropdownItem(
             label: '알림 설정',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AlarmSettingPage()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AlarmSettingPage())),
           ),
         ],
       ),
       body: state.isLoading && state.notifications.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : state.notifications.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        state.errorMessage ?? '아직 도착한 알림이 없어요.',
-                        textAlign: TextAlign.center,
-                        style: FontStyles.med16.copyWith(color: colors.onSurface),
-                      ),
-                      TextButton(
-                          onPressed: () => ref.read(alarmProvider.notifier).fetchFirstPage(),
-                          child: Text(state.errorMessage == null ? '새로고침' : '다시 시도'),
-                        ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    state.errorMessage ?? '아직 도착한 알림이 없어요.',
+                    textAlign: TextAlign.center,
+                    style: FontStyles.med16.copyWith(color: colors.onSurface),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () => ref.read(alarmProvider.notifier).fetchFirstPage(),
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.x24, AppSpacing.x20,
-                      AppSpacing.x24, AppSpacing.x24,
-                    ),
-                    itemCount: state.notifications.length +
-                        (state.isLoadingMore || state.errorMessage != null ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == state.notifications.length) {
-                        if (state.isLoadingMore) {
-                          return const Padding(
-                            padding: EdgeInsets.all(AppSpacing.x20),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        return TextButton(
-                          onPressed: () => state.isLast
-                              ? ref.read(alarmProvider.notifier).fetchFirstPage()
-                              : ref.read(alarmProvider.notifier).fetchNextPage(),
-                          child: const Text('알림을 불러오지 못했습니다. 다시 시도'),
-                        );
-                      }
-                      final item = state.notifications[index];
-                      return AlarmItemWidget(
-                        key: ValueKey(item.id),
-                        notification: item,
-                        isBusy: state.activeNotificationId == item.id,
-                        onTap: state.activeNotificationId != null || state.isReadingAll
-                            ? null
-                            : () => _onTapNotification(item),
-                      );
-                    },
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(alarmProvider.notifier).fetchFirstPage(),
+                    child: Text(state.errorMessage == null ? '새로고침' : '다시 시도'),
                   ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(alarmProvider.notifier).fetchFirstPage(),
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  0.0,
+                  AppSpacing.x20,
+                  0.0,
+                  AppSpacing.x24,
                 ),
+                itemCount:
+                    state.notifications.length +
+                    (state.isLoadingMore || state.errorMessage != null ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == state.notifications.length) {
+                    if (state.isLoadingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.all(AppSpacing.x20),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return TextButton(
+                      onPressed: () => state.isLast
+                          ? ref.read(alarmProvider.notifier).fetchFirstPage()
+                          : ref.read(alarmProvider.notifier).fetchNextPage(),
+                      child: const Text('알림을 불러오지 못했습니다. 다시 시도'),
+                    );
+                  }
+                  final item = state.notifications[index];
+                  return AlarmItemWidget(
+                    key: ValueKey(item.id),
+                    notification: item,
+                    isBusy: state.activeNotificationId == item.id,
+                    onTap:
+                        state.activeNotificationId != null || state.isReadingAll
+                        ? null
+                        : () => _onTapNotification(item),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

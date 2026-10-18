@@ -45,7 +45,10 @@ class AlarmItemWidget extends StatelessWidget {
         highlightColor: context.brands.beatOrange6,
         splashColor: context.brands.beatOrange6,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.x24,
+            vertical: AppSpacing.x20,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
