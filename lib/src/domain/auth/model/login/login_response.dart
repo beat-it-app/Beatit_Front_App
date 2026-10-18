@@ -37,7 +37,7 @@ abstract class LoginData with _$LoginData {
   const factory LoginData({
     required int userId,
     required Role role,
-    required bool createdProfile,
+    @JsonKey(name: 'isCreatedProfile') required bool createdProfile,
     SocialProvider? socialProvider,
   }) = _LoginData;
 

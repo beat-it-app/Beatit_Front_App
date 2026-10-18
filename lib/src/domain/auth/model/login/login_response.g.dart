@@ -25,7 +25,7 @@ Map<String, dynamic> _$LoginResponseToJson(_LoginResponse instance) =>
 _LoginData _$LoginDataFromJson(Map<String, dynamic> json) => _LoginData(
   userId: (json['userId'] as num).toInt(),
   role: $enumDecode(_$RoleEnumMap, json['role']),
-  createdProfile: json['createdProfile'] as bool,
+  createdProfile: json['isCreatedProfile'] as bool,
   socialProvider: $enumDecodeNullable(
     _$SocialProviderEnumMap,
     json['socialProvider'],
@@ -36,7 +36,7 @@ Map<String, dynamic> _$LoginDataToJson(_LoginData instance) =>
     <String, dynamic>{
       'userId': instance.userId,
       'role': _$RoleEnumMap[instance.role]!,
-      'createdProfile': instance.createdProfile,
+      'isCreatedProfile': instance.createdProfile,
       'socialProvider': _$SocialProviderEnumMap[instance.socialProvider],
     };
 

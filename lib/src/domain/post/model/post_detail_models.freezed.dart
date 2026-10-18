@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PostComment {
 
- int get commentId; int? get parentCommentId; String get writerName; String get content; DateTime get createdAt; String? get profileImageUrl;@JsonKey(name: 'writer') bool get isWriter;@JsonKey(name: 'mine') bool get isMine; List<PostMentionUser> get mentionedUsers; List<PostComment> get replies;
+ int get commentId; int? get parentCommentId; String get writerName; String get content; DateTime get createdAt; String? get profileImageUrl;@JsonKey(name: 'isWriter') bool get isWriter;@JsonKey(name: 'isMine') bool get isMine; List<PostMentionUser> get mentionedUsers; List<PostComment> get replies;
 /// Create a copy of PostComment
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -54,7 +54,7 @@ abstract mixin class $PostCommentCopyWith<$Res>  {
   factory $PostCommentCopyWith(PostComment value, $Res Function(PostComment) _then) = _$PostCommentCopyWithImpl;
 @useResult
 $Res call({
- int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
+ int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'isWriter') bool isWriter,@JsonKey(name: 'isMine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
 });
 
 
@@ -168,7 +168,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'isWriter')  bool isWriter, @JsonKey(name: 'isMine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PostComment() when $default != null:
 return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
@@ -189,7 +189,7 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'isWriter')  bool isWriter, @JsonKey(name: 'isMine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)  $default,) {final _that = this;
 switch (_that) {
 case _PostComment():
 return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
@@ -209,7 +209,7 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'writer')  bool isWriter, @JsonKey(name: 'mine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int commentId,  int? parentCommentId,  String writerName,  String content,  DateTime createdAt,  String? profileImageUrl, @JsonKey(name: 'isWriter')  bool isWriter, @JsonKey(name: 'isMine')  bool isMine,  List<PostMentionUser> mentionedUsers,  List<PostComment> replies)?  $default,) {final _that = this;
 switch (_that) {
 case _PostComment() when $default != null:
 return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.content,_that.createdAt,_that.profileImageUrl,_that.isWriter,_that.isMine,_that.mentionedUsers,_that.replies);case _:
@@ -224,7 +224,7 @@ return $default(_that.commentId,_that.parentCommentId,_that.writerName,_that.con
 @JsonSerializable()
 
 class _PostComment implements PostComment {
-  const _PostComment({required this.commentId, this.parentCommentId, required this.writerName, required this.content, required this.createdAt, this.profileImageUrl, @JsonKey(name: 'writer') this.isWriter = false, @JsonKey(name: 'mine') this.isMine = false,  List<PostMentionUser> mentionedUsers = const <PostMentionUser>[],  List<PostComment> replies = const <PostComment>[]}): _mentionedUsers = mentionedUsers,_replies = replies;
+  const _PostComment({required this.commentId, this.parentCommentId, required this.writerName, required this.content, required this.createdAt, this.profileImageUrl, @JsonKey(name: 'isWriter') this.isWriter = false, @JsonKey(name: 'isMine') this.isMine = false,  List<PostMentionUser> mentionedUsers = const <PostMentionUser>[],  List<PostComment> replies = const <PostComment>[]}): _mentionedUsers = mentionedUsers,_replies = replies;
   factory _PostComment.fromJson(Map<String, dynamic> json) => _$PostCommentFromJson(json);
 
 @override final  int commentId;
@@ -233,8 +233,8 @@ class _PostComment implements PostComment {
 @override final  String content;
 @override final  DateTime createdAt;
 @override final  String? profileImageUrl;
-@override@JsonKey(name: 'writer') final  bool isWriter;
-@override@JsonKey(name: 'mine') final  bool isMine;
+@override@JsonKey(name: 'isWriter') final  bool isWriter;
+@override@JsonKey(name: 'isMine') final  bool isMine;
  final  List<PostMentionUser> _mentionedUsers;
 @override@JsonKey() List<PostMentionUser> get mentionedUsers {
   if (_mentionedUsers is EqualUnmodifiableListView) return _mentionedUsers;
@@ -285,7 +285,7 @@ abstract mixin class _$PostCommentCopyWith<$Res> implements $PostCommentCopyWith
   factory _$PostCommentCopyWith(_PostComment value, $Res Function(_PostComment) _then) = __$PostCommentCopyWithImpl;
 @override @useResult
 $Res call({
- int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'writer') bool isWriter,@JsonKey(name: 'mine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
+ int commentId, int? parentCommentId, String writerName, String content, DateTime createdAt, String? profileImageUrl,@JsonKey(name: 'isWriter') bool isWriter,@JsonKey(name: 'isMine') bool isMine, List<PostMentionUser> mentionedUsers, List<PostComment> replies
 });
 
 
@@ -898,7 +898,7 @@ $NoticeDetailDataCopyWith<$Res> get data {
 /// @nodoc
 mixin _$NoticeDetailData {
 
- int get noticeId; String get title; String get content; String get writerName; String? get writerProfileImageUrl; DateTime get createdAt; DateTime get updatedAt; List<String> get images;@JsonKey(name: 'writer') bool get isWriter; NoticeReaction get reaction; List<PostComment> get commentList;
+ int get noticeId; String get title; String get content; String get writerName; String? get writerProfileImageUrl; DateTime get createdAt; DateTime get updatedAt; List<String> get images;@JsonKey(name: 'isWriter') bool get isWriter; NoticeReaction get reaction; List<PostComment> get commentList;
 /// Create a copy of NoticeDetailData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -936,7 +936,7 @@ abstract mixin class $NoticeDetailDataCopyWith<$Res>  {
   factory $NoticeDetailDataCopyWith(NoticeDetailData value, $Res Function(NoticeDetailData) _then) = _$NoticeDetailDataCopyWithImpl;
 @useResult
 $Res call({
- int noticeId, String title, String content, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<String> images,@JsonKey(name: 'writer') bool isWriter, NoticeReaction reaction, List<PostComment> commentList
+ int noticeId, String title, String content, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<String> images,@JsonKey(name: 'isWriter') bool isWriter, NoticeReaction reaction, List<PostComment> commentList
 });
 
 
@@ -1060,7 +1060,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'writer')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'isWriter')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NoticeDetailData() when $default != null:
 return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.images,_that.isWriter,_that.reaction,_that.commentList);case _:
@@ -1081,7 +1081,7 @@ return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'writer')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'isWriter')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)  $default,) {final _that = this;
 switch (_that) {
 case _NoticeDetailData():
 return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.images,_that.isWriter,_that.reaction,_that.commentList);case _:
@@ -1101,7 +1101,7 @@ return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'writer')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int noticeId,  String title,  String content,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<String> images, @JsonKey(name: 'isWriter')  bool isWriter,  NoticeReaction reaction,  List<PostComment> commentList)?  $default,) {final _that = this;
 switch (_that) {
 case _NoticeDetailData() when $default != null:
 return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.images,_that.isWriter,_that.reaction,_that.commentList);case _:
@@ -1116,7 +1116,7 @@ return $default(_that.noticeId,_that.title,_that.content,_that.writerName,_that.
 @JsonSerializable()
 
 class _NoticeDetailData implements NoticeDetailData {
-  const _NoticeDetailData({required this.noticeId, required this.title, required this.content, required this.writerName, this.writerProfileImageUrl, required this.createdAt, required this.updatedAt,  List<String> images = const <String>[], @JsonKey(name: 'writer') this.isWriter = false, required this.reaction,  List<PostComment> commentList = const <PostComment>[]}): _images = images,_commentList = commentList;
+  const _NoticeDetailData({required this.noticeId, required this.title, required this.content, required this.writerName, this.writerProfileImageUrl, required this.createdAt, required this.updatedAt,  List<String> images = const <String>[], @JsonKey(name: 'isWriter') this.isWriter = false, required this.reaction,  List<PostComment> commentList = const <PostComment>[]}): _images = images,_commentList = commentList;
   factory _NoticeDetailData.fromJson(Map<String, dynamic> json) => _$NoticeDetailDataFromJson(json);
 
 @override final  int noticeId;
@@ -1133,7 +1133,7 @@ class _NoticeDetailData implements NoticeDetailData {
   return EqualUnmodifiableListView(_images);
 }
 
-@override@JsonKey(name: 'writer') final  bool isWriter;
+@override@JsonKey(name: 'isWriter') final  bool isWriter;
 @override final  NoticeReaction reaction;
  final  List<PostComment> _commentList;
 @override@JsonKey() List<PostComment> get commentList {
@@ -1178,7 +1178,7 @@ abstract mixin class _$NoticeDetailDataCopyWith<$Res> implements $NoticeDetailDa
   factory _$NoticeDetailDataCopyWith(_NoticeDetailData value, $Res Function(_NoticeDetailData) _then) = __$NoticeDetailDataCopyWithImpl;
 @override @useResult
 $Res call({
- int noticeId, String title, String content, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<String> images,@JsonKey(name: 'writer') bool isWriter, NoticeReaction reaction, List<PostComment> commentList
+ int noticeId, String title, String content, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<String> images,@JsonKey(name: 'isWriter') bool isWriter, NoticeReaction reaction, List<PostComment> commentList
 });
 
 
@@ -1228,7 +1228,7 @@ $NoticeReactionCopyWith<$Res> get reaction {
 /// @nodoc
 mixin _$NoticeReaction {
 
- int get likeCount; int get dislikeCount;@JsonKey(name: 'liked') bool get isLiked;@JsonKey(name: 'disliked') bool get isDisliked; int get commentCount;
+ int get likeCount; int get dislikeCount;@JsonKey(name: 'isLiked') bool get isLiked;@JsonKey(name: 'isDisliked') bool get isDisliked; int get commentCount;
 /// Create a copy of NoticeReaction
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1266,7 +1266,7 @@ abstract mixin class $NoticeReactionCopyWith<$Res>  {
   factory $NoticeReactionCopyWith(NoticeReaction value, $Res Function(NoticeReaction) _then) = _$NoticeReactionCopyWithImpl;
 @useResult
 $Res call({
- int likeCount, int dislikeCount,@JsonKey(name: 'liked') bool isLiked,@JsonKey(name: 'disliked') bool isDisliked, int commentCount
+ int likeCount, int dislikeCount,@JsonKey(name: 'isLiked') bool isLiked,@JsonKey(name: 'isDisliked') bool isDisliked, int commentCount
 });
 
 
@@ -1375,7 +1375,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int likeCount,  int dislikeCount, @JsonKey(name: 'liked')  bool isLiked, @JsonKey(name: 'disliked')  bool isDisliked,  int commentCount)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int likeCount,  int dislikeCount, @JsonKey(name: 'isLiked')  bool isLiked, @JsonKey(name: 'isDisliked')  bool isDisliked,  int commentCount)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NoticeReaction() when $default != null:
 return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDisliked,_that.commentCount);case _:
@@ -1396,7 +1396,7 @@ return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDislike
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int likeCount,  int dislikeCount, @JsonKey(name: 'liked')  bool isLiked, @JsonKey(name: 'disliked')  bool isDisliked,  int commentCount)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int likeCount,  int dislikeCount, @JsonKey(name: 'isLiked')  bool isLiked, @JsonKey(name: 'isDisliked')  bool isDisliked,  int commentCount)  $default,) {final _that = this;
 switch (_that) {
 case _NoticeReaction():
 return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDisliked,_that.commentCount);case _:
@@ -1416,7 +1416,7 @@ return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDislike
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int likeCount,  int dislikeCount, @JsonKey(name: 'liked')  bool isLiked, @JsonKey(name: 'disliked')  bool isDisliked,  int commentCount)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int likeCount,  int dislikeCount, @JsonKey(name: 'isLiked')  bool isLiked, @JsonKey(name: 'isDisliked')  bool isDisliked,  int commentCount)?  $default,) {final _that = this;
 switch (_that) {
 case _NoticeReaction() when $default != null:
 return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDisliked,_that.commentCount);case _:
@@ -1431,13 +1431,13 @@ return $default(_that.likeCount,_that.dislikeCount,_that.isLiked,_that.isDislike
 @JsonSerializable()
 
 class _NoticeReaction implements NoticeReaction {
-  const _NoticeReaction({required this.likeCount, required this.dislikeCount, @JsonKey(name: 'liked') this.isLiked = false, @JsonKey(name: 'disliked') this.isDisliked = false, required this.commentCount});
+  const _NoticeReaction({required this.likeCount, required this.dislikeCount, @JsonKey(name: 'isLiked') this.isLiked = false, @JsonKey(name: 'isDisliked') this.isDisliked = false, required this.commentCount});
   factory _NoticeReaction.fromJson(Map<String, dynamic> json) => _$NoticeReactionFromJson(json);
 
 @override final  int likeCount;
 @override final  int dislikeCount;
-@override@JsonKey(name: 'liked') final  bool isLiked;
-@override@JsonKey(name: 'disliked') final  bool isDisliked;
+@override@JsonKey(name: 'isLiked') final  bool isLiked;
+@override@JsonKey(name: 'isDisliked') final  bool isDisliked;
 @override final  int commentCount;
 
 /// Create a copy of NoticeReaction
@@ -1475,7 +1475,7 @@ abstract mixin class _$NoticeReactionCopyWith<$Res> implements $NoticeReactionCo
   factory _$NoticeReactionCopyWith(_NoticeReaction value, $Res Function(_NoticeReaction) _then) = __$NoticeReactionCopyWithImpl;
 @override @useResult
 $Res call({
- int likeCount, int dislikeCount,@JsonKey(name: 'liked') bool isLiked,@JsonKey(name: 'disliked') bool isDisliked, int commentCount
+ int likeCount, int dislikeCount,@JsonKey(name: 'isLiked') bool isLiked,@JsonKey(name: 'isDisliked') bool isDisliked, int commentCount
 });
 
 
@@ -1807,7 +1807,7 @@ $PollDetailDataCopyWith<$Res> get data {
 /// @nodoc
 mixin _$PollDetailData {
 
- int get pollId; String get title; String? get content; String get pollType; bool get allowMultipleChoice;@JsonKey(name: 'anonymous') bool get isAnonymous; DateTime? get closeAt; String get writerName; String? get writerProfileImageUrl; DateTime get createdAt; DateTime get updatedAt; List<PollDetailItem> get pollItems;@JsonKey(name: 'writer') bool get isWriter; int get commentCount; List<PostComment> get commentList;
+ int get pollId; String get title; String? get content; String get pollType; bool get allowMultipleChoice;@JsonKey(name: 'isAnonymous') bool get isAnonymous; DateTime? get closeAt; String get writerName; String? get writerProfileImageUrl; DateTime get createdAt; DateTime get updatedAt; List<PollDetailItem> get pollItems;@JsonKey(name: 'isWriter') bool get isWriter; int get commentCount; List<PostComment> get commentList;
 /// Create a copy of PollDetailData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1845,7 +1845,7 @@ abstract mixin class $PollDetailDataCopyWith<$Res>  {
   factory $PollDetailDataCopyWith(PollDetailData value, $Res Function(PollDetailData) _then) = _$PollDetailDataCopyWithImpl;
 @useResult
 $Res call({
- int pollId, String title, String? content, String pollType, bool allowMultipleChoice,@JsonKey(name: 'anonymous') bool isAnonymous, DateTime? closeAt, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<PollDetailItem> pollItems,@JsonKey(name: 'writer') bool isWriter, int commentCount, List<PostComment> commentList
+ int pollId, String title, String? content, String pollType, bool allowMultipleChoice,@JsonKey(name: 'isAnonymous') bool isAnonymous, DateTime? closeAt, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<PollDetailItem> pollItems,@JsonKey(name: 'isWriter') bool isWriter, int commentCount, List<PostComment> commentList
 });
 
 
@@ -1964,7 +1964,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'anonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'writer')  bool isWriter,  int commentCount,  List<PostComment> commentList)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'isAnonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'isWriter')  bool isWriter,  int commentCount,  List<PostComment> commentList)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PollDetailData() when $default != null:
 return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allowMultipleChoice,_that.isAnonymous,_that.closeAt,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.pollItems,_that.isWriter,_that.commentCount,_that.commentList);case _:
@@ -1985,7 +1985,7 @@ return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allo
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'anonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'writer')  bool isWriter,  int commentCount,  List<PostComment> commentList)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'isAnonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'isWriter')  bool isWriter,  int commentCount,  List<PostComment> commentList)  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailData():
 return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allowMultipleChoice,_that.isAnonymous,_that.closeAt,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.pollItems,_that.isWriter,_that.commentCount,_that.commentList);case _:
@@ -2005,7 +2005,7 @@ return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allo
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'anonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'writer')  bool isWriter,  int commentCount,  List<PostComment> commentList)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int pollId,  String title,  String? content,  String pollType,  bool allowMultipleChoice, @JsonKey(name: 'isAnonymous')  bool isAnonymous,  DateTime? closeAt,  String writerName,  String? writerProfileImageUrl,  DateTime createdAt,  DateTime updatedAt,  List<PollDetailItem> pollItems, @JsonKey(name: 'isWriter')  bool isWriter,  int commentCount,  List<PostComment> commentList)?  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailData() when $default != null:
 return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allowMultipleChoice,_that.isAnonymous,_that.closeAt,_that.writerName,_that.writerProfileImageUrl,_that.createdAt,_that.updatedAt,_that.pollItems,_that.isWriter,_that.commentCount,_that.commentList);case _:
@@ -2020,7 +2020,7 @@ return $default(_that.pollId,_that.title,_that.content,_that.pollType,_that.allo
 @JsonSerializable()
 
 class _PollDetailData implements PollDetailData {
-  const _PollDetailData({required this.pollId, required this.title, this.content, required this.pollType, required this.allowMultipleChoice, @JsonKey(name: 'anonymous') required this.isAnonymous, this.closeAt, required this.writerName, this.writerProfileImageUrl, required this.createdAt, required this.updatedAt,  List<PollDetailItem> pollItems = const <PollDetailItem>[], @JsonKey(name: 'writer') this.isWriter = false, required this.commentCount,  List<PostComment> commentList = const <PostComment>[]}): _pollItems = pollItems,_commentList = commentList;
+  const _PollDetailData({required this.pollId, required this.title, this.content, required this.pollType, required this.allowMultipleChoice, @JsonKey(name: 'isAnonymous') required this.isAnonymous, this.closeAt, required this.writerName, this.writerProfileImageUrl, required this.createdAt, required this.updatedAt,  List<PollDetailItem> pollItems = const <PollDetailItem>[], @JsonKey(name: 'isWriter') this.isWriter = false, required this.commentCount,  List<PostComment> commentList = const <PostComment>[]}): _pollItems = pollItems,_commentList = commentList;
   factory _PollDetailData.fromJson(Map<String, dynamic> json) => _$PollDetailDataFromJson(json);
 
 @override final  int pollId;
@@ -2028,7 +2028,7 @@ class _PollDetailData implements PollDetailData {
 @override final  String? content;
 @override final  String pollType;
 @override final  bool allowMultipleChoice;
-@override@JsonKey(name: 'anonymous') final  bool isAnonymous;
+@override@JsonKey(name: 'isAnonymous') final  bool isAnonymous;
 @override final  DateTime? closeAt;
 @override final  String writerName;
 @override final  String? writerProfileImageUrl;
@@ -2041,7 +2041,7 @@ class _PollDetailData implements PollDetailData {
   return EqualUnmodifiableListView(_pollItems);
 }
 
-@override@JsonKey(name: 'writer') final  bool isWriter;
+@override@JsonKey(name: 'isWriter') final  bool isWriter;
 @override final  int commentCount;
  final  List<PostComment> _commentList;
 @override@JsonKey() List<PostComment> get commentList {
@@ -2086,7 +2086,7 @@ abstract mixin class _$PollDetailDataCopyWith<$Res> implements $PollDetailDataCo
   factory _$PollDetailDataCopyWith(_PollDetailData value, $Res Function(_PollDetailData) _then) = __$PollDetailDataCopyWithImpl;
 @override @useResult
 $Res call({
- int pollId, String title, String? content, String pollType, bool allowMultipleChoice,@JsonKey(name: 'anonymous') bool isAnonymous, DateTime? closeAt, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<PollDetailItem> pollItems,@JsonKey(name: 'writer') bool isWriter, int commentCount, List<PostComment> commentList
+ int pollId, String title, String? content, String pollType, bool allowMultipleChoice,@JsonKey(name: 'isAnonymous') bool isAnonymous, DateTime? closeAt, String writerName, String? writerProfileImageUrl, DateTime createdAt, DateTime updatedAt, List<PollDetailItem> pollItems,@JsonKey(name: 'isWriter') bool isWriter, int commentCount, List<PostComment> commentList
 });
 
 
@@ -2131,7 +2131,7 @@ as List<PostComment>,
 /// @nodoc
 mixin _$PollDetailItem {
 
- int get itemId; int get voteCount;@JsonKey(name: 'voted') bool get isVoted; String? get content; String? get title; String? get artist; String? get previewUrl; String? get location; int? get locationId; String? get locationName; String? get roadAddress;
+ int get itemId; int get voteCount;@JsonKey(name: 'isVoted') bool get isVoted; String? get content; String? get title; String? get artist; String? get previewUrl; String? get location; int? get locationId; String? get locationName; String? get roadAddress;
 /// Create a copy of PollDetailItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2169,7 +2169,7 @@ abstract mixin class $PollDetailItemCopyWith<$Res>  {
   factory $PollDetailItemCopyWith(PollDetailItem value, $Res Function(PollDetailItem) _then) = _$PollDetailItemCopyWithImpl;
 @useResult
 $Res call({
- int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
+ int itemId, int voteCount,@JsonKey(name: 'isVoted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
 });
 
 
@@ -2284,7 +2284,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'isVoted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PollDetailItem() when $default != null:
 return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
@@ -2305,7 +2305,7 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int itemId,  int voteCount, @JsonKey(name: 'isVoted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailItem():
 return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
@@ -2325,7 +2325,7 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int itemId,  int voteCount, @JsonKey(name: 'voted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int itemId,  int voteCount, @JsonKey(name: 'isVoted')  bool isVoted,  String? content,  String? title,  String? artist,  String? previewUrl,  String? location,  int? locationId,  String? locationName,  String? roadAddress)?  $default,) {final _that = this;
 switch (_that) {
 case _PollDetailItem() when $default != null:
 return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.title,_that.artist,_that.previewUrl,_that.location,_that.locationId,_that.locationName,_that.roadAddress);case _:
@@ -2340,12 +2340,12 @@ return $default(_that.itemId,_that.voteCount,_that.isVoted,_that.content,_that.t
 @JsonSerializable()
 
 class _PollDetailItem implements PollDetailItem {
-  const _PollDetailItem({required this.itemId, required this.voteCount, @JsonKey(name: 'voted') this.isVoted = false, this.content, this.title, this.artist, this.previewUrl, this.location, this.locationId, this.locationName, this.roadAddress});
+  const _PollDetailItem({required this.itemId, required this.voteCount, @JsonKey(name: 'isVoted') this.isVoted = false, this.content, this.title, this.artist, this.previewUrl, this.location, this.locationId, this.locationName, this.roadAddress});
   factory _PollDetailItem.fromJson(Map<String, dynamic> json) => _$PollDetailItemFromJson(json);
 
 @override final  int itemId;
 @override final  int voteCount;
-@override@JsonKey(name: 'voted') final  bool isVoted;
+@override@JsonKey(name: 'isVoted') final  bool isVoted;
 @override final  String? content;
 @override final  String? title;
 @override final  String? artist;
@@ -2390,7 +2390,7 @@ abstract mixin class _$PollDetailItemCopyWith<$Res> implements $PollDetailItemCo
   factory _$PollDetailItemCopyWith(_PollDetailItem value, $Res Function(_PollDetailItem) _then) = __$PollDetailItemCopyWithImpl;
 @override @useResult
 $Res call({
- int itemId, int voteCount,@JsonKey(name: 'voted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
+ int itemId, int voteCount,@JsonKey(name: 'isVoted') bool isVoted, String? content, String? title, String? artist, String? previewUrl, String? location, int? locationId, String? locationName, String? roadAddress
 });
 
 

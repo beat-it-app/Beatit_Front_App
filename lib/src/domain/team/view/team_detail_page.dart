@@ -14,6 +14,7 @@ import 'package:beatit_front_app/src/domain/team/view/team_member_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
+import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 
 import '../../cloud/view/cloud_main_page.dart';
 
@@ -109,7 +110,9 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                 }
               : null,
           onAlarmPressed: () {
-            // 알림 액션
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AlarmMainPage()),
+            );
           },
         ),
       ),

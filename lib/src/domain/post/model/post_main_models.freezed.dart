@@ -1477,7 +1477,7 @@ as bool,
 /// @nodoc
 mixin _$PollListItem {
 
- int get pollId; String get title; DateTime? get closeAt; int get pollCount;@JsonKey(name: 'voted') bool get isVoted;
+ int get pollId; String get title; DateTime? get closeAt; int get pollCount;@JsonKey(name: 'isVoted') bool get isVoted;
 /// Create a copy of PollListItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1515,7 +1515,7 @@ abstract mixin class $PollListItemCopyWith<$Res>  {
   factory $PollListItemCopyWith(PollListItem value, $Res Function(PollListItem) _then) = _$PollListItemCopyWithImpl;
 @useResult
 $Res call({
- int pollId, String title, DateTime? closeAt, int pollCount,@JsonKey(name: 'voted') bool isVoted
+ int pollId, String title, DateTime? closeAt, int pollCount,@JsonKey(name: 'isVoted') bool isVoted
 });
 
 
@@ -1624,7 +1624,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'voted')  bool isVoted)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'isVoted')  bool isVoted)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PollListItem() when $default != null:
 return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isVoted);case _:
@@ -1645,7 +1645,7 @@ return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isV
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'voted')  bool isVoted)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'isVoted')  bool isVoted)  $default,) {final _that = this;
 switch (_that) {
 case _PollListItem():
 return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isVoted);case _:
@@ -1665,7 +1665,7 @@ return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isV
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'voted')  bool isVoted)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int pollId,  String title,  DateTime? closeAt,  int pollCount, @JsonKey(name: 'isVoted')  bool isVoted)?  $default,) {final _that = this;
 switch (_that) {
 case _PollListItem() when $default != null:
 return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isVoted);case _:
@@ -1680,14 +1680,14 @@ return $default(_that.pollId,_that.title,_that.closeAt,_that.pollCount,_that.isV
 @JsonSerializable()
 
 class _PollListItem implements PollListItem {
-  const _PollListItem({required this.pollId, required this.title, this.closeAt, required this.pollCount, @JsonKey(name: 'voted') required this.isVoted});
+  const _PollListItem({required this.pollId, required this.title, this.closeAt, required this.pollCount, @JsonKey(name: 'isVoted') required this.isVoted});
   factory _PollListItem.fromJson(Map<String, dynamic> json) => _$PollListItemFromJson(json);
 
 @override final  int pollId;
 @override final  String title;
 @override final  DateTime? closeAt;
 @override final  int pollCount;
-@override@JsonKey(name: 'voted') final  bool isVoted;
+@override@JsonKey(name: 'isVoted') final  bool isVoted;
 
 /// Create a copy of PollListItem
 /// with the given fields replaced by the non-null parameter values.
@@ -1724,7 +1724,7 @@ abstract mixin class _$PollListItemCopyWith<$Res> implements $PollListItemCopyWi
   factory _$PollListItemCopyWith(_PollListItem value, $Res Function(_PollListItem) _then) = __$PollListItemCopyWithImpl;
 @override @useResult
 $Res call({
- int pollId, String title, DateTime? closeAt, int pollCount,@JsonKey(name: 'voted') bool isVoted
+ int pollId, String title, DateTime? closeAt, int pollCount,@JsonKey(name: 'isVoted') bool isVoted
 });
 
 

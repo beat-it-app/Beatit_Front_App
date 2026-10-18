@@ -55,7 +55,7 @@ abstract class ChatMessage with _$ChatMessage {
     @JsonKey(unknownEnumValue: ChatMessageType.unknown)
     required ChatMessageType messageType,
     required DateTime createdAt,
-    @JsonKey(name: 'mine') required bool isMine,
+    @JsonKey(name: 'isMine') required bool isMine,
     String? attachmentName,
     int? attachmentSizeBytes,
     String? attachmentMimeType,

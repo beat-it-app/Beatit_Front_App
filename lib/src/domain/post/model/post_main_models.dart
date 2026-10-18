@@ -105,7 +105,7 @@ abstract class PollListItem with _$PollListItem {
     required String title,
     DateTime? closeAt,
     required int pollCount,
-    @JsonKey(name: 'voted')
+    @JsonKey(name: 'isVoted')
     required bool isVoted,
   }) = _PollListItem;
 
