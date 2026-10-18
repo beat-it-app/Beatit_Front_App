@@ -31,6 +31,11 @@ class AlarmItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final gray = context.grays;
     final opacity = notification.isRead ? 0.55 : 1.0;
+    final grayTitleTone = notification.isRead ? gray.gray4 : gray.black;
+    final grayContentTone = notification.isRead ? gray.gray5 : gray.gray4;
+    final String notificationSvg = notification.isRead
+        ? 'assets/icons/etc/alarm_check_off.svg'
+        : 'assets/icons/etc/alarm_check_on.svg';
     return Material(
       color: Theme.of(context).colorScheme.surface,
       child: InkWell(
@@ -44,8 +49,7 @@ class AlarmItemWidget extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SvgPicture.asset('assets/icons/etc/alarm_check_on.svg',
-                  width: 22, height: 22),
+              SvgPicture.asset(notificationSvg, width: 22, height: 22),
               const SizedBox(width: AppSpacing.x20),
               Expanded(
                 child: Column(
@@ -55,7 +59,8 @@ class AlarmItemWidget extends StatelessWidget {
                     Text(
                       notification.title,
                       style: FontStyles.semi18.copyWith(
-                        color: gray.black.withValues(alpha: opacity), height: 1,
+                        color: grayTitleTone,
+                        height: 1,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -63,9 +68,7 @@ class AlarmItemWidget extends StatelessWidget {
                     const SizedBox(height: AppSpacing.x8),
                     Text(
                       notification.content,
-                      style: FontStyles.med16.copyWith(
-                        color: gray.gray4.withValues(alpha: opacity),
-                      ),
+                      style: FontStyles.med16.copyWith(color: grayContentTone),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -81,7 +84,10 @@ class AlarmItemWidget extends StatelessWidget {
                     )
                   : Text(
                       _elapsedTime(notification.createdAt),
-                      style: FontStyles.med12.copyWith(color: gray.gray5, height: 1),
+                      style: FontStyles.med12.copyWith(
+                        color: gray.gray5,
+                        height: 1,
+                      ),
                     ),
             ],
           ),

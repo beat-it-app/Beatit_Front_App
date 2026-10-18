@@ -13,6 +13,7 @@ import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_room_page.dart';
 import 'package:beatit_front_app/src/domain/meetit/view/meetit_detail_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_detail_page.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_main_models.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_detail_page.dart';
 import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
@@ -189,25 +190,51 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
     return 0;
   }
 
-  void _navigateToTarget(AlarmClickResponse target, {required String notificationTitle}) {
+  PostMainType _postTypeFor(String? path) {
+    if (path?.startsWith('/posts/polls') ?? false) {
+      return PostMainType.poll;
+    }
+    if (path?.startsWith('/posts/meetits') ?? false) {
+      return PostMainType.meetit;
+    }
+    return PostMainType.notice;
+  }
+
+  void _navigateToTarget(
+    AlarmClickResponse target, {
+    required String notificationTitle,
+  }) {
     final detail = _detailFor(target, notificationTitle: notificationTitle);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
-    // 다른 팀으로 이동해도 첫 번째 탭에 올바른 팀 홈이 먼저 올라온다.
+
+    // 상세에서 뒤로 갔을 때 알맞은 카테고리 목록이 보이도록 탭부터 설정한다.
     rootNavigator.pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => MainShell(
-          initialIndex: detail == null ? _tabFor(target.directTo) : 0,
+          initialIndex: _tabFor(target.directTo),
+          initialPostType: _postTypeFor(target.directTo),
         ),
       ),
       (route) => false,
     );
-    if (detail != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (rootNavigator.mounted) {
-          rootNavigator.push(MaterialPageRoute(builder: (_) => detail));
-        }
-      });
-    }
+
+    if (detail == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!rootNavigator.mounted) return;
+
+      // 아카이브는 하단 탭이 따로 없으므로 목록을 상세 아래에 둔다.
+      if (detail is TeamArchiveDetailPage) {
+        rootNavigator.push(
+          PageRouteBuilder<void>(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const TeamArchiveListPage(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      }
+      rootNavigator.push(MaterialPageRoute(builder: (_) => detail));
+    });
   }
 
   @override
