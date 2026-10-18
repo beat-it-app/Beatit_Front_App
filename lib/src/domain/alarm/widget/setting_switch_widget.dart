@@ -2,26 +2,23 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// 외부 상태가 유일한 기준인 controlled switch.
-/// 비활성화할 때도 [value]를 바꾸지 않으므로 하위 알림 선택값이 보존된다.
+/// 디자인상의 토글. 값의 소유권은 상위 설정 Provider에 있다.
 class SettingSwitch extends StatelessWidget {
   const SettingSwitch({
     super.key,
     required this.value,
     this.onChanged,
     this.enabled = true,
-    this.width = 50.0,
-    this.height = 27.0,
-    this.ballPadding = 2.0,
+    this.width = 50,
+    this.height = 27,
+    this.ballPadding = 2,
     this.duration = const Duration(milliseconds: 100),
   }) : assert(width > height),
-       assert(height > 0),
-       assert(ballPadding >= 0),
-       assert(ballPadding * 2 < height);
+       assert(ballPadding >= 0 && ballPadding * 2 < height);
 
   final bool value;
-  final ValueChanged<bool>? onChanged;
   final bool enabled;
+  final ValueChanged<bool>? onChanged;
   final double width;
   final double height;
   final double ballPadding;
@@ -29,21 +26,11 @@ class SettingSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ballSize = height - (ballPadding * 2);
     final interactive = enabled && onChanged != null;
-    final trackColor = !interactive
-        ? context.grays.gray8
-        : value
-            ? context.grays.black
-            : context.grays.gray7;
-    final knobLeft = value
-        ? width - ballSize - ballPadding
-        : ballPadding;
-
+    final diameter = height - ballPadding * 2;
     return Semantics(
-      button: true,
-      enabled: interactive,
       toggled: value,
+      enabled: interactive,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: interactive ? () => onChanged!(!value) : null,
@@ -57,25 +44,27 @@ class SettingSwitch extends StatelessWidget {
                 width: width,
                 height: height,
                 decoration: BoxDecoration(
-                  color: trackColor,
+                  color: !interactive
+                      ? context.grays.gray8
+                      : value
+                          ? context.grays.black
+                          : context.grays.gray7,
                   borderRadius: BorderRadius.circular(height / 2),
                 ),
               ),
               AnimatedPositioned(
                 duration: duration,
                 top: ballPadding,
-                left: knobLeft,
+                left: value ? width - diameter - ballPadding : ballPadding,
                 child: Container(
-                  width: ballSize,
-                  height: ballSize,
+                  width: diameter,
+                  height: diameter,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: context.grays.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .shadow
+                        color: Theme.of(context).colorScheme.shadow
                             .withValues(alpha: 0.12),
                         offset: const Offset(0, 2),
                         blurRadius: 4,
@@ -86,12 +75,9 @@ class SettingSwitch extends StatelessWidget {
                       ? Center(
                           child: SvgPicture.asset(
                             'assets/icons/check/check.svg',
-                            width: ballSize * 0.65,
-                            height: ballSize * 0.65,
+                            width: diameter * 0.65,
                             colorFilter: ColorFilter.mode(
-                              interactive
-                                  ? context.grays.black
-                                  : context.grays.gray5,
+                              interactive ? context.grays.black : context.grays.gray5,
                               BlendMode.srcIn,
                             ),
                           ),
