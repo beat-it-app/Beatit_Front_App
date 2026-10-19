@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // 💡 SvgPicture import
 
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -100,7 +101,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
 
     final confirmed = await AppPopup.show(
       context,
-      title: '이름 변경',
+      title: '이름 수정하기',
       warningType: WarningType.none,
       contentType: ContentType.large,
       buttonNum: ButtonNum.two,
@@ -211,7 +212,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
           children: [
             const SizedBox(height: AppSpacing.x16),
 
-            // 프로필 아바타 + 편집 아이콘
+            // 1. 프로필 아바타 + 편집 아이콘
             Center(
               child: Stack(
                 children: [
@@ -249,18 +250,21 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                     child: GestureDetector(
                       onTap: () => _openImageBottomSheet(userProfileUrl),
                       child: Container(
-                        width: 28,
-                        height: 28,
+                        width: 24,
+                        height: 24,
                         decoration: BoxDecoration(
-                          color: context.grays.gray7,
+                          color: context.grays.gray8,
                           shape: BoxShape.circle,
-                          border: Border.all(color: colors.surface, width: 2),
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.edit,
-                            size: 14,
-                            color: Colors.black87,
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/icons/auth/pencil.svg',
+                            width: 16,
+                            height: 16,
+                            colorFilter: ColorFilter.mode(
+                              colors.onSurface,
+                              BlendMode.srcIn,
+                            ),
                           ),
                         ),
                       ),
@@ -269,9 +273,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.x16),
+            const SizedBox(height: AppSpacing.x20),
 
-            // 이름 + 연필 아이콘
+            // 2. 이름 + 연필 아이콘
             Center(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -281,24 +285,32 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                   children: [
                     Text(
                       data?.userName ?? '사용자',
-                      style: FontStyles.bold22.copyWith(
+                      style: FontStyles.semi20.copyWith(
                         color: colors.onSurface,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.edit, size: 18, color: Colors.black87),
+                    const SizedBox(width: 4),
+                    SvgPicture.asset(
+                      'assets/icons/auth/pencil.svg',
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(
+                        colors.onSurface,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: AppSpacing.x30),
+            const SizedBox(height: AppSpacing.x60),
 
-            Divider(height: 1, thickness: 1, color: context.grays.gray8),
+            Divider(height: 1, thickness: 6, color: context.grays.gray8),
 
-            const SizedBox(height: AppSpacing.x24),
+            const SizedBox(height: AppSpacing.x28),
 
-            // 기본 정보 영역
+            // 3. 기본 정보 영역
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
               child: Column(
@@ -308,7 +320,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                     '기본 정보',
                     style: FontStyles.bold18.copyWith(color: colors.onSurface),
                   ),
-                  const SizedBox(height: AppSpacing.x24),
+                  const SizedBox(height: AppSpacing.x28),
                   _buildInfoRow('이름', data?.userName ?? ''),
                   const SizedBox(height: AppSpacing.x20),
                   _buildInfoRow('이메일', data?.email ?? ''),
@@ -330,16 +342,16 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     return Row(
       children: [
         SizedBox(
-          width: 90,
+          width: 100,
           child: Text(
             label,
-            style: FontStyles.reg16.copyWith(color: context.grays.gray4),
+            style: FontStyles.reg16.copyWith(color: context.grays.gray3),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: FontStyles.reg16.copyWith(color: context.grays.gray2),
+            style: FontStyles.reg16.copyWith(color: context.grays.gray3),
           ),
         ),
       ],

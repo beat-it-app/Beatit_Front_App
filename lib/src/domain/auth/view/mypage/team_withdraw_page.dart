@@ -53,14 +53,12 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
   }
 
   Future<void> _handleWithdraw() async {
-    final teamName = ref.read(myPageProvider).data?.team?.name ?? '현재 팀';
-
-    // 💡 AppPopup으로 탈퇴 확인 팝업 호출
     final confirmed = await AppPopup.show(
       context,
-      title: "'$teamName' 팀을\n탈퇴하시겠습니까?",
-      content: '탈퇴 요청 후 7일의 유예기간 뒤\n완전히 탈퇴 처리됩니다.',
-      warningType: WarningType.none,
+      title: '정말 탈퇴하시겠습니까?',
+      content: '탈퇴 시, 해당 팀 활동 데이터를\n영구적으로 사용하실 수 없습니다.',
+      warningType: WarningType.circle,
+      warningColor: context.colors.primary,
       contentType: ContentType.small,
       buttonNum: ButtonNum.two,
       buttonSymmetric: ButtonSymmetric.horizontal,
@@ -78,20 +76,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
 
       if (!mounted) return;
 
-      // 💡 AppPopup으로 완료 안내 팝업
-      await AppPopup.show(
-        context,
-        title: '팀 탈퇴 요청 완료',
-        content: '팀 탈퇴 요청이 정상 접수되었습니다.\n7일의 유예기간 후 완전히 탈퇴됩니다.',
-        warningType: WarningType.none,
-        contentType: ContentType.small,
-        buttonNum: ButtonNum.one,
-        confirmText: '확인',
-      );
-
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -120,7 +105,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: AppSpacing.x16),
+                    const SizedBox(height: AppSpacing.x20),
                     RichText(
                       text: TextSpan(
                         style: FontStyles.bold34.copyWith(
@@ -137,23 +122,23 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.x12),
+                    const SizedBox(height: AppSpacing.x10),
                     Text(
                       '밴드를 탈퇴하면 해당 팀 페이지 게시글, 채팅 등 모든 활동 정보가 삭제되며, 사용 불가합니다.',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray4,
+                      style: FontStyles.med16.copyWith(
+                        color: context.grays.gray5,
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.x24),
+                    const SizedBox(height: AppSpacing.x30),
 
-                    // 안내 카드 1: 팀 누적 데이터
+                    // 💡 안내 카드 1: 팀 누적 데이터 (assets/icons/auth/data.svg)
                     _InfoCard(
-                      icon: Icons.bar_chart_rounded,
+                      svgPath: 'assets/icons/auth/data.svg',
                       title: '팀 누적 데이터를 사용할 수 없어요.',
                       descriptionWidget: RichText(
                         text: TextSpan(
-                          style: FontStyles.reg14.copyWith(
+                          style: FontStyles.med14.copyWith(
                             color: context.grays.gray3,
                             height: 1.4,
                           ),
@@ -161,26 +146,17 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                             const TextSpan(text: '내가 업로드한 파일 '),
                             TextSpan(
                               text: '$_fileCount개',
-                              style: TextStyle(
-                                color: context.colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: context.colors.primary),
                             ),
                             const TextSpan(text: ', 공유한 악보·음원 '),
                             TextSpan(
                               text: '$_sharedMusicCount개',
-                              style: TextStyle(
-                                color: context.colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: context.colors.primary),
                             ),
                             const TextSpan(text: ', 함께한 일정 '),
                             TextSpan(
                               text: '$_scheduleCount회',
-                              style: TextStyle(
-                                color: context.colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: context.colors.primary),
                             ),
                             const TextSpan(text: ' 모두 조회할 수 없어요.'),
                           ],
@@ -189,13 +165,13 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                     ),
                     const SizedBox(height: AppSpacing.x12),
 
-                    // 안내 카드 2: 기능 접근
+                    // 💡 안내 카드 2: 기능 접근 (assets/icons/auth/donot_touch.svg)
                     _InfoCard(
-                      icon: Icons.pan_tool_outlined,
+                      svgPath: 'assets/icons/auth/donot_touch.svg',
                       title: '팀 기능에 접근할 수 없어요.',
                       descriptionWidget: RichText(
                         text: TextSpan(
-                          style: FontStyles.reg14.copyWith(
+                          style: FontStyles.med14.copyWith(
                             color: context.grays.gray3,
                             height: 1.4,
                           ),
@@ -205,10 +181,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                             ),
                             TextSpan(
                               text: '불가능',
-                              style: TextStyle(
-                                color: context.colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: context.colors.primary),
                             ),
                             const TextSpan(text: '해요.'),
                           ],
@@ -217,13 +190,13 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                     ),
                     const SizedBox(height: AppSpacing.x12),
 
-                    // 안내 카드 3: 작성 권한
+                    // 💡 안내 카드 3: 작성 권한 (assets/icons/auth/pencil_prohibit.svg)
                     _InfoCard(
-                      icon: Icons.edit_outlined,
+                      svgPath: 'assets/icons/auth/pencil_prohibit.svg',
                       title: '팀 작성 권한이 중단 돼요.',
                       descriptionWidget: RichText(
                         text: TextSpan(
-                          style: FontStyles.reg14.copyWith(
+                          style: FontStyles.med14.copyWith(
                             color: context.grays.gray3,
                             height: 1.4,
                           ),
@@ -233,10 +206,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                             ),
                             TextSpan(
                               text: '작성한 게시글과 파일은 자동 삭제 되지 않으며 탈퇴 후 수정이 불가능해요.',
-                              style: TextStyle(
-                                color: context.colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: context.colors.primary),
                             ),
                           ],
                         ),
@@ -244,7 +214,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                     ),
                     const SizedBox(height: AppSpacing.x30),
 
-                    // 유의사항 확인 체크박스
+                    // 유의사항 확인 체크박스 (assets/icons/check/check.svg)
                     GestureDetector(
                       onTap: () => setState(() => _isConfirmed = !_isConfirmed),
                       child: Container(
@@ -258,17 +228,22 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.check,
-                              size: 20,
-                              color: _isConfirmed
-                                  ? context.colors.primary
-                                  : context.grays.gray6,
+                            // 💡 체크 SVG 아이콘
+                            SvgPicture.asset(
+                              'assets/icons/check/check.svg',
+                              width: 18,
+                              height: 18,
+                              colorFilter: ColorFilter.mode(
+                                _isConfirmed
+                                    ? context.colors.primary
+                                    : context.grays.gray6,
+                                BlendMode.srcIn,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               '유의사항을 모두 확인했습니다.',
-                              style: FontStyles.bold14.copyWith(
+                              style: FontStyles.semi16.copyWith(
                                 color: colors.onSurface,
                               ),
                             ),
@@ -276,7 +251,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.x24),
+                    const SizedBox(height: AppSpacing.x30),
 
                     // 탈퇴하기 버튼
                     AppButton(
@@ -296,12 +271,12 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
 }
 
 class _InfoCard extends StatelessWidget {
-  final IconData icon;
+  final String svgPath;
   final String title;
   final Widget descriptionWidget;
 
   const _InfoCard({
-    required this.icon,
+    required this.svgPath,
     required this.title,
     required this.descriptionWidget,
   });
@@ -309,15 +284,15 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.x16),
+      padding: const EdgeInsets.all(AppSpacing.x20),
       decoration: BoxDecoration(
         color: context.grays.gray8,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 28, color: context.grays.gray2),
+          SvgPicture.asset(svgPath, width: 36, height: 36),
           const SizedBox(width: AppSpacing.x12),
           Expanded(
             child: Column(
@@ -325,7 +300,7 @@ class _InfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: FontStyles.bold20.copyWith(
+                  style: FontStyles.bold18.copyWith(
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),

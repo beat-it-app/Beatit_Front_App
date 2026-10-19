@@ -37,12 +37,12 @@ class DisplaySettingPage extends ConsumerWidget {
                   letterSpacing: -0.68,
                 ),
               ),
-              const SizedBox(height: AppSpacing.x24),
+              const SizedBox(height: AppSpacing.x30),
 
               // 1. 라이트 모드 카드
               _DisplayModeCard(
                 title: '라이트 모드',
-                description: '시스템 화면 설정과 상관없이\n항상 화면이 라이트 모드로\n설정됩니다.',
+                description: '시스템 화면 설정과 상관없이 항상 화면이 라이트 모드로 설정됩니다.',
                 svgIconPath: 'assets/icons/auth/sun.svg',
                 imagePath: 'assets/images/auth/lightmode.png',
                 isSelected: currentThemeMode == ThemeMode.light,
@@ -57,7 +57,7 @@ class DisplaySettingPage extends ConsumerWidget {
               // 2. 다크 모드 카드
               _DisplayModeCard(
                 title: '다크 모드',
-                description: '시스템 화면 설정과 상관없이\n항상 화면이 다크 모드로\n설정됩니다.',
+                description: '시스템 화면 설정과 상관없이 항상 화면이 다크 모드로 설정됩니다.',
                 svgIconPath: 'assets/icons/auth/night.svg',
                 imagePath: 'assets/images/auth/darkmode.png',
                 isSelected: currentThemeMode == ThemeMode.dark,
@@ -72,7 +72,7 @@ class DisplaySettingPage extends ConsumerWidget {
               // 3. 시스템 화면 모드 카드
               _DisplayModeCard(
                 title: '시스템 화면 모드',
-                description: '시스템 화면 설정에 따라\n화면 모드가 설정됩니다.',
+                description: '시스템 화면 설정에 따라 화면 모드가 설정됩니다.',
                 svgIconPath: 'assets/icons/auth/system.svg',
                 imagePath: 'assets/images/auth/systemmode.png',
                 isSelected: currentThemeMode == ThemeMode.system,
@@ -155,7 +155,7 @@ class _DisplayModeCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       title,
-                      style: FontStyles.bold20.copyWith(
+                      style: FontStyles.semi18.copyWith(
                         color: colors.onSurface,
                       ),
                     ),
@@ -167,28 +167,48 @@ class _DisplayModeCard extends StatelessWidget {
                 ),
               ),
 
-              // ── 카드 하단 내용 (에셋 이미지 프리뷰 + 설명 문구) ──
               Padding(
-                padding: const EdgeInsets.all(AppSpacing.x16),
+                // 💡 하단(bottom) 패딩을 0으로 주어 이미지가 카드 바닥에 딱 붙도록 설정
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.x16,
+                  AppSpacing.x16,
+                  AppSpacing.x16,
+                  0,
+                ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // 좌측 UI 이미지 프리뷰
+                    // 1. 하단 패딩 없이 바닥에 완전히 밀착되는 이미지
                     SizedBox(
                       width: 110,
-                      height: 130,
+                      height: 140,
                       child: Image.asset(imagePath, fit: BoxFit.contain),
                     ),
 
                     const SizedBox(width: AppSpacing.x20),
 
-                    // 우측 설명 텍스트
+                    // 2. 위쪽으로 붙는 설명 텍스트 (하단 여백 16 유지)
                     Expanded(
-                      child: Text(
-                        description,
-                        style: FontStyles.med14.copyWith(
-                          color: context.grays.gray4,
-                          height: 1.45,
+                      child: SizedBox(
+                        height: 140,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppSpacing.x10,
+                            bottom: AppSpacing.x16,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                description,
+                                style: FontStyles.med15.copyWith(
+                                  color: context.grays.gray4,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const Spacer(),
+                            ],
+                          ),
                         ),
                       ),
                     ),

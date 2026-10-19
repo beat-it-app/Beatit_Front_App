@@ -11,6 +11,7 @@ abstract final class AppSpacing {
   static const double x16 = 16;
   static const double x20 = 20;
   static const double x24 = 24;
+  static const double x28 = 28;
   static const double x30 = 30;
   static const double x40 = 40;
   static const double x50 = 50;

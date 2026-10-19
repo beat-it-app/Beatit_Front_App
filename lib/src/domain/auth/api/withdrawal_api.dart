@@ -68,6 +68,21 @@ class WithdrawalApi {
     }
   }
 
+  Future<void> deleteTeam() async {
+    try {
+      final response = await _dio.delete('/teams/delete');
+
+      if (response.statusCode != 200) {
+        throw WithdrawalApiException(
+          response.data?['message'] ?? '팀 삭제에 실패했습니다.',
+        );
+      }
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data?['message'] ?? '팀 삭제 요청 중 오류가 발생했습니다.';
+      throw WithdrawalApiException(errorMsg);
+    }
+  }
+
   WithdrawalApiException _parseError(DioException e, String fallback) {
     final data = e.response?.data;
     if (data is Map<String, dynamic>) {

@@ -1,17 +1,15 @@
-// lib/src/domain/mypage/view/withdrawal/app_withdraw_reason_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
-import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 
-import '../../api/withdrawal_api.dart';
 import '../../provider/mypage_provider.dart';
+import 'app_withdraw_info_page.dart';
 
 class AppWithdrawReasonPage extends ConsumerStatefulWidget {
   const AppWithdrawReasonPage({super.key});
@@ -23,6 +21,8 @@ class AppWithdrawReasonPage extends ConsumerStatefulWidget {
 
 class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
   bool _isNoticed = false;
+
+  // 선택된 사유 ENUM
   String? _selectedReasonEnum;
   final TextEditingController _detailReasonController = TextEditingController();
 
@@ -40,6 +40,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
     super.dispose();
   }
 
+  // 탈퇴하기 버튼 활성화 조건: 유의사항 동의 + 사유 선택 (기타 선택 시 내용 작성 필수)
   bool get _canSubmit {
     if (!_isNoticed || _selectedReasonEnum == null) return false;
     if (_selectedReasonEnum == 'OTHER') {
@@ -48,119 +49,23 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
     return true;
   }
 
-  // 💡 탈퇴하기 버튼 클릭 시: AppPopup으로 비밀번호 입력창 띄우기
-  Future<void> _handleWithdrawSubmit() async {
-    final passwordController = TextEditingController();
+  // 💡 탈퇴하기 버튼 클릭 시 AppWithdrawInfoPage 화면으로 이동
+  void _navigateToWithdrawInfo() {
+    final detailReason = _selectedReasonEnum == 'OTHER'
+        ? _detailReasonController.text.trim()
+        : (_reasons.firstWhere(
+                (r) => r['enum'] == _selectedReasonEnum,
+              )['label'] ??
+              '');
 
-    final confirmed = await AppPopup.show(
-      context,
-      title: '비밀번호 확인',
-      warningType: WarningType.none,
-      contentType: ContentType.large,
-      buttonNum: ButtonNum.two,
-      confirmText: '탈퇴 확정',
-      cancelText: '취소',
-      contentWidget: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '본인 확인을 위해 현재 비밀번호를 입력해주세요.',
-            style: FontStyles.reg14.copyWith(color: context.grays.gray4),
-          ),
-          const SizedBox(height: AppSpacing.x16),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: '비밀번호',
-              hintStyle: FontStyles.reg14.copyWith(color: context.grays.gray5),
-              filled: true,
-              fillColor: context.grays.gray8,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.x8),
-        ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AppWithdrawInfoPage(
+          withdrawalReason: _selectedReasonEnum!,
+          detailReason: detailReason,
+        ),
       ),
     );
-
-    if (confirmed != true || !mounted) return;
-
-    final password = passwordController.text.trim();
-    if (password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호를 입력해주세요.')));
-      return;
-    }
-
-    try {
-      final detailReason = _selectedReasonEnum == 'OTHER'
-          ? _detailReasonController.text.trim()
-          : (_reasons.firstWhere(
-                  (r) => r['enum'] == _selectedReasonEnum,
-                )['label'] ??
-                '');
-
-      await ref
-          .read(withdrawalApiProvider)
-          .withdrawAuth(
-            withdrawalReason: _selectedReasonEnum!,
-            detailReason: detailReason,
-            password: password,
-          );
-
-      if (!mounted) return;
-
-      // 💡 완료 안내 팝업
-      await AppPopup.show(
-        context,
-        title: '회원 탈퇴 요청 완료',
-        content: '탈퇴 요청이 정상 접수되었습니다.\n7일 후 계정 및 데이터가 완전히 삭제됩니다.',
-        warningType: WarningType.none,
-        contentType: ContentType.small,
-        buttonNum: ButtonNum.one,
-        confirmText: '확인',
-      );
-
-      // 토큰 삭제 및 로그인/스플래시 화면으로 리셋
-      if (mounted) {
-        ref.read(authProvider.notifier).logout();
-      }
-    } on WithdrawalApiException catch (e) {
-      if (!mounted) return;
-      // 비밀번호 불일치 (LOGIN-002) 안내 팝업
-      if (e.code == 'LOGIN-002') {
-        await AppPopup.show(
-          context,
-          title: '비밀번호 불일치',
-          content: '입력하신 비밀번호가 일치하지 않습니다.\n다시 확인해주세요.',
-          warningType: WarningType.circle,
-          contentType: ContentType.small,
-          buttonNum: ButtonNum.one,
-          confirmText: '확인',
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
   }
 
   @override
@@ -184,7 +89,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: AppSpacing.x16),
+                      const SizedBox(height: AppSpacing.x20),
                       Text(
                         '정말 빗잇을\n탈퇴하실건가요?',
                         style: FontStyles.bold34.copyWith(
@@ -192,19 +97,28 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                           height: 1.25,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.x12),
+                      const SizedBox(height: AppSpacing.x10),
                       Text(
                         '계정을 삭제하면 팀 페이지 게시글, 채팅 등 모든 활동 정보가 삭제됩니다. 계정 삭제 후 7일 간 다시 가입할 수 없어요.',
-                        style: FontStyles.reg14.copyWith(
-                          color: context.grays.gray4,
-                          height: 1.4,
+                        style: FontStyles.med16.copyWith(
+                          color: context.grays.gray5,
+                          height: 1.45,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.x24),
 
-                      // 유의사항 체크박스
+                      // 유의사항 확인 체크박스 (클릭 시 탈퇴 이유 섹션이 토글됨)
                       GestureDetector(
-                        onTap: () => setState(() => _isNoticed = !_isNoticed),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          setState(() {
+                            _isNoticed = !_isNoticed;
+                            if (!_isNoticed) {
+                              _selectedReasonEnum = null;
+                              _detailReasonController.clear();
+                            }
+                          });
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -216,17 +130,21 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.check,
-                                size: 20,
-                                color: _isNoticed
-                                    ? context.colors.primary
-                                    : context.grays.gray6,
+                              SvgPicture.asset(
+                                'assets/icons/check/check.svg',
+                                width: 24,
+                                height: 24,
+                                colorFilter: ColorFilter.mode(
+                                  _isNoticed
+                                      ? context.colors.primary
+                                      : context.grays.gray6,
+                                  BlendMode.srcIn,
+                                ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 4),
                               Text(
                                 '유의사항을 모두 확인했습니다.',
-                                style: FontStyles.bold14.copyWith(
+                                style: FontStyles.semi16.copyWith(
                                   color: colors.onSurface,
                                 ),
                               ),
@@ -234,104 +152,125 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.x30),
 
-                      // 탈퇴 사유 섹션
-                      RichText(
-                        text: TextSpan(
-                          style: FontStyles.bold20.copyWith(
-                            color: colors.onSurface,
-                          ),
-                          children: [
-                            TextSpan(text: '${userName}님의 '),
-                            TextSpan(
-                              text: '탈퇴 이유',
-                              style: TextStyle(color: context.colors.primary),
+                      // 💡 [유의사항을 체크했을 때만] 아래 사유 선택 섹션 노출
+                      if (_isNoticed) ...[
+                        const SizedBox(height: AppSpacing.x40),
+                        RichText(
+                          text: TextSpan(
+                            style: FontStyles.bold20.copyWith(
+                              color: colors.onSurface,
                             ),
-                            const TextSpan(text: '가 궁금해요.'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.x16),
-
-                      // 사유 목록 라디오 버튼
-                      for (final reason in _reasons) ...[
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            setState(() {
-                              _selectedReasonEnum = reason['enum'];
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color:
-                                          _selectedReasonEnum == reason['enum']
-                                          ? context.colors.primary
-                                          : context.grays.gray6,
-                                      width: 2,
-                                    ),
-                                    color: _selectedReasonEnum == reason['enum']
-                                        ? context.colors.primary
-                                        : Colors.transparent,
-                                  ),
-                                  child: _selectedReasonEnum == reason['enum']
-                                      ? const Center(
-                                          child: Icon(
-                                            Icons.circle,
-                                            size: 8,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  reason['label']!,
-                                  style: FontStyles.med16.copyWith(
-                                    color: colors.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // '기타' 선택 시 상세 사유 입력창
-                        if (reason['enum'] == 'OTHER' &&
-                            _selectedReasonEnum == 'OTHER') ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: context.grays.gray8,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            child: TextField(
-                              controller: _detailReasonController,
-                              maxLines: 3,
-                              onChanged: (_) => setState(() {}),
-                              decoration: InputDecoration(
-                                hintText: '기타 사유를 입력해주세요',
-                                hintStyle: FontStyles.reg14.copyWith(
-                                  color: context.grays.gray5,
-                                ),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
+                            children: [
+                              TextSpan(text: '${userName}님의 '),
+                              TextSpan(
+                                text: '탈퇴 이유',
+                                style: TextStyle(color: context.colors.primary),
                               ),
-                            ),
+                              const TextSpan(text: '가 궁금해요.'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+
+                        // 사유 라디오 버튼 목록
+                        for (final reason in _reasons) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 1. 라디오 버튼 + 라벨 텍스트 행
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedReasonEnum = reason['enum'];
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color:
+                                                _selectedReasonEnum ==
+                                                    reason['enum']
+                                                ? context.colors.primary
+                                                : context.grays.gray6,
+                                            width: 1,
+                                          ),
+                                          color:
+                                              _selectedReasonEnum ==
+                                                  reason['enum']
+                                              ? context.colors.primary
+                                              : Colors.transparent,
+                                        ),
+                                        child:
+                                            _selectedReasonEnum ==
+                                                reason['enum']
+                                            ? const Center(
+                                                child: Icon(
+                                                  Icons.circle,
+                                                  size: 8,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        reason['label']!,
+                                        style: FontStyles.med18.copyWith(
+                                          color: colors.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // 2. '기타' 글자 아래로 독립 배치되는 입력창 (포커스 테두리 제거)
+                              if (reason['enum'] == 'OTHER' &&
+                                  _selectedReasonEnum == 'OTHER') ...[
+                                const SizedBox(height: 4),
+                                Container(
+                                  margin: const EdgeInsets.only(left: 28),
+                                  decoration: BoxDecoration(
+                                    color: context.grays.gray8,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  child: TextField(
+                                    controller: _detailReasonController,
+                                    maxLines: 1,
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      hintText: '기타 사유를 입력해주세요',
+                                      hintStyle: FontStyles.reg18.copyWith(
+                                        color: context.grays.gray5,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ],
                           ),
                         ],
                       ],
@@ -341,7 +280,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                 ),
               ),
 
-              // 하단 버튼 2개: [탈퇴하기] & [계속 이용하기]
+              // 하단 [탈퇴하기] & [계속 이용하기] 버튼 영역
               Row(
                 children: [
                   Expanded(
@@ -354,16 +293,17 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                               : context.grays.gray8.withOpacity(0.5),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                         ),
-                        onPressed: _canSubmit ? _handleWithdrawSubmit : null,
+                        // 💡 탈퇴 사유를 지닌 채 AppWithdrawInfoPage로 이동
+                        onPressed: _canSubmit ? _navigateToWithdrawInfo : null,
                         child: Text(
                           '탈퇴하기',
-                          style: FontStyles.bold20.copyWith(
+                          style: FontStyles.med16.copyWith(
                             color: _canSubmit
-                                ? context.grays.gray3
-                                : context.grays.gray5,
+                                ? context.grays.gray2
+                                : context.grays.gray4,
                           ),
                         ),
                       ),
@@ -378,15 +318,13 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                           backgroundColor: context.colors.primary,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                         ),
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
                           '계속 이용하기',
-                          style: FontStyles.bold20.copyWith(
-                            color: Colors.white,
-                          ),
+                          style: FontStyles.med16.copyWith(color: Colors.white),
                         ),
                       ),
                     ),

@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/domain/auth/view/mypage/app_withdraw_reason_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/team_withdraw_page.dart';
 import 'package:flutter/material.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -29,7 +30,7 @@ class _WithdrawalTypeSelectPageState extends State<WithdrawalTypeSelectPage> {
     } else if (_selectedType == 'app') {
       Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => const AppWithdrawInfoPage()));
+      ).push(MaterialPageRoute(builder: (_) => const AppWithdrawReasonPage()));
     }
   }
 
@@ -48,7 +49,7 @@ class _WithdrawalTypeSelectPageState extends State<WithdrawalTypeSelectPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: AppSpacing.x16),
+              const SizedBox(height: AppSpacing.x20),
               Text(
                 '탈퇴 유형을\n선택해주세요',
                 style: FontStyles.bold34.copyWith(
@@ -118,27 +119,29 @@ class _TypeCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.x16),
         decoration: BoxDecoration(
           color: context.grays.gray8,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: isSelected
               ? Border.all(color: context.colors.primary, width: 1.5)
               : null,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               margin: const EdgeInsets.only(top: 2),
-              width: 20,
-              height: 20,
+              width: 16,
+              height: 16,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
                       ? context.colors.primary
                       : context.grays.gray6,
-                  width: 2,
+                  width: 1,
                 ),
-                color: isSelected ? context.colors.primary : Colors.transparent,
+                color: isSelected
+                    ? context.colors.primary
+                    : context.colors.surface,
               ),
               child: isSelected
                   ? const Center(
@@ -153,13 +156,13 @@ class _TypeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: FontStyles.bold20.copyWith(color: colors.onSurface),
+                    style: FontStyles.med18.copyWith(color: colors.onSurface),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 10),
                   Text(
                     subtitle,
-                    style: FontStyles.reg14.copyWith(
-                      color: context.grays.gray4,
+                    style: FontStyles.med16.copyWith(
+                      color: context.grays.gray5,
                       height: 1.4,
                     ),
                   ),
