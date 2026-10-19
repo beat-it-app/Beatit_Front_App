@@ -31,6 +31,9 @@ class AppPopup extends StatelessWidget {
   final WarningType warningType;
   final ContentType contentType;
 
+  /// 💡 경고 아이콘의 배경 색상 (null일 경우 기존 context.grays.gray7 적용)
+  final Color? warningColor;
+
   final String confirmText;
   final String cancelText;
 
@@ -45,15 +48,12 @@ class AppPopup extends StatelessWidget {
     this.buttonSymmetric = ButtonSymmetric.horizontal,
     this.warningType = WarningType.none,
     this.contentType = ContentType.small,
+    this.warningColor, // 💡 추가
     this.confirmText = '확인',
     this.cancelText = '취소',
   });
 
   /// 호출부에서 showDialog를 매번 직접 쓰기 싫을 때 사용하는 helper.
-  ///
-  /// 확인 버튼을 누르면 true,
-  /// 취소 버튼을 누르면 false,
-  /// 바깥 영역 터치 또는 뒤로가기로 닫히면 null을 반환한다.
   static Future<bool?> show(
     BuildContext context, {
     required String title,
@@ -65,6 +65,7 @@ class AppPopup extends StatelessWidget {
     ButtonSymmetric buttonSymmetric = ButtonSymmetric.horizontal,
     WarningType warningType = WarningType.none,
     ContentType contentType = ContentType.small,
+    Color? warningColor, // 💡 추가
     String confirmText = '확인',
     String cancelText = '취소',
     bool barrierDismissible = true,
@@ -84,6 +85,7 @@ class AppPopup extends StatelessWidget {
           buttonSymmetric: buttonSymmetric,
           warningType: warningType,
           contentType: contentType,
+          warningColor: warningColor,
           confirmText: confirmText,
           cancelText: cancelText,
         );
@@ -149,7 +151,10 @@ class AppPopup extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (warningType != WarningType.none) ...[
-                _PopupWarningIcon(warningType: warningType),
+                _PopupWarningIcon(
+                  warningType: warningType,
+                  warningColor: warningColor, // 💡 전달
+                ),
               ],
 
               Padding(
@@ -196,8 +201,9 @@ class AppPopup extends StatelessWidget {
 
 class _PopupWarningIcon extends StatelessWidget {
   final WarningType warningType;
+  final Color? warningColor; // 💡 추가
 
-  const _PopupWarningIcon({required this.warningType});
+  const _PopupWarningIcon({required this.warningType, this.warningColor});
 
   String? get _assetPath {
     switch (warningType) {
@@ -244,7 +250,8 @@ class _PopupWarningIcon extends StatelessWidget {
               width: 60,
               height: 60,
               colorFilter: ColorFilter.mode(
-                context.grays.gray7,
+                // 💡 warningColor가 지정되면 해당 색상 적용, 없으면 기본 gray7 적용
+                warningColor ?? context.grays.gray7,
                 BlendMode.srcIn,
               ),
             ),

@@ -13,20 +13,16 @@ import '../provider/mypage_provider.dart';
 import '../view/mypage/team_add_option_page.dart';
 
 class TeamSwitchBottomSheet extends ConsumerStatefulWidget {
-  const TeamSwitchBottomSheet({super.key, this.currentTeamPublicId});
+  const TeamSwitchBottomSheet({super.key, this.currentTeamId});
 
-  final String? currentTeamPublicId;
+  final int? currentTeamId;
 
-  static Future<void> show(
-    BuildContext context, {
-    String? currentTeamPublicId,
-  }) {
+  static Future<void> show(BuildContext context, {int? currentTeamId}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) =>
-          TeamSwitchBottomSheet(currentTeamPublicId: currentTeamPublicId),
+      builder: (context) => TeamSwitchBottomSheet(currentTeamId: currentTeamId),
     );
   }
 
@@ -214,7 +210,7 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
 
     final String? imageUrl = team.teamImageUrl;
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
-    final bool isCurrent = widget.currentTeamPublicId == team.teamPublicId;
+    final bool isCurrent = widget.currentTeamId == team.teamPublicId;
 
     if (!hasImage) {
       return GestureDetector(

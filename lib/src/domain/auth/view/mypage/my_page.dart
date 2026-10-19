@@ -1,3 +1,7 @@
+import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
+import 'package:beatit_front_app/src/domain/alarm/view/alarm_setting_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/mypage/team_manage_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/mypage/withdrawal_type_select_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,7 +13,8 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import '../../model/mypage/mypage_model.dart';
 import '../../provider/mypage_provider.dart';
 import '../../widget/team_switch_bottom_sheet.dart';
-import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
+import 'display_setting_page.dart';
+import 'profile_edit_page.dart';
 
 class MyPageView extends ConsumerStatefulWidget {
   const MyPageView({super.key});
@@ -27,20 +32,22 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
     });
   }
 
-  // 💡 팀 전환 바텀시트 열기 및 닫힌 후 데이터 동기화
-  Future<void> _openTeamSwitchSheet(String? currentTeamPublicId) async {
-    await TeamSwitchBottomSheet.show(
-      context,
-      currentTeamPublicId: currentTeamPublicId,
-    );
-
-    // 바텀시트가 닫혔을 때 (팀 선택 or 추가 완료 복귀) 최신 상태 재조회
+  Future<void> _openTeamSwitchSheet(int? currentTeamId) async {
+    await TeamSwitchBottomSheet.show(context, currentTeamId: currentTeamId);
     if (mounted) {
       ref.read(myPageProvider.notifier).fetchMyPage();
     }
   }
 
-  // 소셜 로그인 뱃지 생성 함수
+  Future<void> _openProfileEditPage() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileEditPage()));
+    if (mounted) {
+      ref.read(myPageProvider.notifier).fetchMyPage();
+    }
+  }
+
   Widget _buildSocialBadges(List<String> socialAccounts) {
     if (socialAccounts.isEmpty) return const SizedBox.shrink();
 
@@ -81,14 +88,12 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
     final data = state.data;
 
-    // 1. 프로필 이미지 URL
     final userProfileUrl = data?.profileImageUrl?.trim();
     final bool hasProfileImage =
         userProfileUrl != null &&
         userProfileUrl.isNotEmpty &&
         userProfileUrl != 'string';
 
-    // 2. 단일 team 객체 바인딩
     final currentTeam = data?.team;
     final teamImageUrl = currentTeam?.imageUrl?.trim();
     final bool hasTeamImage =
@@ -110,9 +115,9 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
               colorFilter: ColorFilter.mode(colors.onSurface, BlendMode.srcIn),
             ),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AlarmMainPage()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
             },
           ),
           const SizedBox(width: AppSpacing.x8),
@@ -123,65 +128,68 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 프로필 정보 영역
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: context.colors.primary,
-                    backgroundImage: hasProfileImage
-                        ? NetworkImage(userProfileUrl)
-                        : null,
-                    child: !hasProfileImage
-                        ? const Icon(
-                            Icons.music_note,
-                            color: Colors.black,
-                            size: 28,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: AppSpacing.x16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data?.userName ?? '사용자',
-                          style: FontStyles.semi20.copyWith(
-                            color: colors.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _buildSocialBadges(data?.socialAccounts ?? []),
-                            Text(
-                              data?.email ?? '',
-                              style: FontStyles.reg16.copyWith(
-                                color: context.grays.gray3,
-                              ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openProfileEditPage,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: context.colors.primary,
+                      backgroundImage: hasProfileImage
+                          ? NetworkImage(userProfileUrl)
+                          : null,
+                      child: !hasProfileImage
+                          ? const Icon(
+                              Icons.music_note,
+                              color: Colors.black,
+                              size: 28,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.x16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data?.userName ?? '사용자',
+                            style: FontStyles.semi20.copyWith(
+                              color: colors.onSurface,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildSocialBadges(data?.socialAccounts ?? []),
+                              Text(
+                                data?.email ?? '',
+                                style: FontStyles.reg16.copyWith(
+                                  color: context.grays.gray3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  SvgPicture.asset(
-                    'assets/icons/auth/back.svg',
-                    width: 16,
-                    height: 16,
-                    colorFilter: ColorFilter.mode(
-                      colors.onSurface,
-                      BlendMode.srcIn,
+                    SvgPicture.asset(
+                      'assets/icons/auth/back.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: ColorFilter.mode(
+                        colors.onSurface,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.x24),
 
-            // 두께 6 구분선
             Container(
               height: 6,
               width: double.infinity,
@@ -212,11 +220,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    onPressed: () => _openTeamSwitchSheet(
-                      currentTeam != null
-                          ? currentTeam.teamId.toString()
-                          : null,
-                    ),
+                    onPressed: () => _openTeamSwitchSheet(currentTeam?.teamId),
                   ),
                 ],
               ),
@@ -224,7 +228,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             const SizedBox(height: AppSpacing.x12),
 
-            // 현재 팀 카드
+            // 현재 팀 카드 (클릭 불가)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
               child: ClipRRect(
@@ -235,7 +239,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                   color: const Color(0xFF1C1C1E),
                   child: Stack(
                     children: [
-                      // 배경 이미지
                       Positioned.fill(
                         child: hasTeamImage
                             ? Image.network(
@@ -251,7 +254,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                                 fit: BoxFit.cover,
                               ),
                       ),
-                      // 어두운 오버레이
                       Positioned.fill(
                         child: Container(color: Colors.black.withOpacity(0.5)),
                       ),
@@ -303,7 +305,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             const SizedBox(height: AppSpacing.x24),
 
-            // 두께 6 구분선
             Container(
               height: 6,
               width: double.infinity,
@@ -311,12 +312,51 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
             ),
 
             // 설정 목록
-            _SettingTile(title: '알림 설정', onTap: () {}),
-            _SettingTile(title: '화면 설정', onTap: () {}),
+            _SettingTile(
+              title: '알림 설정',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AlarmSettingPage()),
+                );
+              },
+            ),
+            _SettingTile(
+              title: '화면 설정',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DisplaySettingPage()),
+                );
+              },
+            ),
+
+            // 💡 myRole이 LEADER 또는 MANAGER일 때만 노출
+            if (currentTeam?.isLeaderOrManager ?? false)
+              _SettingTile(
+                title: '팀 관리하기',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TeamManagePage(
+                        establishedOn: currentTeam?.establishedOn,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
             _SettingTile(title: '서비스 약관', onTap: () {}),
             _SettingTile(title: '고객 지원', onTap: () {}),
             _SettingTile(title: '로그아웃', onTap: () {}),
-            _SettingTile(title: '탈퇴하기', onTap: () {}),
+            _SettingTile(
+              title: '탈퇴하기',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const WithdrawalTypeSelectPage(),
+                  ),
+                );
+              },
+            ),
 
             const SizedBox(height: AppSpacing.x30),
           ],
