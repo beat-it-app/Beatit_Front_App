@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/core/theme/theme_mode_provider.dart'; // 💡 테마 모드 프로바이더 import
+import 'package:beatit_front_app/src/domain/auth/api/kakao_auth_client.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/auth_splash_page.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,10 @@ Future<void> main() async {
     } catch (error) {
       debugPrint('[Firebase] initialization failed: $error');
     }
+  }
+
+  if (KakaoAuthClient.nativeAppKey.isNotEmpty) {
+    await KakaoSdk.init(nativeAppKey: KakaoAuthClient.nativeAppKey);
   }
 
   runApp(const ProviderScope(child: MyApp()));

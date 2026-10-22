@@ -11,8 +11,8 @@ abstract class ScheduleUpdateRequest with _$ScheduleUpdateRequest {
     int? locationId,
     required String title,
     String? content,
-    @KstDateTimeConverter() required DateTime startsAt,
-    @KstDateTimeConverter() required DateTime endsAt,
+    @KstDateTimeConverter() DateTime? startsAt,
+    @KstDateTimeConverter() DateTime? endsAt,
 
     /// null이면 기존 참여자를 유지합니다.
     List<int>? participantUserIds,

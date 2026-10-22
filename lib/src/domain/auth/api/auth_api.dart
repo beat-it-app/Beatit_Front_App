@@ -24,6 +24,8 @@ class AuthApi {
 
   static const String _loginPath = '/auth/login';
   static const String _googleLoginPath = '/auth/google';
+  static const String _naverLoginPath = '/auth/naver';
+  static const String _kakaoLoginPath = '/auth/kakao';
   static const String _logoutPath = '/auth/logout';
   static const String _reissueLoginPath = '/auth/reissue/login';
 
@@ -162,6 +164,42 @@ class AuthApi {
       path: _googleLoginPath,
       data: {...request.toJson(), ...deviceFields},
     );
+  }
+
+  Future<AuthLoginResult> loginWithNaver({
+    required String accessToken,
+    Map<String, dynamic> deviceFields = const {},
+  }) {
+    return _authenticate(
+      path: _naverLoginPath,
+      data: {'accessToken': accessToken, ...deviceFields},
+    );
+  }
+
+  Future<AuthLoginResult> loginWithKakao({
+    required String accessToken,
+    Map<String, dynamic> deviceFields = const {},
+  }) {
+    return _authenticate(
+      path: _kakaoLoginPath,
+      data: {'accessToken': accessToken, ...deviceFields},
+    );
+  }
+
+  Future<void> logout() async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(_logoutPath);
+      final body = response.data;
+      if (body == null || body['success'] != true) {
+        throw _createApiException(
+          body: body ?? const {},
+          statusCode: response.statusCode,
+          fallbackMessage: '로그아웃에 실패했습니다.',
+        );
+      }
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
   }
 
   /// 자동 로그인 복구 및 FCM 토큰 갱신 시 사용한다.

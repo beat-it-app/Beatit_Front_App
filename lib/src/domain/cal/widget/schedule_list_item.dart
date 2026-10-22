@@ -154,7 +154,7 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
   Color _resolveScheduleBackgroundColor(BuildContext context) {
     return switch (widget.scheduleType) {
       ScheduleType.mine => context.colors.primary,
-      ScheduleType.none => context.grays.gray1,
+      ScheduleType.none => context.grays.black,
     };
   }
 

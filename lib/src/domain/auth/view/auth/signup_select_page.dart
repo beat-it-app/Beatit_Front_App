@@ -42,7 +42,17 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
     await ref.read(authProvider.notifier).loginWithGoogle();
   }
 
-  void _handleGoogleLoginSuccess(AuthSession session) {
+  Future<void> _loginWithNaver() async {
+    if (ref.read(authProvider).isLoading) return;
+    await ref.read(authProvider.notifier).loginWithNaver();
+  }
+
+  Future<void> _loginWithKakao() async {
+    if (ref.read(authProvider).isLoading) return;
+    await ref.read(authProvider.notifier).loginWithKakao();
+  }
+
+  void _handleSocialLoginSuccess(AuthSession session) {
     if (session.createdProfile) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
@@ -51,12 +61,6 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
       return;
     }
 
-    // TODO: 실제 프로필 생성 화면 route가 확정되면 여기에서 이동.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google 로그인 성공 - 프로필 생성 화면 이동 대상입니다.')),
-    );
-
-    //TODO: 프로필 생성 화면 이동
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const CreateProfilePage()));
@@ -67,14 +71,15 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
     ref.listen(authProvider, (previous, next) {
       next.whenOrNull(
         data: (session) {
-          if (!mounted || session == null) {
+          if (!mounted || session == null ||
+              ModalRoute.of(context)?.isCurrent != true) {
             return;
           }
 
-          _handleGoogleLoginSuccess(session);
+          _handleSocialLoginSuccess(session);
         },
         error: (error, stackTrace) {
-          if (!mounted) {
+          if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
             return;
           }
 
@@ -144,9 +149,7 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
                     Column(
                       children: [
                         SocialLoginButton.naver(
-                          onPressed: () {
-                            // TODO: 네이버 로그인 연결
-                          },
+                          onPressed: _loginWithNaver,
                         ),
 
                         const SizedBox(height: AppSpacing.x10),
@@ -156,9 +159,7 @@ class _SignupSelectPageState extends ConsumerState<SignupSelectPage> {
                         const SizedBox(height: AppSpacing.x10),
 
                         SocialLoginButton.kakao(
-                          onPressed: () {
-                            // TODO: 카카오 로그인 연결
-                          },
+                          onPressed: _loginWithKakao,
                         ),
 
                         const SizedBox(height: AppSpacing.x20),

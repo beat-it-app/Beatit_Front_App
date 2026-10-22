@@ -467,6 +467,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
                 MaterialPageRoute(
                   builder: (_) => ScheduleFilePreviewPage(
                     fileName: file.originalFileName,
+                    fileId: file.fileId,
                     source: file.cdnUrl,
                     contextTitle: schedule.title,
                   ),

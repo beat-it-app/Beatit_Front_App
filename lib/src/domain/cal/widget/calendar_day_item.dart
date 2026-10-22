@@ -41,6 +41,7 @@ class CalendarDayItem extends StatelessWidget {
     this.isSelected = false,
     this.isHoliday = false,
     this.isPast = false,
+    this.hasMySchedule = true,
     this.monthState = CalendarMonthState.currentMonth,
     this.highlightState = CalendarHighlightState.normal,
     this.scheduleState = CalendarScheduleState.none,
@@ -57,6 +58,9 @@ class CalendarDayItem extends StatelessWidget {
 
   /// 오늘 이전 날짜 여부
   final bool isPast;
+
+  /// false이면 오늘/미래 날짜에서도 라벨을 회색으로 처리합니다.
+  final bool hasMySchedule;
 
   final CalendarMonthState monthState;
   final CalendarHighlightState highlightState;
@@ -205,6 +209,10 @@ class CalendarDayItem extends StatelessWidget {
 
   /// 날짜 아래 일정 텍스트 색상
   Color _resolveLabelColor(BuildContext context) {
+    if (isPast || !hasMySchedule) {
+      return context.grays.gray5;
+    }
+
     // 오늘이 아닌 다른 날짜를 선택한 경우
     if (isSelected && highlightState != CalendarHighlightState.today) {
       return context.brands.beatOrange1;

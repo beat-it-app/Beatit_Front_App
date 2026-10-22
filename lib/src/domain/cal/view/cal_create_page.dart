@@ -31,10 +31,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class CalCreatePage extends ConsumerStatefulWidget {
-  const CalCreatePage({super.key, this.initialSchedule});
+  const CalCreatePage({super.key, this.initialSchedule, this.initialDate});
 
   /// 값이 있으면 동일한 화면을 일정 수정 화면으로 사용한다.
   final ScheduleDetailData? initialSchedule;
+
+  /// 캘린더에서 선택한 날짜. 수정 모드에서는 기존 일정의 날짜가 우선합니다.
+  final DateTime? initialDate;
 
   @override
   ConsumerState<CalCreatePage> createState() => _CalCreatePageState();
@@ -80,8 +83,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   late final DateTime _defaultCreateDate;
-  late final TimeOfDay _defaultCreateTime;
-  late final TimeOfDay _defaultEndTime;
+
   int? _selectedLocationId;
 
   final List<_SelectedMember> _selectedMembers = <_SelectedMember>[];
@@ -100,9 +102,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   bool get _hasTitle => _titleController.text.trim().isNotEmpty;
 
   bool get _hasValidTimeRange {
-    if (_selectedDate == null || _startTime == null || _endTime == null) {
-      return false;
-    }
+    if (_selectedDate == null) return false;
+    if (_startTime == null && _endTime == null) return true;
+    if (_startTime == null || _endTime == null) return false;
 
     final startsAt = _combineDateAndTime(_selectedDate!, _startTime!);
     final endsAt = _combineEndDateAndTime(
@@ -118,8 +120,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     return _hasTitle &&
         _selectedDate != null &&
         _selectedLocationId != null &&
-        _startTime != null &&
-        _endTime != null &&
         _hasValidTimeRange &&
         _selectedMembers.isNotEmpty;
   }
@@ -163,16 +163,10 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       return true;
     }
 
-    if (_selectedDate == null || _startTime == null || _endTime == null) {
-      return true;
-    }
+    if (_selectedDate == null) return true;
 
-    final currentStartsAt = _combineDateAndTime(_selectedDate!, _startTime!);
-    final currentEndsAt = _combineEndDateAndTime(
-      _selectedDate!,
-      _startTime!,
-      _endTime!,
-    );
+    final currentStartsAt = _scheduleStartsAt(_selectedDate!);
+    final currentEndsAt = _scheduleEndsAt(_selectedDate!);
     if (!_sameLocalMinute(currentStartsAt, initial.startsAt) ||
         !_sameLocalMinute(currentEndsAt, initial.endsAt)) {
       return true;
@@ -219,8 +213,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
         _selectedDate != _defaultCreateDate ||
         _selectedLocationId != null ||
         _locationController.text.trim().isNotEmpty ||
-        _startTime != _defaultCreateTime ||
-        _endTime != _defaultEndTime ||
+        _startTime != null ||
+        _endTime != null ||
         _contentController.text.trim().isNotEmpty ||
         _selectedMembers.isNotEmpty ||
         _selectedMusics.isNotEmpty ||
@@ -231,16 +225,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _defaultCreateDate = DateUtils.dateOnly(now);
-    _defaultCreateTime = TimeOfDay(hour: now.hour, minute: 0);
-    _defaultEndTime = TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
+    _defaultCreateDate = DateUtils.dateOnly(widget.initialDate ?? now);
     if (!_isEditMode) {
       _selectedDate = _defaultCreateDate;
       _dateController.text = _formatDate(_defaultCreateDate);
-      _startTime = _defaultCreateTime;
-      _endTime = _defaultEndTime;
-      _startTimeController.text = _formatTime(_defaultCreateTime);
-      _endTimeController.text = _formatTime(_defaultEndTime);
+      // 시간은 선택 사항이며 미선택 상태로 진입합니다.
     }
     _applyInitialSchedule();
   }
@@ -259,9 +248,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     _selectedDate = DateUtils.dateOnly(startsAt);
     _startTime = TimeOfDay.fromDateTime(startsAt);
     _endTime = TimeOfDay.fromDateTime(endsAt);
-    _dateController.text = _formatDate(startsAt);
     _startTimeController.text = _formatTime(_startTime!);
     _endTimeController.text = _formatTime(_endTime!);
+    _dateController.text = _formatDate(startsAt);
     _selectedLocationId = schedule.locationId;
 
     _selectedMusics.addAll(
@@ -421,18 +410,18 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   String? get _startTimeErrorText {
-    if (!_showValidation || _startTime != null) return null;
-    return '시작 시간을 선택해주세요.';
+    if (!_showValidation || _startTime != null || _endTime == null) return null;
+    return '시작 시간을 선택하거나 시간을 모두 비워주세요.';
   }
 
   String? get _endTimeErrorText {
     if (!_showValidation) return null;
 
-    if (_endTime == null) {
-      return '끝나는 시간을 선택해주세요.';
+    if (_endTime == null && _startTime != null) {
+      return '끝나는 시간을 선택하거나 시간을 모두 비워주세요.';
     }
 
-    if (_startTime != null && !_hasValidTimeRange) {
+    if (_startTime != null && _endTime != null && !_hasValidTimeRange) {
       return '끝나는 시간은 시작 시간보다 늦어야 합니다.';
     }
 
@@ -482,10 +471,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   Future<void> _selectStartTime() async {
     FocusScope.of(context).unfocus();
 
+    final currentHour = TimeOfDay.now().hour;
     final selectedTime = await AppTimeBottomSheet.showTimePicker(
       context,
       title: '시작 시간 선택',
-      initialTime: _startTime ?? TimeOfDay.now(),
+      // 최초 진입 때만 현재 '시'와 00분을 제안합니다.
+      // 사용자가 확인하기 전까지 입력창의 값은 비어 있습니다.
+      initialTime: _startTime ?? TimeOfDay(hour: currentHour, minute: 0),
     );
 
     if (!mounted || selectedTime == null) return;
@@ -499,10 +491,12 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   Future<void> _selectEndTime() async {
     FocusScope.of(context).unfocus();
 
+    final currentHour = TimeOfDay.now().hour;
     final selectedTime = await AppTimeBottomSheet.showTimePicker(
       context,
       title: '끝나는 시간 선택',
-      initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
+      // 시작 시간을 먼저 선택했더라도 최초 기본값은 현재 시각의 '시:00'.
+      initialTime: _endTime ?? TimeOfDay(hour: currentHour, minute: 0),
     );
 
     if (!mounted || selectedTime == null) return;
@@ -523,12 +517,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     if (!_canSubmit) return;
 
     final selectedDate = _selectedDate!;
-    final startsAt = _combineDateAndTime(selectedDate, _startTime!);
-    final endsAt = _combineEndDateAndTime(
-      selectedDate,
-      _startTime!,
-      _endTime!,
-    );
+    final startsAt = _scheduleStartsAt(selectedDate);
+    final endsAt = _scheduleEndsAt(selectedDate);
     final notifier = ref.read(calMutationProvider.notifier);
 
     final result = _isEditMode
@@ -905,6 +895,18 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     );
   }
 
+  // 시간 미지정은 임의의 자정/23:59로 대체하지 않고 null로 전송합니다.
+  // 현재 서버에서는 null을 허용하지 않으므로 서버 수정 전 저장은 실패할 수 있습니다.
+  DateTime? _scheduleStartsAt(DateTime date) {
+    final time = _startTime;
+    return time == null ? null : _combineDateAndTime(date, time);
+  }
+
+  DateTime? _scheduleEndsAt(DateTime date) {
+    if (_startTime == null || _endTime == null) return null;
+    return _combineEndDateAndTime(date, _startTime!, _endTime!);
+  }
+
   DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
@@ -931,10 +933,10 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   String _formatDate(DateTime date) {
     const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
     final weekday = weekdays[date.weekday - 1];
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString();
+    final day = date.day.toString();
 
-    return '${date.year}. $month. $day.($weekday)';
+    return '${date.year}. $month. $day. ($weekday)';
   }
 
   String _formatTime(TimeOfDay time) {
@@ -981,7 +983,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     return first.length == second.length && first.containsAll(second);
   }
 
-  bool _sameLocalMinute(DateTime first, DateTime second) {
+  bool _sameLocalMinute(DateTime? first, DateTime? second) {
+    if (first == null || second == null) return first == second;
     final a = first.toLocal();
     final b = second.toLocal();
     return a.year == b.year &&
@@ -1071,7 +1074,28 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.x20),
-                        const _SectionLabel(text: '시간', requiredMark: true),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const _SectionLabel(text: '시간'),
+                            if (_startTime != null || _endTime != null) ...[
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _startTime = null;
+                                      _endTime = null;
+                                      _startTimeController.clear();
+                                      _endTimeController.clear();
+                                    });
+                                  },
+                                  child: Text('초기화'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: AppSpacing.x8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1118,6 +1142,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.x20),
+
                         AppTextArea(
                           label: '일정 설명',
                           hintText: '모임에 어울리는 일정 소개글을 작성해주세요.',
@@ -1364,13 +1389,25 @@ class _MemberInfoButton extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.x8),
-          Text(
-            memberName,
-            style: FontStyles.semi18.copyWith(color: context.grays.gray1),
+          SizedBox(
+            width: 60.0,
+            child: Text(
+              memberName,
+              style: FontStyles.semi18.copyWith(color: context.grays.gray1),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
-          Text(
-            memberPart,
-            style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+          SizedBox(
+            width: 60.0,
+            child: Text(
+              memberPart,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),

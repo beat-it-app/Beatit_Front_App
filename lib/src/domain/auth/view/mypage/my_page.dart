@@ -1,5 +1,7 @@
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_setting_page.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/team_manage_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/withdrawal_type_select_page.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +26,31 @@ class MyPageView extends ConsumerStatefulWidget {
 }
 
 class _MyPageViewState extends ConsumerState<MyPageView> {
+  bool _isLoggingOut = false;
+
+  Future<void> _logout() async {
+    if (_isLoggingOut) return;
+    setState(() => _isLoggingOut = true);
+
+    try {
+      await ref.read(authProvider.notifier).logout();
+      ref.invalidate(myPageProvider);
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SigninPage()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그아웃에 실패했습니다: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoggingOut = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -346,7 +373,10 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
             _SettingTile(title: '서비스 약관', onTap: () {}),
             _SettingTile(title: '고객 지원', onTap: () {}),
-            _SettingTile(title: '로그아웃', onTap: () {}),
+            _SettingTile(
+              title: _isLoggingOut ? '로그아웃 중...' : '로그아웃',
+              onTap: _logout,
+            ),
             _SettingTile(
               title: '탈퇴하기',
               onTap: () {

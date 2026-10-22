@@ -16,6 +16,7 @@ class CalendarMonthView extends StatelessWidget {
     required this.hasSchedule,
     required this.labelForDay,
     required this.onDaySelected,
+    this.hasMySchedule,
     required this.onPageChanged,
     this.isHoliday,
     this.weekGap = AppSpacing.x12,
@@ -38,6 +39,9 @@ class CalendarMonthView extends StatelessWidget {
 
   /// 해당 날짜에 내가 참여하는 일정이 있는지 반환
   final bool Function(DateTime day) hasSchedule;
+
+  /// 내가 참여 중인 일정이 하루에 하나라도 있는지 확인합니다.
+  final bool Function(DateTime day)? hasMySchedule;
 
   /// 해당 날짜가 공휴일인지 반환
   ///
@@ -152,6 +156,7 @@ class CalendarMonthView extends StatelessWidget {
                   isSelected: isSelected,
                   isHoliday: isHolidayDay,
                   isPast: isPast,
+                  hasMySchedule: hasMySchedule?.call(normalizedDay) ?? false,
                   monthState: isCurrentMonth
                       ? CalendarMonthState.currentMonth
                       : CalendarMonthState.outsideMonth,

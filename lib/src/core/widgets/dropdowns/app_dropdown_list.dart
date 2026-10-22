@@ -323,6 +323,8 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
                             textColor,
                             BlendMode.srcIn,
                           ),
+                          width: 23,
+                          height: 23,
                         ),
                       )
                     : const SizedBox.shrink(),

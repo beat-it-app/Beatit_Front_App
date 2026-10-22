@@ -27,10 +27,10 @@ class LocationResultWidget extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
             top: AppSpacing.x20,
-            left: AppSpacing.x4,
-            right: AppSpacing.x4,
+            left: AppSpacing.x20,
+            right: AppSpacing.x20,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

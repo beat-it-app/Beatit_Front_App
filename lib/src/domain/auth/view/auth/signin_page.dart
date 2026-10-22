@@ -113,6 +113,16 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     await ref.read(authProvider.notifier).loginWithGoogle();
   }
 
+  Future<void> _loginWithNaver() async {
+    if (ref.read(authProvider).isLoading) return;
+    await ref.read(authProvider.notifier).loginWithNaver();
+  }
+
+  Future<void> _loginWithKakao() async {
+    if (ref.read(authProvider).isLoading) return;
+    await ref.read(authProvider.notifier).loginWithKakao();
+  }
+
   void _showUnsupportedSocialLogin(String providerName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$providerName 로그인은 아직 연동되지 않았습니다.')),
@@ -168,14 +178,15 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     ref.listen(authProvider, (previous, next) {
       next.whenOrNull(
         data: (session) {
-          if (!mounted || session == null) {
+          if (!mounted || session == null ||
+              ModalRoute.of(context)?.isCurrent != true) {
             return;
           }
 
           _handleLoginSuccess(session);
         },
         error: (error, stackTrace) {
-          if (!mounted) {
+          if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
             return;
           }
 
@@ -327,9 +338,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                                 SocialLoginButton.naver(
                                   height: 48,
                                   variant: SocialLoginButtonVariant.circle,
-                                  onPressed: () {
-                                    _showUnsupportedSocialLogin('네이버');
-                                  },
+                                  onPressed: _loginWithNaver,
                                 ),
                                 const SizedBox(width: AppSpacing.x12),
                                 SocialLoginButton.google(
@@ -341,9 +350,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                                 SocialLoginButton.kakao(
                                   height: 48,
                                   variant: SocialLoginButtonVariant.circle,
-                                  onPressed: () {
-                                    _showUnsupportedSocialLogin('카카오');
-                                  },
+                                  onPressed: _loginWithKakao,
                                 ),
                                 const SizedBox(width: AppSpacing.x12),
                                 SocialLoginButton.apple(

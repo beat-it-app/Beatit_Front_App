@@ -86,14 +86,17 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
 
   Future<void> _goToCalCreatePage() async {
     final createdSchedule = await Navigator.of(context).push<ScheduleWriteData>(
-      MaterialPageRoute(builder: (_) => const CalCreatePage()),
+      MaterialPageRoute(
+        builder: (_) => CalCreatePage(initialDate: _selectedDay),
+      ),
     );
 
     if (!mounted || createdSchedule == null) {
       return;
     }
 
-    final createdDay = DateUtils.dateOnly(_toKst(createdSchedule.startsAt));
+    // 생성 직전 선택한 날짜를 유지합니다. 시간 미지정 일정에는 startsAt이 없습니다.
+    final createdDay = DateUtils.dateOnly(_selectedDay);
     final createdMonth = DateTime(createdDay.year, createdDay.month);
 
     setState(() {
@@ -244,7 +247,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   String _formatMonth(DateTime date) {
     final month = date.month.toString();
 
-    return '${date.year}. $month';
+    return '${date.year}. $month.';
   }
 
   String _formatSelectedDate(DateTime date) {
@@ -258,7 +261,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     final month = date.month.toString();
     final day = date.day.toString();
 
-    return '${date.year}. $month. $day ';
+    return '${date.year}. $month. $day. ';
   }
 
   String _formatTime(DateTime date) {
@@ -288,6 +291,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     final calState = ref.watch(calMainProvider);
     final locationCache = ref.watch(locationDetailCacheProvider);
     final selectedSchedules = calState.selectedDateSchedules;
+
     final isInitialLoading =
         _isBootstrapping ||
         ((!calState.hasLoadedMonthOnce || !calState.hasLoadedDateOnce) &&
@@ -339,6 +343,17 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                         isHoliday: _isHoliday,
                         labelForDay: (day) =>
                             _labelForDay(day, calState.monthSchedules),
+                        hasMySchedule: (day) {
+                          final schedules = _calendarSchedulesForDay(
+                            day,
+                            calState.monthSchedules,
+                          );
+                          return schedules.isNotEmpty &&
+                              calState.participationByScheduleId[schedules
+                                      .first
+                                      .scheduleId] ==
+                                  true;
+                        },
                         onDaySelected: _handleDaySelected,
                         onPageChanged: _handlePageChanged,
                       ),
@@ -386,7 +401,11 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                       else if (selectedSchedules.isEmpty)
                         _buildEmptySchedule(context)
                       else
-                        _buildScheduleList(selectedSchedules, locationCache),
+                        _buildScheduleList(
+                          selectedSchedules,
+                          locationCache,
+                          calState.participationByScheduleId,
+                        ),
                     ],
                   ),
                 ),
@@ -505,6 +524,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   Widget _buildScheduleList(
     List<DateSchedule> schedules,
     Map<int, LocationData> locationCache,
+    Map<int, bool> participationByScheduleId,
   ) {
     return Column(
       children: List.generate(schedules.length, (index) {
@@ -517,7 +537,9 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
             titleText: schedule.title,
             locationText: _locationText(schedule.locationId, locationCache),
             timeText: _formatScheduleTimeRange(schedule),
-            scheduleType: ScheduleType.mine,
+            scheduleType: participationByScheduleId[schedule.scheduleId] == true
+                ? ScheduleType.mine
+                : ScheduleType.none,
             onTap: () {
               debugPrint('scheduleId=${schedule.scheduleId} 일정 선택');
               _goToCalDetailPage(schedule.scheduleId);

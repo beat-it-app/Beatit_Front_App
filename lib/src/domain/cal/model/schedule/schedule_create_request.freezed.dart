@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ScheduleCreateRequest {
 
- int? get locationId; String get title; String? get content;@KstDateTimeConverter() DateTime get startsAt;@KstDateTimeConverter() DateTime get endsAt; List<int> get participantUserIds; List<ScheduleCreateMusicRequest> get musics;
+ int? get locationId; String get title; String? get content;@KstDateTimeConverter() DateTime? get startsAt;@KstDateTimeConverter() DateTime? get endsAt; List<int> get participantUserIds; List<ScheduleCreateMusicRequest> get musics;
 /// Create a copy of ScheduleCreateRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -54,7 +54,7 @@ abstract mixin class $ScheduleCreateRequestCopyWith<$Res>  {
   factory $ScheduleCreateRequestCopyWith(ScheduleCreateRequest value, $Res Function(ScheduleCreateRequest) _then) = _$ScheduleCreateRequestCopyWithImpl;
 @useResult
 $Res call({
- int? locationId, String title, String? content,@KstDateTimeConverter() DateTime startsAt,@KstDateTimeConverter() DateTime endsAt, List<int> participantUserIds, List<ScheduleCreateMusicRequest> musics
+ int? locationId, String title, String? content,@KstDateTimeConverter() DateTime? startsAt,@KstDateTimeConverter() DateTime? endsAt, List<int> participantUserIds, List<ScheduleCreateMusicRequest> musics
 });
 
 
@@ -71,14 +71,14 @@ class _$ScheduleCreateRequestCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleCreateRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = null,Object? endsAt = null,Object? participantUserIds = null,Object? musics = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = freezed,Object? endsAt = freezed,Object? participantUserIds = null,Object? musics = null,}) {
   return _then(ScheduleCreateRequest(
 locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
-as String?,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,participantUserIds: null == participantUserIds ? _self.participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
+as String?,startsAt: freezed == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,endsAt: freezed == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,participantUserIds: null == participantUserIds ? _self.participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
 as List<int>,musics: null == musics ? _self.musics : musics // ignore: cast_nullable_to_non_nullable
 as List<ScheduleCreateMusicRequest>,
   ));
@@ -165,7 +165,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ScheduleCreateRequest() when $default != null:
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics);case _:
@@ -186,7 +186,7 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleCreateRequest():
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics);case _:
@@ -206,7 +206,7 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int> participantUserIds,  List<ScheduleCreateMusicRequest> musics)?  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleCreateRequest() when $default != null:
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics);case _:
@@ -221,14 +221,14 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 @JsonSerializable()
 
 class _ScheduleCreateRequest implements ScheduleCreateRequest {
-  const _ScheduleCreateRequest({this.locationId, required this.title, this.content, @KstDateTimeConverter() required this.startsAt, @KstDateTimeConverter() required this.endsAt,  List<int> participantUserIds = const <int>[],  List<ScheduleCreateMusicRequest> musics = const <ScheduleCreateMusicRequest>[]}): _participantUserIds = participantUserIds,_musics = musics;
+  const _ScheduleCreateRequest({this.locationId, required this.title, this.content, @KstDateTimeConverter() this.startsAt, @KstDateTimeConverter() this.endsAt,  List<int> participantUserIds = const <int>[],  List<ScheduleCreateMusicRequest> musics = const <ScheduleCreateMusicRequest>[]}): _participantUserIds = participantUserIds,_musics = musics;
   factory _ScheduleCreateRequest.fromJson(Map<String, dynamic> json) => _$ScheduleCreateRequestFromJson(json);
 
 @override final  int? locationId;
 @override final  String title;
 @override final  String? content;
-@override@KstDateTimeConverter() final  DateTime startsAt;
-@override@KstDateTimeConverter() final  DateTime endsAt;
+@override@KstDateTimeConverter() final  DateTime? startsAt;
+@override@KstDateTimeConverter() final  DateTime? endsAt;
  final  List<int> _participantUserIds;
 @override@JsonKey() List<int> get participantUserIds {
   if (_participantUserIds is EqualUnmodifiableListView) return _participantUserIds;
@@ -279,7 +279,7 @@ abstract mixin class _$ScheduleCreateRequestCopyWith<$Res> implements $ScheduleC
   factory _$ScheduleCreateRequestCopyWith(_ScheduleCreateRequest value, $Res Function(_ScheduleCreateRequest) _then) = __$ScheduleCreateRequestCopyWithImpl;
 @override @useResult
 $Res call({
- int? locationId, String title, String? content,@KstDateTimeConverter() DateTime startsAt,@KstDateTimeConverter() DateTime endsAt, List<int> participantUserIds, List<ScheduleCreateMusicRequest> musics
+ int? locationId, String title, String? content,@KstDateTimeConverter() DateTime? startsAt,@KstDateTimeConverter() DateTime? endsAt, List<int> participantUserIds, List<ScheduleCreateMusicRequest> musics
 });
 
 
@@ -296,14 +296,14 @@ class __$ScheduleCreateRequestCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleCreateRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = null,Object? endsAt = null,Object? participantUserIds = null,Object? musics = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = freezed,Object? endsAt = freezed,Object? participantUserIds = null,Object? musics = null,}) {
   return _then(_ScheduleCreateRequest(
 locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
-as String?,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,participantUserIds: null == participantUserIds ? _self._participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
+as String?,startsAt: freezed == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,endsAt: freezed == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,participantUserIds: null == participantUserIds ? _self._participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
 as List<int>,musics: null == musics ? _self._musics : musics // ignore: cast_nullable_to_non_nullable
 as List<ScheduleCreateMusicRequest>,
   ));

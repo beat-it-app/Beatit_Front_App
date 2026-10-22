@@ -4,7 +4,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
-class MusicResultWidget extends StatelessWidget {
+class MusicResultWidget extends StatefulWidget {
   const MusicResultWidget({
     super.key,
     required this.musicTitle,
@@ -21,11 +21,16 @@ class MusicResultWidget extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<MusicResultWidget> createState() => _MusicResultWidgetState();
+}
+
+class _MusicResultWidgetState extends State<MusicResultWidget> {
+  @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? context.grays.gray8 : Colors.transparent,
+      color: widget.isSelected ? context.grays.gray8 : Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
           child: Row(
@@ -33,10 +38,10 @@ class MusicResultWidget extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: imageUrl.trim().isEmpty
+                child: widget.imageUrl.trim().isEmpty
                     ? _MusicImageFallback()
                     : Image.network(
-                        imageUrl,
+                        widget.imageUrl,
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
@@ -52,7 +57,7 @@ class MusicResultWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      musicTitle,
+                      widget.musicTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: FontStyles.med20.copyWith(
@@ -61,7 +66,7 @@ class MusicResultWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.x4),
                     Text(
-                      artist,
+                      widget.artist,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: FontStyles.med16.copyWith(

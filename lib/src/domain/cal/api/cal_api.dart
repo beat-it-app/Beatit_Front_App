@@ -11,6 +11,16 @@ import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_r
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_request.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_update_response.dart';
 
+class CalendarDateResult {
+  const CalendarDateResult({
+    required this.items,
+    required this.participantUserIdsByScheduleId,
+  });
+
+  final List<DateSchedule> items;
+  final Map<int, Set<int>> participantUserIdsByScheduleId;
+}
+
 class CalApi {
   CalApi(this._dio);
 
@@ -49,7 +59,7 @@ class CalApi {
     }
   }
 
-  Future<CalendarDateResponse> getDateSchedules({
+  Future<CalendarDateResult> getDateSchedules({
     required int year,
     required int month,
     required int date,
@@ -69,7 +79,25 @@ class CalApi {
         fallbackMessage: '선택한 날짜의 일정을 불러오지 못했습니다.',
       );
 
-      return CalendarDateResponse.fromJson(body);
+      final parsedDateResponse = CalendarDateResponse.fromJson(body);
+      final data = body['data'] as Map<String, dynamic>;
+      final rawItems = data['items'] as List<dynamic>? ?? const [];
+      final participantIds = <int, Set<int>>{};
+      for (final raw in rawItems) {
+        if (raw is! Map<String, dynamic>) continue;
+        final scheduleId = (raw['scheduleId'] as num?)?.toInt();
+        if (scheduleId == null) continue;
+        final participants = raw['participants'] as List<dynamic>? ?? const [];
+        participantIds[scheduleId] = participants
+            .whereType<Map<String, dynamic>>()
+            .map((value) => (value['userId'] as num?)?.toInt())
+            .whereType<int>()
+            .toSet();
+      }
+      return CalendarDateResult(
+        items: parsedDateResponse.data.items,
+        participantUserIdsByScheduleId: participantIds,
+      );
     } on DioException catch (error) {
       throw _mapDioException(error);
     }
