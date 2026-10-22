@@ -5,7 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
 import 'package:beatit_front_app/src/domain/team/model/team_archive_model.dart';
@@ -41,12 +41,12 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppTopAppBar.backMore(
+      // 💡 AppTopAppBar.backMore 대신 AppTwoAppBar.add 적용
+      appBar: AppTwoAppBar.add(
         title: '',
         onBackPressed: () => Navigator.pop(context),
-        onMorePressed: () {},
-        moreMenuOffset: const Offset(-20, 56),
-        moreMenuItems: [
+        addMenuOffset: const Offset(-5, 60),
+        addMenuItems: [
           AppDropdownItem(
             label: '기록하기',
             onPressed: () async {
@@ -70,6 +70,28 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
           child: state.isLoading && state.items.isEmpty
               ? const Center(child: CircularProgressIndicator())
+              : state.errorMessage != null && state.items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        state.errorMessage!,
+                        style: FontStyles.med16.copyWith(color: colors.error),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          ref
+                              .read(teamArchiveProvider.notifier)
+                              .fetchArchives();
+                        },
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                )
               : state.items.isEmpty
               ? Center(
                   child: Column(
@@ -83,7 +105,7 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '더보기 메뉴를 눌러 장소를 기록해보세요.',
+                        '+ 버튼을 눌러 장소를 기록해보세요.',
                         style: FontStyles.med16.copyWith(
                           color: context.grays.gray5,
                         ),
@@ -176,7 +198,7 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // 아카이브 타이틀
+                                    // 1. 아카이브 타이틀
                                     Text(
                                       item.title,
                                       style: FontStyles.med20.copyWith(
@@ -185,14 +207,15 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    const SizedBox(height: 8),
 
-                                    // 장소 도로명 주소 (roadAddress)
+                                    // 2. 장소 도로명 주소 (roadAddress)
                                     Row(
                                       children: [
                                         SvgPicture.asset(
                                           'assets/icons/cal/location.svg',
-                                          width: 20,
-                                          height: 20,
+                                          width: 18,
+                                          height: 18,
                                           colorFilter: ColorFilter.mode(
                                             context.grays.gray4,
                                             BlendMode.srcIn,
@@ -213,7 +236,7 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                     ),
                                     const SizedBox(height: 8),
 
-                                    // 평점 및 댓글 수 태그
+                                    // 3. 평점 및 댓글 수 태그
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Container(
@@ -232,14 +255,14 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                           children: [
                                             SvgPicture.asset(
                                               'assets/icons/team/filled_star.svg',
-                                              width: 16,
-                                              height: 16,
+                                              width: 14,
+                                              height: 14,
                                               colorFilter: ColorFilter.mode(
                                                 colors.primary,
                                                 BlendMode.srcIn,
                                               ),
                                             ),
-                                            const SizedBox(width: 2),
+                                            const SizedBox(width: 4),
                                             Text(
                                               item.averageRating
                                                   .toStringAsFixed(1),
@@ -249,15 +272,15 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                             ),
                                             const SizedBox(width: 8),
                                             SvgPicture.asset(
-                                              'assets/icons/team/filled_reply.svg',
-                                              width: 16,
-                                              height: 16,
+                                              'assets/icons/team/reply.svg',
+                                              width: 14,
+                                              height: 14,
                                               colorFilter: ColorFilter.mode(
                                                 context.grays.gray2,
                                                 BlendMode.srcIn,
                                               ),
                                             ),
-                                            const SizedBox(width: 2),
+                                            const SizedBox(width: 4),
                                             Text(
                                               '${item.commentCount}',
                                               style: FontStyles.med12.copyWith(

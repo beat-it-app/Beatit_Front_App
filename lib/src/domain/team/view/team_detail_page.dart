@@ -8,8 +8,11 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/domain/team/model/team_detail_model.dart';
+import 'package:beatit_front_app/src/domain/team/model/team_performance_model.dart';
+import 'package:beatit_front_app/src/domain/team/model/team_schedule_model.dart';
 import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_upcoming_provider.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_member_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
@@ -19,7 +22,6 @@ import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 import '../../cloud/view/cloud_main_page.dart';
 
 class TeamDetailPage extends ConsumerStatefulWidget {
-  // 💡 TeamEntryPage에서 이미 가져온 팀 데이터를 직접 주입받을 수 있도록 설정
   final TeamDetailModel? teamDetail;
 
   const TeamDetailPage({super.key, this.teamDetail});
@@ -32,7 +34,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
   @override
   void initState() {
     super.initState();
-    // 외부에서 데이터를 주입받지 않은 경우(예: 직접 라우팅된 경우)에만 자체 API 호출
     if (widget.teamDetail == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(teamDetailProvider.notifier).fetchTeamDetail();
@@ -47,12 +48,18 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     }
   }
 
+  void _refreshAll() {
+    ref.invalidate(currentTeamProvider);
+    ref.read(teamDetailProvider.notifier).fetchTeamDetail();
+    ref.invalidate(teamUpcomingPerformancesProvider);
+    ref.invalidate(teamUpcomingSchedulesProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    // 💡 주입받은 데이터가 있으면 사용하고, 없으면 teamDetailProvider 상태 사용
     final state = ref.watch(teamDetailProvider);
     final detail = widget.teamDetail ?? state.teamDetail;
 
@@ -74,7 +81,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
       );
     }
 
-    // myRole 권한 검사 (LEADER, MANAGER만 수정/공유 버튼 노출)
     final role = detail.myRole?.toUpperCase();
     final bool isManagerOrLeader = role == 'LEADER' || role == 'MANAGER';
 
@@ -92,11 +98,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           builder: (context) => const TeamUpdatePage(),
                         ),
                       )
-                      .then((_) {
-                        // 수정 후 복귀 시 최신 데이터 갱신
-                        ref.invalidate(currentTeamProvider);
-                        ref.read(teamDetailProvider.notifier).fetchTeamDetail();
-                      });
+                      .then((_) => _refreshAll());
                 }
               : null,
           onSharePressed: isManagerOrLeader
@@ -163,7 +165,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
                   const SizedBox(height: AppSpacing.x30),
 
-                  // 4. 다가오는 일정 영역
+                  // 4. 다가오는 일정 타이틀
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -172,7 +174,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                         width: 16,
                         height: 16,
                         colorFilter: ColorFilter.mode(
-                          context.grays.gray4,
+                          context.colors.onSurface,
                           BlendMode.srcIn,
                         ),
                       ),
@@ -190,7 +192,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
                   const SizedBox(height: AppSpacing.x30),
 
-                  // 5. 다가오는 LIVE 공연 영역
+                  // 5. 다가오는 LIVE 공연 타이틀
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -203,7 +205,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                             width: 16,
                             height: 16,
                             colorFilter: ColorFilter.mode(
-                              context.grays.gray4,
+                              context.colors.onSurface,
                               BlendMode.srcIn,
                             ),
                           ),
@@ -270,13 +272,411 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
+  // 4. 다가오는 일정 섹션 (API 연동)
+  Widget _buildScheduleSection(BuildContext context) {
+    final scheduleAsync = ref.watch(teamUpcomingSchedulesProvider);
+
+    return scheduleAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => _buildScheduleEmpty(context),
+      data: (schedules) {
+        if (schedules.isEmpty) {
+          return _buildScheduleEmpty(context);
+        }
+
+        // 전체 일정 중 가장 빠른 첫 번째 일정의 ID 확인
+        final int earliestScheduleId = schedules.first.scheduleId;
+
+        // 날짜(YYYY.MM.DD)별로 일정 그룹화
+        final Map<String, List<TeamScheduleModel>> groupedByDate = {};
+        for (final item in schedules) {
+          final dt = item.startsAt;
+          final dateKey = dt != null
+              ? '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}'
+              : '미정';
+          groupedByDate.putIfAbsent(dateKey, () => []).add(item);
+        }
+
+        return Column(
+          children: groupedByDate.entries.map((entry) {
+            final firstDate = entry.value.first.startsAt;
+            final dDayInfo = _calculateDDay(firstDate);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _buildScheduleDateGroup(
+                context,
+                dDayText: dDayInfo.dDayText,
+                dateText: dDayInfo.dateDisplay,
+                items: entry.value,
+                earliestScheduleId: earliestScheduleId,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildScheduleEmpty(BuildContext context) {
+    return _buildEmptyBox(
+      context,
+      iconBgColor: context.brands.beatOrange3,
+      iconWidget: SvgPicture.asset(
+        'assets/icons/cal/calendar.svg',
+        width: 24,
+        height: 24,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      ),
+      title: '등록된 일정이 없습니다.',
+      subtitle: '캘린더에서 일정을 추가해보세요.',
+    );
+  }
+
+  Widget _buildScheduleDateGroup(
+    BuildContext context, {
+    required String dDayText,
+    required String dateText,
+    required List<TeamScheduleModel> items,
+    required int earliestScheduleId,
+    Color? overrideColor,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final bool isTodayDDay = dDayText.trim().toUpperCase() == 'D-D';
+    final Color badgeColor =
+        overrideColor ?? (isTodayDDay ? colors.primary : colors.onSurface);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: badgeColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                dDayText,
+                style: FontStyles.semi10.copyWith(color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(dateText, style: FontStyles.med16),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...items.map((item) {
+          final bool isEarliest = item.scheduleId == earliestScheduleId;
+          return _buildScheduleCard(
+            context,
+            item,
+            isTodayDDay: isTodayDDay,
+            isEarliest: isEarliest,
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildScheduleCard(
+    BuildContext context,
+    TeamScheduleModel data, {
+    required bool isTodayDDay,
+    required bool isEarliest,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final bool isDimmed = !isTodayDDay;
+
+    final String startTime = data.startsAt != null
+        ? '${data.startsAt!.hour < 12 ? '오전' : '오후'}    ${(data.startsAt!.hour % 12 == 0 ? 12 : data.startsAt!.hour % 12).toString().padLeft(2, '0')}:${data.startsAt!.minute.toString().padLeft(2, '0')}'
+        : '-';
+    final String endTime = data.endsAt != null
+        ? '${data.endsAt!.hour < 12 ? '오전' : '오후'}    ${(data.endsAt!.hour % 12 == 0 ? 12 : data.endsAt!.hour % 12).toString().padLeft(2, '0')}:${data.endsAt!.minute.toString().padLeft(2, '0')}'
+        : '-';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(width: 4),
+            // 1. 시간 컬럼
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  startTime,
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray2),
+                ),
+                Text(
+                  endTime,
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            // 2. 세로 구분선
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Container(width: 1, color: context.grays.gray7),
+            ),
+            const SizedBox(width: 10),
+            // 3. 3:1 비율 박스 카드
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 3 / 1,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDimmed
+                        ? context.grays.gray8.withOpacity(0.5)
+                        : context.grays.gray8,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              data.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: FontStyles.semi18.copyWith(
+                                color: isDimmed
+                                    ? context.grays.gray4
+                                    : colors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data.locationName.isNotEmpty
+                                  ? data.locationName
+                                  : '장소 미지정',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: FontStyles.med12.copyWith(
+                                color: isDimmed
+                                    ? context.grays.gray6
+                                    : context.grays.gray4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Center(
+                        child: _buildCheckIcon(
+                          context,
+                          isTodayDDay: isTodayDDay,
+                          isEarliest: isEarliest,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckIcon(
+    BuildContext context, {
+    required bool isTodayDDay,
+    required bool isEarliest,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+
+    // 1. D-D(오늘)이고 가장 빠른 첫 일정: 채워진 주황색 원
+    if (isTodayDDay && isEarliest) {
+      return SvgPicture.asset(
+        'assets/icons/check/check_round_on.svg',
+        width: 25,
+        height: 25,
+        fit: BoxFit.contain,
+      );
+    }
+
+    // 2. D-D(오늘)이고 당일 나머지 일정들: 주황색 점선 체크
+    if (isTodayDDay && !isEarliest) {
+      return SvgPicture.asset(
+        'assets/icons/check/check_dot.svg',
+        width: 25,
+        height: 25,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(
+          context.brands.beatOrange4,
+          BlendMode.srcIn,
+        ),
+      );
+    }
+
+    // 3. D-숫자(미래 일정): 회색/검정 점선 체크
+    return SvgPicture.asset(
+      'assets/icons/check/check_dot.svg',
+      width: 25,
+      height: 25,
+      fit: BoxFit.contain,
+      colorFilter: ColorFilter.mode(context.grays.gray5, BlendMode.srcIn),
+    );
+  }
+
+  ({String dDayText, String dateDisplay}) _calculateDDay(DateTime? date) {
+    if (date == null) {
+      return (dDayText: 'D-?', dateDisplay: '날짜 미정');
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final diffDays = targetDate.difference(today).inDays;
+
+    final String dateDisplay =
+        '${date.year}. ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}.'
+        '${diffDays == 0 ? ' (오늘)' : ''}';
+
+    String dDayText;
+    if (diffDays == 0) {
+      dDayText = 'D-D';
+    } else if (diffDays > 0) {
+      dDayText = 'D-$diffDays';
+    } else {
+      dDayText = 'D+${diffDays.abs()}';
+    }
+
+    return (dDayText: dDayText, dateDisplay: dateDisplay);
+  }
+
+  // 5. 다가오는 LIVE 공연 섹션 (API 연동)
+  Widget _buildLiveConcertList(BuildContext context) {
+    final performanceAsync = ref.watch(teamUpcomingPerformancesProvider);
+
+    return performanceAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => _buildLiveConcertEmpty(context),
+      data: (performances) {
+        if (performances.isEmpty) {
+          return _buildLiveConcertEmpty(context);
+        }
+        return SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: performances.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              return _buildPerformanceCard(context, performances[index]);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLiveConcertEmpty(BuildContext context) {
+    return _buildEmptyBox(
+      context,
+      iconBgColor: context.grays.gray1,
+      iconWidget: SvgPicture.asset(
+        'assets/icons/team/mic.svg',
+        width: 24,
+        height: 24,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      ),
+      title: '등록된 LIVE 공연이 없습니다.',
+      subtitle: '가장 먼저 공연을 등록해보세요.',
+    );
+  }
+
+  Widget _buildPerformanceCard(
+    BuildContext context,
+    TeamPerformanceModel performance,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    final date = performance.performanceDateTime;
+    final String dateStr = date != null
+        ? '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}'
+        : '-';
+
+    return Container(
+      width: 130,
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child:
+                (performance.posterImageUrl != null &&
+                    performance.posterImageUrl!.isNotEmpty)
+                ? Image.network(
+                    performance.posterImageUrl!,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: context.grays.gray7,
+                      child: const Center(
+                        child: Icon(Icons.broken_image, size: 24),
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: context.grays.gray7,
+                    child: const Center(
+                      child: Icon(Icons.music_note, size: 28),
+                    ),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  performance.title,
+                  style: FontStyles.semi14.copyWith(color: colors.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  dateStr,
+                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 상단 프로필 헤더
   Widget _buildHeader(BuildContext context, TeamDetailModel detail) {
     final colors = Theme.of(context).colorScheme;
     final bool hasImage =
         detail.teamImageUrl != null && detail.teamImageUrl!.trim().isNotEmpty;
 
-    // 개설일 포맷팅 (YYYY.MM.DD)
     String dateDisplay = '-';
     if (detail.establishedOn != null &&
         detail.establishedOn!.trim().isNotEmpty) {
@@ -367,7 +767,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 등록된 SNS 링크 동적 생성
   Widget _buildDynamicSocialLinks(List<TeamLinkModel> links) {
     final validLinks = links
         .where((link) => link.linkUrl.trim().isNotEmpty)
@@ -486,7 +885,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 멤버 목록 가로 스크롤
   Widget _buildMemberList(BuildContext context, TeamDetailModel detail) {
     if (detail.members.isEmpty) {
       return SizedBox(
@@ -574,38 +972,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           );
         },
       ),
-    );
-  }
-
-  // 다가오는 일정 섹션 (빈 상태)
-  Widget _buildScheduleSection(BuildContext context) {
-    return _buildEmptyBox(
-      context,
-      iconBgColor: context.brands.beatOrange3,
-      iconWidget: SvgPicture.asset(
-        'assets/icons/cal/calendar.svg',
-        width: 24,
-        height: 24,
-        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-      ),
-      title: '등록된 일정이 없습니다.',
-      subtitle: '캘린더에서 일정을 추가해보세요.',
-    );
-  }
-
-  // 다가오는 LIVE 공연 섹션 (빈 상태)
-  Widget _buildLiveConcertList(BuildContext context) {
-    return _buildEmptyBox(
-      context,
-      iconBgColor: context.grays.gray1,
-      iconWidget: SvgPicture.asset(
-        'assets/icons/team/mic.svg',
-        width: 24,
-        height: 24,
-        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-      ),
-      title: '등록된 LIVE 공연이 없습니다.',
-      subtitle: '가장 먼저 공연을 등록해보세요.',
     );
   }
 
