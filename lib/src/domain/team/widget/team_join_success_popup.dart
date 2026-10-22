@@ -107,7 +107,7 @@ class TeamJoinSuccessPopup extends StatelessWidget {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(true);
                   onConfirm?.call();
                 },
               ),

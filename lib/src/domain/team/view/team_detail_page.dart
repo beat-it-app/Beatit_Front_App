@@ -54,21 +54,20 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
     // 💡 주입받은 데이터가 있으면 사용하고, 없으면 teamDetailProvider 상태 사용
     final state = ref.watch(teamDetailProvider);
-    final TeamDetailModel? detail = widget.teamDetail ?? state.teamDetail;
-
-    if (detail == null && state.isLoading) {
-      return Scaffold(
-        backgroundColor: colors.surface,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    final detail = widget.teamDetail ?? state.teamDetail;
 
     if (detail == null) {
+      if (state.isLoading) {
+        return Scaffold(
+          backgroundColor: colors.surface,
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         backgroundColor: colors.surface,
         body: Center(
           child: Text(
-            state.errorMessage ?? '팀 정보를 찾을 수 없습니다.',
+            state.errorMessage ?? '팀 정보를 불러오는 중입니다...',
             style: FontStyles.med16.copyWith(color: context.grays.gray4),
           ),
         ),
@@ -110,9 +109,9 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                 }
               : null,
           onAlarmPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AlarmMainPage()),
-            );
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
           },
         ),
       ),
@@ -170,8 +169,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                     children: [
                       SvgPicture.asset(
                         'assets/icons/team/title.svg',
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         colorFilter: ColorFilter.mode(
                           context.grays.gray4,
                           BlendMode.srcIn,
@@ -201,8 +200,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                         children: [
                           SvgPicture.asset(
                             'assets/icons/team/title.svg',
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
                             colorFilter: ColorFilter.mode(
                               context.grays.gray4,
                               BlendMode.srcIn,
@@ -287,6 +286,10 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           : raw;
     }
 
+    final bool hasLinks = detail.links.any(
+      (link) => link.linkUrl.trim().isNotEmpty,
+    );
+
     return SizedBox(
       height: 400,
       width: double.infinity,
@@ -322,14 +325,25 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
             ),
           ),
           Positioned(
-            top: 190,
+            bottom: 42,
             left: 0,
             right: 0,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'band',
-                  style: FontStyles.reg12.copyWith(color: Colors.white),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    'band',
+                    style: FontStyles.reg12.copyWith(color: Colors.white),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -341,8 +355,10 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   '개설일  |  $dateDisplay',
                   style: FontStyles.reg12.copyWith(color: context.grays.gray4),
                 ),
-                const SizedBox(height: 18),
-                _buildDynamicSocialLinks(detail.links),
+                if (hasLinks) ...[
+                  const SizedBox(height: 18),
+                  _buildDynamicSocialLinks(detail.links),
+                ],
               ],
             ),
           ),
@@ -423,8 +439,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           children: [
             SvgPicture.asset(
               'assets/icons/team/title.svg',
-              width: 18,
-              height: 18,
+              width: 11,
+              height: 11,
               colorFilter: ColorFilter.mode(
                 context.grays.gray4,
                 BlendMode.srcIn,
@@ -455,8 +471,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   const SizedBox(width: 4),
                   SvgPicture.asset(
                     'assets/icons/auth/back.svg',
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     colorFilter: ColorFilter.mode(
                       context.grays.gray4,
                       BlendMode.srcIn,
@@ -489,7 +505,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text('미지정', style: FontStyles.semi16),
+                Text('', style: FontStyles.semi16),
                 const SizedBox(height: 2),
                 Text(
                   '멤버',
@@ -528,18 +544,31 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           as ImageProvider,
               ),
               const SizedBox(height: 6),
-              Text(
-                member.userName.isNotEmpty ? member.userName : '이름 없음',
-                style: FontStyles.semi16.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 68),
+                child: Text(
+                  member.userName.isNotEmpty ? member.userName : '이름 없음',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: FontStyles.semi16.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                (member.position != null && member.position!.trim().isNotEmpty)
-                    ? member.position!
-                    : '',
-                style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 68),
+                child: Text(
+                  (member.position != null &&
+                          member.position!.trim().isNotEmpty)
+                      ? member.position!
+                      : '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+                ),
               ),
             ],
           );

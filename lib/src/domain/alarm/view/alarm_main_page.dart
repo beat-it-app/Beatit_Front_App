@@ -80,7 +80,7 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
 
   Future<void> _onTapNotification(AlarmNotification notification) async {
     final teamState = ref.read(currentTeamProvider);
-    final activeTeamId = teamState.asData?.value.teamId;
+    final activeTeamId = teamState.asData?.value?.teamId;
     final alarmState = ref.read(alarmProvider);
     final differentTeam =
         activeTeamId != null &&

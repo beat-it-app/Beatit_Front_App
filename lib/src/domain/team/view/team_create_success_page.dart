@@ -185,8 +185,6 @@ class TeamCreateSuccessPage extends ConsumerWidget {
                         width: ButtonWidth.expand,
                         height: ButtonHeight.normal,
                         onPressed: () {
-                          // 💡 ConsumerWidget의 ref를 통해 currentTeamProvider를 확실하게 무효화!
-                          ref.invalidate(currentTeamProvider);
                           Navigator.of(context).pop(true);
                         },
                       ),

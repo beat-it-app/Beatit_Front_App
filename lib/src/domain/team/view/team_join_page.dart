@@ -88,13 +88,11 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
     if (!mounted) return;
 
     if (joinSuccess) {
-      await TeamJoinSuccessPopup.show(
-        context,
-        teamName: _teamName,
-        onConfirm: () {
-          Navigator.of(context).pop();
-        },
-      );
+      await TeamJoinSuccessPopup.show(context, teamName: _teamName);
+
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
     } else {
       final state = ref.read(teamJoinProvider);
       final statusCode = state.statusCode;
