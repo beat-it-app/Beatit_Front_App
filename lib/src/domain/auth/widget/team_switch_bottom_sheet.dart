@@ -185,8 +185,8 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   child: Center(
                     child: SvgPicture.asset(
                       'assets/icons/plus/plus.svg',
-                      width: 14,
-                      height: 14,
+                      width: 26,
+                      height: 26,
                       colorFilter: ColorFilter.mode(
                         context.grays.gray6,
                         BlendMode.srcIn,

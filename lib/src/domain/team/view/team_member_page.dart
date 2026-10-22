@@ -357,10 +357,12 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
       );
     }
 
+    final bool showMoreMenu = canEdit && _currentMode == 'normal';
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       // 💡 일반 멤버(MEMBER)인 경우 더보기 메뉴 자체를 숨기거나(backOnly), 편집 권한이 있을 때만 backMore 노출
-      appBar: canEdit
+      appBar: showMoreMenu
           ? AppTopAppBar.backMore(
               onBackPressed: () {
                 if (_currentMode != 'normal') {
@@ -509,14 +511,14 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         final name = member.name;
         final isLeader = member.isLeader;
         final isManager = member.isManager;
-        final positionText = member.position ?? '미지정';
+        final positionText = member.position ?? '';
 
         Widget? rightWidget;
 
         if (_currentMode == 'normal') {
           if (isLeader) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: context.grays.gray1,
                 borderRadius: BorderRadius.circular(5),
@@ -528,7 +530,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
             );
           } else if (isManager) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: context.grays.gray8,
                 borderRadius: BorderRadius.circular(5),
@@ -570,7 +572,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                       BlendMode.srcIn,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   Text(
                     '대표',
                     style: FontStyles.med14.copyWith(color: Colors.white),
@@ -604,14 +606,14 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         } else if (_currentMode == 'manager') {
           if (isLeader) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: context.grays.gray2,
-                borderRadius: BorderRadius.circular(6),
+                color: context.grays.gray1,
+                borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
                 '대표',
-                style: FontStyles.med12.copyWith(color: Colors.white),
+                style: FontStyles.med14.copyWith(color: Colors.white),
               ),
             );
           } else {
@@ -646,7 +648,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       '운영진',
                       style: FontStyles.med14.copyWith(color: colors.primary),

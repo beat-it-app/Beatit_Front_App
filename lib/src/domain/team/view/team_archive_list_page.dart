@@ -185,15 +185,14 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(height: 8),
 
                                     // 장소 도로명 주소 (roadAddress)
                                     Row(
                                       children: [
                                         SvgPicture.asset(
                                           'assets/icons/cal/location.svg',
-                                          width: 18,
-                                          height: 18,
+                                          width: 20,
+                                          height: 20,
                                           colorFilter: ColorFilter.mode(
                                             context.grays.gray4,
                                             BlendMode.srcIn,
@@ -233,14 +232,14 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                           children: [
                                             SvgPicture.asset(
                                               'assets/icons/team/filled_star.svg',
-                                              width: 14,
-                                              height: 14,
+                                              width: 16,
+                                              height: 16,
                                               colorFilter: ColorFilter.mode(
                                                 colors.primary,
                                                 BlendMode.srcIn,
                                               ),
                                             ),
-                                            const SizedBox(width: 4),
+                                            const SizedBox(width: 2),
                                             Text(
                                               item.averageRating
                                                   .toStringAsFixed(1),
@@ -250,15 +249,15 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                             ),
                                             const SizedBox(width: 8),
                                             SvgPicture.asset(
-                                              'assets/icons/team/reply.svg',
-                                              width: 14,
-                                              height: 14,
+                                              'assets/icons/team/filled_reply.svg',
+                                              width: 16,
+                                              height: 16,
                                               colorFilter: ColorFilter.mode(
                                                 context.grays.gray2,
                                                 BlendMode.srcIn,
                                               ),
                                             ),
-                                            const SizedBox(width: 4),
+                                            const SizedBox(width: 2),
                                             Text(
                                               '${item.commentCount}',
                                               style: FontStyles.med12.copyWith(
@@ -280,14 +279,6 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                   ),
                 ),
         ),
-      ),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: _currentBottomNavIndex,
-        onTap: (index) {
-          setState(() {
-            _currentBottomNavIndex = index;
-          });
-        },
       ),
     );
   }
