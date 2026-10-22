@@ -13,16 +13,20 @@ import '../provider/mypage_provider.dart';
 import '../view/mypage/team_add_option_page.dart';
 
 class TeamSwitchBottomSheet extends ConsumerStatefulWidget {
-  const TeamSwitchBottomSheet({super.key, this.currentTeamId});
+  const TeamSwitchBottomSheet({super.key, this.currentTeamPublicId});
 
-  final int? currentTeamId;
+  final String? currentTeamPublicId;
 
-  static Future<void> show(BuildContext context, {int? currentTeamId}) {
+  static Future<void> show(
+    BuildContext context, {
+    String? currentTeamPublicId,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => TeamSwitchBottomSheet(currentTeamId: currentTeamId),
+      builder: (context) =>
+          TeamSwitchBottomSheet(currentTeamPublicId: currentTeamPublicId),
     );
   }
 
@@ -91,7 +95,18 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final state = ref.watch(teamSelectProvider);
-    final List<MyTeamModel> teams = state.teams;
+
+    final List<MyTeamModel> teams = List.of(state.teams);
+    if (widget.currentTeamPublicId != null && teams.isNotEmpty) {
+      teams.sort((a, b) {
+        final bool aIsCurrent = a.teamPublicId == widget.currentTeamPublicId;
+        final bool bIsCurrent =
+            b.teamPublicId == widget.currentTeamPublicId; // 💡 b로 변경
+        if (aIsCurrent && !bIsCurrent) return -1;
+        if (!aIsCurrent && bIsCurrent) return 1;
+        return 0;
+      });
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -210,7 +225,9 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
 
     final String? imageUrl = team.teamImageUrl;
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
-    final bool isCurrent = widget.currentTeamId == team.teamPublicId;
+    final bool isCurrent =
+        widget.currentTeamPublicId != null &&
+        widget.currentTeamPublicId == team.teamPublicId;
 
     if (!hasImage) {
       return GestureDetector(

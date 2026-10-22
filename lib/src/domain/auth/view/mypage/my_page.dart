@@ -32,8 +32,11 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
     });
   }
 
-  Future<void> _openTeamSwitchSheet(int? currentTeamId) async {
-    await TeamSwitchBottomSheet.show(context, currentTeamId: currentTeamId);
+  Future<void> _openTeamSwitchSheet(String? currentTeamPublicId) async {
+    await TeamSwitchBottomSheet.show(
+      context,
+      currentTeamPublicId: currentTeamPublicId,
+    );
     if (mounted) {
       ref.read(myPageProvider.notifier).fetchMyPage();
     }
@@ -220,7 +223,8 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    onPressed: () => _openTeamSwitchSheet(currentTeam?.teamId),
+                    onPressed: () =>
+                        _openTeamSwitchSheet(currentTeam?.teamPublicId),
                   ),
                 ],
               ),
