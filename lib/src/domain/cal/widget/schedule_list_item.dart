@@ -128,6 +128,7 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
                     widget.titleText,
                     style: FontStyles.semi16.copyWith(
                       color: context.grays.black,
+                      height: 1,
                     ),
                   ),
                   Text(

@@ -98,36 +98,50 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
       return _buildError();
     }
 
-    final image = uri.scheme == 'file'
-        ? Image.file(
-            File.fromUri(uri),
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _loadFailed = true);
-              });
-              return const SizedBox.shrink();
-            },
-          )
-        : Image.network(
-            uri.toString(),
-            headers: widget.requestHeaders,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) => progress == null
-                ? child
-                : const Center(child: CircularProgressIndicator()),
-            errorBuilder: (_, __, ___) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _loadFailed = true);
-              });
-              return const SizedBox.shrink();
-            },
-          );
+    // 큰 원본 이미지의 크기에 따라 레이아웃이 늘어나지 않도록
+    // 실제 미리보기 영역의 너비·높이를 고정하고 contain으로 표시합니다.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final image = uri.scheme == 'file'
+            ? Image.file(
+                File.fromUri(uri),
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _loadFailed = true);
+                  });
+                  return const SizedBox.shrink();
+                },
+              )
+            : Image.network(
+                uri.toString(),
+                headers: widget.requestHeaders,
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : const Center(child: CircularProgressIndicator()),
+                errorBuilder: (_, __, ___) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _loadFailed = true);
+                  });
+                  return const SizedBox.shrink();
+                },
+              );
 
-    return InteractiveViewer(
-      minScale: 0.5,
-      maxScale: 5.0,
-      child: Center(child: image),
+        return InteractiveViewer(
+          // 다른 파일로 전환할 때 이전 파일의 확대 상태를 이어받지 않습니다.
+          key: ValueKey('cloud-image-${_currentIndex}-${uri.toString()}'),
+          minScale: 0.5,
+          maxScale: 5.0,
+          child: SizedBox(width: width, height: height, child: image),
+        );
+      },
     );
   }
 
@@ -179,7 +193,16 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _buildImage(),
+            Padding(
+              // 하단 작업 버튼이 세로로 긴 이미지의 끝을 가리지 않게 합니다.
+              padding: EdgeInsets.only(
+                bottom: showActions
+                    ? 66.0 + AppSpacing.x16 +
+                        MediaQuery.paddingOf(context).bottom
+                    : 0,
+              ),
+              child: _buildImage(),
+            ),
             if (showActions)
               Positioned(
                 left: AppSpacing.x16,

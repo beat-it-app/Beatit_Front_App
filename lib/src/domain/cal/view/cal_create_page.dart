@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -498,7 +499,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       initialTime:
           _endTime ??
           (_startTime == null
-              ? TimeOfDay(hour: currentHour + 1, minute: 0)
+              ? TimeOfDay(hour: currentHour, minute: 0)
               : TimeOfDay(
                   hour: (_startTime!.hour + 1) % 24,
                   minute: _startTime!.minute,
@@ -609,10 +610,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       return;
     }
 
-    // 백엔드 상세 조회 응답에는 현재 musics가 포함되지 않으므로, 생성/수정 직후
-    // 상세 화면에서 선택한 음원이 사라져 보이지 않도록 현재 앱 세션에 보관합니다.
-    // 음수 ID는 FE fallback임을 구분하기 위한 값이며, 수정 요청 시 retainMusicIds로
-    // 보내지 않고 새 음원 데이터로 다시 전송합니다.
     final cachedMusics = List<ScheduleDetailMusic>.generate(
       _selectedMusics.length,
       (index) {
@@ -901,8 +898,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     );
   }
 
-  // 시간 미지정은 임의의 자정/23:59로 대체하지 않고 null로 전송합니다.
-  // 현재 서버에서는 null을 허용하지 않으므로 서버 수정 전 저장은 실패할 수 있습니다.
   DateTime? _scheduleStartsAt(DateTime date) {
     final time = _startTime;
     return time == null ? null : _combineDateAndTime(date, time);
@@ -939,10 +934,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   String _formatDate(DateTime date) {
     const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
     final weekday = weekdays[date.weekday - 1];
-    final month = date.month.toString();
-    final day = date.day.toString();
-
-    return '${date.year}. $month. $day. ($weekday)';
+    return '${AppDateTimeFormatter.formatDate(date)} ($weekday)';
   }
 
   String _formatTime(TimeOfDay time) {
@@ -1007,7 +999,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    // 수정 화면 진입 시 기존 참여자 정보를 복원하는 동안 provider를 유지한다.
     ref.watch(memberSelectionProvider);
     final mutationState = ref.watch(calMutationProvider);
     final isSubmitting = _isEditMode
@@ -1085,7 +1076,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           children: [
                             const _SectionLabel(text: '시간'),
                             SizedBox(
-                              // 초기화 표시 유무와 관계없이 라벨 행의 높이는 일정하게 유지합니다.
                               height: 24,
                               child: (_startTime != null || _endTime != null)
                                   ? TextButton(
@@ -1642,7 +1632,6 @@ class _EditableSelectedFileRow extends StatelessWidget {
                 final availableNameWidth = (constraints.maxWidth - suffixWidth)
                     .clamp(24.0, double.infinity)
                     .toDouble();
-                // 입력 길이만큼 필드가 넓어지고, 확장자는 편집 영역 밖에 둡니다.
                 final nameWidth = (namePainter.width + AppSpacing.x8)
                     .clamp(24.0, availableNameWidth)
                     .toDouble();

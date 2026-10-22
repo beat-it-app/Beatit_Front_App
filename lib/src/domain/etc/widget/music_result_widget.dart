@@ -78,8 +78,8 @@ class _MusicResultWidgetState extends State<MusicResultWidget> {
                               child: widget.isPlaying
                                   ? SvgPicture.asset(
                                       'assets/icons/etc/pause.svg',
-                                      width: 24,
-                                      height: 24,
+                                      width: 28,
+                                      height: 28,
                                       colorFilter: ColorFilter.mode(
                                         context.grays.white,
                                         BlendMode.srcIn,
@@ -89,8 +89,8 @@ class _MusicResultWidgetState extends State<MusicResultWidget> {
                                       padding: const EdgeInsets.only(left: 3),
                                       child: SvgPicture.asset(
                                         'assets/icons/core/play.svg',
-                                        width: 20,
-                                        height: 20,
+                                        width: 18,
+                                        height: 18,
                                         colorFilter: ColorFilter.mode(
                                           context.grays.white,
                                           BlendMode.srcIn,
