@@ -653,6 +653,7 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
                               height: 210,
                               level: 3,
                               borderRadius: BorderRadius.circular(8),
+                              markerLabel: locationName,
                               onTap: _openMapPreview,
                             )
                           : _InlineMapLoading(onReady: _prepareMapInBackground),

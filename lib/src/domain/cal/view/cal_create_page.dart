@@ -495,8 +495,14 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     final selectedTime = await AppTimeBottomSheet.showTimePicker(
       context,
       title: '끝나는 시간 선택',
-      // 시작 시간을 먼저 선택했더라도 최초 기본값은 현재 시각의 '시:00'.
-      initialTime: _endTime ?? TimeOfDay(hour: currentHour, minute: 0),
+      initialTime:
+          _endTime ??
+          (_startTime == null
+              ? TimeOfDay(hour: currentHour + 1, minute: 0)
+              : TimeOfDay(
+                  hour: (_startTime!.hour + 1) % 24,
+                  minute: _startTime!.minute,
+                )),
     );
 
     if (!mounted || selectedTime == null) return;
@@ -1078,22 +1084,34 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const _SectionLabel(text: '시간'),
-                            if (_startTime != null || _endTime != null) ...[
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _startTime = null;
-                                      _endTime = null;
-                                      _startTimeController.clear();
-                                      _endTimeController.clear();
-                                    });
-                                  },
-                                  child: Text('초기화'),
-                                ),
-                              ),
-                            ],
+                            SizedBox(
+                              // 초기화 표시 유무와 관계없이 라벨 행의 높이는 일정하게 유지합니다.
+                              height: 24,
+                              child: (_startTime != null || _endTime != null)
+                                  ? TextButton(
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _startTime = null;
+                                          _endTime = null;
+                                          _startTimeController.clear();
+                                          _endTimeController.clear();
+                                        });
+                                      },
+                                      child: Text(
+                                        '초기화',
+                                        style: FontStyles.med14.copyWith(
+                                          color: context.grays.gray5,
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.x8),
