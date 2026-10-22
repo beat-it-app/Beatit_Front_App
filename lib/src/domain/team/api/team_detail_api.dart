@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import '../model/team_detail_model.dart';
@@ -30,10 +31,14 @@ class TeamDetailApi {
 
   /// 1. 현재 활성 팀 상세 조회 (GET /teams)
   Future<TeamDetailResult> getActiveTeamDetail() async {
+    final sw = Stopwatch()..start();
+    debugPrint('⏱️ [API 요청 시작] GET /teams');
+
     try {
       final response = await _dio.get('/teams');
-      final data = response.data;
+      debugPrint('⏱️ [API 요청 완료] 소요 시간: ${sw.elapsedMilliseconds}ms');
 
+      final data = response.data;
       if (data is Map<String, dynamic>) {
         final innerData = data['data'];
         if (innerData is Map<String, dynamic>) {
@@ -45,6 +50,10 @@ class TeamDetailApi {
       }
       throw TeamDetailApiException('응답 데이터 형식이 올바르지 않습니다.');
     } on DioException catch (e) {
+      debugPrint(
+        '⏱️ [API 에러 응답] 소요 시간: ${sw.elapsedMilliseconds}ms, statusCode: ${e.response?.statusCode}',
+      );
+
       final data = e.response?.data;
       String? errorCode;
       String message = '팀 정보를 불러오지 못했습니다.';

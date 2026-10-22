@@ -54,21 +54,20 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
     // 💡 주입받은 데이터가 있으면 사용하고, 없으면 teamDetailProvider 상태 사용
     final state = ref.watch(teamDetailProvider);
-    final TeamDetailModel? detail = widget.teamDetail ?? state.teamDetail;
-
-    if (detail == null && state.isLoading) {
-      return Scaffold(
-        backgroundColor: colors.surface,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    final detail = widget.teamDetail ?? state.teamDetail;
 
     if (detail == null) {
+      if (state.isLoading) {
+        return Scaffold(
+          backgroundColor: colors.surface,
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         backgroundColor: colors.surface,
         body: Center(
           child: Text(
-            state.errorMessage ?? '팀 정보를 찾을 수 없습니다.',
+            state.errorMessage ?? '팀 정보를 불러오는 중입니다...',
             style: FontStyles.med16.copyWith(color: context.grays.gray4),
           ),
         ),

@@ -88,6 +88,8 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
 
     if (result == true && mounted) {
       ref.read(teamSelectProvider.notifier).fetchMyTeams();
+      ref.invalidate(currentTeamProvider);
+      ref.read(myPageProvider.notifier).fetchMyPage();
     }
   }
 
