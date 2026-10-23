@@ -54,6 +54,7 @@ class PostCommentList extends StatelessWidget {
             comment: comment,
             canDelete: canModerate || comment.isMine,
             onReply: () => onReply(comment),
+            replyToName: null,
             onDelete: () => onDelete(comment.commentId),
           ),
           for (final reply in comment.replies)
@@ -67,6 +68,9 @@ class PostCommentList extends StatelessWidget {
                 comment: reply,
                 canDelete: canModerate || reply.isMine,
                 onReply: () => onReply(reply),
+                // 기존 대댓글은 부모(루트) 글쓴이를 대상자로 표시합니다.
+                // 새 대댓글은 본문에 명시된 답글 대상자가 우선합니다.
+                replyToName: comment.writerName,
                 onDelete: () => onDelete(reply.commentId),
               ),
             ),
@@ -84,9 +88,11 @@ class _SwipeComment extends StatefulWidget {
     required this.canDelete,
     required this.onReply,
     required this.onDelete,
+    required this.replyToName,
   });
 
   final PostComment comment;
+  final String? replyToName;
   final bool canDelete;
   final VoidCallback onReply;
   final Future<void> Function() onDelete;
@@ -228,10 +234,11 @@ class _SwipeCommentState extends State<_SwipeComment> {
                         ),
                         const SizedBox(height: AppSpacing.x8),
                         Text.rich(
-                          _mentionText(
+                          _commentContent(
                             context,
                             comment.content,
                             comment.mentionedUsers,
+                            widget.replyToName,
                           ),
                           softWrap: true,
                         ),
@@ -240,8 +247,8 @@ class _SwipeCommentState extends State<_SwipeComment> {
                           onPressed: widget.onReply,
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
-                            minimumSize: const Size(40, 28),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            minimumSize: Size.zero,
                           ),
                           child: Text(
                             '답글',
@@ -264,66 +271,115 @@ class _SwipeCommentState extends State<_SwipeComment> {
 
   static String _formatDate(DateTime date) => formatPostDateTime(date);
 
-  static TextSpan _mentionText(
+  // 서버는 답글의 부모 ID를 최상위 댓글 ID로 평탄화합니다.
+  // 답글의 답글도 정확한 대상 이름을 알 수 있도록 댓글 내용에만 대상 정보를
+  // 보관합니다. @멘션과는 별개이며 멘션 ID 목록에도 추가하지 않습니다.
+  static final RegExp _replyTargetPattern = RegExp(r'^↳([^↳\n]{1,80})↳\s*');
+  static final RegExp _legacyMentionPattern =
+      RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
+
+  static TextSpan _commentContent(
     BuildContext context,
     String content,
     List<PostMentionUser> mentionedUsers,
+    String? fallbackReplyToName,
   ) {
-    final legacyMentionPattern = RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
-    final legacyNames = legacyMentionPattern
-        .allMatches(content)
-        .map((match) => match.group(1) ?? match.group(2) ?? '')
-        .where((name) => name.isNotEmpty);
-
-    final visibleText = content.replaceAllMapped(
-      legacyMentionPattern,
-      (match) => match.group(1) ?? match.group(2) ?? '',
-    );
-
-    final mentionNames =
-        <String>{
-            ...mentionedUsers.map((user) => user.name.trim()),
-            ...legacyNames,
-          }.where((name) => name.isNotEmpty).toList()
-          ..sort((a, b) => b.length.compareTo(a.length));
-
-    if (mentionNames.isEmpty) {
-      return TextSpan(
-        text: visibleText,
-        style: FontStyles.reg14.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      );
-    }
-
-    final pattern = RegExp(mentionNames.map(RegExp.escape).join('|'));
-    final spans = <TextSpan>[];
-    var cursor = 0;
-
-    for (final match in pattern.allMatches(visibleText)) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: visibleText.substring(cursor, match.start)));
-      }
-
-      spans.add(
-        TextSpan(
-          text: match.group(0),
-          style: FontStyles.reg14.copyWith(color: context.brands.beatOrange1),
-        ),
-      );
-      cursor = match.end;
-    }
-
-    if (cursor < visibleText.length) {
-      spans.add(TextSpan(text: visibleText.substring(cursor)));
-    }
+    final replyMatch = fallbackReplyToName == null
+        ? null
+        : _replyTargetPattern.firstMatch(content);
+    final replyName = replyMatch?.group(1)?.trim() ?? fallbackReplyToName;
+    final body = replyMatch == null
+        ? content
+        : content.substring(replyMatch.end);
+    final bodySpan = _mentionText(context, body, mentionedUsers);
+    if (replyName == null || replyName.isEmpty) return bodySpan;
 
     return TextSpan(
       style: FontStyles.reg14.copyWith(
         color: Theme.of(context).colorScheme.onSurface,
       ),
-      children: spans,
+      children: [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.x4),
+            child: SvgPicture.asset(
+              'assets/icons/core/enter.svg',
+              width: 14,
+              height: 14,
+              colorFilter: ColorFilter.mode(
+                Theme.of(context).colorScheme.onSurface,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
+        TextSpan(
+          text: replyName,
+          style: FontStyles.semi14.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const TextSpan(text: ' '),
+        bodySpan,
+      ],
     );
+  }
+
+  static TextSpan _mentionText(
+    BuildContext context,
+    String content,
+    List<PostMentionUser> mentionedUsers,
+  ) {
+    // @문법을 그대로 포함한 구형 댓글도 표시할 수 있습니다.
+    final explicitNames = <String>{};
+    final visibleText = content.replaceAllMapped(
+      _legacyMentionPattern,
+      (match) {
+        final name = match.group(1) ?? match.group(2) ?? '';
+        if (name.isNotEmpty) explicitNames.add(name);
+        return name;
+      },
+    );
+    final names = <String>{
+      ...mentionedUsers.map((item) => item.name.trim()),
+      ...explicitNames,
+    }.where((value) => value.isNotEmpty).toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    final baseStyle = FontStyles.reg14.copyWith(
+      color: Theme.of(context).colorScheme.onSurface,
+    );
+    if (names.isEmpty) return TextSpan(text: visibleText, style: baseStyle);
+
+    final tokenPattern = RegExp(names.map(RegExp.escape).join('|'));
+    final spans = <TextSpan>[];
+    var cursor = 0;
+    for (final match in tokenPattern.allMatches(visibleText)) {
+      // 이름 중간이나 일반 단어 속에 포함된 문자열은 멘션으로 처리하지 않습니다.
+      final startsAtWordBoundary = match.start == 0 ||
+          !RegExp(r'[a-zA-Z0-9가-힣_]').hasMatch(visibleText[match.start - 1]);
+      final endsAtWordBoundary = match.end == visibleText.length ||
+          !RegExp(r'[a-zA-Z0-9가-힣_]').hasMatch(visibleText[match.end]);
+      if (!startsAtWordBoundary || !endsAtWordBoundary) continue;
+
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: visibleText.substring(cursor, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style: FontStyles.semi14.copyWith(
+            color: context.brands.beatOrange1,
+          ),
+        ),
+      );
+      cursor = match.end;
+    }
+    if (cursor < visibleText.length) {
+      spans.add(TextSpan(text: visibleText.substring(cursor)));
+    }
+    return TextSpan(style: baseStyle, children: spans);
   }
 }
 
@@ -478,7 +534,13 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
 
     setState(() => _sending = true);
     try {
-      final sent = await widget.onSend(content, _parentId, ids);
+      // 답글 대상의 이름을 서버 댓글 본문에도 담아, 서버가 parentCommentId를
+      // 루트로 정규화하더라도 답글의 답글 대상자를 다시 표시할 수 있도록 합니다.
+      // @멘션 기능과는 별개이므로 mentionedUserIds에는 추가하지 않습니다.
+      final payload = _parentId == null || _replyName == null
+          ? content
+          : '↳${_replyName!}↳ $content';
+      final sent = await widget.onSend(payload, _parentId, ids);
       if (sent && mounted) {
         setState(() {
           _controller.clear();
@@ -625,10 +687,9 @@ class _ReplyTargetBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.subdirectory_arrow_right_rounded,
-            size: 18,
-            color: context.grays.gray4,
+          SvgPicture.asset(
+            'assets/icons/core/enter.svg',
+            colorFilter: ColorFilter.mode(context.grays.gray1, BlendMode.srcIn),
           ),
           const SizedBox(width: AppSpacing.x8),
           Expanded(

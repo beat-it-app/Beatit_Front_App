@@ -103,6 +103,18 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
       backgroundColor: context.colors.surface,
       isScrollControlled: true,
       builder: (_) => PollVotersSheet(
+        optionTitle: () {
+          final item = data.pollItems[index];
+          return item.content?.trim().isNotEmpty == true
+              ? item.content!.trim()
+              : item.locationName?.trim().isNotEmpty == true
+                  ? item.locationName!.trim()
+                  : item.location?.trim().isNotEmpty == true
+                      ? item.location!.trim()
+                      : item.title?.trim().isNotEmpty == true
+                          ? item.title!.trim()
+                          : '투표 항목';
+        }(),
         loadVoters: () async => voters,
       ),
     );

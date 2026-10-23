@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.da
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
+import 'package:beatit_front_app/src/domain/post/post_date_time.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/meetit/view/meetit_edit_page.dart';
@@ -468,7 +469,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionLabel(
-          text: '시간표',
+          text: data.dateOnly ? '날짜' : '시간표',
           iconPath: 'assets/icons/meetit/calendar.svg',
           color: Theme.of(context).colorScheme.onSurface,
         ),
@@ -497,6 +498,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           endTime: _endTime,
           timetableGrid: data.timetableGrid,
           totalInvitedCount: data.totalInvitedCount,
+          dateOnly: data.dateOnly,
           mode: MeetitTimeGridMode.detail,
           summaryFilter: _summaryFilter,
           selectedParticipantIds: _selectedParticipantIds,
@@ -596,9 +598,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       return '${slot.startDateTime} - ${slot.endDateTime}';
     }
 
-    const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
-    final weekday = weekdays[start.weekday - 1];
-    final dateText = '${start.month}/${start.day} $weekday요일';
+    final dateText = formatPostDate(start);
 
     if (dateOnly) return dateText;
 

@@ -18,6 +18,7 @@ class MeetitTimeGrid extends StatefulWidget {
     required this.endTime,
     required this.timetableGrid,
     required this.totalInvitedCount,
+    this.dateOnly = false,
     this.mode = MeetitTimeGridMode.detail,
     this.summaryFilter = MeetitTimeGridSummaryFilter.heatmap,
     this.selectedParticipantIds = const <int>{},
@@ -41,6 +42,7 @@ class MeetitTimeGrid extends StatefulWidget {
 
   /// 기본 heatmap의 색상 강도 기준입니다.
   final int totalInvitedCount;
+  final bool dateOnly;
 
   final MeetitTimeGridMode mode;
   final MeetitTimeGridSummaryFilter summaryFilter;
@@ -85,6 +87,9 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
   Set<DateTime> _dragBaseSelection = <DateTime>{};
   _GridPosition? _dragStart;
   bool _dragAddsSelection = true;
+  int? _dateDragStartIndex;
+  Set<DateTime> _dateDragBaseSelection = <DateTime>{};
+  bool _dateDragAddsSelection = true;
 
   @override
   void initState() {
@@ -116,6 +121,12 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
       return _buildEmptyMessage(context, '선택된 후보 날짜가 없어요.');
     }
 
+    // 날짜만 조율할 때는 30분 시간축을 표시하지 않고 날짜 7개씩 줄바꿈합니다.
+    // 참가자별 색상과 '전체/가장 많이 되는 시간' 필터는 기존 셀 계산을 재사용합니다.
+    if (widget.dateOnly) {
+      return _buildDateOnlyGrid(context, dates);
+    }
+
     if (slotCount <= 0) {
       return _buildEmptyMessage(context, '시작 시간과 종료 시간을 확인해주세요.');
     }
@@ -142,8 +153,6 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                 child: SingleChildScrollView(
                   controller: _horizontalScrollController,
                   scrollDirection: Axis.horizontal,
-                  // edit 중에는 그리드 내부의 좌우 drag도 셀 선택에만 사용합니다.
-                  // 날짜 이동은 그리드 아래 전용 drag 영역에서만 처리합니다.
                   physics: _canEdit
                       ? const NeverScrollableScrollPhysics()
                       : const ClampingScrollPhysics(),
@@ -171,6 +180,142 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     );
   }
 
+  Widget _buildDateOnlyGrid(BuildContext context, List<DateTime> dates) {
+    const columnsPerRow = 7;
+    final rowCount = (dates.length / columnsPerRow).ceil();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var row = 0; row < rowCount; row++) ...[
+          if (row > 0) const SizedBox(height: AppSpacing.x16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final rowStart = row * columnsPerRow;
+              final visibleCount = math.min(columnsPerRow, dates.length - rowStart);
+              final columnWidth = constraints.maxWidth / columnsPerRow;
+              int indexAt(double x) {
+                final column = (x / columnWidth).floor().clamp(0, visibleCount - 1);
+                return rowStart + column.toInt();
+              }
+
+              final rowCells = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var column = 0; column < columnsPerRow; column++)
+                    Expanded(
+                      child: column < visibleCount
+                          ? _buildDateOnlyCell(context, dates[rowStart + column])
+                          : const SizedBox.shrink(),
+                    ),
+                ],
+              );
+              if (!_canEdit) return rowCells;
+
+              // 날짜 한 줄도 시간표와 같이 손가락이 지나간 모든 셀을 선택/해제합니다.
+              return Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (event) {
+                  _dateDragStartIndex = indexAt(event.localPosition.dx);
+                  widget.onEditGestureStateChanged?.call(true);
+                },
+                onPointerUp: (_) {
+                  widget.onEditGestureStateChanged?.call(false);
+                  if (_dateDragBaseSelection.isEmpty) _dateDragStartIndex = null;
+                },
+                onPointerCancel: (_) {
+                  widget.onEditGestureStateChanged?.call(false);
+                  _endDateDrag();
+                },
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragStart: (details) {
+                    final index = _dateDragStartIndex ?? indexAt(details.localPosition.dx);
+                    _dateDragStartIndex = index;
+                    _dateDragBaseSelection = Set<DateTime>.of(_editableSlots);
+                    _dateDragAddsSelection = !_editableSlots.contains(dates[index]);
+                    _applyDateDrag(dates, index);
+                  },
+                  onHorizontalDragUpdate: (details) {
+                    if (_dateDragStartIndex == null) return;
+                    _applyDateDrag(dates, indexAt(details.localPosition.dx));
+                  },
+                  onHorizontalDragEnd: (_) => _endDateDrag(),
+                  onHorizontalDragCancel: _endDateDrag,
+                  child: rowCells,
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _applyDateDrag(List<DateTime> dates, int endIndex) {
+    final startIndex = _dateDragStartIndex;
+    if (startIndex == null) return;
+    final next = Set<DateTime>.of(_dateDragBaseSelection);
+    for (var index = math.min(startIndex, endIndex);
+        index <= math.max(startIndex, endIndex);
+        index++) {
+      final day = DateUtils.dateOnly(dates[index]);
+      if (_dateDragAddsSelection) {
+        next.add(day);
+      } else {
+        next.remove(day);
+      }
+    }
+    _commitEditableSelection(next);
+  }
+
+  void _endDateDrag() {
+    _dateDragStartIndex = null;
+    _dateDragBaseSelection = <DateTime>{};
+  }
+
+  Widget _buildDateOnlyCell(BuildContext context, DateTime date) {
+    final slotStart = DateUtils.dateOnly(date);
+    final enabled = _canEdit;
+
+    return Semantics(
+      button: enabled,
+      selected: enabled && _editableSlots.contains(slotStart),
+      label: '${date.month}월 ${date.day}일 ${_weekdayLabel(date.weekday)}요일',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: !enabled
+            ? null
+            : () {
+                final next = Set<DateTime>.of(_editableSlots);
+                if (!next.add(slotStart)) next.remove(slotStart);
+                _commitEditableSelection(next);
+              },
+        child: Column(
+          children: [
+            Text(
+              '${date.month}/${date.day}',
+              maxLines: 1,
+              style: FontStyles.semi14.copyWith(color: context.grays.gray1),
+            ),
+            Text(
+              _weekdayLabel(date.weekday),
+              style: FontStyles.semi16.copyWith(color: context.grays.gray2),
+            ),
+            const SizedBox(height: AppSpacing.x8),
+            Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: _cellColor(context, slotStart: slotStart),
+                border: Border.all(color: context.grays.gray2, width: 0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHorizontalDragArea(bool canScrollHorizontally) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -179,12 +324,13 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
           : (details) {
               if (!_horizontalScrollController.hasClients) return;
 
-              final position = (
-                _horizontalScrollController.offset - details.delta.dx
-              ).clamp(
-                0.0,
-                _horizontalScrollController.position.maxScrollExtent,
-              ).toDouble();
+              final position =
+                  (_horizontalScrollController.offset - details.delta.dx)
+                      .clamp(
+                        0.0,
+                        _horizontalScrollController.position.maxScrollExtent,
+                      )
+                      .toDouble();
 
               _horizontalScrollController.jumpTo(position);
             },
@@ -434,9 +580,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
 
   Color _editOverlayCellColor(BuildContext context, DateTime slotStart) {
     final timetableSlot = _findTimetableSlot(slotStart);
-    final availableUserIds = <int>{
-      ...?timetableSlot?.availableUserIds,
-    };
+    final availableUserIds = <int>{...?timetableSlot?.availableUserIds};
 
     final editableUserId = widget.editableUserId;
     if (editableUserId != null) {

@@ -131,6 +131,7 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
                       height: 1,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.x4),
                   Text(
                     widget.locationText,
                     style: FontStyles.med14.copyWith(
