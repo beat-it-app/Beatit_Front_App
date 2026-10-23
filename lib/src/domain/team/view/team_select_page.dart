@@ -1,4 +1,3 @@
-import 'package:beatit_front_app/src/domain/team/view/team_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,7 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
 import 'package:beatit_front_app/src/domain/team/model/my_team_model.dart';
@@ -52,8 +51,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     if (!mounted) return;
 
     if (success) {
-      // TeamEntryPage가 상위에서 보고 있는 currentTeamProvider를 무효화하여
-      // GET /teams 재호출 및 TeamDetailPage로 자동 전환 유도
       ref.invalidate(myPageProvider);
       ref.invalidate(currentTeamProvider);
 
@@ -91,12 +88,17 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
 
     return Scaffold(
       backgroundColor: colors.surface,
+      // 💡 AppTwoAppBar.add 적용: 뒤로가기 + 우측 '+' 버튼 드롭다운 자동 연결
       appBar: hasTeam
-          ? AppTopAppBar.backMore(
+          ? AppTwoAppBar.add(
               title: '',
-              onMorePressed: () {},
-              moreMenuOffset: const Offset(-20, 56),
-              moreMenuItems: [
+              onBackPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+              addMenuOffset: const Offset(-5, 60),
+              addMenuItems: [
                 AppDropdownItem(
                   label: '팀 생성하기',
                   onPressed: () async {
@@ -113,13 +115,11 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
                 AppDropdownItem(
                   label: '팀 참여하기',
                   onPressed: () async {
-                    // 💡 push 뒤에 await를 걸어 pop으로 돌아올 때까지 대기
                     await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const TeamJoinPage(),
                       ),
                     );
-                    // 💡 돌아왔을 때 목록 새로고침!
                     if (mounted) {
                       ref.read(teamSelectProvider.notifier).fetchMyTeams();
                     }
@@ -188,7 +188,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
                   setState(() {
                     _selectedBox = 'join';
                   });
-                  // 💡 pop으로 돌아왔을 때 목록 새로고침!
                   await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => const TeamJoinPage(),
@@ -240,7 +239,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     final String? imageUrl = team.teamImageUrl;
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
 
-    // 이미지가 없을 때 기본 카드
     if (!hasImage) {
       return AppTeamCard(
         genre: team.teamType,
@@ -253,7 +251,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
       );
     }
 
-    // 이미지가 있을 때 배경 이미지 렌더링
     return GestureDetector(
       onTap: () => _handleTeamCardTap(team),
       child: ClipRRect(

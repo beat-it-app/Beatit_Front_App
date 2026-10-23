@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:core';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -25,6 +23,8 @@ import 'package:beatit_front_app/src/domain/team/provider/team_archive_provider.
 import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_archive_update_page.dart';
 
+import '../../etc/view/picture_preview_page.dart';
+
 class TeamArchiveDetailPage extends ConsumerStatefulWidget {
   final int archiveId;
 
@@ -38,7 +38,7 @@ class TeamArchiveDetailPage extends ConsumerStatefulWidget {
 class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
   final _composerKey = GlobalKey<_ArchiveCommentComposerState>();
 
-  bool _isMapVisible = true;
+  bool _isMapVisible = false;
   bool _isLoading = true;
   String? _errorMessage;
   TeamArchiveDetailModel? _detail;
@@ -148,6 +148,19 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     setState(() {
       _isMapVisible = !_isMapVisible;
     });
+  }
+
+  void _openImagePreview(List<String> imageUrls, int initialIndex) {
+    if (imageUrls.isEmpty) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PicturePreviewPage(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
   }
 
   String _formatDateTime(String? raw) {
@@ -625,8 +638,8 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 10,
+                                vertical: 5,
                               ),
                               decoration: BoxDecoration(
                                 color: context.brands.beatOrange5,
@@ -656,6 +669,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
 
                       // 5. 위치 정보 및 지도보기 토글
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -697,37 +711,51 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: AppSpacing.x8),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: canShowMap ? _toggleMapVisibility : null,
-                            child: Row(
-                              children: [
-                                Text(
-                                  '지도보기',
-                                  style: FontStyles.med16.copyWith(
-                                    color: canShowMap
-                                        ? context.brands.beatOrange2
-                                        : context.grays.gray5,
-                                    decoration: canShowMap
-                                        ? TextDecoration.underline
-                                        : TextDecoration.none,
-                                    decorationColor: context.brands.beatOrange2,
-                                  ),
-                                ),
-                                const SizedBox(width: 2),
-                                RotatedBox(
-                                  quarterTurns: _isMapVisible ? 2 : 0,
-                                  child: SvgPicture.asset(
-                                    'assets/icons/cal/toggle_down.svg',
-                                    colorFilter: ColorFilter.mode(
-                                      canShowMap
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.x4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '지도보기',
+                                    style: FontStyles.med16.copyWith(
+                                      color: canShowMap
                                           ? context.brands.beatOrange2
                                           : context.grays.gray5,
-                                      BlendMode.srcIn,
+                                      decoration: canShowMap
+                                          ? TextDecoration.underline
+                                          : TextDecoration.none,
+                                      decorationColor:
+                                          context.brands.beatOrange2,
+                                      decorationThickness: 1.06,
+                                      height: 1,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: AppSpacing.x4),
+                                  AnimatedRotation(
+                                    turns: _isMapVisible ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 220),
+                                    curve: Curves.easeInOut,
+                                    child: SvgPicture.asset(
+                                      'assets/icons/cal/toggle_down.svg',
+                                      width: 20,
+                                      height: 20,
+                                      colorFilter: ColorFilter.mode(
+                                        canShowMap
+                                            ? context.brands.beatOrange2
+                                            : context.grays.gray5,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -754,18 +782,10 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                                         onTap: () =>
                                             _openMapPreview(detail.locationId),
                                       )
-                                    : Container(
-                                        width: double.infinity,
-                                        height: 210,
-                                        decoration: BoxDecoration(
-                                          color: context.grays.gray8,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                    : _InlineMapLoading(
+                                        onReady: () => _prepareMapInBackground(
+                                          detail.locationId,
                                         ),
-                                        alignment: Alignment.center,
-                                        child:
-                                            const CircularProgressIndicator(),
                                       ),
                               )
                             : const SizedBox.shrink(),
@@ -782,22 +802,29 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                                 const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               final imgUrl = detail.archiveImageUrls[index];
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(5),
-                                child: Container(
-                                  width: (contentWidth - 8) / 2,
-                                  color: context.grays.gray8,
-                                  child: Image.network(
-                                    imgUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Center(
-                                      child: SvgPicture.asset(
-                                        'assets/icons/team/archive.svg',
-                                        width: 28,
-                                        height: 28,
-                                        colorFilter: ColorFilter.mode(
-                                          context.grays.gray5,
-                                          BlendMode.srcIn,
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => _openImagePreview(
+                                  detail.archiveImageUrls,
+                                  index,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(5),
+                                  child: Container(
+                                    width: (contentWidth - 8) / 2,
+                                    color: context.grays.gray8,
+                                    child: Image.network(
+                                      imgUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Center(
+                                        child: SvgPicture.asset(
+                                          'assets/icons/team/archive.svg',
+                                          width: 28,
+                                          height: 28,
+                                          colorFilter: ColorFilter.mode(
+                                            context.grays.gray5,
+                                            BlendMode.srcIn,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -824,8 +851,8 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                                   _myRating != null
                                       ? 'assets/icons/team/filled_star.svg'
                                       : 'assets/icons/team/star.svg',
-                                  width: 18,
-                                  height: 18,
+                                  width: 16,
+                                  height: 16,
                                   colorFilter: ColorFilter.mode(
                                     _myRating != null
                                         ? colors.primary
@@ -847,13 +874,13 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 8),
                           Row(
                             children: [
                               SvgPicture.asset(
                                 'assets/icons/team/reply.svg',
-                                width: 18,
-                                height: 18,
+                                width: 20,
+                                height: 20,
                                 colorFilter: ColorFilter.mode(
                                   context.grays.gray4,
                                   BlendMode.srcIn,
@@ -890,20 +917,19 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
 
   Widget _buildCommentList(TeamArchiveDetailModel detail) {
     if (detail.commentList.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
-        child: Column(
-          children: [
-            Text(
-              '아직 단 댓글이 없어요.',
-              style: FontStyles.med14.copyWith(color: context.grays.gray4),
-            ),
-            const SizedBox(height: AppSpacing.x4),
-            Text(
-              '가장 먼저 댓글을 남겨보세요.',
-              style: FontStyles.med14.copyWith(color: context.grays.gray4),
-            ),
-          ],
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '가장 먼저 댓글을 남겨보세요.',
+                style: FontStyles.med14.copyWith(color: context.grays.gray4),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -935,6 +961,39 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
           const SizedBox(height: AppSpacing.x20),
         ],
       ],
+    );
+  }
+}
+
+class _InlineMapLoading extends StatefulWidget {
+  const _InlineMapLoading({required this.onReady});
+
+  final Future<void> Function() onReady;
+
+  @override
+  State<_InlineMapLoading> createState() => _InlineMapLoadingState();
+}
+
+class _InlineMapLoadingState extends State<_InlineMapLoading> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onReady();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 210,
+      decoration: BoxDecoration(
+        color: context.grays.gray8,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(),
     );
   }
 }
