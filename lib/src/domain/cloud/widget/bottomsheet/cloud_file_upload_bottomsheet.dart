@@ -4,7 +4,11 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 
 Future<CloudFileUploadSelection?> showCloudFileUploadBottomSheet({
@@ -65,99 +69,156 @@ class _CloudFileUploadBottomSheetState
     'docx',
   };
 
-  PlatformFile? _selectedFile;
+  String? _selectedPath;
+  String? _selectedName;
   int? _selectedFileSize;
+  final ImagePicker _imagePicker = ImagePicker();
   String? _errorText;
   bool _isPicking = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // A single tap on Upload opens the OS-adapted source selector.
+    // The existing confirmation sheet stays below it for validation/submission.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pickFile();
+    });
+  }
+
   bool get _canSubmit {
-    final file = _selectedFile;
     final fileSize = _selectedFileSize;
 
-    return file != null &&
-        file.path != null &&
-        file.path!.trim().isNotEmpty &&
+    return _selectedName != null &&
+        _selectedPath != null &&
+        _selectedPath!.trim().isNotEmpty &&
         fileSize != null &&
         fileSize > 0 &&
         fileSize <= _maxFileSize &&
         _errorText == null;
   }
 
-  Future<void> _pickFile() async {
-    if (_isPicking) {
-      return;
+  /// iOS는 기존 Cupertino 액션 시트, Android는 공통 작업 선택 팝업.
+  Future<AppMediaSource?> _chooseSource() {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return showCupertinoModalPopup<AppMediaSource>(
+        context: context,
+        builder: (sheetContext) => CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(
+                sheetContext, AppMediaSource.photoLibrary),
+              child: const Text('사진 보관함'),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(
+                sheetContext, AppMediaSource.fileBrowser),
+              child: const Text('파일 탐색기'),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetContext),
+            child: const Text('취소'),
+          ),
+        ),
+      );
     }
+
+    return AppMediaSourcePopup.show(
+      context,
+      sources: const [AppMediaSource.photoLibrary, AppMediaSource.fileBrowser],
+    );
+  }
+
+  Future<void> _pickFile() async {
+    if (_isPicking) return;
+
+    final source = await _chooseSource();
+    if (!mounted || source == null) return;
 
     setState(() {
       _isPicking = true;
       _errorText = null;
     });
-
     try {
-      // 현재 Beat It 프로젝트에서 사용 중인 file_picker API에 맞춘 방식이다.
-      // 최신 FilePicker.platform API를 사용하지 않는다.
-      final pickedFiles = await FilePicker.pickFiles();
+      String? path;
+      String? name;
+      int? fileSize;
 
-      if (!mounted || pickedFiles.isEmpty) {
-        return;
+      if (source == AppMediaSource.fileBrowser) {
+        // Preserve the current file_picker API used in this codebase.
+        final files = await FilePicker.pickFiles();
+        if (files.isEmpty) return;
+        final file = files.first;
+        path = file.path;
+        name = file.name;
+        fileSize = await file.length();
+      } else {
+        final file = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          // Do not compress automatically. Keep the original file quality.
+          requestFullMetadata: false,
+        );
+        if (file == null) return;
+        path = file.path;
+        name = file.name;
+        fileSize = await file.length();
       }
 
-      final file = pickedFiles.first;
-      final path = file.path;
-      final fileSize = await file.length() ?? 0;
-      final extension = _extensionOf(file.name);
-
-      if (path == null || path.trim().isEmpty) {
-        if (!mounted) return;
+      if (!mounted) return;
+      if (path == null ||
+          path.trim().isEmpty ||
+          name == null ||
+          name.trim().isEmpty) {
         setState(() {
-          _selectedFile = null;
+          _selectedPath = null;
+          _selectedName = null;
           _selectedFileSize = null;
           _errorText = '선택한 파일의 경로를 확인할 수 없습니다.';
         });
         return;
       }
 
+      final extension = _extensionOf(name);
       if (extension == null || !_allowedExtensions.contains(extension)) {
-        if (!mounted) return;
         await _showBlockedPopup('지원하지 않는 파일 형식입니다.');
         return;
       }
-
-      if (fileSize <= 0) {
-        if (!mounted) return;
+      if (fileSize == null || fileSize <= 0) {
         setState(() {
-          _selectedFile = null;
+          _selectedPath = null;
+          _selectedName = null;
           _selectedFileSize = null;
           _errorText = '빈 파일은 등록할 수 없습니다.';
         });
         return;
       }
-
       if (fileSize > _maxFileSize) {
-        if (!mounted) return;
         await _showBlockedPopup('300MB를 초과하는 파일은 업로드할 수 없습니다.');
         return;
       }
-
-      if (!mounted) return;
       setState(() {
-        _selectedFile = file;
+        _selectedPath = path;
+        _selectedName = name;
         _selectedFileSize = fileSize;
         _errorText = null;
       });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = '파일을 가져오지 못했습니다. 다시 시도해주세요.';
+      });
+      debugPrint('[CloudFileUploadBottomSheet] pick failed: $error');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isPicking = false;
-        });
-      }
+      if (mounted) setState(() => _isPicking = false);
     }
   }
 
   Future<void> _showBlockedPopup(String content) async {
     if (!mounted) return;
     setState(() {
-      _selectedFile = null;
+      _selectedPath = null;
+      _selectedName = null;
       _selectedFileSize = null;
       _errorText = null;
     });
@@ -171,21 +232,15 @@ class _CloudFileUploadBottomSheetState
   }
 
   void _submit() {
-    final file = _selectedFile;
     final fileSize = _selectedFileSize;
-    final path = file?.path;
+    final path = _selectedPath;
+    final name = _selectedName;
 
-    if (!_canSubmit || file == null || fileSize == null || path == null) {
-      return;
-    }
+    if (!_canSubmit || name == null || fileSize == null || path == null) return;
 
-    Navigator.of(context).pop(
-      CloudFileUploadSelection(
-        path: path,
-        name: file.name,
-        size: fileSize,
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pop(CloudFileUploadSelection(path: path, name: name, size: fileSize));
   }
 
   String? _extensionOf(String fileName) {
@@ -216,7 +271,7 @@ class _CloudFileUploadBottomSheetState
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final file = _selectedFile;
+    final file = _selectedName;
     final fileSize = _selectedFileSize;
 
     return Material(
@@ -239,17 +294,13 @@ class _CloudFileUploadBottomSheetState
             Text(
               '파일 등록하기',
               textAlign: TextAlign.center,
-              style: FontStyles.bold26.copyWith(
-                color: context.grays.black,
-              ),
+              style: FontStyles.bold26.copyWith(color: context.grays.black),
             ),
             const SizedBox(height: AppSpacing.x8),
             Text(
               '팀원이 함께 사용할 파일을 선택해주세요. 최대 300MB까지 등록할 수 있어요.',
               textAlign: TextAlign.center,
-              style: FontStyles.med14.copyWith(
-                color: context.grays.gray4,
-              ),
+              style: FontStyles.med14.copyWith(color: context.grays.gray4),
             ),
             const SizedBox(height: AppSpacing.x24),
             InkWell(
@@ -260,9 +311,7 @@ class _CloudFileUploadBottomSheetState
                 decoration: BoxDecoration(
                   color: context.grays.gray8,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
-                  border: Border.all(
-                    color: context.grays.gray7,
-                  ),
+                  border: Border.all(color: context.grays.gray7),
                 ),
                 child: Column(
                   children: [
@@ -285,9 +334,7 @@ class _CloudFileUploadBottomSheetState
                       ),
                     const SizedBox(height: AppSpacing.x12),
                     Text(
-                      _isPicking
-                          ? '파일을 불러오는 중...'
-                          : file?.name ?? '파일 선택하기',
+                      _isPicking ? '파일을 불러오는 중...' : file ?? '파일 선택하기',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -312,9 +359,7 @@ class _CloudFileUploadBottomSheetState
               const SizedBox(height: AppSpacing.x8),
               Text(
                 _errorText!,
-                style: FontStyles.med12.copyWith(
-                  color: colors.error,
-                ),
+                style: FontStyles.med12.copyWith(color: colors.error),
               ),
             ],
             const SizedBox(height: AppSpacing.x24),

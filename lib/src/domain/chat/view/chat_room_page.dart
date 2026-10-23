@@ -2,7 +2,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
@@ -11,6 +10,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_room_provider.dart';
@@ -248,9 +248,15 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   Future<void> _handleMediaPressed() async {
     if (!_canSendAttachment()) return;
 
-    final messageType = await _showMediaTypePicker();
-    if (!mounted || messageType == null) return;
+    final source = await AppMediaSourcePopup.show(
+      context,
+      sources: const [AppMediaSource.photoLibrary, AppMediaSource.videoLibrary],
+    );
+    if (!mounted || source == null) return;
 
+    final messageType = source == AppMediaSource.videoLibrary
+        ? ChatMessageType.video
+        : ChatMessageType.image;
     final XFile? pickedMedia;
     if (messageType == ChatMessageType.video) {
       pickedMedia = await _imagePicker.pickVideo(source: ImageSource.gallery);
@@ -274,71 +280,6 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     );
   }
 
-  Future<ChatMessageType?> _showMediaTypePicker() {
-    return showModalBottomSheet<ChatMessageType>(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.x16,
-            AppSpacing.x16,
-            AppSpacing.x16,
-            AppSpacing.x28,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                splashColor: context.grays.gray8,
-                selectedColor: context.grays.gray8,
-                style: ListTileStyle.drawer,
-                leading: SvgPicture.asset(
-                  'assets/icons/chat/picture_fill.svg',
-                  colorFilter: ColorFilter.mode(
-                    context.grays.gray1,
-                    BlendMode.srcIn,
-                  ),
-                ),
-                title: Text(
-                  '사진',
-                  style: FontStyles.med16.copyWith(color: context.grays.gray1),
-                ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(ChatMessageType.image),
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                splashColor: context.grays.gray8,
-                selectedColor: context.grays.gray8,
-                style: ListTileStyle.drawer,
-                leading: SvgPicture.asset(
-                  'assets/icons/chat/video_fill.svg',
-                  colorFilter: ColorFilter.mode(
-                    context.grays.gray1,
-                    BlendMode.srcIn,
-                  ),
-                ),
-                title: Text(
-                  '동영상',
-                  style: FontStyles.med16.copyWith(color: context.grays.gray1),
-                ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(ChatMessageType.video),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   bool _canSendAttachment() {
     final state = ref.read(chatRoomProvider);
@@ -898,15 +839,14 @@ class _ChatNewMessageBanner extends StatelessWidget {
     final profileUrl = message.profileImageUrl;
 
     return ConstrainedBox(
-      // 190px 고정 너비, 60px 최소 높이. 부모의 Align이 강제 확장을 막는다.
       constraints: const BoxConstraints(
-        minWidth: 190,
-        maxWidth: 190,
+        minWidth: 210,
+        maxWidth: 210,
         minHeight: 60,
       ),
       child: Material(
-        color: context.grays.white.withValues(alpha: 0.82),
-        shadowColor: context.grays.black.withValues(alpha: 0.10),
+        color: context.grays.white.withValues(alpha: 0.90),
+        shadowColor: context.grays.black.withValues(alpha: 0.50),
         borderRadius: BorderRadius.circular(AppRadius.xxl),
         elevation: 1,
         clipBehavior: Clip.antiAlias,
@@ -918,7 +858,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
               AppSpacing.x12,
               AppSpacing.x8,
               AppSpacing.x8,
-              AppSpacing.x8,
+              AppSpacing.x12,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -929,7 +869,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
                       : const <String>[],
                   size: 36,
                 ),
-                const SizedBox(width: AppSpacing.x8),
+                const SizedBox(width: AppSpacing.x10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -939,15 +879,16 @@ class _ChatNewMessageBanner extends StatelessWidget {
                         message.isMine ? '나' : message.senderName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FontStyles.semi14.copyWith(
+                        style: FontStyles.bold14.copyWith(
                           color: context.grays.black,
+                          fontSize: 14,
                         ),
                       ),
                       Text(
                         text,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FontStyles.med14.copyWith(
+                        style: FontStyles.reg16.copyWith(
                           color: context.grays.gray2,
                         ),
                       ),

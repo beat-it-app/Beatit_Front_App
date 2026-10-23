@@ -648,16 +648,14 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       });
     } else {
       final sourceUs = _sourceDuration.inMicroseconds;
-      final spanUs = math.max(1, sourceUs ~/ 6).toInt();
-      final halfSpanUs = spanUs ~/ 2;
+      const desiredSpanUs = 20 * Duration.microsecondsPerSecond;
+      // Start at the current playhead and continue forward for up to 20 seconds.
+      // At EOF choose the last usable segment rather than an empty clip.
       final currentUs = absolutePosition.inMicroseconds;
-      final maxStartUs = math.max(0, sourceUs - spanUs).toInt();
-      final selectionStartUs = (currentUs - halfSpanUs)
-          .clamp(0, maxStartUs)
-          .toInt();
-      final selectionEndUs = math
-          .min(sourceUs, selectionStartUs + spanUs)
-          .toInt();
+      final selectionStartUs = currentUs >= sourceUs
+          ? math.max(0, sourceUs - desiredSpanUs).toInt()
+          : currentUs;
+      final selectionEndUs = math.min(sourceUs, selectionStartUs + desiredSpanUs).toInt();
       final selectionStart = Duration(microseconds: selectionStartUs);
       final selectionEnd = Duration(microseconds: selectionEndUs);
       final clampedPosition = _clampDuration(
@@ -725,6 +723,16 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     });
 
     if (wasPlaying) unawaited(_player.play());
+  }
+
+  Future<void> _resumeFromScrub(Duration target) async {
+    if (_loadState != _AudioLoadState.ready) return;
+    // 스크럽 도중의 재생 위치 업데이트는 중지하고 마지막 드래그 위치부터 재생.
+    await _player.pause();
+    await _seek(target);
+    if (mounted && _loadState == _AudioLoadState.ready) {
+      unawaited(_player.play());
+    }
   }
 
   Future<void> _seek(Duration target) async {
@@ -857,6 +865,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 selectionStart: _selectionStart,
                 selectionEnd: _selectionEnd,
                 onSeek: (position) => unawaited(_seek(position)),
+                onScrubStart: () => unawaited(_player.pause()),
+                onScrubEnd: _resumeFromScrub,
                 onSelectionChanged: _updateSelection,
                 onSelectionChangeEnd: (start, end) {
                   unawaited(_applySelection(start, end));
