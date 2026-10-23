@@ -111,17 +111,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.itemIds.length == 1 &&
-                                widget.displayName?.trim().isNotEmpty == true
-                            ? '${widget.displayName!.trim()} 이동'
-                            : widget.itemIds.length == 1
-                            ? '파일 이동'
-                            : '${widget.itemIds.length}개 파일 이동',
-                        style: FontStyles.bold34.copyWith(
-                          color: context.grays.black,
-                        ),
-                      ),
+                      _buildMoveTitle(),
                       const SizedBox(height: AppSpacing.x4),
                       Text(
                         '현재 위치: ${widget.currentFolderName}',
@@ -143,7 +133,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                         child: const Text('폴더 목록 다시 불러오기'),
                       ),
                     ),
-                    data: (data) => _buildTargets(data.folders),
+                    data: (data) => _buildTargets(data),
                   ),
                 ),
               ],
@@ -163,12 +153,70 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
     );
   }
 
-  Widget _buildTargets(List<CloudFolder> folders) {
+  Widget _buildMoveTitle() {
+    final titleStyle = FontStyles.bold34.copyWith(color: context.grays.black);
+    final fileName = widget.displayName?.trim();
+
+    if (widget.itemIds.length != 1 || fileName == null || fileName.isEmpty) {
+      return Text(
+        widget.itemIds.length == 1
+            ? '파일 이동'
+            : '${widget.itemIds.length}개 파일 이동',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: titleStyle,
+      );
+    }
+
+    // 파일명만 최대 2줄로 생략하고, 마지막 '이동'은 항상 보이게 합니다.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool fits(String name) {
+          final painter = TextPainter(
+            text: TextSpan(text: '$name 이동', style: titleStyle),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+            maxLines: 2,
+          )..layout(maxWidth: constraints.maxWidth);
+
+          final result = !painter.didExceedMaxLines;
+          painter.dispose();
+          return result;
+        }
+
+        var name = fileName;
+
+        if (!fits(name)) {
+          var low = 0;
+          var high = fileName.length;
+
+          while (low < high) {
+            final mid = (low + high + 1) ~/ 2;
+            final candidate = '${fileName.substring(0, mid).trimRight()}…';
+
+            if (fits(candidate)) {
+              low = mid;
+            } else {
+              high = mid - 1;
+            }
+          }
+
+          name = '${fileName.substring(0, low).trimRight()}…';
+        }
+
+        return Text('$name 이동', maxLines: 2, style: titleStyle);
+      },
+    );
+  }
+
+  Widget _buildTargets(CloudListData data) {
+    final folders = data.folders;
     final targets = <_MoveTarget>[
-      const _MoveTarget(
+      _MoveTarget(
         value: _rootTargetValue,
         label: '팀 클라우드',
-        itemCount: null,
+        // 루트의 파일/링크 개수는 루트 목록의 items 개수와 같습니다.
+        itemCount: data.items.length,
       ),
       ...folders.map(
         (folder) => _MoveTarget(
@@ -195,6 +243,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
             ? widget.currentFolderId == null
             : target.value == widget.currentFolderId;
         final isSelected = target.value == _selectedTargetValue;
+        final isRoot = target.value == _rootTargetValue;
 
         return InkWell(
           onTap: isCurrent
@@ -204,7 +253,9 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
             height: 58,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
             color: isSelected
-                ? context.brands.beatOrange6.withValues(alpha: 0.55)
+                ? isRoot
+                      ? context.grays.gray8.withValues(alpha: 0.65)
+                      : context.brands.beatOrange6.withValues(alpha: 0.55)
                 : context.grays.white.withValues(alpha: 0.0),
             child: Row(
               children: [
@@ -215,6 +266,8 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                   colorFilter: ColorFilter.mode(
                     isCurrent
                         ? context.grays.gray6
+                        : isRoot
+                        ? context.grays.gray1
                         : context.brands.beatOrange1,
                     BlendMode.srcIn,
                   ),
