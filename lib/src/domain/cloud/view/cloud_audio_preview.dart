@@ -21,10 +21,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_waveform/just_waveform.dart';
 
 class _CloudWaveformCacheFiles {
-  const _CloudWaveformCacheFiles({
-    required this.audio,
-    required this.waveform,
-  });
+  const _CloudWaveformCacheFiles({required this.audio, required this.waveform});
 
   final File audio;
   final File waveform;
@@ -276,7 +273,9 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
           });
           return;
         } catch (error) {
-          debugPrint('[CloudAudioPreview] cached waveform parse failed: $error');
+          debugPrint(
+            '[CloudAudioPreview] cached waveform parse failed: $error',
+          );
           try {
             await cacheFiles.waveform.delete();
           } catch (_) {}
@@ -311,47 +310,45 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 
       final pixelsPerSecond = _waveformPixelsPerSecond(_sourceDuration);
 
-      _waveformSubscription = JustWaveform.extract(
-        audioInFile: audioFile,
-        waveOutFile: temporaryWaveform,
-        // 1시간 이상의 음원에 높은 해상도 파형은 UI에 불필요하다.
-        // 길이가 길수록 coarse waveform을 사용해 파일 크기/추출 후처리를 줄인다.
-        zoom: WaveformZoom.pixelsPerSecond(pixelsPerSecond),
-      ).listen(
-        (progress) {
-          if (!mounted || requestId != _loadRequestId) return;
+      _waveformSubscription =
+          JustWaveform.extract(
+            audioInFile: audioFile,
+            waveOutFile: temporaryWaveform,
+            // 1시간 이상의 음원에 높은 해상도 파형은 UI에 불필요하다.
+            // 길이가 길수록 coarse waveform을 사용해 파일 크기/추출 후처리를 줄인다.
+            zoom: WaveformZoom.pixelsPerSecond(pixelsPerSecond),
+          ).listen(
+            (progress) {
+              if (!mounted || requestId != _loadRequestId) return;
 
-          final extractionProgress = progress.progress.clamp(0.0, 1.0);
-          final completedWaveform = progress.waveform;
+              final extractionProgress = progress.progress.clamp(0.0, 1.0);
+              final completedWaveform = progress.waveform;
 
-          setState(() {
-            _waveformProgress = 0.35 + (extractionProgress * 0.65);
-            _waveform = completedWaveform ?? _waveform;
-            if (completedWaveform != null) {
-              _waveformFailed = false;
-            }
-          });
+              setState(() {
+                _waveformProgress = 0.35 + (extractionProgress * 0.65);
+                _waveform = completedWaveform ?? _waveform;
+                if (completedWaveform != null) {
+                  _waveformFailed = false;
+                }
+              });
 
-          if (completedWaveform != null) {
-            unawaited(
-              _commitWaveformCache(
-                temporaryWaveform,
-                cacheFiles.waveform,
-              ),
-            );
-          }
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          debugPrint('[CloudAudioPreview] waveform extract failed: $error');
-          debugPrintStack(stackTrace: stackTrace);
+              if (completedWaveform != null) {
+                unawaited(
+                  _commitWaveformCache(temporaryWaveform, cacheFiles.waveform),
+                );
+              }
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              debugPrint('[CloudAudioPreview] waveform extract failed: $error');
+              debugPrintStack(stackTrace: stackTrace);
 
-          if (!mounted || requestId != _loadRequestId) return;
-          setState(() {
-            _waveformProgress = 1.0;
-            _waveformFailed = true;
-          });
-        },
-      );
+              if (!mounted || requestId != _loadRequestId) return;
+              setState(() {
+                _waveformProgress = 1.0;
+                _waveformFailed = true;
+              });
+            },
+          );
     } catch (error, stackTrace) {
       debugPrint('[CloudAudioPreview] waveform prepare failed: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -386,12 +383,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
       ),
     );
 
-    unawaited(
-      _pruneWaveformCache(
-        directory,
-        keepPrefix: cacheKey,
-      ),
-    );
+    unawaited(_pruneWaveformCache(directory, keepPrefix: cacheKey));
 
     return files;
   }
@@ -416,11 +408,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         try {
           final stat = await file.stat();
           totalBytes += stat.size;
-          infos.add((
-            file: file,
-            length: stat.size,
-            modified: stat.modified,
-          ));
+          infos.add((file: file, length: stat.size, modified: stat.modified));
         } catch (_) {}
       }
 
@@ -792,7 +780,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         AppSpacing.x20,
         AppSpacing.x24,
         AppSpacing.x20,
-        100.0,
+        80.0,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -930,7 +918,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                   showDelete: showDelete,
                   showMove: showMove,
                   showDownload: showDownload,
-                  onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+                  onDeletePressed: () =>
+                      widget.onDeletePressed?.call(_currentFile),
                   onMovePressed: () => widget.onMovePressed?.call(_currentFile),
                   onDownloadPressed: showDownload
                       ? () => widget.onDownloadPressed?.call(_currentFile)
@@ -945,10 +934,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
 }
 
 class _AudioErrorView extends StatelessWidget {
-  const _AudioErrorView({
-    required this.onRetry,
-    this.onOpenExternal,
-  });
+  const _AudioErrorView({required this.onRetry, this.onOpenExternal});
 
   final VoidCallback onRetry;
   final VoidCallback? onOpenExternal;

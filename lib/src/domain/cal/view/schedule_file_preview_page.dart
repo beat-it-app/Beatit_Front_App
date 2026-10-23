@@ -144,7 +144,6 @@ class ScheduleFilePreviewPage extends ConsumerWidget {
       return;
     }
 
-    _showDownloadMessage(context, '${file.name} 다운로드를 시작합니다.');
     final success = await ref.read(cloudDownloadProvider.notifier).downloadFiles([
       CloudDownloadRequest(
         // 생성/수정 화면의 로컬 파일 미리보기와 호환되는 ID 대체값입니다.
@@ -160,7 +159,7 @@ class ScheduleFilePreviewPage extends ConsumerWidget {
     _showDownloadMessage(
       context,
       success
-          ? 'Downloads 폴더에 저장했습니다.'
+          ? result.successMessage ?? '다운로드를 완료했습니다.'
           : result.errorMessage ?? '파일 다운로드에 실패했습니다.',
     );
   }

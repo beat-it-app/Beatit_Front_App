@@ -265,16 +265,6 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          requests.length == 1
-              ? '${requests.first.fileName} 다운로드를 시작합니다.'
-              : '${requests.length}개 파일 다운로드를 시작합니다.',
-        ),
-      ),
-    );
-
     final success = await ref
         .read(cloudDownloadProvider.notifier)
         .downloadFiles(requests);
@@ -285,7 +275,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       SnackBar(
         content: Text(
           success
-              ? 'Downloads 폴더에 저장했습니다.'
+              ? downloadState.successMessage ?? '다운로드를 완료했습니다.'
               : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
         ),
       ),

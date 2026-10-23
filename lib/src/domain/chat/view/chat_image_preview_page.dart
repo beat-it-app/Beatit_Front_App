@@ -56,39 +56,60 @@ class _ChatImagePreviewPageState extends State<ChatImagePreviewPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            PageView.builder(
-              controller: _pageController,
-              itemCount: widget.images.length,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) {
-                final message = widget.images[index];
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    return InteractiveViewer(
-                      minScale: 0.5,
-                      maxScale: 5,
-                      child: Center(
-                        child: Image.network(
-                          message.content,
-                          width: constraints.maxWidth,
-                          fit: BoxFit.fitWidth,
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null
-                              ? child
-                              : const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                          errorBuilder: (_, __, ___) => Icon(
-                            Icons.broken_image_outlined,
-                            size: 48,
-                            color: context.grays.gray5,
+            // The cloud image preview reserves room for its download bar.
+            // Do the same here so tall pictures never sit behind the bar.
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: widget.onDownloadPressed != null
+                    ? 66.0 + AppSpacing.x16 +
+                        MediaQuery.paddingOf(context).bottom
+                    : 0,
+              ),
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.images.length,
+                onPageChanged: (index) => setState(() => _currentIndex = index),
+                itemBuilder: (context, index) {
+                  final message = widget.images[index];
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final height = constraints.maxHeight;
+
+                      // Keep the cloud preview's bounded, aspect-ratio-safe
+                      // rendering. The image fits within both dimensions.
+                      return InteractiveViewer(
+                        key: ValueKey('chat-image-${message.messageId}'),
+                        minScale: 0.5,
+                        maxScale: 5,
+                        child: SizedBox(
+                          width: width,
+                          height: height,
+                          child: Image.network(
+                            message.content,
+                            width: width,
+                            height: height,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 48,
+                                color: context.grays.gray5,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
             if (widget.onDownloadPressed != null)
               Positioned(

@@ -78,116 +78,123 @@ class _ChatMessageComposerState extends State<ChatMessageComposer> {
         inputTheme.fillColor ?? colors.surfaceContainerHighest;
     final hintColor = inputTheme.hintStyle?.color ?? colors.onSurfaceVariant;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: inputBackground,
-                borderRadius: BorderRadius.circular(AppRadius.xxxl),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  5.0,
-                  AppSpacing.x4,
-                  AppSpacing.x12,
-                  AppSpacing.x4,
+    // The send/attachment buttons belong to the same tap region as the
+    // TextField. Otherwise the TextField's onTapOutside treats pressing Send
+    // as a tap away and dismisses the keyboard before the next message.
+    return TextFieldTapRegion(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: inputBackground,
+                  borderRadius: BorderRadius.circular(AppRadius.xxxl),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    AppDropdownList(
-                      width: 156,
-                      alignmentOffset: const Offset(0, 8),
-                      showPressedCheck: false,
-                      items: [
-                        AppDropdownItem(
-                          label: '파일',
-                          onPressed: widget.onFilePressed,
-                          svgLink: 'assets/icons/chat/folder.svg',
-                        ),
-                        AppDropdownItem(
-                          label: '이미지/영상',
-                          onPressed: widget.onMediaPressed,
-                          svgLink: 'assets/icons/chat/picture.svg',
-                        ),
-                      ],
-                      triggerBuilder: (context, menuController) {
-                        return SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: Material(
-                            color: colors.surface,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: widget.enabled
-                                  ? menuController.open
-                                  : null,
-                              child: Center(
-                                child: SvgPicture.asset(
-                                  'assets/icons/chat/plus.svg',
-                                  colorFilter: ColorFilter.mode(
-                                    context.grays.gray1,
-                                    BlendMode.srcIn,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    5.0,
+                    AppSpacing.x4,
+                    AppSpacing.x12,
+                    AppSpacing.x4,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      AppDropdownList(
+                        width: 156,
+                        alignmentOffset: const Offset(0, 8),
+                        showPressedCheck: false,
+                        items: [
+                          AppDropdownItem(
+                            label: '파일',
+                            onPressed: widget.onFilePressed,
+                            svgLink: 'assets/icons/chat/folder.svg',
+                          ),
+                          AppDropdownItem(
+                            label: '이미지/영상',
+                            onPressed: widget.onMediaPressed,
+                            svgLink: 'assets/icons/chat/picture.svg',
+                          ),
+                        ],
+                        triggerBuilder: (context, menuController) {
+                          return SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Material(
+                              color: colors.surface,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: widget.enabled
+                                    ? menuController.open
+                                    : null,
+                                child: Center(
+                                  child: SvgPicture.asset(
+                                    'assets/icons/chat/plus.svg',
+                                    colorFilter: ColorFilter.mode(
+                                      context.grays.gray1,
+                                      BlendMode.srcIn,
+                                    ),
+                                    width: 30,
+                                    height: 30,
                                   ),
-                                  width: 30,
-                                  height: 30,
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: AppSpacing.x8),
-                    Expanded(
-                      child: TextField(
-                        controller: widget.controller,
-                        focusNode: widget.focusNode,
-                        enabled: widget.enabled,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        minLines: 1,
-                        maxLines: 5,
-                        cursorColor: colors.primary,
-                        style: FontStyles.med16.copyWith(
-                          color: colors.onSurface,
-                          height: 1.3,
-                        ),
-                        decoration: InputDecoration(
-                          isCollapsed: true,
-                          filled: false,
-                          hintText: widget.hintText,
-                          hintStyle: FontStyles.med16.copyWith(
-                            color: hintColor,
-                            height: 1.3,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.x8,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                        ),
-                        onTapOutside: (_) {
-                          FocusManager.instance.primaryFocus?.unfocus();
+                          );
                         },
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.x8),
+                      Expanded(
+                        child: TextField(
+                          controller: widget.controller,
+                          focusNode: widget.focusNode,
+                          enabled: widget.enabled,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          minLines: 1,
+                          maxLines: 5,
+                          cursorColor: colors.primary,
+                          style: FontStyles.med16.copyWith(
+                            color: colors.onSurface,
+                            height: 1.3,
+                          ),
+                          decoration: InputDecoration(
+                            isCollapsed: true,
+                            filled: false,
+                            hintText: widget.hintText,
+                            hintStyle: FontStyles.med16.copyWith(
+                              color: hintColor,
+                              height: 1.3,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.x8,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                          ),
+                          // Outside the composer (e.g. the chat history),
+                          // dismiss the keyboard. Send stays inside the region.
+                          onTapOutside: (_) {
+                            widget.focusNode.unfocus();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.x8),
-        _SendButton(enabled: _canSend, onPressed: _send),
-      ],
+          const SizedBox(width: AppSpacing.x8),
+          _SendButton(enabled: _canSend, onPressed: _send),
+        ],
+      ),
     );
   }
 }

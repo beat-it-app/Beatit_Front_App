@@ -96,10 +96,6 @@ class AppPlaybackTimeLabels extends StatelessWidget {
         _ => CrossAxisAlignment.center,
       },
       children: [
-        Text(
-          title,
-          style: FontStyles.med12.copyWith(color: context.grays.gray6),
-        ),
         _time(
           context,
           title,

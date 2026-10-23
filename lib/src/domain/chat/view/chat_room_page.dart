@@ -563,7 +563,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       final downloadState = ref.read(cloudDownloadProvider);
       _showMessage(
         success
-            ? 'Downloads 폴더에 저장했습니다.'
+            ? downloadState.successMessage ?? '다운로드를 완료했습니다.'
             : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
       );
     } catch (error) {
@@ -739,9 +739,14 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                       left: AppSpacing.x16,
                       right: AppSpacing.x16,
                       bottom: AppSpacing.x12,
-                      child: _ChatNewMessageBanner(
-                        message: _latestUnseenMessage!,
-                        onPressed: _goToLatestMessage,
+                      // Positioned(left/right)는 자식을 화면 너비로 강제한다.
+                      // Align로 그 제약을 풀어 배너 자체의 190px 너비가 적용되게 한다.
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: _ChatNewMessageBanner(
+                          message: _latestUnseenMessage!,
+                          onPressed: _goToLatestMessage,
+                        ),
                       ),
                     ),
                 ],
@@ -892,62 +897,65 @@ class _ChatNewMessageBanner extends StatelessWidget {
 
     final profileUrl = message.profileImageUrl;
 
-    return Material(
-      color: context.grays.white.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(AppRadius.xxl),
-      elevation: 2,
-      child: InkWell(
+    return ConstrainedBox(
+      // 190px 고정 너비, 60px 최소 높이. 부모의 Align이 강제 확장을 막는다.
+      constraints: const BoxConstraints(
+        minWidth: 190,
+        maxWidth: 190,
+        minHeight: 60,
+      ),
+      child: Material(
+        color: context.grays.white.withValues(alpha: 0.82),
+        shadowColor: context.grays.black.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppRadius.xxl),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.x12,
-            AppSpacing.x8,
-            AppSpacing.x8,
-            AppSpacing.x8,
-          ),
-          child: Row(
-            children: [
-              GroupChatProfile(
-                imageUrls: profileUrl != null && profileUrl.trim().isNotEmpty
-                    ? <String>[profileUrl]
-                    : const <String>[],
-                size: 36,
-              ),
-              const SizedBox(width: AppSpacing.x8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      message.isMine ? '나' : message.senderName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.semi14.copyWith(
-                        color: context.grays.black,
-                      ),
-                    ),
-                    Text(
-                      text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.med14.copyWith(
-                        color: context.grays.gray2,
-                      ),
-                    ),
-                  ],
+        elevation: 1,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.x12,
+              AppSpacing.x8,
+              AppSpacing.x8,
+              AppSpacing.x8,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GroupChatProfile(
+                  imageUrls: profileUrl != null && profileUrl.trim().isNotEmpty
+                      ? <String>[profileUrl]
+                      : const <String>[],
+                  size: 36,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.x12),
-              CircleAvatar(
-                backgroundColor: context.brands.beatOrange1,
-                child: Icon(
-                  Icons.arrow_downward_rounded,
-                  color: context.grays.white,
+                const SizedBox(width: AppSpacing.x8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        message.isMine ? '나' : message.senderName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FontStyles.semi14.copyWith(
+                          color: context.grays.black,
+                        ),
+                      ),
+                      Text(
+                        text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FontStyles.med14.copyWith(
+                          color: context.grays.gray2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

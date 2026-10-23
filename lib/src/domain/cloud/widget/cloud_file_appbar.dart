@@ -95,15 +95,15 @@ class _CloudFileTitleButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Flexible(
-              //   child: Text(
-              //     titleText,
-              //     textAlign: TextAlign.center,
-              //     maxLines: 1,
-              //     overflow: TextOverflow.ellipsis,
-              //     style: FontStyles.semi18.copyWith(color: context.grays.black),
-              //   ),
-              // ),
+              Flexible(
+                child: Text(
+                  titleText,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FontStyles.semi18.copyWith(color: context.grays.black),
+                ),
+              ),
               if (onPressed != null) ...[
                 const SizedBox(width: AppSpacing.x8),
                 Container(
