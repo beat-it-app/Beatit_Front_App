@@ -194,9 +194,9 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
 
       if (!mounted) return;
       if (currentUserId == null || detail.creatorId != currentUserId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('밋잇 작성자만 삭제할 수 있습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('밋잇 작성자만 삭제할 수 있습니다.')));
         return;
       }
 
@@ -371,9 +371,9 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
                       duration: const Duration(milliseconds: 220),
                       child: KeyedSubtree(
                         key: ValueKey<PostMainType>(_selectedType),
-                      child: _searchController.text.trim().isEmpty
-                          ? const SizedBox.shrink()
-                          : _buildSelectedContent(state),
+                        child: _searchController.text.trim().isEmpty
+                            ? const SizedBox.shrink()
+                            : _buildSelectedContent(state),
                       ),
                     ),
                   ),
@@ -701,7 +701,7 @@ class _NoticeListItem extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.x8),
                 Text(
-                  '${_formatDateTime(item.createdAt)} · 작성자 ${item.writer}',
+                  '${_formatDateTime(item.createdAt)} · ${item.writer}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: FontStyles.reg12.copyWith(color: context.grays.gray4),
@@ -955,7 +955,8 @@ class _MeetitListItem extends StatelessWidget {
       MeetitMyResponseStatus.notResponded => '미응답',
       MeetitMyResponseStatus.notParticipant => '참여 대상 아님',
     };
-    final hasResponded = item.myResponseStatus == MeetitMyResponseStatus.responded;
+    final hasResponded =
+        item.myResponseStatus == MeetitMyResponseStatus.responded;
 
     return _PostItemTapSurface(
       semanticLabel: '${item.title} 밋잇 상세 보기',
@@ -978,7 +979,8 @@ class _MeetitListItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.x10),
                 _PostMetaChip(
                   firstIconPath: 'assets/icons/post/people.svg',
-                  firstText: '${item.respondedCount}/${item.totalInvitedCount}명',
+                  firstText:
+                      '${item.respondedCount}/${item.totalInvitedCount}명',
                   secondText: responseLabel,
                   secondTextColor: hasResponded
                       ? colorScheme.primary

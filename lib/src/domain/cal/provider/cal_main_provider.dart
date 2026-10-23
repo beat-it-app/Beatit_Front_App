@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:beatit_front_app/src/domain/cal/api/cal_api.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_date_response.dart';
 import 'package:beatit_front_app/src/domain/cal/model/calendar/calendar_month_response.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_api_provider.dart';
@@ -17,6 +21,7 @@ class CalMainState {
   const CalMainState({
     this.monthSchedules = const <CalendarSchedule>[],
     this.selectedDateSchedules = const <DateSchedule>[],
+    this.participationByScheduleId = const <int, bool>{},
     this.isMonthLoading = false,
     this.isDateLoading = false,
     this.monthError,
@@ -30,6 +35,7 @@ class CalMainState {
 
   final List<CalendarSchedule> monthSchedules;
   final List<DateSchedule> selectedDateSchedules;
+  final Map<int, bool> participationByScheduleId;
 
   final bool isMonthLoading;
   final bool isDateLoading;
@@ -46,6 +52,7 @@ class CalMainState {
   CalMainState copyWith({
     List<CalendarSchedule>? monthSchedules,
     List<DateSchedule>? selectedDateSchedules,
+    Map<int, bool>? participationByScheduleId,
     bool? isMonthLoading,
     bool? isDateLoading,
     String? monthError,
@@ -62,6 +69,8 @@ class CalMainState {
       monthSchedules: monthSchedules ?? this.monthSchedules,
       selectedDateSchedules:
           selectedDateSchedules ?? this.selectedDateSchedules,
+      participationByScheduleId:
+          participationByScheduleId ?? this.participationByScheduleId,
       isMonthLoading: isMonthLoading ?? this.isMonthLoading,
       isDateLoading: isDateLoading ?? this.isDateLoading,
       monthError: clearMonthError ? null : monthError ?? this.monthError,
@@ -80,6 +89,8 @@ class CalMainNotifier extends Notifier<CalMainState> {
       <String, List<CalendarSchedule>>{};
   final Map<DateTime, List<DateSchedule>> _dateCache =
       <DateTime, List<DateSchedule>>{};
+  final Map<int, bool> _participationCache = <int, bool>{};
+  final Map<int, Future<bool?>> _participationInFlight = <int, Future<bool?>>{};
   final Map<String, Future<List<CalendarSchedule>>> _monthInFlight =
       <String, Future<List<CalendarSchedule>>>{};
   final Map<DateTime, Future<List<DateSchedule>>> _dateInFlight =
@@ -105,12 +116,14 @@ class CalMainNotifier extends Notifier<CalMainState> {
       if (cached != null) {
         state = state.copyWith(
           monthSchedules: cached,
+          participationByScheduleId: Map<int, bool>.of(_participationCache),
           isMonthLoading: false,
           loadedYear: year,
           loadedMonth: month,
           hasLoadedMonthOnce: true,
           clearMonthError: true,
         );
+        unawaited(_loadMonthParticipation(cached, force: false));
         return;
       }
 
@@ -143,12 +156,16 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
       state = state.copyWith(
         monthSchedules: items,
+        participationByScheduleId: Map<int, bool>.of(_participationCache),
         isMonthLoading: false,
         loadedYear: year,
         loadedMonth: month,
         hasLoadedMonthOnce: true,
         clearMonthError: true,
       );
+      // 월간 API에는 참여자 목록이 없습니다. 상세 API로 기존 응답을 보완하고
+      // 일정 ID별 캐시를 유지해 불필요한 재호출을 줄입니다.
+      unawaited(_loadMonthParticipation(items, force: force));
     } catch (error) {
       if (!ref.mounted || requestId != _monthRequestId) {
         return;
@@ -204,6 +221,7 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
       state = state.copyWith(
         selectedDateSchedules: items,
+        participationByScheduleId: Map<int, bool>.of(_participationCache),
         isDateLoading: false,
         loadedDate: targetDay,
         hasLoadedDateOnce: true,
@@ -303,7 +321,13 @@ class CalMainNotifier extends Notifier<CalMainState> {
       date: targetDay.day,
     );
 
-    final items = response.data.items;
+    final items = response.items;
+    final userId = _currentUserId;
+    if (userId != null) {
+      for (final entry in response.participantUserIdsByScheduleId.entries) {
+        _participationCache[entry.key] = entry.value.contains(userId);
+      }
+    }
     final locationIds = items
         .map((schedule) => schedule.locationId)
         .whereType<int>();
@@ -313,7 +337,58 @@ class CalMainNotifier extends Notifier<CalMainState> {
     return items;
   }
 
+  int? get _currentUserId =>
+      ref.read(authProvider).asData?.value?.userId ??
+      ref.read(myPageProvider).data?.userId;
+
+  Future<void> _loadMonthParticipation(
+    List<CalendarSchedule> schedules, {
+    required bool force,
+  }) async {
+    final userId = _currentUserId;
+    if (userId == null) return;
+
+    final ids = schedules.map((schedule) => schedule.scheduleId).toSet()
+        .where((id) => force || !_participationCache.containsKey(id))
+        .toList(growable: false);
+
+    // 월간 조회에서 N개의 상세 API가 필요하므로 최대 4개씩 병렬 요청합니다.
+    for (var offset = 0; offset < ids.length; offset += 4) {
+      if (!ref.mounted) return;
+      final batch = ids.skip(offset).take(4).toList(growable: false);
+      await Future.wait(batch.map((id) => _resolveParticipation(id, userId)));
+      if (!ref.mounted) return;
+      state = state.copyWith(
+        participationByScheduleId: Map<int, bool>.of(_participationCache),
+      );
+    }
+  }
+
+  Future<void> _resolveParticipation(int scheduleId, int userId) async {
+    try {
+      final pending = _participationInFlight[scheduleId];
+      if (pending != null) {
+        await pending;
+        return;
+      }
+      final future = ref.read(calApiProvider)
+          .getScheduleDetail(scheduleId: scheduleId)
+          .then((response) => response.data.participants
+              .any((participant) => participant.userId == userId));
+      _participationInFlight[scheduleId] = future;
+      final isMine = await future;
+      if (ref.mounted && _currentUserId == userId) {
+        _participationCache[scheduleId] = isMine;
+      }
+    } catch (_) {
+      // 개별 일정 조회 실패가 캘린더 화면 전체를 막지는 않습니다.
+    } finally {
+      _participationInFlight.remove(scheduleId);
+    }
+  }
+
   void removeScheduleLocally(int scheduleId) {
+    _participationCache.remove(scheduleId);
     _monthCache.updateAll(
       (_, schedules) => schedules
           .where((schedule) => schedule.scheduleId != scheduleId)
@@ -332,6 +407,7 @@ class CalMainNotifier extends Notifier<CalMainState> {
       selectedDateSchedules: state.selectedDateSchedules
           .where((schedule) => schedule.scheduleId != scheduleId)
           .toList(growable: false),
+      participationByScheduleId: Map<int, bool>.of(_participationCache),
     );
   }
 

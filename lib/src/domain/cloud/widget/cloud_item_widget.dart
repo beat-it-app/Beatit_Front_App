@@ -104,7 +104,7 @@ class CloudItemWidget extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.only(
                 left: isSelectionMode ? AppSpacing.x16 : AppSpacing.x30,
-                right: AppSpacing.x8,
+                right: AppSpacing.x20,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,

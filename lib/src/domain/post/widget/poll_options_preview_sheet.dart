@@ -175,7 +175,7 @@ class _PollOptionsPreviewSheetState extends State<PollOptionsPreviewSheet> {
                 child: ListView.separated(
                   itemCount: widget.items.length,
                   separatorBuilder: (_, __) =>
-                      Divider(color: context.grays.gray7, height: 1),
+                      Divider(color: context.grays.gray7, height: 0),
                   itemBuilder: (context, index) {
                     final item = widget.items[index];
                     if (!widget.isMusic) {

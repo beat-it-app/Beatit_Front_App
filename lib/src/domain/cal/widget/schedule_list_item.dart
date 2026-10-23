@@ -128,8 +128,10 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
                     widget.titleText,
                     style: FontStyles.semi16.copyWith(
                       color: context.grays.black,
+                      height: 1,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.x4),
                   Text(
                     widget.locationText,
                     style: FontStyles.med14.copyWith(
@@ -154,7 +156,7 @@ class _ScheduleListItemState extends State<ScheduleListItem> {
   Color _resolveScheduleBackgroundColor(BuildContext context) {
     return switch (widget.scheduleType) {
       ScheduleType.mine => context.colors.primary,
-      ScheduleType.none => context.grays.gray1,
+      ScheduleType.none => context.grays.black,
     };
   }
 

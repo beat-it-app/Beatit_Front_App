@@ -53,6 +53,7 @@ class KakaoStaticMapWidget extends StatelessWidget {
       'center': '$longitude,$latitude',
       'size': '${requestWidth}x$requestHeight',
       'lv': '$level',
+      'coord': 'WGS84',
     });
   }
 
@@ -149,82 +150,86 @@ class KakaoStaticMapWidget extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     child,
+                    // 카카오 정적 지도의 중심 좌표가 서버의 위도/경도입니다.
+                    // 핀의 끝을 정확히 이미지 중심에 맞추고, 라벨만 그 위에 배치합니다.
+                    // 미리보기와 일정 인라인 지도가 이 동일한 기준을 공유합니다.
                     IgnorePointer(
                       child: Center(
                         child: Transform.translate(
-                          offset: const Offset(0, -50),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (markerLabel?.trim().isNotEmpty == true)
-                                Stack(
-                                  alignment: Alignment.bottomCenter,
-                                  children: [
-                                    Container(
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 250,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.x24,
-                                        vertical: AppSpacing.x8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: context.grays.gray1,
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadius.pill,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        markerLabel!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: FontStyles.med16.copyWith(
-                                          color: context.grays.white,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: -20,
-                                      child: Icon(
-                                        Icons.arrow_drop_down,
-                                        color: context.grays.gray1,
-                                        size: 60,
-                                      ),
-                                    ),
-                                  ],
+                          offset: const Offset(0, -22),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 44,
+                                  color: context.brands.beatOrange2,
                                 ),
-                              const SizedBox(height: 4),
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Stack(
-                                  children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 44,
-                                      color: context.brands.beatOrange2,
+                                Positioned(
+                                  top: 10,
+                                  left: 15,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: context.grays.white,
+                                      shape: BoxShape.circle,
                                     ),
-                                    Positioned(
-                                      top: 10,
-                                      left: 15,
-                                      child: Container(
-                                        width: 14,
-                                        height: 14,
-                                        decoration: BoxDecoration(
-                                          color: context.grays.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
+                    if (markerLabel?.trim().isNotEmpty == true)
+                      IgnorePointer(
+                        child: Center(
+                          child: Transform.translate(
+                            offset: const Offset(0, -50),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.x24,
+                                    vertical: AppSpacing.x8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: context.grays.gray1,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.pill,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    markerLabel!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: FontStyles.med16.copyWith(
+                                      color: context.grays.white,
+                                    ),
+                                  ),
+                                ),
+                                Transform.translate(
+                                  offset: const Offset(0, -18),
+                                  child: Icon(
+                                    Icons.arrow_drop_down,
+                                    color: context.grays.gray1,
+                                    size: 40,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 );
               },

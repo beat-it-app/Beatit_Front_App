@@ -27,7 +27,7 @@ class MusicPreviewListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: context.colors.surface,
+      color: isPlaying ? context.grays.gray8 : context.colors.surface,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -39,7 +39,7 @@ class MusicPreviewListItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const _PlaybackStatusIcon(),
+              _PlaybackStatusIcon(isPlaying: isPlaying),
               const SizedBox(width: AppSpacing.x16),
               Expanded(
                 child: Column(
@@ -68,7 +68,8 @@ class MusicPreviewListItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.x12),
-              _MusicWaveIndicator(isPlaying: isPlaying, isLoading: isLoading),
+              if (isPlaying)
+                _MusicWaveIndicator(isPlaying: isPlaying, isLoading: isLoading),
             ],
           ),
         ),
@@ -77,8 +78,19 @@ class MusicPreviewListItem extends StatelessWidget {
   }
 }
 
-class _PlaybackStatusIcon extends StatelessWidget {
-  const _PlaybackStatusIcon();
+class _PlaybackStatusIcon extends StatefulWidget {
+  const _PlaybackStatusIcon({super.key, required this.isPlaying});
+
+  final bool isPlaying;
+
+  @override
+  State<_PlaybackStatusIcon> createState() => _PlaybackStatusIconState();
+}
+
+class _PlaybackStatusIconState extends State<_PlaybackStatusIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
 
   @override
   Widget build(BuildContext context) {
@@ -90,19 +102,32 @@ class _PlaybackStatusIcon extends StatelessWidget {
         color: context.brands.beatOrange1,
       ),
       alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 3),
-        child: SvgPicture.asset(
-          'assets/icons/core/play.svg',
-          width: 10,
-          height: 10,
-          fit: BoxFit.contain,
-          colorFilter: ColorFilter.mode(
-            context.colors.onPrimary,
-            BlendMode.srcIn,
-          ),
-        ),
-      ),
+      child: widget.isPlaying
+          ? Center(
+              child: SvgPicture.asset(
+                'assets/icons/etc/pause.svg',
+                width: 16,
+                height: 16,
+                fit: BoxFit.contain,
+                colorFilter: ColorFilter.mode(
+                  context.colors.onPrimary,
+                  BlendMode.srcIn,
+                ),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.only(left: 3),
+              child: SvgPicture.asset(
+                'assets/icons/core/play.svg',
+                width: 10,
+                height: 10,
+                fit: BoxFit.contain,
+                colorFilter: ColorFilter.mode(
+                  context.colors.onPrimary,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
     );
   }
 }

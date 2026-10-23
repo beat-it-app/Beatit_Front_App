@@ -61,6 +61,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   void initState() {
     super.initState();
     _focusedMonth = _firstCalendarMonth;
+    _startTimeController.text = '9:00';
+    _endTimeController.text = '18:00';
   }
 
   @override
@@ -101,20 +103,27 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     setState(() {
       _dateOnly = selected;
       if (selected) {
-        _startTimeController.clear();
-        _endTimeController.clear();
+        // 날짜 전용 모드에서는 전송하지 않지만 시간 모드로 돌아오면 기본값을 유지합니다.
         _timeError = null;
       }
     });
   }
 
   Future<void> _chooseMembers() async {
-    final selected = await Navigator.of(context).push<List<MemberSelectionMember>>(
-      MaterialPageRoute(builder: (_) => MemberSelectionPage(
-        initialSelectedMemberIds: _members.map((member) => member.id).toSet(),
-        initialSelectedUserIds: _members.map((member) => member.userId).whereType<int>().toSet(),
-      )),
-    );
+    final selected = await Navigator.of(context)
+        .push<List<MemberSelectionMember>>(
+          MaterialPageRoute(
+            builder: (_) => MemberSelectionPage(
+              initialSelectedMemberIds: _members
+                  .map((member) => member.id)
+                  .toSet(),
+              initialSelectedUserIds: _members
+                  .map((member) => member.userId)
+                  .whereType<int>()
+                  .toSet(),
+            ),
+          ),
+        );
     if (!mounted || selected == null) return;
 
     setState(() {
@@ -148,18 +157,21 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     final parts = controller.text.split(':');
     final initialTime = parts.length == 2
         ? TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]))
-        : const TimeOfDay(hour: 9, minute: 0);
+        : identical(controller, _startTimeController)
+            ? const TimeOfDay(hour: 9, minute: 0)
+            : const TimeOfDay(hour: 18, minute: 0);
     final time = await AppTimeBottomSheet.showTimePicker(
       context,
       title: identical(controller, _startTimeController)
-          ? '시작 시간 선택' : '끝나는 시간 선택',
+          ? '시작 시간 선택'
+          : '끝나는 시간 선택',
       initialTime: initialTime,
       minuteInterval: 30,
     );
     if (time == null || !mounted) return;
     setState(() {
       controller.text =
-          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+          '${time.hour.toString()}:${time.minute.toString().padLeft(2, '0')}';
       if (_timeError != null) {
         _timeError = _timeValidationMessage();
       }
@@ -255,16 +267,32 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(postApiProvider).createMeetit(MeetitCreateRequest(
-        title: name,
-        candidateDates: dates.map((date) => '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}').toList(),
-        startTime: dateOnly ? null : start, endTime: dateOnly ? null : end,
-        dateOnly: dateOnly, participantUserIds: userIds,
-      ));
+      await ref
+          .read(postApiProvider)
+          .createMeetit(
+            MeetitCreateRequest(
+              title: name,
+              candidateDates: dates
+                  .map(
+                    (date) =>
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+                  )
+                  .toList(),
+              startTime: dateOnly ? null : start,
+              endTime: dateOnly ? null : end,
+              dateOnly: dateOnly,
+              participantUserIds: userIds,
+            ),
+          );
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally { if (mounted) setState(() => _submitting = false); }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   String _formatMonth(DateTime date) {
@@ -350,9 +378,12 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                             requiredColor: _dateOnly ? null : colors.primary,
                           ),
                           const Spacer(),
-                          Text('날짜만 선택', style: FontStyles.med14.copyWith(
-                            color: context.colors.onSurface,
-                          )),
+                          Text(
+                            '날짜만 선택',
+                            style: FontStyles.med14.copyWith(
+                              color: context.colors.onSurface,
+                            ),
+                          ),
                           const SizedBox(width: AppSpacing.x8),
                           MeetitSwitchWidget(
                             initialValue: _dateOnly,
@@ -361,84 +392,84 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.x8),
-                      if (!_dateOnly) Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '시작',
-                                  style: FontStyles.med14.copyWith(
-                                    color: context.colors.onSurface,
+                      if (!_dateOnly)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '시작',
+                                    style: FontStyles.med14.copyWith(
+                                      color: context.colors.onSurface,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: AppSpacing.x8),
-                                AppTextField(
-                                  hintText: '시작 시간',
-                                  controller: _startTimeController,
-                                  readOnly: true,
-                                  isError: _startTimeHasError,
-                                  onTap: () => _chooseTime(_startTimeController),
-                                  suffixIcon: SvgPicture.asset(
-                                    'assets/icons/cal/clock.svg',
+                                  const SizedBox(height: AppSpacing.x8),
+                                  AppTextField(
+                                    hintText: '시작 시간',
+                                    controller: _startTimeController,
+                                    readOnly: true,
+                                    isError: _startTimeHasError,
+                                    onTap: () =>
+                                        _chooseTime(_startTimeController),
+                                    suffixIcon: SvgPicture.asset(
+                                      'assets/icons/cal/clock.svg',
+                                    ),
+                                    onChanged: (_) {
+                                      setState(() {});
+                                    },
                                   ),
-                                  onChanged: (_) {
-                                    setState(() {});
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.x10),
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.x14,
-                            ),
-                            child: Text(
-                              '-',
-                              style: FontStyles.med14.copyWith(
-                                color: context.colors.onSurface,
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: AppSpacing.x10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '종료',
-                                  style: FontStyles.med14.copyWith(
-                                    color: context.colors.onSurface,
-                                  ),
+                            const SizedBox(width: AppSpacing.x10),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpacing.x14,
+                              ),
+                              child: Text(
+                                '-',
+                                style: FontStyles.med14.copyWith(
+                                  color: context.colors.onSurface,
                                 ),
-                                const SizedBox(height: AppSpacing.x8),
-                                AppTextField(
-                                  hintText: '끝나는 시간',
-                                  controller: _endTimeController,
-                                  readOnly: true,
-                                  isError: _endTimeHasError,
-                                  onTap: () => _chooseTime(_endTimeController),
-                                  suffixIcon: SvgPicture.asset(
-                                    'assets/icons/cal/clock.svg',
-                                  ),
-                                  onChanged: (_) {
-                                    setState(() {});
-                                  },
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: AppSpacing.x10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '종료',
+                                    style: FontStyles.med14.copyWith(
+                                      color: context.colors.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.x8),
+                                  AppTextField(
+                                    hintText: '끝나는 시간',
+                                    controller: _endTimeController,
+                                    readOnly: true,
+                                    isError: _endTimeHasError,
+                                    onTap: () =>
+                                        _chooseTime(_endTimeController),
+                                    suffixIcon: SvgPicture.asset(
+                                      'assets/icons/cal/clock.svg',
+                                    ),
+                                    onChanged: (_) {
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       if (!_dateOnly && _timeError != null) ...[
                         const SizedBox(height: AppSpacing.x4),
-                        AppFieldMessage(
-                          text: _timeError!,
-                          isError: true,
-                        ),
+                        AppFieldMessage(text: _timeError!, isError: true),
                       ],
 
                       const SizedBox(height: AppSpacing.x30),
@@ -486,10 +517,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                         ),
                       if (_membersError != null) ...[
                         const SizedBox(height: AppSpacing.x4),
-                        AppFieldMessage(
-                          text: _membersError!,
-                          isError: true,
-                        ),
+                        AppFieldMessage(text: _membersError!, isError: true),
                       ],
                     ],
                   ),
@@ -624,7 +652,9 @@ class _MemberInfoButton extends StatelessWidget {
                 width: 60.0,
                 decoration: ShapeDecoration(
                   image: DecorationImage(
-                    image: memberImage == null || memberImage!.isEmpty ? const AssetImage('assets/images/exProfile.jpg') : NetworkImage(memberImage!) as ImageProvider,
+                    image: memberImage == null || memberImage!.isEmpty
+                        ? const AssetImage('assets/images/exProfile.jpg')
+                        : NetworkImage(memberImage!) as ImageProvider,
                     fit: BoxFit.cover,
                   ),
                   shape: const OvalBorder(),
@@ -666,13 +696,25 @@ class _MemberInfoButton extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.x8),
 
-          Text(
-            memberName,
-            style: FontStyles.semi18.copyWith(color: context.grays.gray1),
+          SizedBox(
+            width: 60,
+            child: Text(
+              memberName,
+              style: FontStyles.semi18.copyWith(color: context.grays.gray1),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
-          Text(
-            memberPart,
-            style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+          SizedBox(
+            width: 60,
+            child: Text(
+              memberPart,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),

@@ -11,8 +11,8 @@ abstract class ScheduleCreateRequest with _$ScheduleCreateRequest {
     int? locationId,
     required String title,
     String? content,
-    @KstDateTimeConverter() required DateTime startsAt,
-    @KstDateTimeConverter() required DateTime endsAt,
+    @KstDateTimeConverter() DateTime? startsAt,
+    @KstDateTimeConverter() DateTime? endsAt,
     @Default(<int>[]) List<int> participantUserIds,
     @Default(<ScheduleCreateMusicRequest>[]) List<ScheduleCreateMusicRequest> musics,
   }) = _ScheduleCreateRequest;

@@ -444,13 +444,12 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
     }
 
     final sourceUs = _duration.inMicroseconds;
-    final spanUs = math
-        .max(Duration.microsecondsPerSecond, sourceUs ~/ 6)
-        .toInt();
+    const desiredSpanUs = 20 * Duration.microsecondsPerSecond;
     final currentUs = _currentPosition.inMicroseconds;
-    final maxStartUs = math.max(0, sourceUs - spanUs).toInt();
-    final startUs = (currentUs - (spanUs ~/ 2)).clamp(0, maxStartUs).toInt();
-    final endUs = math.min(sourceUs, startUs + spanUs).toInt();
+    final startUs = currentUs >= sourceUs
+        ? math.max(0, sourceUs - desiredSpanUs).toInt()
+        : currentUs;
+    final endUs = math.min(sourceUs, startUs + desiredSpanUs).toInt();
     final start = Duration(microseconds: startUs);
     final end = Duration(microseconds: endUs);
 
@@ -463,6 +462,15 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
       _selectionEnd = end;
       _repeatMode = _VideoRepeatMode.selection;
     });
+  }
+
+  Future<void> _resumeFromScrub(Duration target) async {
+    if (!_controller.value.isInitialized) return;
+    await _controller.pause();
+    await _seek(target);
+    if (mounted && _controller.value.isInitialized) {
+      await _controller.play();
+    }
   }
 
   Future<void> _seek(Duration target) async {
@@ -574,6 +582,8 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
                 onSeek: (position) {
                   unawaited(_seek(position));
                 },
+                onScrubStart: () => unawaited(_controller.pause()),
+                onScrubEnd: _resumeFromScrub,
                 onSelectionChanged: _updateSelection,
                 onSelectionChangeEnd: (start, end) {
                   unawaited(_applySelection(start, end));

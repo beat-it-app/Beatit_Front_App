@@ -153,35 +153,47 @@ class _PicturePreviewPageState extends State<PicturePreviewPage> {
         (uri.scheme == 'http' || uri.scheme == 'https');
     final isFileUri = uri != null && uri.scheme == 'file';
 
-    final image = isRemote
-        ? Image.network(
-            imageSource,
-            width: double.infinity,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) {
-                return child;
-              }
+    // PageView의 실제 가용 높이 안에 원본 비율을 유지해 배치합니다.
+    // 세로로 긴 사진도 아래 페이지 표시 영역을 침범하지 않습니다.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
 
-              return Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes == null
-                      ? null
-                      : loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!,
-                ),
+        final image = isRemote
+            ? Image.network(
+                imageSource,
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes == null
+                          ? null
+                          : loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!,
+                    ),
+                  );
+                },
+                errorBuilder: _buildImageError,
+              )
+            : Image.file(
+                File(isFileUri ? uri.toFilePath() : imageSource),
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: _buildImageError,
               );
-            },
-            errorBuilder: _buildImageError,
-          )
-        : Image.file(
-            File(isFileUri ? uri.toFilePath() : imageSource),
-            width: double.infinity,
-            fit: BoxFit.contain,
-            errorBuilder: _buildImageError,
-          );
 
-    return Center(child: image);
+        return InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 5.0,
+          child: SizedBox(width: width, height: height, child: image),
+        );
+      },
+    );
   }
 
   Widget _buildImageError(

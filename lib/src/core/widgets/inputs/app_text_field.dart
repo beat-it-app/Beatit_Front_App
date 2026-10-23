@@ -156,7 +156,10 @@ class _AppTextFieldState extends State<AppTextField> {
           ),
           const SizedBox(height: AppSpacing.x8),
         ],
-        AnimatedContainer(
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.enabled && widget.readOnly ? widget.onTap : null,
+          child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: widget.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
@@ -186,7 +189,9 @@ class _AppTextFieldState extends State<AppTextField> {
                 child: Center(
                   child: SizedBox(
                     width: double.infinity,
-                    child: TextFormField(
+                    child: AbsorbPointer(
+                      absorbing: widget.readOnly && widget.onTap != null,
+                      child: TextFormField(
                       controller: widget.controller,
                       focusNode: _focusNode,
                       enabled: widget.enabled,
@@ -221,6 +226,7 @@ class _AppTextFieldState extends State<AppTextField> {
                       onTapOutside: (_) {
                         FocusScope.of(context).unfocus();
                       },
+                      ),
                     ),
                   ),
                 ),
@@ -236,6 +242,7 @@ class _AppTextFieldState extends State<AppTextField> {
                 ),
               ],
             ],
+          ),
           ),
         ),
         if (_hasBottomText) ...[

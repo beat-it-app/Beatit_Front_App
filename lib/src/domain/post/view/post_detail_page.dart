@@ -34,7 +34,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   List<String> get imageUrls => _data?.images ?? const [];
 
   @override
-  void initState() { super.initState(); Future.microtask(_load); }
+  void initState() {
+    super.initState();
+    Future.microtask(_load);
+  }
 
   Future<void> _load() async {
     try {
@@ -50,7 +53,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   void _showError(Object error) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    if (mounted)
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   bool get _isLiked => _data?.reaction.isLiked ?? false;
@@ -71,6 +77,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       _reactionPending = false;
     }
   }
+
   Future<void> _toggleDislike() async {
     if (_reactionPending || _data == null) return;
     _reactionPending = true;
@@ -86,21 +93,36 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<bool> _addComment(String message, int? parentId, List<int> mentions) async {
+  Future<bool> _addComment(
+    String message,
+    int? parentId,
+    List<int> mentions,
+  ) async {
     if (message.trim().isEmpty) return false;
     try {
-      await ref.read(postApiProvider).commentNotice(widget.noticeId, message.trim(),
-        parentCommentId: parentId, mentionedUserIds: mentions);
+      await ref
+          .read(postApiProvider)
+          .commentNotice(
+            widget.noticeId,
+            message.trim(),
+            parentCommentId: parentId,
+            mentionedUserIds: mentions,
+          );
       if (mounted) await _load();
       return true;
-    } catch (error) { _showError(error); return false; }
+    } catch (error) {
+      _showError(error);
+      return false;
+    }
   }
 
   Future<void> _deleteComment(int id) async {
     try {
       await ref.read(postApiProvider).deleteNoticeComment(widget.noticeId, id);
       if (mounted) await _load();
-    } catch (error) { _showError(error); }
+    } catch (error) {
+      _showError(error);
+    }
   }
 
   Future<void> _openEditPage() async {
@@ -108,9 +130,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (data == null) return;
 
     final updated = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => PostCreatePage(initialNotice: data),
-      ),
+      MaterialPageRoute(builder: (_) => PostCreatePage(initialNotice: data)),
     );
 
     if (updated == true && mounted) {
@@ -166,7 +186,14 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    if (_data == null) return Scaffold(body: Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!)));
+    if (_data == null)
+      return Scaffold(
+        body: Center(
+          child: _error == null
+              ? const CircularProgressIndicator()
+              : Text(_error!),
+        ),
+      );
     return Scaffold(
       appBar: _data!.isWriter
           ? AppTopAppBar.backMore(
@@ -175,14 +202,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               },
               moreMenuOffset: const Offset(-16, 40),
               moreMenuItems: [
-                AppDropdownItem(
-                  label: '수정하기',
-                  onPressed: _openEditPage,
-                ),
-                AppDropdownItem(
-                  label: '삭제하기',
-                  onPressed: _confirmDelete,
-                ),
+                AppDropdownItem(label: '수정하기', onPressed: _openEditPage),
+                AppDropdownItem(label: '삭제하기', onPressed: _confirmDelete),
               ],
             )
           : AppTopAppBar.backOnly(
@@ -222,7 +243,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _ProfileAvatar(imageUrl: _data!.writerProfileImageUrl),
+                              _ProfileAvatar(
+                                imageUrl: _data!.writerProfileImageUrl,
+                              ),
                               const SizedBox(width: AppSpacing.x8),
                               Expanded(
                                 child: Column(
@@ -241,7 +264,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                       TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: _formatDateTime(_data!.createdAt.toLocal()),
+                                            text: _formatDateTime(
+                                              _data!.createdAt.toLocal(),
+                                            ),
                                             style: FontStyles.reg12.copyWith(
                                               color: context.grays.gray4,
                                             ),
@@ -302,34 +327,43 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                             imageUrls[i],
                                             fit: BoxFit.cover,
                                             loadingBuilder:
-                                                (context, child, loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child;
-                                              }
+                                                (
+                                                  context,
+                                                  child,
+                                                  loadingProgress,
+                                                ) {
+                                                  if (loadingProgress == null) {
+                                                    return child;
+                                                  }
 
-                                              return ColoredBox(
-                                                color: colors.surfaceContainerHighest,
-                                                child: const Center(
-                                                  child: SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
+                                                  return ColoredBox(
+                                                    color: colors
+                                                        .surfaceContainerHighest,
+                                                    child: const Center(
+                                                      child: SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
+                                                  );
+                                                },
                                             errorBuilder:
                                                 (context, error, stackTrace) {
-                                              return ColoredBox(
-                                                color: colors.errorContainer,
-                                                child: Icon(
-                                                  Icons.image_not_supported_outlined,
-                                                  color: colors.onErrorContainer,
-                                                ),
-                                              );
-                                            },
+                                                  return ColoredBox(
+                                                    color:
+                                                        colors.errorContainer,
+                                                    child: Icon(
+                                                      Icons
+                                                          .image_not_supported_outlined,
+                                                      color: colors
+                                                          .onErrorContainer,
+                                                    ),
+                                                  );
+                                                },
                                           ),
                                         ),
                                       ),
@@ -356,7 +390,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                       ),
                       width: double.infinity,
                       child: Wrap(
-                        spacing: AppSpacing.x10,
+                        spacing: 6.0,
                         runSpacing: AppSpacing.x4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
@@ -366,16 +400,15 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             label: '좋아요',
                             child: InkWell(
                               onTap: _toggleLike,
-                              hoverColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.pill,
-                              ),
+                              hoverColor: context.grays.gray8,
+                              focusColor: context.grays.gray8,
+                              splashColor: context.grays.gray8,
+                              highlightColor: context.grays.gray8,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: AppSpacing.x4,
+                                  horizontal: AppSpacing.x4,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -411,16 +444,15 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             label: '싫어요',
                             child: InkWell(
                               onTap: _toggleDislike,
-                              hoverColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.pill,
-                              ),
+                              hoverColor: context.grays.gray8,
+                              focusColor: context.grays.gray8,
+                              splashColor: context.grays.gray8,
+                              highlightColor: context.grays.gray8,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: AppSpacing.x4,
+                                  horizontal: AppSpacing.x4,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -501,7 +533,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                       child: PostCommentList(
                         comments: _data!.commentList,
                         canModerate: _data!.isWriter,
-                        onReply: (comment) => _composerKey.currentState?.replyTo(comment),
+                        onReply: (comment) =>
+                            _composerKey.currentState?.replyTo(comment),
                         onDelete: _deleteComment,
                       ),
                     ),
@@ -526,8 +559,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({this.imageUrl});
 
-  static const String _fallbackAsset =
-      'assets/images/auth/profile_orange.png';
+  static const String _fallbackAsset = 'assets/images/auth/profile_orange.png';
 
   final String? imageUrl;
 

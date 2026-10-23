@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
+import 'package:beatit_front_app/src/core/utils/should_show_updated_at.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -341,7 +343,10 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
     final hasMusics = schedule.musics.isNotEmpty;
     final hasParticipants = schedule.participants.isNotEmpty;
     final hasFiles = schedule.files.isNotEmpty;
-    final hasBeenUpdated = !schedule.createdAt.isAtSameMomentAs(
+    // 공지·투표 상세와 동일하게 생성 시각과 수정 시각의 차이가
+    // 1분 이하인 경우 최종 수정일을 표시하지 않습니다.
+    final hasBeenUpdated = shouldShowUpdatedAt(
+      schedule.createdAt,
       schedule.updatedAt,
     );
 
@@ -364,18 +369,21 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
             ),
           ),
           const SizedBox(height: AppSpacing.x4),
-          Row(
-            children: [
-              Text(
-                _formatDateTime(schedule.createdAt),
-                style: FontStyles.reg14.copyWith(color: context.grays.gray4),
-              ),
-              if (hasBeenUpdated)
-                Text(
-                  ' ｜ 최종수정일  ${_formatDateTime(schedule.updatedAt)}',
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: _formatDateTime(schedule.createdAt),
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray4),
                 ),
-            ],
+                if (hasBeenUpdated)
+                  TextSpan(
+                    text: ' ｜ 최종수정일  ${_formatDateTime(schedule.updatedAt)}',
+                    style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                  ),
+              ],
+            ),
+            softWrap: true,
           ),
           if (hasContent) ...[
             const SizedBox(height: AppSpacing.x16),
@@ -467,6 +475,7 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
                 MaterialPageRoute(
                   builder: (_) => ScheduleFilePreviewPage(
                     fileName: file.originalFileName,
+                    fileId: file.fileId,
                     source: file.cdnUrl,
                     contextTitle: schedule.title,
                   ),
@@ -481,24 +490,16 @@ class _ScheduleDetailContentState extends State<_ScheduleDetailContent> {
   }
 
   static String _formatScheduleTime(DateTime startsAt, DateTime endsAt) {
-    final start = startsAt.toLocal();
-    final end = endsAt.toLocal();
-    const weekdays = <String>['월', '화', '수', '목', '금', '토', '일'];
-    final weekday = weekdays[start.weekday - 1];
-
-    return '${start.year}. ${start.month}. ${start.day} '
-        '$weekday요일 ${start.hour}:${_two(start.minute)}'
-        '-${end.hour}:${_two(end.minute)}';
+    return AppDateTimeFormatter.formatScheduleTimeRange(
+      startsAt,
+      endsAt,
+      includeWeekday: true,
+    );
   }
 
   static String _formatDateTime(DateTime dateTime) {
-    final value = dateTime.toLocal();
-
-    return '${value.year}. ${value.month}. ${value.day}  '
-        '${value.hour}:${_two(value.minute)}';
+    return AppDateTimeFormatter.formatKstDateTime(dateTime);
   }
-
-  static String _two(int value) => value.toString().padLeft(2, '0');
 
   static String _displayText(String? value, {required String fallback}) {
     final trimmed = value?.trim();
@@ -652,6 +653,7 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
                               height: 210,
                               level: 3,
                               borderRadius: BorderRadius.circular(8),
+                              markerLabel: locationName,
                               onTap: _openMapPreview,
                             )
                           : _InlineMapLoading(onReady: _prepareMapInBackground),

@@ -7,6 +7,9 @@ import 'package:beatit_front_app/src/core/network/auth_token_storage.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_push_registration.dart';
 import 'package:beatit_front_app/src/domain/auth/api/google_auth_client.dart';
+import 'package:beatit_front_app/src/domain/auth/api/kakao_auth_client.dart';
+import 'package:beatit_front_app/src/domain/auth/api/naver_auth_client.dart';
+import 'package:beatit_front_app/src/domain/auth/model/login/auth_login_result.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/google_login_request.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart';
@@ -21,6 +24,14 @@ final authPushRegistrationProvider = Provider<AuthPushRegistration>((ref) {
 
 final googleAuthClientProvider = Provider<GoogleAuthClient>((ref) {
   return GoogleAuthClient();
+});
+
+final naverAuthClientProvider = Provider<NaverAuthClient>((ref) {
+  return NaverAuthClient();
+});
+
+final kakaoAuthClientProvider = Provider<KakaoAuthClient>((ref) {
+  return KakaoAuthClient();
 });
 
 final authProvider = NotifierProvider<AuthNotifier, AsyncValue<AuthSession?>>(
@@ -116,30 +127,46 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
     });
   }
 
-  Future<void> loginWithGoogle() async {
+  Future<void> loginWithGoogle() => _loginWithSocial(
+    getToken: () => ref.read(googleAuthClientProvider).getIdToken(),
+    authenticate: (token, deviceFields) => ref
+        .read(authApiProvider)
+        .loginWithGoogle(
+          GoogleLoginRequest(idToken: token),
+          deviceFields: deviceFields,
+        ),
+  );
+
+  Future<void> loginWithNaver() => _loginWithSocial(
+    getToken: () => ref.read(naverAuthClientProvider).getAccessToken(),
+    authenticate: (token, deviceFields) => ref
+        .read(authApiProvider)
+        .loginWithNaver(accessToken: token, deviceFields: deviceFields),
+  );
+
+  Future<void> loginWithKakao() => _loginWithSocial(
+    getToken: () => ref.read(kakaoAuthClientProvider).getAccessToken(),
+    authenticate: (token, deviceFields) => ref
+        .read(authApiProvider)
+        .loginWithKakao(accessToken: token, deviceFields: deviceFields),
+  );
+
+  Future<void> _loginWithSocial({
+    required Future<String?> Function() getToken,
+    required Future<AuthLoginResult> Function(
+      String token,
+      Map<String, dynamic> deviceFields,
+    ) authenticate,
+  }) async {
     state = const AsyncLoading();
-
     state = await AsyncValue.guard(() async {
-      debugPrint('[Auth] Google token request start');
-
-      final googleAuthClient = ref.read(googleAuthClientProvider);
-
-      final authApi = ref.read(authApiProvider);
-
-      final idToken = await googleAuthClient.getIdToken();
-
-      debugPrint('[Auth] Google token acquired');
-      debugPrint('[Auth] Beatit /auth/google request start');
+      final token = await getToken();
+      if (token == null) return null; // SDK 로그인 취소
 
       final deviceFields = await ref
           .read(authPushRegistrationProvider)
           .collectLoginFields();
-      final result = await authApi.loginWithGoogle(
-        GoogleLoginRequest(idToken: idToken),
-        deviceFields: deviceFields,
-      );
-
-      debugPrint('[Auth] Beatit login success');
+      final result = await authenticate(token, deviceFields);
 
       await ref.read(authTokenStorageProvider).saveTokens(
         accessToken: result.session.accessToken,
@@ -150,8 +177,6 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       if (deviceFields['pushToken'] == null) {
         unawaited(_retryPushRegistration(result.session.accessToken));
       }
-      debugPrint('[Auth] access/refresh token saved');
-
       return result.session;
     });
   }
@@ -214,15 +239,35 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
   }
 
   Future<void> logout() async {
-    await ref.read(authPushRegistrationProvider).stopTokenRefreshListener();
     final currentSession = state.asData?.value;
     final tokenStorage = ref.read(authTokenStorageProvider);
 
-    if (currentSession?.socialProvider == SocialProvider.google) {
-      await ref.read(googleAuthClientProvider).signOut();
-    }
+    // 푸시 갱신이 로그아웃 도중 다시 등록되지 않도록 먼저 중지한다.
+    await ref.read(authPushRegistrationProvider).stopTokenRefreshListener();
 
-    await tokenStorage.deleteTokens();
-    state = const AsyncData(null);
+    try {
+      // 서버가 Refresh Token을 폐기하고 현재 기기의 푸시 토큰을 비활성화한다.
+      await ref.read(authApiProvider).logout();
+    } catch (error) {
+      // 서버가 이미 세션을 만료시킨 경우에도 기기의 인증 정보는 삭제한다.
+      debugPrint('[Auth] server logout failed: $error');
+    } finally {
+      try {
+        final provider = currentSession?.socialProvider;
+        if (provider == SocialProvider.google) {
+          await ref.read(googleAuthClientProvider).signOut();
+        } else if (provider == SocialProvider.naver) {
+          await ref.read(naverAuthClientProvider).signOut();
+        } else if (provider == SocialProvider.kakao) {
+          await ref.read(kakaoAuthClientProvider).signOut();
+        }
+      } catch (error) {
+        // 외부 SDK 세션 정리 실패가 BeatIt 로그아웃을 막아서는 안 된다.
+        debugPrint('[Auth] social logout failed: $error');
+      } finally {
+        await tokenStorage.deleteTokens();
+        state = const AsyncData(null);
+      }
+    }
   }
 }

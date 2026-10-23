@@ -12,8 +12,8 @@ _ScheduleUpdateRequest _$ScheduleUpdateRequestFromJson(
   locationId: (json['locationId'] as num?)?.toInt(),
   title: json['title'] as String,
   content: json['content'] as String?,
-  startsAt: const KstDateTimeConverter().fromJson(json['startsAt'] as String),
-  endsAt: const KstDateTimeConverter().fromJson(json['endsAt'] as String),
+  startsAt: (json['startsAt'] == null ? null : const KstDateTimeConverter().fromJson(json['startsAt'] as String)),
+  endsAt: (json['endsAt'] == null ? null : const KstDateTimeConverter().fromJson(json['endsAt'] as String)),
   participantUserIds: (json['participantUserIds'] as List<dynamic>?)
       ?.map((e) => (e as num).toInt())
       .toList(),
@@ -36,8 +36,8 @@ Map<String, dynamic> _$ScheduleUpdateRequestToJson(
   'locationId': instance.locationId,
   'title': instance.title,
   'content': instance.content,
-  'startsAt': const KstDateTimeConverter().toJson(instance.startsAt),
-  'endsAt': const KstDateTimeConverter().toJson(instance.endsAt),
+  'startsAt': (instance.startsAt == null ? null : const KstDateTimeConverter().toJson(instance.startsAt!)),
+  'endsAt': (instance.endsAt == null ? null : const KstDateTimeConverter().toJson(instance.endsAt!)),
   'participantUserIds': instance.participantUserIds,
   'musics': instance.musics,
   'retainMusicIds': instance.retainMusicIds,

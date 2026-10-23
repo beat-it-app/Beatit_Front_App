@@ -245,6 +245,7 @@ class _MeetitEditPageState extends State<MeetitEditPage> {
           endTime: widget.endTime,
           timetableGrid: widget.timetableGrid,
           totalInvitedCount: widget.totalInvitedCount,
+          dateOnly: widget.dateOnly,
           mode: MeetitTimeGridMode.edit,
           editableSelection: _mySelection,
           editableUserId: widget.currentUserId,

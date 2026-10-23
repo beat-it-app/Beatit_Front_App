@@ -1,20 +1,8 @@
-/// 공지·투표·밋잇 게시글에서 사용하는 한국어 날짜 및 시간 표기.
-/// API 전송 형식은 변경하지 않고 화면에 표시하는 값에만 적용한다.
-const _weekdays = <String>[
-  '월요일',
-  '화요일',
-  '수요일',
-  '목요일',
-  '금요일',
-  '토요일',
-  '일요일',
-];
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 
-String formatPostDate(DateTime value) {
-  final date = value.toLocal();
-  return '${date.year}. ${date.month}. ${date.day}. '
-      '${_weekdays[date.weekday - 1]}';
-}
+/// 공지·투표·밋잇의 화면 표시용 날짜. 요일을 함께 출력하지 않습니다.
+/// 서버 API의 날짜나 시간 값은 변경하지 않습니다.
+String formatPostDate(DateTime value) => AppDateTimeFormatter.formatDate(value);
 
 String formatPostTime(int hour, int minute) =>
     '${hour.toString().padLeft(2, '0')}:'

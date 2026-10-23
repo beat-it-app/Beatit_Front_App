@@ -20,6 +20,8 @@ class AppAudioWaveform extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.onSeek,
+    this.onScrubStart,
+    this.onScrubEnd,
     this.loadingProgress = 0.0,
     this.hasError = false,
     this.isSelectionMode = false,
@@ -33,6 +35,10 @@ class AppAudioWaveform extends StatefulWidget {
   final Duration duration;
   final Duration position;
   final ValueChanged<Duration> onSeek;
+  /// 드래그하는 동안 재생을 일시정지합니다.
+  final VoidCallback? onScrubStart;
+  /// 손을 뗐을 때 최종 위치로 seek한 뒤 재생을 재개합니다.
+  final Future<void> Function(Duration)? onScrubEnd;
   final double loadingProgress;
   final bool hasError;
 
@@ -58,6 +64,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
   static const Duration _minimumSelectionGap = Duration(milliseconds: 100);
 
   double _visibleFraction = _minVisibleFraction;
+  double _visibleFractionBeforeSelection = _minVisibleFraction;
   double _scaleStartVisibleFraction = _minVisibleFraction;
   double _dragStartX = 0.0;
   Duration _dragStartPosition = Duration.zero;
@@ -66,6 +73,8 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
   int _lastPointerCount = 0;
 
   _SelectionHandle? _activeHandle;
+  bool _isDraggingPlaybackIndicator = false;
+  Duration? _pendingScrubPosition;
   double? _activePointerX;
   double _lastKnownWidth = 0.0;
   Timer? _autoScrollTimer;
@@ -104,11 +113,23 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
       _selectionViewportCenter = endUs > startUs
           ? Duration(microseconds: startUs + ((endUs - startUs) ~/ 2))
           : widget.position;
+      // Large audio/video files otherwise render the selected 20 seconds as a
+      // tiny sliver, making the playback marker impossible to grab.
+      _visibleFractionBeforeSelection = _visibleFraction;
+      final durationSeconds = _durationInSeconds(widget.duration);
+      if (durationSeconds > 0) {
+        final selectionSeconds = (endUs - startUs) / Duration.microsecondsPerSecond;
+        _visibleFraction = (math.max(12.0, selectionSeconds * 2.2) / durationSeconds)
+            .clamp(0.001, 1.0).toDouble();
+      }
     } else if (oldWidget.isSelectionMode && !widget.isSelectionMode) {
       _stopAutoScroll();
       _activeHandle = null;
+      _isDraggingPlaybackIndicator = false;
+      _pendingScrubPosition = null;
       _activePointerX = null;
       _selectionViewportCenter = null;
+      _visibleFraction = _visibleFractionBeforeSelection;
     }
 
     if (oldWidget.duration != widget.duration) {
@@ -129,14 +150,42 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
 
     if (!widget.isSelectionMode || details.pointerCount >= 2) {
       _activeHandle = null;
+      _isDraggingPlaybackIndicator = false;
+      _pendingScrubPosition = null;
       _activePointerX = null;
       _stopAutoScroll();
       return;
     }
 
-    _activeHandle = _hitTestSelectionHandle(details.localFocalPoint.dx, width);
-    _activePointerX = details.localFocalPoint.dx;
+    final pointerX = details.localFocalPoint.dx;
+    final startX = _timeToX(widget.selectionStart, width);
+    final endX = _timeToX(widget.selectionEnd, width);
+    // The orange line may be adjacent to either white handle when playback
+    // reaches a segment edge. Give the visible orange line its own narrow
+    // hit target without stealing taps on the white handle itself.
+    const visualInset = 6.0;
+    final visualPlaybackX = endX - startX > visualInset * 2
+        ? _timeToX(widget.position, width)
+            .clamp(startX + visualInset, endX - visualInset)
+            .toDouble()
+        : _timeToX(widget.position, width);
+    final onOrangeLine = endX - startX > visualInset * 2 &&
+        (pointerX - visualPlaybackX).abs() <= 7.0 &&
+        pointerX > startX + 4.0 && pointerX < endX - 4.0;
+    _activeHandle = onOrangeLine
+        ? null
+        : _hitTestSelectionHandle(pointerX, width);
+    // Other points within the selected region also seek; outside it pans.
+    _isDraggingPlaybackIndicator = onOrangeLine ||
+        (_activeHandle == null &&
+            pointerX > startX + _handleHitSlop &&
+            pointerX < endX - _handleHitSlop);
+    _activePointerX = pointerX;
 
+    if (_isDraggingPlaybackIndicator) {
+      widget.onScrubStart?.call();
+      _seekSelectionPointer(pointerX, width);
+    }
     if (_activeHandle != null) {
       _ensureAutoScrollTimer();
     }
@@ -147,11 +196,17 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
 
     if (details.pointerCount >= 2) {
       _activeHandle = null;
+      _isDraggingPlaybackIndicator = false;
+      _pendingScrubPosition = null;
       _activePointerX = null;
       _stopAutoScroll();
 
+      final seconds = _durationInSeconds(widget.duration);
+      final minimum = seconds <= 0
+          ? _minVisibleFraction
+          : math.min(_minVisibleFraction, 5.0 / seconds);
       final nextVisibleFraction = (_scaleStartVisibleFraction / details.scale)
-          .clamp(_minVisibleFraction, _maxVisibleFraction)
+          .clamp(minimum, _maxVisibleFraction)
           .toDouble();
 
       if (nextVisibleFraction != _visibleFraction) {
@@ -180,6 +235,8 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
 
       if (_activeHandle != null) {
         _updateActiveHandleFromPointer(width);
+      } else if (_isDraggingPlaybackIndicator) {
+        _seekSelectionPointer(details.localFocalPoint.dx, width);
       } else {
         _panSelectionViewport(details.localFocalPoint.dx, width);
       }
@@ -203,11 +260,35 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
         widget.selectionEnd,
       );
     }
+    final scrubPosition = _pendingScrubPosition;
+    if (_isDraggingPlaybackIndicator && scrubPosition != null) {
+      // 손을 놓은 최종 위치 한 번만 seek하고, seek가 완료될 때까지
+      // 파형이 과거 재생 위치로 다시 움직이지 않도록 미리보기 위치를 유지합니다.
+      unawaited(_finishScrub(scrubPosition));
+    }
 
     _activeHandle = null;
+    _isDraggingPlaybackIndicator = false;
     _activePointerX = null;
     _lastPointerCount = 0;
     _stopAutoScroll();
+  }
+
+  Future<void> _finishScrub(Duration position) async {
+    try {
+      final callback = widget.onScrubEnd;
+      if (callback != null) {
+        await callback(position);
+      } else {
+        widget.onSeek(position);
+      }
+    } catch (error) {
+      debugPrint('[MediaTimeline] scrub seek failed: $error');
+    } finally {
+      if (mounted && _pendingScrubPosition == position) {
+        setState(() => _pendingScrubPosition = null);
+      }
+    }
   }
 
   _SelectionHandle? _hitTestSelectionHandle(double x, double width) {
@@ -224,6 +305,21 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
     return startDistance <= endDistance
         ? _SelectionHandle.start
         : _SelectionHandle.end;
+  }
+
+  void _seekSelectionPointer(double pointerX, double width) {
+    if (width <= 0) return;
+    final selectedPosition = _xToTime(pointerX, width);
+    final target = _clampDuration(
+      selectedPosition,
+      widget.selectionStart,
+      widget.selectionEnd,
+    );
+    if (widget.onScrubEnd == null) {
+      widget.onSeek(target);
+    } else {
+      setState(() => _pendingScrubPosition = target);
+    }
   }
 
   void _panSelectionViewport(double currentX, double width) {
@@ -422,7 +518,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
                     waveform: widget.waveform,
                     duration: widget.duration,
                     viewportPosition: _viewportCenter,
-                    playbackPosition: widget.position,
+                    playbackPosition: _pendingScrubPosition ?? widget.position,
                     visibleSeconds: _visibleSeconds,
                     loadingProgress: widget.loadingProgress,
                     isSelectionMode: widget.isSelectionMode,
@@ -603,8 +699,16 @@ class _AppAudioWaveformPainter extends CustomPainter {
       return;
     }
 
-    final x = _timeToX(playbackPosition, size.width);
-    if (x < 0 || x > size.width) return;
+    final startX = _timeToX(selectionStart, size.width);
+    final endX = _timeToX(selectionEnd, size.width);
+    // The colored playhead stays *inside* the white selection handles.
+    // Allow for half their width and a 2px visual gap on both sides.
+    const innerGap = _playheadWidth / 2 + 2.0;
+    final minX = math.max(0.0, startX + innerGap);
+    final maxX = math.min(size.width, endX - innerGap);
+    if (maxX <= minX) return;
+    final x = _timeToX(playbackPosition, size.width)
+        .clamp(minX, maxX).toDouble();
 
     canvas.drawLine(
       Offset(x, playheadExtension),

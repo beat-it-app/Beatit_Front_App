@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 enum CalendarMonthState { currentMonth, outsideMonth }
 
 /// 날짜의 강조 상태
-/// 오늘은 선택 여부보다 우선해서 오늘 스타일을 유지합니다.
+/// 선택한 날짜가 오늘과 겹쳐도 선택 스타일을 우선 적용합니다.
 enum CalendarHighlightState {
   normal,
   selected,
@@ -17,12 +17,12 @@ enum CalendarHighlightState {
     required bool isToday,
     required bool isSelected,
   }) {
-    if (isToday) {
-      return CalendarHighlightState.today;
-    }
-
     if (isSelected) {
       return CalendarHighlightState.selected;
+    }
+
+    if (isToday) {
+      return CalendarHighlightState.today;
     }
 
     return CalendarHighlightState.normal;
@@ -41,6 +41,7 @@ class CalendarDayItem extends StatelessWidget {
     this.isSelected = false,
     this.isHoliday = false,
     this.isPast = false,
+    this.hasMySchedule = true,
     this.monthState = CalendarMonthState.currentMonth,
     this.highlightState = CalendarHighlightState.normal,
     this.scheduleState = CalendarScheduleState.none,
@@ -57,6 +58,9 @@ class CalendarDayItem extends StatelessWidget {
 
   /// 오늘 이전 날짜 여부
   final bool isPast;
+
+  /// false이면 오늘/미래 날짜에서도 라벨을 회색으로 처리합니다.
+  final bool hasMySchedule;
 
   final CalendarMonthState monthState;
   final CalendarHighlightState highlightState;
@@ -205,23 +209,17 @@ class CalendarDayItem extends StatelessWidget {
 
   /// 날짜 아래 일정 텍스트 색상
   Color _resolveLabelColor(BuildContext context) {
-    // 오늘이 아닌 다른 날짜를 선택한 경우
-    if (isSelected && highlightState != CalendarHighlightState.today) {
+    // 선택 상태가 가장 우선입니다. 오늘·지난 날짜·미참여 일정에도 동일합니다.
+    if (isSelected) {
       return context.brands.beatOrange1;
     }
 
-    // 지난 일정/날짜는 일정 존재 여부와 관계없이 gray5
-    if (isPast) {
+    // 지난 날짜 또는 내가 참여한 일정이 없는 날짜는 회색으로 표시합니다.
+    if (isPast || !hasMySchedule) {
       return context.grays.gray5;
     }
 
-    // 오늘 또는 미래에 내가 참여하는 일정이 있는 경우
-    if (_hasSchedule) {
-      return context.grays.black;
-    }
-
-    // 일정이 없는 경우
-    return context.grays.gray5;
+    return _hasSchedule ? context.grays.black : context.grays.gray5;
   }
 
   String _buildSemanticLabel() {

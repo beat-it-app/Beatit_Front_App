@@ -1,9 +1,25 @@
+
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
+
+// 네이버 Client Secret을 local.properties에서 로드
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use {
+        localProperties.load(it)
+    }
+}
+
+val naverClientSecret =
+    localProperties.getProperty("naver.client_secret") ?: ""
 
 android {
     namespace = "com.beatit.app"
@@ -23,6 +39,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 네이버 로그인 SDK에서 사용할 Client Secret 리소스 생성
+        resValue("string", "client_secret", naverClientSecret)
     }
 
     buildTypes {
@@ -41,4 +60,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("com.navercorp.nid:oauth:5.12.0")
 }

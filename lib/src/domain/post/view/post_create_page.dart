@@ -21,8 +21,11 @@ class PostCreatePage extends ConsumerStatefulWidget {
   const PostCreatePage({
     super.key,
     this.initialNotice,
-  });
+    this.maxImageCount = 10,
+  }) : assert(maxImageCount >= 1 && maxImageCount <= 10);
 
+  /// 일반 등록은 최대 10장, 단일 이미지 화면은 1장으로 지정할 수 있습니다.
+  final int maxImageCount;
   final NoticeDetailData? initialNotice;
 
   bool get isEditMode => initialNotice != null;
@@ -55,6 +58,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   bool get _isEditMode => widget.isEditMode;
 
+  int get _imageCount => _existingImageUrls.length + _images.length;
+  bool get _canAddImage => _imageCount < widget.maxImageCount;
+
+
   bool get _hasChanges {
     if (!_isEditMode) return true;
 
@@ -79,7 +86,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   }
 
   Future<void> _pickImages() async {
-    final selected = await ImagePicker().pickMultiImage();
+    if (!_canAddImage) return;
+    final List<XFile> selected;
+    if (widget.maxImageCount == 1) {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      selected = image == null ? <XFile>[] : <XFile>[image];
+    } else {
+      selected = await ImagePicker().pickMultiImage();
+    }
     if (!mounted || selected.isEmpty) return;
 
     final existingPaths = _images.map((image) => image.path).toSet();
@@ -92,8 +106,13 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     var hasOversizeImage = false;
     var hasUnsupportedImage = false;
     var exceedsRequestLimit = false;
+    var exceedsImageCount = false;
 
     for (final image in selected) {
+      if (_imageCount + validImages.length >= widget.maxImageCount) {
+        exceedsImageCount = true;
+        break;
+      }
       if (!existingPaths.add(image.path)) continue;
 
       final extension = _imageExtension(image.name);
@@ -130,7 +149,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       });
     }
 
-    if (hasOversizeImage) {
+    if (exceedsImageCount) {
+      await _showImageBlockedPopup('사진은 최대 ${widget.maxImageCount}장까지 등록할 수 있습니다.');
+    } else if (hasOversizeImage) {
       await _showImageBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
     } else if (exceedsRequestLimit) {
       await _showImageBlockedPopup('한 번에 업로드하는 이미지는 총 300MB를 넘을 수 없습니다.');
@@ -157,35 +178,34 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   }
 
   void _handleExistingImageTap(int index) {
-    if (_pendingDeleteExistingImageIndex == index) {
-      setState(() {
-        _existingImageUrls.removeAt(index);
-        _pendingDeleteExistingImageIndex = null;
-        _refreshImagesChanged();
-      });
-      return;
-    }
-
     setState(() {
-      _pendingDeleteExistingImageIndex = index;
+      _pendingDeleteExistingImageIndex =
+          _pendingDeleteExistingImageIndex == index ? null : index;
       _pendingDeleteImageIndex = null;
     });
   }
 
-  void _handleImageTap(int index) {
-    if (_pendingDeleteImageIndex == index) {
-      setState(() {
-        final removed = _images.removeAt(index);
-        _imageSizeBytes.remove(removed.path);
-        _pendingDeleteImageIndex = null;
-        _refreshImagesChanged();
-      });
-      return;
-    }
-
+  void _deleteExistingImage(int index) {
     setState(() {
-      _pendingDeleteImageIndex = index;
+      _existingImageUrls.removeAt(index);
       _pendingDeleteExistingImageIndex = null;
+      _refreshImagesChanged();
+    });
+  }
+
+  void _handleImageTap(int index) {
+    setState(() {
+      _pendingDeleteImageIndex = _pendingDeleteImageIndex == index ? null : index;
+      _pendingDeleteExistingImageIndex = null;
+    });
+  }
+
+  void _deleteImage(int index) {
+    setState(() {
+      final removed = _images.removeAt(index);
+      _imageSizeBytes.remove(removed.path);
+      _pendingDeleteImageIndex = null;
+      _refreshImagesChanged();
     });
   }
 
@@ -361,11 +381,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                       const SizedBox(height: AppSpacing.x20),
                       _RequiredLabel(text: '사진 등록', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),
-                      AppUploadButton(
-                        onPressed: _pickImages,
-                        text: '사진 등록하기',
-                      ),
-                      if (_existingImageUrls.isNotEmpty || _images.isNotEmpty) ...[
+                      if (_imageCount > 0) ...[
                         const SizedBox(height: AppSpacing.x12),
                         ...List.generate(
                           _existingImageUrls.length,
@@ -376,6 +392,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                               pendingDelete:
                                   _pendingDeleteExistingImageIndex == index,
                               onTap: () => _handleExistingImageTap(index),
+                              onDelete: () => _deleteExistingImage(index),
                             ),
                           ),
                         ),
@@ -391,8 +408,17 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                               image: _images[index],
                               pendingDelete: _pendingDeleteImageIndex == index,
                               onTap: () => _handleImageTap(index),
+                              onDelete: () => _deleteImage(index),
                             ),
                           ),
+                        ),
+                      ],
+                      if (_canAddImage) ...[
+                        if (_imageCount > 0)
+                          const SizedBox(height: AppSpacing.x12),
+                        AppUploadButton(
+                          onPressed: _pickImages,
+                          text: '사진 등록하기',
                         ),
                       ],
                       const SizedBox(height: AppSpacing.x16),
@@ -423,11 +449,13 @@ class _ExistingPostImagePreview extends StatelessWidget {
     required this.imageUrl,
     required this.pendingDelete,
     required this.onTap,
+    required this.onDelete,
   });
 
   final String imageUrl;
   final bool pendingDelete;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -473,7 +501,7 @@ class _ExistingPostImagePreview extends StatelessWidget {
                   ),
                 ),
               ),
-              if (pendingDelete) const _DeleteImageOverlay(),
+              if (pendingDelete) _DeleteImageOverlay(onDelete: onDelete),
             ],
           ),
         ),
@@ -487,11 +515,13 @@ class _PostImagePreview extends StatelessWidget {
     required this.image,
     required this.pendingDelete,
     required this.onTap,
+    required this.onDelete,
   });
 
   final XFile image;
   final bool pendingDelete;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +553,7 @@ class _PostImagePreview extends StatelessWidget {
                   ),
                 ),
               ),
-              if (pendingDelete) const _DeleteImageOverlay(),
+              if (pendingDelete) _DeleteImageOverlay(onDelete: onDelete),
             ],
           ),
         ),
@@ -533,7 +563,9 @@ class _PostImagePreview extends StatelessWidget {
 }
 
 class _DeleteImageOverlay extends StatelessWidget {
-  const _DeleteImageOverlay();
+  const _DeleteImageOverlay({required this.onDelete});
+
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -545,21 +577,29 @@ class _DeleteImageOverlay extends StatelessWidget {
             color: context.grays.white.withValues(alpha: 0.4),
           ),
         ),
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: context.grays.gray3,
-          ),
-          alignment: Alignment.center,
-          child: SvgPicture.asset(
-            'assets/icons/post/waste.svg',
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(
-              context.grays.white,
-              BlendMode.srcIn,
+        Semantics(
+          button: true,
+          label: '사진 삭제',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onDelete,
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.grays.gray3,
+              ),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/icons/post/waste.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  context.grays.white,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
         ),

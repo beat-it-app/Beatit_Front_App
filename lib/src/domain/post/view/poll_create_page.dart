@@ -26,7 +26,7 @@ class PollCreatePage extends ConsumerStatefulWidget {
   const PollCreatePage({
     super.key,
     this.initialData,
-    this.initialRemindBeforeClose = false,
+    this.initialRemindBeforeClose = true,
   });
 
   final PollDetailData? initialData;
@@ -57,7 +57,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   DateTime? _closeAt;
   DateTime? _selectedDeadlineDate;
   TimeOfDay? _selectedDeadlineTime;
-  bool _remindBeforeClose = false;
+  bool _remindBeforeClose = true;
   bool _submitting = false;
 
   PollOptionType _pollOptionType = PollOptionType.text;
@@ -200,7 +200,9 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
 
   Future<void> _pickDeadlineDate() async {
     final now = DateTime.now();
-    final initialDate = _selectedDeadlineDate ?? now;
+    final initialDate =
+        _selectedDeadlineDate ??
+        DateUtils.dateOnly(now.add(const Duration(days: 1)));
     final date = await AppTimeBottomSheet.showDatePicker(
       context,
       title: '투표 마감 날짜',
@@ -220,10 +222,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   Future<void> _pickDeadlineTime() async {
     final now = DateTime.now();
     final initialTime =
-        _selectedDeadlineTime ??
-        TimeOfDay.fromDateTime(
-          _roundUpToTenMinutes(now.add(const Duration(hours: 1))),
-        );
+        _selectedDeadlineTime ?? TimeOfDay(hour: now.hour + 1, minute: 0);
     final time = await AppTimeBottomSheet.showTimePicker(
       context,
       title: '투표 마감 시간',
@@ -247,7 +246,6 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       _deadlineTimeController.clear();
       _closeAt = null;
       _deadlineError = null;
-      _remindBeforeClose = false;
     });
   }
 
@@ -271,27 +269,6 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     _deadlineError = deadline.isAfter(DateTime.now())
         ? null
         : '투표 마감 시간은 현재 시간 이후여야 합니다.';
-  }
-
-  DateTime _roundUpToTenMinutes(DateTime dateTime) {
-    final remainder = dateTime.minute % 10;
-    if (remainder == 0) {
-      return DateTime(
-        dateTime.year,
-        dateTime.month,
-        dateTime.day,
-        dateTime.hour,
-        dateTime.minute,
-      );
-    }
-
-    return DateTime(
-      dateTime.year,
-      dateTime.month,
-      dateTime.day,
-      dateTime.hour,
-      dateTime.minute,
-    ).add(Duration(minutes: 10 - remainder));
   }
 
   PollCreateRequest _buildInitialRequest() {
@@ -489,7 +466,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       pollList: options,
       allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
       isAnonymous: _voteSelectedOptions.contains('익명 투표'),
-      remindBeforeClose: _closeAt != null && _remindBeforeClose,
+      remindBeforeClose: _remindBeforeClose,
       closeAt: _closeAt,
     );
   }
@@ -598,9 +575,36 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.x20),
-                      _RequiredLabel(
-                        text: '투표 마감 시간 설정',
-                        color: colors.onSurface,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _RequiredLabel(
+                            text: '투표 마감 시간 설정',
+                            color: colors.onSurface,
+                          ),
+                          SizedBox(
+                            height: 24,
+                            child:
+                                (_selectedDeadlineDate != null ||
+                                    _selectedDeadlineTime != null)
+                                ? TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed: _clearDeadline,
+                                    child: Text(
+                                      '초기화',
+                                      style: FontStyles.med14.copyWith(
+                                        color: context.grays.gray5,
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.x8),
                       Row(
@@ -634,24 +638,6 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                           ),
                         ],
                       ),
-                      // if (_selectedDeadlineDate != null ||
-                      //     _selectedDeadlineTime != null)
-                      //   Align(
-                      //     alignment: Alignment.centerRight,
-                      //     child: TextButton(
-                      //       onPressed: _clearDeadline,
-                      //       child: const Text('마감 시간 삭제'),
-                      //     ),
-                      //   ),
-                      // if (_closeAt != null) ...[
-                      //   const SizedBox(height: AppSpacing.x8),
-                      //   Text(
-                      //     formatPostDateTime(_closeAt!),
-                      //     style: FontStyles.med14.copyWith(
-                      //       color: colors.onSurfaceVariant,
-                      //     ),
-                      //   ),
-                      // ],
                       if (_deadlineError != null) ...[
                         const SizedBox(height: AppSpacing.x4),
                         AppFieldMessage(text: _deadlineError!, isError: true),
@@ -678,20 +664,14 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                               ],
                             ),
                           ),
-                          IgnorePointer(
-                            ignoring: _closeAt == null,
-                            child: Opacity(
-                              opacity: _closeAt == null ? 0.45 : 1,
-                              child: AppSwitch(
-                                value: _remindBeforeClose,
-                                onChanged: (value) {
-                                  setState(() => _remindBeforeClose = value);
-                                },
-                                height: 27.0,
-                                width: 50.0,
-                                ballPadding: 2.0,
-                              ),
-                            ),
+                          AppSwitch(
+                            value: _remindBeforeClose,
+                            onChanged: (value) {
+                              setState(() => _remindBeforeClose = value);
+                            },
+                            height: 27.0,
+                            width: 50.0,
+                            ballPadding: 2.0,
                           ),
                         ],
                       ),

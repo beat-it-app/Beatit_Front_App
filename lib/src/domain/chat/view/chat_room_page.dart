@@ -10,6 +10,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_room_provider.dart';
@@ -247,9 +248,15 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   Future<void> _handleMediaPressed() async {
     if (!_canSendAttachment()) return;
 
-    final messageType = await _showMediaTypePicker();
-    if (!mounted || messageType == null) return;
+    final source = await AppMediaSourcePopup.show(
+      context,
+      sources: const [AppMediaSource.photoLibrary, AppMediaSource.videoLibrary],
+    );
+    if (!mounted || source == null) return;
 
+    final messageType = source == AppMediaSource.videoLibrary
+        ? ChatMessageType.video
+        : ChatMessageType.image;
     final XFile? pickedMedia;
     if (messageType == ChatMessageType.video) {
       pickedMedia = await _imagePicker.pickVideo(source: ImageSource.gallery);
@@ -273,45 +280,6 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     );
   }
 
-  Future<ChatMessageType?> _showMediaTypePicker() {
-    return showModalBottomSheet<ChatMessageType>(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.image_outlined),
-                title: Text(
-                  '사진',
-                  style: FontStyles.med16.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(ChatMessageType.image),
-              ),
-              ListTile(
-                leading: const Icon(Icons.videocam_outlined),
-                title: Text(
-                  '동영상',
-                  style: FontStyles.med16.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(ChatMessageType.video),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   bool _canSendAttachment() {
     final state = ref.read(chatRoomProvider);
@@ -415,7 +383,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final images = ref
         .read(chatRoomProvider)
         .messages
-        .where((message) => _attachmentKind(message) == ChatAttachmentKind.image)
+        .where(
+          (message) => _attachmentKind(message) == ChatAttachmentKind.image,
+        )
         .toList(growable: false);
     if (images.isEmpty) return;
 
@@ -534,7 +504,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       final downloadState = ref.read(cloudDownloadProvider);
       _showMessage(
         success
-            ? 'Downloads 폴더에 저장했습니다.'
+            ? downloadState.successMessage ?? '다운로드를 완료했습니다.'
             : downloadState.errorMessage ?? '파일 다운로드에 실패했습니다.',
       );
     } catch (error) {
@@ -644,7 +614,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       // The first page already appears at offset 0; no initial scroll call.
       // If the loaded page does not fill the screen, fetch older pages until
       // the room becomes scrollable or the server reports hasNext=false.
-      if (!next.isInitialLoading && next.hasNext &&
+      if (!next.isInitialLoading &&
+          next.hasNext &&
           (previous?.isInitialLoading == true ||
               previous?.currentPage != next.currentPage)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -709,9 +680,14 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                       left: AppSpacing.x16,
                       right: AppSpacing.x16,
                       bottom: AppSpacing.x12,
-                      child: _ChatNewMessageBanner(
-                        message: _latestUnseenMessage!,
-                        onPressed: _goToLatestMessage,
+                      // Positioned(left/right)는 자식을 화면 너비로 강제한다.
+                      // Align로 그 제약을 풀어 배너 자체의 190px 너비가 적용되게 한다.
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: _ChatNewMessageBanner(
+                          message: _latestUnseenMessage!,
+                          onPressed: _goToLatestMessage,
+                        ),
                       ),
                     ),
                 ],
@@ -794,7 +770,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
             ref.read(chatRoomProvider.notifier).retryAttachment(localId);
           },
           onDeletePending: (localId) {
-            ref.read(chatRoomProvider.notifier).removePendingAttachment(localId);
+            ref
+                .read(chatRoomProvider.notifier)
+                .removePendingAttachment(localId);
           },
         ),
       ),
@@ -833,10 +811,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
 }
 
 class _ChatNewMessageBanner extends StatelessWidget {
-  const _ChatNewMessageBanner({
-    required this.message,
-    required this.onPressed,
-  });
+  const _ChatNewMessageBanner({required this.message, required this.onPressed});
 
   final ChatMessage message;
   final VoidCallback onPressed;
@@ -852,10 +827,10 @@ class _ChatNewMessageBanner extends StatelessWidget {
       ChatAttachmentKind.video => '동영상을 보냈습니다.',
       ChatAttachmentKind.image => '사진을 보냈습니다.',
       ChatAttachmentKind.audio => '음성 파일을 보냈습니다.',
-      ChatAttachmentKind.document || ChatAttachmentKind.file =>
-        '파일을 보냈습니다.',
+      ChatAttachmentKind.document || ChatAttachmentKind.file => '파일을 보냈습니다.',
     };
-    final text = message.messageType == ChatMessageType.text ||
+    final text =
+        message.messageType == ChatMessageType.text ||
             message.messageType == ChatMessageType.unknown ||
             message.messageType == ChatMessageType.system
         ? message.content
@@ -863,62 +838,65 @@ class _ChatNewMessageBanner extends StatelessWidget {
 
     final profileUrl = message.profileImageUrl;
 
-    return Material(
-      color: context.grays.white.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(AppRadius.xxl),
-      elevation: 2,
-      child: InkWell(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: 210,
+        maxWidth: 210,
+        minHeight: 60,
+      ),
+      child: Material(
+        color: context.grays.white.withValues(alpha: 0.90),
+        shadowColor: context.grays.black.withValues(alpha: 0.50),
         borderRadius: BorderRadius.circular(AppRadius.xxl),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.x12,
-            AppSpacing.x8,
-            AppSpacing.x8,
-            AppSpacing.x8,
-          ),
-          child: Row(
-            children: [
-              GroupChatProfile(
-                imageUrls: profileUrl != null && profileUrl.trim().isNotEmpty
-                    ? <String>[profileUrl]
-                    : const <String>[],
-                size: 36,
-              ),
-              const SizedBox(width: AppSpacing.x8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      message.isMine ? '나' : message.senderName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.semi14.copyWith(
-                        color: context.grays.black,
-                      ),
-                    ),
-                    Text(
-                      text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.med14.copyWith(
-                        color: context.grays.gray2,
-                      ),
-                    ),
-                  ],
+        elevation: 1,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.x12,
+              AppSpacing.x8,
+              AppSpacing.x8,
+              AppSpacing.x12,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GroupChatProfile(
+                  imageUrls: profileUrl != null && profileUrl.trim().isNotEmpty
+                      ? <String>[profileUrl]
+                      : const <String>[],
+                  size: 36,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.x12),
-              CircleAvatar(
-                backgroundColor: context.brands.beatOrange1,
-                child: Icon(
-                  Icons.arrow_downward_rounded,
-                  color: context.grays.white,
+                const SizedBox(width: AppSpacing.x10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        message.isMine ? '나' : message.senderName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FontStyles.bold14.copyWith(
+                          color: context.grays.black,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FontStyles.reg16.copyWith(
+                          color: context.grays.gray2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -984,8 +962,8 @@ class _ChatMessageList extends StatelessWidget {
           }
 
           if (index < pendingAttachments.length) {
-            final pending = pendingAttachments[
-                pendingAttachments.length - index - 1];
+            final pending =
+                pendingAttachments[pendingAttachments.length - index - 1];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.x16),
               child: ChatPendingAttachmentItem(
@@ -1040,10 +1018,10 @@ class _ChatMessageList extends StatelessWidget {
                     : null,
                 onAttachmentPressed:
                     _kindOf(message) != ChatAttachmentKind.image &&
-                            message.messageType != ChatMessageType.text &&
-                            message.messageType != ChatMessageType.system
-                        ? () => onAttachmentPressed(message)
-                        : null,
+                        message.messageType != ChatMessageType.text &&
+                        message.messageType != ChatMessageType.system
+                    ? () => onAttachmentPressed(message)
+                    : null,
               ),
               if (messageGap > 0) SizedBox(height: messageGap),
             ],
@@ -1102,9 +1080,7 @@ class _ChatSectionLabel extends StatelessWidget {
     return Center(
       child: Text(
         text,
-        style: FontStyles.med16.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: FontStyles.med15.copyWith(color: context.grays.gray4),
       ),
     );
   }

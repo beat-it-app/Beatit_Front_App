@@ -27,11 +27,7 @@ class LocationResultWidget extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.x20,
-            left: AppSpacing.x4,
-            right: AppSpacing.x4,
-          ),
+          padding: EdgeInsets.only(top: AppSpacing.x20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -42,7 +38,7 @@ class LocationResultWidget extends StatelessWidget {
                     child: Text(
                       name,
                       overflow: TextOverflow.ellipsis,
-                      style: FontStyles.med20.copyWith(
+                      style: FontStyles.med18.copyWith(
                         color: context.grays.black,
                       ),
                     ),
@@ -53,7 +49,7 @@ class LocationResultWidget extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 1),
                       child: Text(
                         '${distance!}m',
-                        style: FontStyles.med16.copyWith(
+                        style: FontStyles.med15.copyWith(
                           color: context.grays.gray5,
                         ),
                       ),
@@ -81,7 +77,7 @@ class LocationResultWidget extends StatelessWidget {
                   Expanded(
                     child: Text(
                       address,
-                      style: FontStyles.med16.copyWith(
+                      style: FontStyles.med15.copyWith(
                         color: context.grays.gray5,
                       ),
                     ),

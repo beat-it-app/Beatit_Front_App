@@ -9,9 +9,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 /// TeamMemberPage의 일반 멤버 행(프로필 · 이름 · 포지션)을 차용하고
 /// 역할 배지는 제외한다. 선택지별 명단은 비익명 투표에서만 노출한다.
 class PollVotersSheet extends StatefulWidget {
-  const PollVotersSheet({super.key, required this.loadVoters});
+  const PollVotersSheet({
+    super.key,
+    required this.loadVoters,
+    required this.optionTitle,
+  });
 
   final Future<List<PollVoter>> Function() loadVoters;
+  final String optionTitle;
 
   @override
   State<PollVotersSheet> createState() => _PollVotersSheetState();
@@ -40,7 +45,9 @@ class _PollVotersSheetState extends State<PollVotersSheet> {
                   const SizedBox(width: 24),
                   Expanded(
                     child: Text(
-                      '투표한 사람',
+                      widget.optionTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: FontStyles.bold20.copyWith(
                         color: context.colors.onSurface,
                       ),
@@ -164,24 +171,27 @@ class _VoterRow extends StatelessWidget {
                   : _fallbackImage(),
             ),
           ),
-          const SizedBox(width: AppSpacing.x16),
+          const SizedBox(width: AppSpacing.x12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   voter.name,
-                  style: FontStyles.semi20.copyWith(
+                  style: FontStyles.semi18.copyWith(
                     color: context.colors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  (voter.position?.trim().isNotEmpty ?? false)
-                      ? voter.position!
-                      : '',
-                  style: FontStyles.reg16.copyWith(color: context.grays.gray5),
-                ),
+                const SizedBox(height: 3.0),
+                (voter.position?.trim().isNotEmpty ?? false)
+                    ? Text(
+                        voter.position!,
+
+                        style: FontStyles.reg14.copyWith(
+                          color: context.grays.gray4,
+                        ),
+                      )
+                    : const SizedBox(height: 0.0),
               ],
             ),
           ),

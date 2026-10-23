@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ScheduleUpdateRequest {
 
- int? get locationId; String get title; String? get content;@KstDateTimeConverter() DateTime get startsAt;@KstDateTimeConverter() DateTime get endsAt;/// null이면 기존 참여자를 유지합니다.
+ int? get locationId; String get title; String? get content;@KstDateTimeConverter() DateTime? get startsAt;@KstDateTimeConverter() DateTime? get endsAt;/// null이면 기존 참여자를 유지합니다.
  List<int>? get participantUserIds;/// 새로 추가할 음원입니다.
  List<ScheduleUpdateMusicRequest>? get musics;/// 기존 음원 중 유지할 ID 목록입니다.
 /// 백엔드 현재 구현상 null도 빈 목록처럼 처리되어 기존 음원이 삭제됩니다.
@@ -60,7 +60,7 @@ abstract mixin class $ScheduleUpdateRequestCopyWith<$Res>  {
   factory $ScheduleUpdateRequestCopyWith(ScheduleUpdateRequest value, $Res Function(ScheduleUpdateRequest) _then) = _$ScheduleUpdateRequestCopyWithImpl;
 @useResult
 $Res call({
- int? locationId, String title, String? content,@KstDateTimeConverter() DateTime startsAt,@KstDateTimeConverter() DateTime endsAt, List<int>? participantUserIds, List<ScheduleUpdateMusicRequest>? musics, List<int>? retainMusicIds, List<int>? retainFileIds
+ int? locationId, String title, String? content,@KstDateTimeConverter() DateTime? startsAt,@KstDateTimeConverter() DateTime? endsAt, List<int>? participantUserIds, List<ScheduleUpdateMusicRequest>? musics, List<int>? retainMusicIds, List<int>? retainFileIds
 });
 
 
@@ -77,14 +77,14 @@ class _$ScheduleUpdateRequestCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleUpdateRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = null,Object? endsAt = null,Object? participantUserIds = freezed,Object? musics = freezed,Object? retainMusicIds = freezed,Object? retainFileIds = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = freezed,Object? endsAt = freezed,Object? participantUserIds = freezed,Object? musics = freezed,Object? retainMusicIds = freezed,Object? retainFileIds = freezed,}) {
   return _then(ScheduleUpdateRequest(
 locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
-as String?,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,participantUserIds: freezed == participantUserIds ? _self.participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
+as String?,startsAt: freezed == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,endsAt: freezed == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,participantUserIds: freezed == participantUserIds ? _self.participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
 as List<int>?,musics: freezed == musics ? _self.musics : musics // ignore: cast_nullable_to_non_nullable
 as List<ScheduleUpdateMusicRequest>?,retainMusicIds: freezed == retainMusicIds ? _self.retainMusicIds : retainMusicIds // ignore: cast_nullable_to_non_nullable
 as List<int>?,retainFileIds: freezed == retainFileIds ? _self.retainFileIds : retainFileIds // ignore: cast_nullable_to_non_nullable
@@ -173,7 +173,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ScheduleUpdateRequest() when $default != null:
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics,_that.retainMusicIds,_that.retainFileIds);case _:
@@ -194,7 +194,7 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleUpdateRequest():
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics,_that.retainMusicIds,_that.retainFileIds);case _:
@@ -214,7 +214,7 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime startsAt, @KstDateTimeConverter()  DateTime endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? locationId,  String title,  String? content, @KstDateTimeConverter()  DateTime? startsAt, @KstDateTimeConverter()  DateTime? endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds)?  $default,) {final _that = this;
 switch (_that) {
 case _ScheduleUpdateRequest() when $default != null:
 return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.endsAt,_that.participantUserIds,_that.musics,_that.retainMusicIds,_that.retainFileIds);case _:
@@ -229,14 +229,14 @@ return $default(_that.locationId,_that.title,_that.content,_that.startsAt,_that.
 @JsonSerializable()
 
 class _ScheduleUpdateRequest implements ScheduleUpdateRequest {
-  const _ScheduleUpdateRequest({this.locationId, required this.title, this.content, @KstDateTimeConverter() required this.startsAt, @KstDateTimeConverter() required this.endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds}): _participantUserIds = participantUserIds,_musics = musics,_retainMusicIds = retainMusicIds,_retainFileIds = retainFileIds;
+  const _ScheduleUpdateRequest({this.locationId, required this.title, this.content, @KstDateTimeConverter() this.startsAt, @KstDateTimeConverter() this.endsAt,  List<int>? participantUserIds,  List<ScheduleUpdateMusicRequest>? musics,  List<int>? retainMusicIds,  List<int>? retainFileIds}): _participantUserIds = participantUserIds,_musics = musics,_retainMusicIds = retainMusicIds,_retainFileIds = retainFileIds;
   factory _ScheduleUpdateRequest.fromJson(Map<String, dynamic> json) => _$ScheduleUpdateRequestFromJson(json);
 
 @override final  int? locationId;
 @override final  String title;
 @override final  String? content;
-@override@KstDateTimeConverter() final  DateTime startsAt;
-@override@KstDateTimeConverter() final  DateTime endsAt;
+@override@KstDateTimeConverter() final  DateTime? startsAt;
+@override@KstDateTimeConverter() final  DateTime? endsAt;
 /// null이면 기존 참여자를 유지합니다.
  final  List<int>? _participantUserIds;
 /// null이면 기존 참여자를 유지합니다.
@@ -321,7 +321,7 @@ abstract mixin class _$ScheduleUpdateRequestCopyWith<$Res> implements $ScheduleU
   factory _$ScheduleUpdateRequestCopyWith(_ScheduleUpdateRequest value, $Res Function(_ScheduleUpdateRequest) _then) = __$ScheduleUpdateRequestCopyWithImpl;
 @override @useResult
 $Res call({
- int? locationId, String title, String? content,@KstDateTimeConverter() DateTime startsAt,@KstDateTimeConverter() DateTime endsAt, List<int>? participantUserIds, List<ScheduleUpdateMusicRequest>? musics, List<int>? retainMusicIds, List<int>? retainFileIds
+ int? locationId, String title, String? content,@KstDateTimeConverter() DateTime? startsAt,@KstDateTimeConverter() DateTime? endsAt, List<int>? participantUserIds, List<ScheduleUpdateMusicRequest>? musics, List<int>? retainMusicIds, List<int>? retainFileIds
 });
 
 
@@ -338,14 +338,14 @@ class __$ScheduleUpdateRequestCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleUpdateRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = null,Object? endsAt = null,Object? participantUserIds = freezed,Object? musics = freezed,Object? retainMusicIds = freezed,Object? retainFileIds = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? locationId = freezed,Object? title = null,Object? content = freezed,Object? startsAt = freezed,Object? endsAt = freezed,Object? participantUserIds = freezed,Object? musics = freezed,Object? retainMusicIds = freezed,Object? retainFileIds = freezed,}) {
   return _then(_ScheduleUpdateRequest(
 locationId: freezed == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int?,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
-as String?,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,participantUserIds: freezed == participantUserIds ? _self._participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
+as String?,startsAt: freezed == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,endsAt: freezed == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,participantUserIds: freezed == participantUserIds ? _self._participantUserIds : participantUserIds // ignore: cast_nullable_to_non_nullable
 as List<int>?,musics: freezed == musics ? _self._musics : musics // ignore: cast_nullable_to_non_nullable
 as List<ScheduleUpdateMusicRequest>?,retainMusicIds: freezed == retainMusicIds ? _self._retainMusicIds : retainMusicIds // ignore: cast_nullable_to_non_nullable
 as List<int>?,retainFileIds: freezed == retainFileIds ? _self._retainFileIds : retainFileIds // ignore: cast_nullable_to_non_nullable

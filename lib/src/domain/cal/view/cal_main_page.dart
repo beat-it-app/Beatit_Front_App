@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -69,7 +70,9 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   }
 
   Future<void> _loadSelectedDate(DateTime day) {
-    return ref.read(calMainProvider.notifier).loadDate(day: day);
+    // 날짜를 선택할 때마다 서버에서 최신 일정을 다시 조회합니다.
+    // 과거에 조회한 날짜라도 생성·수정된 일정이 즉시 반영되어야 합니다.
+    return ref.read(calMainProvider.notifier).loadDate(day: day, force: true);
   }
 
   Future<void> _refreshCalendar({
@@ -86,14 +89,17 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
 
   Future<void> _goToCalCreatePage() async {
     final createdSchedule = await Navigator.of(context).push<ScheduleWriteData>(
-      MaterialPageRoute(builder: (_) => const CalCreatePage()),
+      MaterialPageRoute(
+        builder: (_) => CalCreatePage(initialDate: _selectedDay),
+      ),
     );
 
     if (!mounted || createdSchedule == null) {
       return;
     }
 
-    final createdDay = DateUtils.dateOnly(_toKst(createdSchedule.startsAt));
+    // 생성 직전 선택한 날짜를 유지합니다. 시간 미지정 일정에는 startsAt이 없습니다.
+    final createdDay = DateUtils.dateOnly(_selectedDay);
     final createdMonth = DateTime(createdDay.year, createdDay.month);
 
     setState(() {
@@ -207,15 +213,21 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     return _calendarSchedulesForDay(day, schedules).isNotEmpty;
   }
 
-  String? _labelForDay(DateTime day, List<CalendarSchedule> schedules) {
+  String? _labelForDay(
+    DateTime day,
+    List<CalendarSchedule> schedules,
+    Map<int, bool> participationByScheduleId,
+  ) {
     final daySchedules = _calendarSchedulesForDay(day, schedules);
+    if (daySchedules.isEmpty) return null;
 
-    if (daySchedules.isEmpty) {
-      return null;
+    // 참여 일정이 하나라도 있다면 그 제목을 먼저 표시합니다.
+    // 같은 참여 상태끼리는 백엔드의 기존 시간 순서를 유지합니다.
+    for (final schedule in daySchedules) {
+      if (participationByScheduleId[schedule.scheduleId] == true) {
+        return _shortCalendarLabel(schedule.title);
+      }
     }
-
-    // 백엔드가 startsAt ASC로 반환하므로 첫 번째 일정이
-    // 해당 날짜에서 가장 상단에 노출할 일정입니다.
     return _shortCalendarLabel(daySchedules.first.title);
   }
 
@@ -244,7 +256,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   String _formatMonth(DateTime date) {
     final month = date.month.toString();
 
-    return '${date.year}. $month';
+    return '${date.year}. $month.';
   }
 
   String _formatSelectedDate(DateTime date) {
@@ -254,33 +266,11 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     return '${date.month}월 ${date.day}일 $weekday요일';
   }
 
-  String _formatScheduleDate(DateTime date) {
-    final month = date.month.toString();
-    final day = date.day.toString();
-
-    return '${date.year}. $month. $day ';
-  }
-
-  String _formatTime(DateTime date) {
-    final hour = date.hour.toString();
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
   String _formatScheduleTimeRange(DateSchedule schedule) {
-    final startsAt = _toKst(schedule.startsAt);
-    final endsAt = _toKst(schedule.endsAt);
-
-    final startDate = _formatScheduleDate(startsAt);
-    final endDate = _formatScheduleDate(endsAt);
-
-    if (startDate == endDate) {
-      return '$startDate ${_formatTime(startsAt)} - ${_formatTime(endsAt)}';
-    }
-
-    return '$startDate ${_formatTime(startsAt)} - '
-        '$endDate ${_formatTime(endsAt)}';
+    return AppDateTimeFormatter.formatScheduleTimeRange(
+      schedule.startsAt,
+      schedule.endsAt,
+    );
   }
 
   @override
@@ -288,6 +278,7 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
     final calState = ref.watch(calMainProvider);
     final locationCache = ref.watch(locationDetailCacheProvider);
     final selectedSchedules = calState.selectedDateSchedules;
+
     final isInitialLoading =
         _isBootstrapping ||
         ((!calState.hasLoadedMonthOnce || !calState.hasLoadedDateOnce) &&
@@ -337,8 +328,22 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                         hasSchedule: (day) =>
                             _hasSchedule(day, calState.monthSchedules),
                         isHoliday: _isHoliday,
-                        labelForDay: (day) =>
-                            _labelForDay(day, calState.monthSchedules),
+                        labelForDay: (day) => _labelForDay(
+                          day,
+                          calState.monthSchedules,
+                          calState.participationByScheduleId,
+                        ),
+                        hasMySchedule: (day) {
+                          final schedules = _calendarSchedulesForDay(
+                            day,
+                            calState.monthSchedules,
+                          );
+                          return schedules.any(
+                            (schedule) =>
+                                calState.participationByScheduleId[
+                                    schedule.scheduleId] == true,
+                          );
+                        },
                         onDaySelected: _handleDaySelected,
                         onPageChanged: _handlePageChanged,
                       ),
@@ -386,7 +391,11 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
                       else if (selectedSchedules.isEmpty)
                         _buildEmptySchedule(context)
                       else
-                        _buildScheduleList(selectedSchedules, locationCache),
+                        _buildScheduleList(
+                          selectedSchedules,
+                          locationCache,
+                          calState.participationByScheduleId,
+                        ),
                     ],
                   ),
                 ),
@@ -505,11 +514,22 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
   Widget _buildScheduleList(
     List<DateSchedule> schedules,
     Map<int, LocationData> locationCache,
+    Map<int, bool> participationByScheduleId,
   ) {
+    // 참여 일정을 먼저 노출하되, 각 그룹 내부는 API의 기존 순서를 유지합니다.
+    final orderedSchedules = <DateSchedule>[
+      ...schedules.where(
+        (schedule) => participationByScheduleId[schedule.scheduleId] == true,
+      ),
+      ...schedules.where(
+        (schedule) => participationByScheduleId[schedule.scheduleId] != true,
+      ),
+    ];
+
     return Column(
-      children: List.generate(schedules.length, (index) {
-        final schedule = schedules[index];
-        final isLastItem = index == schedules.length - 1;
+      children: List.generate(orderedSchedules.length, (index) {
+        final schedule = orderedSchedules[index];
+        final isLastItem = index == orderedSchedules.length - 1;
 
         return Padding(
           padding: EdgeInsets.only(bottom: isLastItem ? 0 : AppSpacing.x30),
@@ -517,7 +537,9 @@ class _CalMainPageState extends ConsumerState<CalMainPage> {
             titleText: schedule.title,
             locationText: _locationText(schedule.locationId, locationCache),
             timeText: _formatScheduleTimeRange(schedule),
-            scheduleType: ScheduleType.mine,
+            scheduleType: participationByScheduleId[schedule.scheduleId] == true
+                ? ScheduleType.mine
+                : ScheduleType.none,
             onTap: () {
               debugPrint('scheduleId=${schedule.scheduleId} 일정 선택');
               _goToCalDetailPage(schedule.scheduleId);
