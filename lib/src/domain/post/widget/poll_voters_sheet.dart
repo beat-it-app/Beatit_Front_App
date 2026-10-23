@@ -183,12 +183,15 @@ class _VoterRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3.0),
-                Text(
-                  (voter.position?.trim().isNotEmpty ?? false)
-                      ? voter.position!
-                      : '',
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray4),
-                ),
+                (voter.position?.trim().isNotEmpty ?? false)
+                    ? Text(
+                        voter.position!,
+
+                        style: FontStyles.reg14.copyWith(
+                          color: context.grays.gray4,
+                        ),
+                      )
+                    : const SizedBox(height: 0.0),
               ],
             ),
           ),

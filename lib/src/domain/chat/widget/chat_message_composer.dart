@@ -1,4 +1,6 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -85,7 +87,7 @@ class _ChatMessageComposerState extends State<ChatMessageComposer> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: inputBackground,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderRadius: BorderRadius.circular(AppRadius.xxxl),
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -125,10 +127,16 @@ class _ChatMessageComposerState extends State<ChatMessageComposer> {
                               onTap: widget.enabled
                                   ? menuController.open
                                   : null,
-                              child: Icon(
-                                Icons.add,
-                                color: colors.onSurfaceVariant,
-                                size: AppSpacing.x24,
+                              child: Center(
+                                child: SvgPicture.asset(
+                                  'assets/icons/chat/plus.svg',
+                                  colorFilter: ColorFilter.mode(
+                                    context.grays.gray1,
+                                    BlendMode.srcIn,
+                                  ),
+                                  width: 30,
+                                  height: 30,
+                                ),
                               ),
                             ),
                           ),

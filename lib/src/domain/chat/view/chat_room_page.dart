@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
@@ -280,28 +281,54 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (sheetContext) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x8),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.x16,
+            AppSpacing.x16,
+            AppSpacing.x16,
+            AppSpacing.x28,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.image_outlined),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                splashColor: context.grays.gray8,
+                selectedColor: context.grays.gray8,
+                style: ListTileStyle.drawer,
+                leading: SvgPicture.asset(
+                  'assets/icons/chat/picture_fill.svg',
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray1,
+                    BlendMode.srcIn,
+                  ),
+                ),
                 title: Text(
                   '사진',
-                  style: FontStyles.med16.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                  style: FontStyles.med16.copyWith(color: context.grays.gray1),
                 ),
                 onTap: () =>
                     Navigator.of(sheetContext).pop(ChatMessageType.image),
               ),
+              const SizedBox(height: AppSpacing.x4),
               ListTile(
-                leading: const Icon(Icons.videocam_outlined),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                splashColor: context.grays.gray8,
+                selectedColor: context.grays.gray8,
+                style: ListTileStyle.drawer,
+                leading: SvgPicture.asset(
+                  'assets/icons/chat/video_fill.svg',
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray1,
+                    BlendMode.srcIn,
+                  ),
+                ),
                 title: Text(
                   '동영상',
-                  style: FontStyles.med16.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                  style: FontStyles.med16.copyWith(color: context.grays.gray1),
                 ),
                 onTap: () =>
                     Navigator.of(sheetContext).pop(ChatMessageType.video),
@@ -415,7 +442,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final images = ref
         .read(chatRoomProvider)
         .messages
-        .where((message) => _attachmentKind(message) == ChatAttachmentKind.image)
+        .where(
+          (message) => _attachmentKind(message) == ChatAttachmentKind.image,
+        )
         .toList(growable: false);
     if (images.isEmpty) return;
 
@@ -644,7 +673,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       // The first page already appears at offset 0; no initial scroll call.
       // If the loaded page does not fill the screen, fetch older pages until
       // the room becomes scrollable or the server reports hasNext=false.
-      if (!next.isInitialLoading && next.hasNext &&
+      if (!next.isInitialLoading &&
+          next.hasNext &&
           (previous?.isInitialLoading == true ||
               previous?.currentPage != next.currentPage)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -794,7 +824,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
             ref.read(chatRoomProvider.notifier).retryAttachment(localId);
           },
           onDeletePending: (localId) {
-            ref.read(chatRoomProvider.notifier).removePendingAttachment(localId);
+            ref
+                .read(chatRoomProvider.notifier)
+                .removePendingAttachment(localId);
           },
         ),
       ),
@@ -833,10 +865,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
 }
 
 class _ChatNewMessageBanner extends StatelessWidget {
-  const _ChatNewMessageBanner({
-    required this.message,
-    required this.onPressed,
-  });
+  const _ChatNewMessageBanner({required this.message, required this.onPressed});
 
   final ChatMessage message;
   final VoidCallback onPressed;
@@ -852,10 +881,10 @@ class _ChatNewMessageBanner extends StatelessWidget {
       ChatAttachmentKind.video => '동영상을 보냈습니다.',
       ChatAttachmentKind.image => '사진을 보냈습니다.',
       ChatAttachmentKind.audio => '음성 파일을 보냈습니다.',
-      ChatAttachmentKind.document || ChatAttachmentKind.file =>
-        '파일을 보냈습니다.',
+      ChatAttachmentKind.document || ChatAttachmentKind.file => '파일을 보냈습니다.',
     };
-    final text = message.messageType == ChatMessageType.text ||
+    final text =
+        message.messageType == ChatMessageType.text ||
             message.messageType == ChatMessageType.unknown ||
             message.messageType == ChatMessageType.system
         ? message.content
@@ -984,8 +1013,8 @@ class _ChatMessageList extends StatelessWidget {
           }
 
           if (index < pendingAttachments.length) {
-            final pending = pendingAttachments[
-                pendingAttachments.length - index - 1];
+            final pending =
+                pendingAttachments[pendingAttachments.length - index - 1];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.x16),
               child: ChatPendingAttachmentItem(
@@ -1040,10 +1069,10 @@ class _ChatMessageList extends StatelessWidget {
                     : null,
                 onAttachmentPressed:
                     _kindOf(message) != ChatAttachmentKind.image &&
-                            message.messageType != ChatMessageType.text &&
-                            message.messageType != ChatMessageType.system
-                        ? () => onAttachmentPressed(message)
-                        : null,
+                        message.messageType != ChatMessageType.text &&
+                        message.messageType != ChatMessageType.system
+                    ? () => onAttachmentPressed(message)
+                    : null,
               ),
               if (messageGap > 0) SizedBox(height: messageGap),
             ],
@@ -1102,9 +1131,7 @@ class _ChatSectionLabel extends StatelessWidget {
     return Center(
       child: Text(
         text,
-        style: FontStyles.med16.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: FontStyles.med15.copyWith(color: context.grays.gray4),
       ),
     );
   }
