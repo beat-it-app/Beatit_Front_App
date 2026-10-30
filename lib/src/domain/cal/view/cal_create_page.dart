@@ -104,7 +104,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
 
   bool get _hasValidTimeRange {
     if (_selectedDate == null) return false;
-    if (_startTime == null && _endTime == null) return true;
+    // 현재 서버는 시작/종료 시각을 모두 필수로 검증합니다.
     if (_startTime == null || _endTime == null) return false;
 
     final startsAt = _combineDateAndTime(_selectedDate!, _startTime!);
@@ -120,7 +120,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   bool get _canSubmit {
     return _hasTitle &&
         _selectedDate != null &&
-        _selectedLocationId != null &&
         _hasValidTimeRange &&
         _selectedMembers.isNotEmpty;
   }
@@ -230,7 +229,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     if (!_isEditMode) {
       _selectedDate = _defaultCreateDate;
       _dateController.text = _formatDate(_defaultCreateDate);
-      // 시간은 선택 사항이며 미선택 상태로 진입합니다.
+      // 입력창은 비워두되 현재 서버 저장 시에는 시작/종료 시간이 필수입니다.
     }
     _applyInitialSchedule();
   }
@@ -411,15 +410,15 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   String? get _startTimeErrorText {
-    if (!_showValidation || _startTime != null || _endTime == null) return null;
-    return '시작 시간을 선택하거나 시간을 모두 비워주세요.';
+    if (!_showValidation || _startTime != null) return null;
+    return '시작 시간을 선택해주세요.';
   }
 
   String? get _endTimeErrorText {
     if (!_showValidation) return null;
 
-    if (_endTime == null && _startTime != null) {
-      return '끝나는 시간을 선택하거나 시간을 모두 비워주세요.';
+    if (_endTime == null) {
+      return '끝나는 시간을 선택해주세요.';
     }
 
     if (_startTime != null && _endTime != null && !_hasValidTimeRange) {
@@ -427,11 +426,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     return null;
-  }
-
-  String? get _locationErrorText {
-    if (!_showValidation || _selectedLocationId != null) return null;
-    return '장소를 선택해주세요.';
   }
 
   String? get _membersErrorText {
@@ -486,6 +480,16 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _startTime = selectedTime;
       _startTimeController.text = _formatTime(selectedTime);
+
+      // 종료 시각을 아직 고르지 않았다면 시작 시각 + 1시간을 바로 표시합니다.
+      // 이미 직접 고른 종료 시각(수정 모드 포함)은 덮어쓰지 않습니다.
+      if (_endTime == null) {
+        _endTime = TimeOfDay(
+          hour: (selectedTime.hour + 1) % 24,
+          minute: selectedTime.minute,
+        );
+        _endTimeController.text = _formatTime(_endTime!);
+      }
     });
   }
 
@@ -534,7 +538,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             request: ScheduleUpdateRequest(
               locationId: _selectedLocationId,
               title: _titleController.text.trim(),
-              content: _nullableTrimmedText(_contentController.text),
+              // 기존 설명만 삭제할 때도 서버가 변경으로 감지하도록
+              // 수정 요청에서는 null 대신 빈 문자열을 보냅니다.
+              content: _contentController.text.trim(),
               startsAt: startsAt,
               endsAt: endsAt,
               participantUserIds: _participantsChanged
@@ -639,6 +645,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Future<void> _openLocationSelector() async {
+    FocusScope.of(context).unfocus();
     final selectedLocation = await Navigator.of(context).push<LocationData>(
       MaterialPageRoute(
         builder: (_) =>
@@ -657,6 +664,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Future<void> _openMemberSelector() async {
+    FocusScope.of(context).unfocus();
     final selected = await Navigator.of(context)
         .push<List<MemberSelectionMember>>(
           MaterialPageRoute(
@@ -701,6 +709,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Future<void> _openMusicSelector() async {
+    FocusScope.of(context).unfocus();
     if (_selectedMusics.length >= _maxMusicCount) {
       _showLimitMessage('음원은 최대 $_maxMusicCount개까지 추가할 수 있습니다.');
       return;
@@ -740,6 +749,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   Future<void> _openFileSelector() async {
+    FocusScope.of(context).unfocus();
     final remainingCount = _maxFileCount - _fileCount;
     if (remainingCount <= 0) {
       _showLimitMessage('파일은 최대 $_maxFileCount개까지 추가할 수 있습니다.');
@@ -884,6 +894,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     required String source,
     String? fileSize,
   }) {
+    FocusScope.of(context).unfocus();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ScheduleFilePreviewPage(
@@ -1058,11 +1069,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         const SizedBox(height: AppSpacing.x20),
                         AppTextField(
                           label: '장소',
-                          requiredMark: true,
                           hintText: '모임 장소를 검색하세요.',
                           controller: _locationController,
                           readOnly: true,
-                          errorText: _locationErrorText,
                           onTap: _openLocationSelector,
                           suffixIcon: SvgPicture.asset(
                             'assets/icons/cal/search.svg',
