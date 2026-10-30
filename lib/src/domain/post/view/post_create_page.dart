@@ -87,6 +87,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   Future<void> _pickImages() async {
     if (!_canAddImage) return;
+    FocusScope.of(context).unfocus();
     final List<XFile> selected;
     if (widget.maxImageCount == 1) {
       final image = await ImagePicker().pickImage(source: ImageSource.gallery);

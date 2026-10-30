@@ -384,12 +384,13 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                       enabled: _canEditVote,
                       backgroundColor: inputBackgroundColor,
                       onPressed: () => _toggleOption(i),
-                      trailing: _showResults
+                      // 비익명 투표는 참여/종료 여부와 무관하게 인원수를 누를 수 있습니다.
+                      trailing: (_showResults ||
+                              (!widget.isAnonymous && widget.onParticipantTap != null))
                           ? _PollNumWidget(
                               text: '${_voteCounts[i]}명',
                               onTap: widget.onParticipantTap != null &&
-                                  !widget.isAnonymous && _hasVoted &&
-                                  _voteCounts[i] > 0
+                                  !widget.isAnonymous
                               ? () => widget.onParticipantTap?.call(i)
                               : null,
                               color:

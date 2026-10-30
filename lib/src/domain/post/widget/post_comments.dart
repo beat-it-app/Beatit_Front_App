@@ -15,67 +15,80 @@ class PostCommentList extends StatelessWidget {
   const PostCommentList({
     super.key,
     required this.comments,
-    required this.canModerate,
     required this.onReply,
     required this.onDelete,
   });
 
   final List<PostComment> comments;
-  final bool canModerate;
   final ValueChanged<PostComment> onReply;
   final Future<void> Function(int commentId) onDelete;
+
+  void _replyKeepingParentVisible(
+    BuildContext parentContext,
+    PostComment comment,
+  ) {
+    onReply(comment);
+    // 키보드 높이가 반영된 뒤 부모 댓글을 입력창 위에 남깁니다.
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (!parentContext.mounted) return;
+      Scrollable.ensureVisible(
+        parentContext,
+        alignment: 0.1,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     if (comments.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x20),
-        child: Column(
-          children: [
-            Text(
-              '아직 단 댓글이 없어요.',
-              style: FontStyles.med14.copyWith(color: context.grays.gray4),
-            ),
-            const SizedBox(height: AppSpacing.x4),
-            Text(
-              '가장 먼저 댓글을 남겨보세요.',
-              style: FontStyles.med14.copyWith(color: context.grays.gray4),
-            ),
-          ],
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.x40),
+        child: Text(
+          '가장 먼저 댓글을 남겨주세요',
+          textAlign: TextAlign.center,
+          style: FontStyles.med14.copyWith(color: context.grays.gray5),
         ),
       );
     }
 
     return Column(
       children: [
-        for (final comment in comments) ...[
-          _SwipeComment(
-            key: ValueKey(comment.commentId),
-            comment: comment,
-            canDelete: canModerate || comment.isMine,
-            onReply: () => onReply(comment),
-            replyToName: null,
-            onDelete: () => onDelete(comment.commentId),
-          ),
-          for (final reply in comment.replies)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.x20,
-                top: AppSpacing.x12,
-              ),
-              child: _SwipeComment(
-                key: ValueKey(reply.commentId),
-                comment: reply,
-                canDelete: canModerate || reply.isMine,
-                onReply: () => onReply(reply),
-                // 기존 대댓글은 부모(루트) 글쓴이를 대상자로 표시합니다.
-                // 새 대댓글은 본문에 명시된 답글 대상자가 우선합니다.
-                replyToName: comment.writerName,
-                onDelete: () => onDelete(reply.commentId),
-              ),
+        for (final comment in comments)
+          Builder(
+            builder: (parentContext) => Column(
+              children: [
+                _SwipeComment(
+                  key: ValueKey(comment.commentId),
+                  comment: comment,
+                  canDelete: comment.isMine,
+                  onReply: () =>
+                      _replyKeepingParentVisible(parentContext, comment),
+                  replyToName: null,
+                  onDelete: () => onDelete(comment.commentId),
+                ),
+                for (final reply in comment.replies)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: AppSpacing.x20,
+                      top: AppSpacing.x12,
+                    ),
+                    child: _SwipeComment(
+                      key: ValueKey(reply.commentId),
+                      comment: reply,
+                      canDelete: reply.isMine,
+                      onReply: () =>
+                          _replyKeepingParentVisible(parentContext, reply),
+                      // 서버가 대댓글을 최상위 댓글 아래에 평탄화합니다.
+                      replyToName: comment.writerName,
+                      onDelete: () => onDelete(reply.commentId),
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.x20),
+              ],
             ),
-          const SizedBox(height: AppSpacing.x20),
-        ],
+          ),
       ],
     );
   }
@@ -165,7 +178,8 @@ class _SwipeCommentState extends State<_SwipeComment> {
               ),
             ),
           GestureDetector(
-            behavior: HitTestBehavior.opaque,
+            // 열린 상태에서 빈 오른쪽 영역의 탭이 뒤쪽 삭제 버튼으로 전달됩니다.
+            behavior: HitTestBehavior.deferToChild,
             onHorizontalDragStart: (_) => _dragDistance = 0,
             onHorizontalDragUpdate: (details) {
               _dragDistance += details.delta.dx;
@@ -174,11 +188,8 @@ class _SwipeCommentState extends State<_SwipeComment> {
               if (!widget.canDelete || _deleting) return;
 
               if (_dragDistance < -48) {
-                if (_opened) {
-                  _delete();
-                } else {
-                  setState(() => _opened = true);
-                }
+                // 드래그는 삭제 버튼만 열고, 실제 삭제는 빨간 버튼을 눌렀을 때만 합니다.
+                if (!_opened) setState(() => _opened = true);
                 return;
               }
 
@@ -275,8 +286,9 @@ class _SwipeCommentState extends State<_SwipeComment> {
   // 답글의 답글도 정확한 대상 이름을 알 수 있도록 댓글 내용에만 대상 정보를
   // 보관합니다. @멘션과는 별개이며 멘션 ID 목록에도 추가하지 않습니다.
   static final RegExp _replyTargetPattern = RegExp(r'^↳([^↳\n]{1,80})↳\s*');
-  static final RegExp _legacyMentionPattern =
-      RegExp(r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)');
+  static final RegExp _legacyMentionPattern = RegExp(
+    r'@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)',
+  );
 
   static TextSpan _commentContent(
     BuildContext context,
@@ -333,19 +345,19 @@ class _SwipeCommentState extends State<_SwipeComment> {
   ) {
     // @문법을 그대로 포함한 구형 댓글도 표시할 수 있습니다.
     final explicitNames = <String>{};
-    final visibleText = content.replaceAllMapped(
-      _legacyMentionPattern,
-      (match) {
-        final name = match.group(1) ?? match.group(2) ?? '';
-        if (name.isNotEmpty) explicitNames.add(name);
-        return name;
-      },
-    );
-    final names = <String>{
-      ...mentionedUsers.map((item) => item.name.trim()),
-      ...explicitNames,
-    }.where((value) => value.isNotEmpty).toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
+    final visibleText = content.replaceAllMapped(_legacyMentionPattern, (
+      match,
+    ) {
+      final name = match.group(1) ?? match.group(2) ?? '';
+      if (name.isNotEmpty) explicitNames.add(name);
+      return name;
+    });
+    final names =
+        <String>{
+            ...mentionedUsers.map((item) => item.name.trim()),
+            ...explicitNames,
+          }.where((value) => value.isNotEmpty).toList()
+          ..sort((a, b) => b.length.compareTo(a.length));
 
     final baseStyle = FontStyles.reg14.copyWith(
       color: Theme.of(context).colorScheme.onSurface,
@@ -357,9 +369,11 @@ class _SwipeCommentState extends State<_SwipeComment> {
     var cursor = 0;
     for (final match in tokenPattern.allMatches(visibleText)) {
       // 이름 중간이나 일반 단어 속에 포함된 문자열은 멘션으로 처리하지 않습니다.
-      final startsAtWordBoundary = match.start == 0 ||
+      final startsAtWordBoundary =
+          match.start == 0 ||
           !RegExp(r'[a-zA-Z0-9가-힣_]').hasMatch(visibleText[match.start - 1]);
-      final endsAtWordBoundary = match.end == visibleText.length ||
+      final endsAtWordBoundary =
+          match.end == visibleText.length ||
           !RegExp(r'[a-zA-Z0-9가-힣_]').hasMatch(visibleText[match.end]);
       if (!startsAtWordBoundary || !endsAtWordBoundary) continue;
 
@@ -369,9 +383,7 @@ class _SwipeCommentState extends State<_SwipeComment> {
       spans.add(
         TextSpan(
           text: match.group(0),
-          style: FontStyles.semi14.copyWith(
-            color: context.brands.beatOrange1,
-          ),
+          style: FontStyles.semi14.copyWith(color: context.brands.beatOrange1),
         ),
       );
       cursor = match.end;
@@ -391,9 +403,14 @@ typedef SendPostComment =
     );
 
 class PostCommentComposer extends ConsumerStatefulWidget {
-  const PostCommentComposer({super.key, required this.onSend});
+  const PostCommentComposer({
+    super.key,
+    required this.onSend,
+    this.onFocusForNewComment,
+  });
 
   final SendPostComment onSend;
+  final VoidCallback? onFocusForNewComment;
 
   @override
   ConsumerState<PostCommentComposer> createState() =>
@@ -410,6 +427,20 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
   bool _sending = false;
   int? _mentionStart;
   String? _mentionQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() {
+    if (_focusNode.hasFocus && _parentId == null) {
+      widget.onFocusForNewComment?.call();
+    }
+  }
+
+  bool get isReplying => _parentId != null;
 
   void replyTo(PostComment comment) {
     setState(() {
@@ -551,6 +582,7 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
           _mentionStart = null;
           _mentionQuery = null;
         });
+        if (_focusNode.hasFocus) widget.onFocusForNewComment?.call();
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -562,11 +594,13 @@ class PostCommentComposerState extends ConsumerState<PostCommentComposer> {
       _parentId = null;
       _replyName = null;
     });
+    if (_focusNode.hasFocus) widget.onFocusForNewComment?.call();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.removeListener(_handleFocusChanged);
     _focusNode.dispose();
     super.dispose();
   }
