@@ -317,6 +317,7 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
                   return AlarmItemWidget(
                     key: ValueKey(item.id),
                     notification: item,
+                    teamName: state.teamName,
                     isBusy: state.activeNotificationId == item.id,
                     onTap:
                         state.activeNotificationId != null || state.isReadingAll
