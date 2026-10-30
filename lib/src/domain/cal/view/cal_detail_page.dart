@@ -697,7 +697,7 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
               children: [
                 Text(
                   '지도보기',
-                  style: FontStyles.med16.copyWith(
+                  style: FontStyles.med15.copyWith(
                     color: canShowMap
                         ? context.brands.beatOrange2
                         : context.grays.gray5,
@@ -709,15 +709,15 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
                     height: 1,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.x4),
+                const SizedBox(width: 3.0),
                 AnimatedRotation(
                   turns: _isMapVisible ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
                   child: SvgPicture.asset(
                     'assets/icons/cal/toggle_down.svg',
-                    width: 20,
-                    height: 20,
+                    width: 19,
+                    height: 19,
                     colorFilter: ColorFilter.mode(
                       canShowMap
                           ? context.brands.beatOrange2
