@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:just_waveform/just_waveform.dart';
 
 typedef AppAudioSelectionChanged =
@@ -20,6 +21,7 @@ class AppAudioWaveform extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.onSeek,
+    this.isPlaying = false,
     this.onScrubStart,
     this.onScrubEnd,
     this.loadingProgress = 0.0,
@@ -35,6 +37,8 @@ class AppAudioWaveform extends StatefulWidget {
   final Duration duration;
   final Duration position;
   final ValueChanged<Duration> onSeek;
+  /// 플레이어 positionStream의 갱신 간격 사이에서도 파형을 부드럽게 이동시킵니다.
+  final bool isPlaying;
   /// 드래그하는 동안 재생을 일시정지합니다.
   final VoidCallback? onScrubStart;
   /// 손을 뗐을 때 최종 위치로 seek한 뒤 재생을 재개합니다.
@@ -78,6 +82,38 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
   double? _activePointerX;
   double _lastKnownWidth = 0.0;
   Timer? _autoScrollTimer;
+  late final Ticker _playbackTicker;
+  final Stopwatch _playbackClock = Stopwatch()..start();
+  Duration _playbackClockAnchor = Duration.zero;
+  Duration _playbackPositionAnchor = Duration.zero;
+  Duration _smoothPosition = Duration.zero;
+  bool _isNormalScrubbing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetPlaybackClock(widget.position);
+    _playbackTicker = Ticker((_) {
+      if (!mounted || !widget.isPlaying || _pendingScrubPosition != null) return;
+      setState(() => _smoothPosition = _estimatePlaybackPosition());
+    });
+    if (widget.isPlaying) _playbackTicker.start();
+  }
+
+  void _resetPlaybackClock(Duration position) {
+    _playbackPositionAnchor = position;
+    _playbackClockAnchor = _playbackClock.elapsed;
+    _smoothPosition = position;
+  }
+
+  Duration _estimatePlaybackPosition() {
+    final delta = _playbackClock.elapsed - _playbackClockAnchor;
+    return _clampDuration(
+      _playbackPositionAnchor + delta,
+      Duration.zero,
+      widget.duration,
+    );
+  }
 
   double get _visibleSeconds {
     final durationSeconds = _durationInSeconds(widget.duration);
@@ -100,12 +136,36 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
     return _clampDuration(widget.position, Duration.zero, widget.duration);
   }
 
-  Duration get _viewportCenter =>
-      widget.isSelectionMode ? _selectionCenter : widget.position;
+  Duration get _viewportCenter => widget.isSelectionMode
+      ? _selectionCenter
+      : (_pendingScrubPosition ?? _smoothPosition);
 
   @override
   void didUpdateWidget(covariant AppAudioWaveform oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (widget.duration != oldWidget.duration ||
+        (!oldWidget.isPlaying && widget.isPlaying)) {
+      _resetPlaybackClock(widget.position);
+    } else if (widget.isPlaying && widget.position != oldWidget.position &&
+        _pendingScrubPosition == null) {
+      // positionStream은 프레임마다 발행되지 않습니다. 작은 오차로 매번
+      // 파형을 되감지 않고, 실제 seek나 반복 재생에 해당하는 큰 차이만 동기화합니다.
+      final predicted = _estimatePlaybackPosition();
+      final driftUs = widget.position.inMicroseconds - predicted.inMicroseconds;
+      if (driftUs.abs() > 450000) {
+        _resetPlaybackClock(widget.position);
+      }
+    } else if (!widget.isPlaying && widget.position != oldWidget.position &&
+        _pendingScrubPosition == null) {
+      _resetPlaybackClock(widget.position);
+    }
+
+    if (widget.isPlaying && !_playbackTicker.isActive) {
+      _playbackTicker.start();
+    } else if (!widget.isPlaying && _playbackTicker.isActive) {
+      _playbackTicker.stop();
+    }
 
     if (!oldWidget.isSelectionMode && widget.isSelectionMode) {
       final startUs = widget.selectionStart.inMicroseconds;
@@ -195,8 +255,14 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
     _lastKnownWidth = width;
 
     if (details.pointerCount >= 2) {
+      // 드래그 중 두 손가락 확대/축소로 전환해도 일시정지 상태가 남지 않게 합니다.
+      final pending = _pendingScrubPosition;
+      if (_isNormalScrubbing && pending != null) {
+        unawaited(_finishScrub(pending));
+      }
       _activeHandle = null;
       _isDraggingPlaybackIndicator = false;
+      _isNormalScrubbing = false;
       _pendingScrubPosition = null;
       _activePointerX = null;
       _stopAutoScroll();
@@ -241,13 +307,21 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
         _panSelectionViewport(details.localFocalPoint.dx, width);
       }
     } else {
+      if (!_isNormalScrubbing) {
+        _isNormalScrubbing = true;
+        widget.onScrubStart?.call();
+      }
       final dragDistance = details.localFocalPoint.dx - _dragStartX;
       final secondsPerPixel = width == 0 ? 0.0 : _visibleSeconds / width;
       final movedSeconds = dragDistance * secondsPerPixel;
       final targetSeconds =
           _durationInSeconds(_dragStartPosition) - movedSeconds;
 
-      widget.onSeek(_durationFromSeconds(targetSeconds));
+      // 드래그 중엔 매 프레임 seek하지 않고 화면만 이동시킵니다.
+      // 실제 seek는 손을 놓았을 때 한 번 수행해 오디오 버벅임을 방지합니다.
+      setState(() {
+        _pendingScrubPosition = _durationFromSeconds(targetSeconds);
+      });
     }
 
     _lastPointerCount = details.pointerCount;
@@ -261,7 +335,8 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
       );
     }
     final scrubPosition = _pendingScrubPosition;
-    if (_isDraggingPlaybackIndicator && scrubPosition != null) {
+    if ((_isDraggingPlaybackIndicator || _isNormalScrubbing) &&
+        scrubPosition != null) {
       // 손을 놓은 최종 위치 한 번만 seek하고, seek가 완료될 때까지
       // 파형이 과거 재생 위치로 다시 움직이지 않도록 미리보기 위치를 유지합니다.
       unawaited(_finishScrub(scrubPosition));
@@ -269,6 +344,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
 
     _activeHandle = null;
     _isDraggingPlaybackIndicator = false;
+    _isNormalScrubbing = false;
     _activePointerX = null;
     _lastPointerCount = 0;
     _stopAutoScroll();
@@ -286,7 +362,10 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
       debugPrint('[MediaTimeline] scrub seek failed: $error');
     } finally {
       if (mounted && _pendingScrubPosition == position) {
-        setState(() => _pendingScrubPosition = null);
+        setState(() {
+          _resetPlaybackClock(position);
+          _pendingScrubPosition = null;
+        });
       }
     }
   }
@@ -488,6 +567,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
 
   @override
   void dispose() {
+    _playbackTicker.dispose();
     _stopAutoScroll();
     super.dispose();
   }
@@ -518,7 +598,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
                     waveform: widget.waveform,
                     duration: widget.duration,
                     viewportPosition: _viewportCenter,
-                    playbackPosition: _pendingScrubPosition ?? widget.position,
+                    playbackPosition: _pendingScrubPosition ?? _smoothPosition,
                     visibleSeconds: _visibleSeconds,
                     loadingProgress: widget.loadingProgress,
                     isSelectionMode: widget.isSelectionMode,

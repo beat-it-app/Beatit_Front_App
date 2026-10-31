@@ -13,12 +13,16 @@ class SelectFloatButton extends StatelessWidget {
     required this.onDownloadPressed,
     required this.onConfirmPressed,
     this.isEnabled = true,
+    this.showActions = true,
     this.isDeleteEnabled,
     this.isMoveEnabled,
     this.isDownloadEnabled,
   });
 
   final bool isVisible;
+
+  /// 왼쪽 작업 바는 선택 여부와 관계없이 보이며, 선택 전 버튼만 비활성화됩니다.
+  final bool showActions;
   final bool isEnabled;
   final bool? isDeleteEnabled;
   final bool? isMoveEnabled;
@@ -50,18 +54,21 @@ class SelectFloatButton extends StatelessWidget {
               child: SizedBox(
                 width: MediaQuery.sizeOf(context).width - (AppSpacing.x16 * 2),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: showActions
+                      ? MainAxisAlignment.spaceBetween
+                      : MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    CloudSelectionFloatingBar(
-                      isEnabled: isEnabled,
-                      isDeleteEnabled: isDeleteEnabled,
-                      isMoveEnabled: isMoveEnabled,
-                      isDownloadEnabled: isDownloadEnabled,
-                      onDeletePressed: onDeletePressed,
-                      onMovePressed: onMovePressed,
-                      onDownloadPressed: onDownloadPressed,
-                    ),
+                    if (showActions)
+                      CloudSelectionFloatingBar(
+                        isEnabled: isEnabled,
+                        isDeleteEnabled: isDeleteEnabled,
+                        isMoveEnabled: isMoveEnabled,
+                        isDownloadEnabled: isDownloadEnabled,
+                        onDeletePressed: onDeletePressed,
+                        onMovePressed: onMovePressed,
+                        onDownloadPressed: onDownloadPressed,
+                      ),
                     CloudConfirmFloatingButton(onPressed: onConfirmPressed),
                   ],
                 ),
@@ -105,9 +112,11 @@ class CloudSelectionFloatingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleCount = <bool>[showDelete, showMove, showDownload]
-        .where((visible) => visible)
-        .length;
+    final visibleCount = <bool>[
+      showDelete,
+      showMove,
+      showDownload,
+    ].where((visible) => visible).length;
     if (visibleCount == 0) {
       return const SizedBox.shrink();
     }
@@ -119,7 +128,7 @@ class CloudSelectionFloatingBar extends StatelessWidget {
       height: 66.0,
       decoration: BoxDecoration(
         color: context.grays.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        borderRadius: BorderRadius.circular(AppRadius.xxxl),
         border: Border.all(color: context.grays.gray7.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
@@ -130,7 +139,7 @@ class CloudSelectionFloatingBar extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        borderRadius: BorderRadius.circular(AppRadius.xxxl),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -150,8 +159,7 @@ class CloudSelectionFloatingBar extends StatelessWidget {
                 isEnabled: isEnabled && (isMoveEnabled ?? true),
                 onPressed: onMovePressed,
               ),
-            if (showMove && showDownload)
-              const SizedBox(width: AppSpacing.x8),
+            if (showMove && showDownload) const SizedBox(width: AppSpacing.x8),
             if (showDownload)
               _CloudFloatingIconButton(
                 semanticLabel: '선택한 항목 다운로드',
@@ -202,7 +210,7 @@ class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
   Widget build(BuildContext context) {
     final isActive = widget.isEnabled && (_isHovered || _isPressed);
     final backgroundColor = !widget.isEnabled
-        ? context.grays.gray7.withValues(alpha: 0.4)
+        ? context.grays.white.withValues(alpha: 0.0)
         : isActive
         ? context.grays.gray7.withValues(alpha: 0.9)
         : context.grays.white.withValues(alpha: 0.0);
@@ -284,7 +292,7 @@ class _CloudConfirmFloatingButtonState
       defaultColor,
     );
     final buttonColor = !widget.isEnabled
-        ? context.grays.gray6
+        ? context.grays.gray5
         : _isPressed
         ? pressedColor
         : defaultColor;
@@ -306,15 +314,15 @@ class _CloudConfirmFloatingButtonState
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 100),
             curve: Curves.easeOut,
-            width: 76.0,
-            height: 58.0,
+            width: 72.0,
+            height: 62.0,
             decoration: BoxDecoration(
               color: buttonColor,
               borderRadius: BorderRadius.circular(18.0),
               boxShadow: [
                 BoxShadow(
-                  color: context.grays.black.withValues(alpha: 0.1),
-                  blurRadius: 16.0,
+                  color: context.grays.black.withValues(alpha: 0.07),
+                  blurRadius: 20.0,
                   offset: const Offset(0, 4),
                 ),
               ],
