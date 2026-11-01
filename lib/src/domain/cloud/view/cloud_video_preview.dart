@@ -14,8 +14,11 @@ import 'package:beatit_front_app/src/core/widgets/media/app_playback_time_labels
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_video_timeline.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum _VideoPreviewLoadState { loading, ready, error }
 
@@ -64,6 +67,12 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
   VideoPlayerController? _controller;
   _VideoPreviewLoadState _loadState = _VideoPreviewLoadState.loading;
   int _loadId = 0;
+  CancelToken? _downloadCancelToken;
+  File? _temporaryVideo;
+  Uri? _playbackUri;
+  String? _failureMessage;
+  bool _unsupportedCodec = false;
+  static const int _maxFallbackBytes = 200 * 1024 * 1024;
 
   CloudFilePreviewItem get _currentFile => widget.files[_currentIndex];
 
@@ -77,7 +86,13 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
   @override
   void dispose() {
     _loadId += 1;
-    _controller?.dispose();
+    _downloadCancelToken?.cancel('영상 화면이 종료되었습니다.');
+    final controller = _controller;
+    final file = _temporaryVideo;
+    unawaited(() async {
+      await controller?.dispose();
+      if (file != null) await _deleteTempFile(file);
+    }());
     super.dispose();
   }
 
@@ -126,63 +141,241 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
     await _initializeVideo(resetState: false);
   }
 
+  Future<void> _deleteTempFile(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } on FileSystemException catch (error) {
+      debugPrint('[CloudVideoPreview] 임시 영상 정리 실패: $error');
+    }
+  }
+
+  /// 네이티브 영상 플레이어가 CDN의 Range 요청/Content-Type을 처리하지 못할 때
+  /// 기존 URL을 동일하게 받아 로컬 파일 재생으로 한 번 더 시도합니다.
+  /// 실제 코덱 불일치나 CDN 403/404는 이 방식으로 해결할 수 없습니다.
+  Future<File> _downloadForPlayback(
+    Uri uri,
+    String fileName,
+    CancelToken cancelToken,
+  ) async {
+    final lastDot = fileName.lastIndexOf('.');
+    final extension = lastDot > 0 ? fileName.substring(lastDot).toLowerCase() : '.mp4';
+    final safeExtension = const {'.mp4', '.mov', '.avi', '.m4v'}.contains(extension)
+        ? extension : '.mp4';
+    final path = '${Directory.systemTemp.path}${Platform.pathSeparator}'
+        'beatit_video_${DateTime.now().microsecondsSinceEpoch}$safeExtension';
+    final temp = File(path);
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(minutes: 2),
+      headers: widget.requestHeaders ?? const <String, String>{},
+    ));
+    try {
+      await dio.downloadUri(
+        uri,
+        path,
+        cancelToken: cancelToken,
+        onReceiveProgress: (received, total) {
+          if (received > _maxFallbackBytes || total > _maxFallbackBytes) {
+            cancelToken.cancel('영상이 임시 재생 용량 제한을 초과했습니다.');
+          }
+        },
+      );
+      if (!await temp.exists() || await temp.length() == 0) {
+        throw StateError('빈 동영상 파일이 전달되었습니다.');
+      }
+      return temp;
+    } catch (_) {
+      await _deleteTempFile(temp);
+      rethrow;
+    } finally {
+      dio.close(force: true);
+    }
+  }
+
+  /// Android MediaCodec's NO_EXCEEDS_CAPABILITIES identifies a decoder limit,
+  /// not a URL, MIME header, or download error. Downloading the same bytes
+  /// cannot change the decoder requirement.
+  bool _isUnsupportedCodecError(Object error) {
+    final detail = error.toString().toLowerCase();
+    return detail.contains('no_exceeds_capabilities') ||
+        detail.contains('no_unsupported_type') ||
+        detail.contains('no_unsupported_drm') ||
+        detail.contains('dvhe.') ||
+        detail.contains('video/dolby-vision');
+  }
+
+  String _videoErrorMessage(Object error) {
+    if (_isUnsupportedCodecError(error)) {
+      final detail = error.toString().toLowerCase();
+      if (detail.contains('dolby-vision') || detail.contains('dvhe.')) {
+        return '이 기기에서는 Dolby Vision/HEVC 영상을 재생할 수 없습니다. '
+            'H.264 영상과 AAC 음성의 일반 MP4로 변환하거나, '
+            '지원하는 기기 또는 외부 앱에서 열어주세요.';
+      }
+      return '이 기기에서 지원하지 않는 영상 코덱입니다. '
+          '호환 가능한 MP4(H.264/AAC)로 변환해주세요.';
+    }
+    if (error is DioException) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        return '영상 접근 권한이 없거나 URL이 만료되었습니다. (HTTP $statusCode)';
+      }
+      if (statusCode == 404) return '영상 파일을 찾을 수 없습니다. (HTTP 404)';
+      if (statusCode != null) return '영상 다운로드가 실패했습니다. (HTTP $statusCode)';
+      return '네트워크 문제로 영상을 불러오지 못했습니다.';
+    }
+    if (error is PlatformException) {
+      return '영상을 재생할 수 없습니다. 영상 코덱이나 파일 형식을 확인해주세요.';
+    }
+    return '영상 파일을 불러오지 못했습니다. 다시 시도해주세요.';
+  }
+
   Future<void> _initializeVideo({bool resetState = true}) async {
     final loadId = ++_loadId;
+    _downloadCancelToken?.cancel('새 영상을 선택했습니다.');
+    _downloadCancelToken = null;
     final previousController = _controller;
+    final previousTempFile = _temporaryVideo;
     _controller = null;
+    _temporaryVideo = null;
+    _playbackUri = null;
+    _failureMessage = null;
+    _unsupportedCodec = false;
 
     if (resetState && mounted) {
-      setState(() {
-        _loadState = _VideoPreviewLoadState.loading;
-      });
+      setState(() => _loadState = _VideoPreviewLoadState.loading);
     }
 
+    // Android ExoPlayer의 decoder 자원을 해제한 뒤 새 컨트롤러를 초기화합니다.
     await previousController?.dispose();
-
-    if (!mounted || loadId != _loadId) {
-      return;
-    }
+    if (previousTempFile != null) await _deleteTempFile(previousTempFile);
+    if (!mounted || loadId != _loadId) return;
 
     final previewUri = _currentFile.previewUri;
-    if (_currentFile.type != CloudPreviewFileType.video || previewUri == null) {
+    if (_currentFile.type != CloudPreviewFileType.video ||
+        previewUri == null ||
+        !const {'http', 'https', 'file'}.contains(previewUri.scheme)) {
       setState(() {
+        _failureMessage = '유효한 영상 주소를 확인할 수 없습니다.';
         _loadState = _VideoPreviewLoadState.error;
       });
       return;
     }
 
-    final controller = previewUri.scheme == 'file'
-        ? VideoPlayerController.file(File.fromUri(previewUri))
-        : VideoPlayerController.networkUrl(
-            previewUri,
-            httpHeaders: widget.requestHeaders ?? const <String, String>{},
-          );
-
+    VideoPlayerController? selectedController;
+    File? localVideo;
+    Object? networkError;
     try {
-      await controller.initialize();
+      final candidate = previewUri.scheme == 'file'
+          ? VideoPlayerController.file(File.fromUri(previewUri))
+          : VideoPlayerController.networkUrl(
+              previewUri,
+              httpHeaders: widget.requestHeaders ?? const <String, String>{},
+            );
+      try {
+        await candidate.initialize();
+        if (candidate.value.hasError) {
+          throw StateError(candidate.value.errorDescription ?? '영상 초기화 오류');
+        }
+        selectedController = candidate;
+      } catch (error) {
+        networkError = error;
+        debugPrint('[CloudVideoPreview] URL 재생 실패 (${previewUri.host}${previewUri.path}): $error');
+        await candidate.dispose();
+        // 코덱 미지원은 재다운로드로 해결되지 않으므로 중복 다운로드 생략.
+        if (previewUri.scheme == 'file' || _isUnsupportedCodecError(error)) {
+          rethrow;
+        }
 
-      if (!mounted || loadId != _loadId) {
-        await controller.dispose();
-        return;
+        // CDN은 200으로 파일을 내려주지만 직접 스트리밍이 안 되는 경우가 있어
+        // 실제 파일을 받아 로컬 재생을 시도합니다. 최대 200MB까지만 허용합니다.
+        final cancelToken = CancelToken();
+        _downloadCancelToken = cancelToken;
+        localVideo = await _downloadForPlayback(
+          previewUri, _currentFile.name, cancelToken,
+        );
+        if (!mounted || loadId != _loadId) {
+          await _deleteTempFile(localVideo);
+          return;
+        }
+        final fallbackController = VideoPlayerController.file(localVideo);
+        try {
+          await fallbackController.initialize();
+          if (fallbackController.value.hasError) {
+            throw StateError(fallbackController.value.errorDescription ?? '로컬 영상 오류');
+          }
+          selectedController = fallbackController;
+        } catch (_) {
+          await fallbackController.dispose();
+          rethrow;
+        }
       }
 
+      if (!mounted || loadId != _loadId) {
+        await selectedController?.dispose();
+        if (localVideo != null) await _deleteTempFile(localVideo);
+        return;
+      }
       setState(() {
-        _controller = controller;
+        _controller = selectedController;
+        _temporaryVideo = localVideo;
+        _playbackUri = localVideo?.uri ?? previewUri;
         _loadState = _VideoPreviewLoadState.ready;
       });
     } catch (error, stackTrace) {
-      debugPrint('[CloudVideoPreview] video initialize failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      await controller.dispose();
-
-      if (!mounted || loadId != _loadId) {
-        return;
+      debugPrint('[CloudVideoPreview] 영상 초기화 최종 실패: $error');
+      if (networkError != null) {
+        debugPrint('[CloudVideoPreview] 최초 네트워크 재생 실패: $networkError');
       }
-
+      debugPrintStack(stackTrace: stackTrace);
+      await selectedController?.dispose();
+      if (localVideo != null) await _deleteTempFile(localVideo);
+      if (!mounted || loadId != _loadId) return;
+      final originalFailure = networkError != null &&
+              _isUnsupportedCodecError(networkError)
+          ? networkError
+          : error;
       setState(() {
+        _unsupportedCodec = _isUnsupportedCodecError(originalFailure);
+        _failureMessage = _videoErrorMessage(originalFailure);
         _loadState = _VideoPreviewLoadState.error;
       });
+    } finally {
+      if (loadId == _loadId) _downloadCancelToken = null;
     }
+  }
+
+  Future<void> _openExternalVideo() async {
+    if (widget.onOpenExternalPressed != null) {
+      widget.onOpenExternalPressed!(_currentFile);
+      return;
+    }
+    final uri = _currentFile.previewUri;
+    if (uri == null || !{'http', 'https'}.contains(uri.scheme)) return;
+    try {
+      final success = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!success && mounted) _showExternalOpenError();
+    } catch (_) {
+      if (mounted) _showExternalOpenError();
+    }
+  }
+
+  void _showExternalOpenError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('외부 앱에서도 영상을 열지 못했습니다.')),
+    );
+  }
+
+  VoidCallback? get _openExternalAction {
+    if (widget.onOpenExternalPressed != null) {
+      return () => unawaited(_openExternalVideo());
+    }
+    final uri = _currentFile.previewUri;
+    if (uri != null && {'http', 'https'}.contains(uri.scheme) &&
+        (widget.requestHeaders == null || widget.requestHeaders!.isEmpty)) {
+      return () => unawaited(_openExternalVideo());
+    }
+    return null;
   }
 
   Widget _buildPreviewContent() {
@@ -191,19 +384,17 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
         return const Center(child: CircularProgressIndicator());
       case _VideoPreviewLoadState.error:
         return _VideoPreviewErrorView(
-          onRetry: _initializeVideo,
-          onOpenExternal: widget.onOpenExternalPressed == null
-            ? null
-            : () => widget.onOpenExternalPressed!(_currentFile),
+          onRetry: _unsupportedCodec ? null : _initializeVideo,
+          message: _failureMessage,
+          onOpenExternal: _openExternalAction,
         );
       case _VideoPreviewLoadState.ready:
         final controller = _controller;
         if (controller == null || !controller.value.isInitialized) {
           return _VideoPreviewErrorView(
-            onRetry: _initializeVideo,
-            onOpenExternal: widget.onOpenExternalPressed == null
-            ? null
-            : () => widget.onOpenExternalPressed!(_currentFile),
+            onRetry: _unsupportedCodec ? null : _initializeVideo,
+            message: _failureMessage,
+            onOpenExternal: _openExternalAction,
           );
         }
 
@@ -212,8 +403,8 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
             _currentFile.previewUri?.toString() ?? _currentFile.name,
           ),
           controller: controller,
-          previewUri: _currentFile.previewUri!,
-          requestHeaders: widget.requestHeaders,
+          previewUri: _playbackUri ?? _currentFile.previewUri!,
+          requestHeaders: _temporaryVideo == null ? widget.requestHeaders : null,
         );
     }
   }
@@ -527,14 +718,28 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
       builder: (context, value, child) {
         final aspectRatio = value.aspectRatio > 0 ? value.aspectRatio : 16 / 9;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+        return LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
             SizedBox(
               width: double.infinity,
-              child: AspectRatio(
-                aspectRatio: aspectRatio,
-                child: ColoredBox(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width,
+                    maxHeight: math.min(
+                      constraints.maxHeight * 0.48,
+                      MediaQuery.sizeOf(context).height * 0.42,
+                    ),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: aspectRatio,
+                    child: ColoredBox(
                   color: context.grays.black,
                   child: Stack(
                     fit: StackFit.expand,
@@ -543,6 +748,8 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
                       if (value.isBuffering)
                         const Center(child: CircularProgressIndicator()),
                     ],
+                  ),
+                ),
                   ),
                 ),
               ),
@@ -590,7 +797,10 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
                 },
               ),
             ),
-          ],
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -601,10 +811,12 @@ class _VideoPreviewErrorView extends StatelessWidget {
   const _VideoPreviewErrorView({
     required this.onRetry,
     this.onOpenExternal,
+    this.message,
   });
 
-  final Future<void> Function() onRetry;
+  final Future<void> Function()? onRetry;
   final VoidCallback? onOpenExternal;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -615,7 +827,7 @@ class _VideoPreviewErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '불러오지 못했습니다. 다시 시도해주세요',
+              message ?? '불러오지 못했습니다. 다시 시도해주세요',
               textAlign: TextAlign.center,
               style: FontStyles.med16.copyWith(color: context.grays.gray2),
             ),
@@ -624,13 +836,12 @@ class _VideoPreviewErrorView extends StatelessWidget {
               alignment: WrapAlignment.center,
               spacing: AppSpacing.x8,
               children: [
-                Semantics(
-                  button: true,
-                  label: '영상 미리보기 다시 시도',
-                  child: TextButton(
-                    onPressed: () {
-                      onRetry();
-                    },
+                if (onRetry != null)
+                  Semantics(
+                    button: true,
+                    label: '영상 미리보기 다시 시도',
+                    child: TextButton(
+                      onPressed: () => unawaited(onRetry!()),
                     child: Text(
                       '다시 시도',
                       style: FontStyles.med14.copyWith(

@@ -12,6 +12,65 @@ import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_api_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_socket_api_provider.dart';
 
+/// 한 번에 고른 사진을 하나의 업로드 카드로 표현하기 위한 프론트 상태입니다.
+/// 서버 전송은 여전히 이미지별 단건 메시지 API를 사용합니다.
+class ChatImageBatchFile {
+  const ChatImageBatchFile({
+    required this.path,
+    required this.name,
+    required this.sizeBytes,
+    this.progress = 0,
+    this.messageId,
+  });
+
+  final String path;
+  final String name;
+  final int sizeBytes;
+  final double progress;
+  final int? messageId;
+
+  ChatImageBatchFile copyWith({double? progress, int? messageId}) =>
+      ChatImageBatchFile(
+        path: path,
+        name: name,
+        sizeBytes: sizeBytes,
+        progress: progress ?? this.progress,
+        messageId: messageId ?? this.messageId,
+      );
+}
+
+class ChatImageUploadBatch {
+  const ChatImageUploadBatch({
+    required this.id,
+    required this.startedAt,
+    required this.files,
+    this.isUploading = true,
+    this.errorMessage,
+  });
+
+  final String id;
+  final DateTime startedAt;
+  final List<ChatImageBatchFile> files;
+  final bool isUploading;
+  final String? errorMessage;
+
+  int get completedCount => files.where((file) => file.messageId != null).length;
+  bool get isComplete => completedCount == files.length;
+
+  ChatImageUploadBatch copyWith({
+    List<ChatImageBatchFile>? files,
+    bool? isUploading,
+    String? errorMessage,
+    bool clearError = false,
+  }) => ChatImageUploadBatch(
+    id: id,
+    startedAt: startedAt,
+    files: files ?? this.files,
+    isUploading: isUploading ?? this.isUploading,
+    errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
+  );
+}
+
 final chatRoomProvider =
     NotifierProvider.autoDispose<ChatRoomNotifier, ChatRoomState>(
       ChatRoomNotifier.new,
@@ -24,7 +83,10 @@ class ChatRoomState {
     this.participantCount = 0,
     this.profileImageUrls = const <String>[],
     this.messages = const <ChatMessage>[],
+    this.readMarkers = const <int, ChatReadMarker>{},
     this.pendingAttachments = const <ChatPendingAttachment>[],
+    this.imageUploadBatch,
+    this.imageBatchGroups = const <int, String>{},
     this.currentPage = 0,
     this.hasNext = false,
     this.isDraft = false,
@@ -42,7 +104,10 @@ class ChatRoomState {
   final int participantCount;
   final List<String> profileImageUrls;
   final List<ChatMessage> messages;
+  final Map<int, ChatReadMarker> readMarkers;
   final List<ChatPendingAttachment> pendingAttachments;
+  final ChatImageUploadBatch? imageUploadBatch;
+  final Map<int, String> imageBatchGroups;
   final int currentPage;
   final bool hasNext;
   final bool isDraft;
@@ -70,7 +135,11 @@ class ChatRoomState {
     int? participantCount,
     List<String>? profileImageUrls,
     List<ChatMessage>? messages,
+    Map<int, ChatReadMarker>? readMarkers,
     List<ChatPendingAttachment>? pendingAttachments,
+    ChatImageUploadBatch? imageUploadBatch,
+    bool clearImageUploadBatch = false,
+    Map<int, String>? imageBatchGroups,
     int? currentPage,
     bool? hasNext,
     bool? isDraft,
@@ -89,7 +158,11 @@ class ChatRoomState {
       participantCount: participantCount ?? this.participantCount,
       profileImageUrls: profileImageUrls ?? this.profileImageUrls,
       messages: messages ?? this.messages,
+      readMarkers: readMarkers ?? this.readMarkers,
       pendingAttachments: pendingAttachments ?? this.pendingAttachments,
+      imageUploadBatch:
+          clearImageUploadBatch ? null : imageUploadBatch ?? this.imageUploadBatch,
+      imageBatchGroups: imageBatchGroups ?? this.imageBatchGroups,
       currentPage: currentPage ?? this.currentPage,
       hasNext: hasNext ?? this.hasNext,
       isDraft: isDraft ?? this.isDraft,
@@ -178,6 +251,11 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     try {
       final detail = await ref.read(chatApiProvider).getChatRoomDetails(
         chatId: chatId,
+        onReadMarkers: (markers) {
+          if (state.chatId == chatId && !_isDisposed) {
+            _mergeReadMarkers(markers);
+          }
+        },
         page: 0,
         size: _pageSize,
       );
@@ -305,6 +383,114 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     );
 
     return _uploadPendingAttachment(pending.localId, chatId: chatId);
+  }
+
+  Future<bool> sendImageBatch(List<ChatImageBatchFile> files) async {
+    if (state.chatId == null || state.isDraft || state.imageUploadBatch != null ||
+        files.isEmpty || files.length > 10) return false;
+    state = state.copyWith(
+      imageUploadBatch: ChatImageUploadBatch(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        startedAt: DateTime.now(),
+        files: List.unmodifiable(files),
+      ),
+      clearErrorMessage: true,
+    );
+    return _uploadImageBatch();
+  }
+
+  Future<bool> retryImageBatch() => _uploadImageBatch();
+
+  void dismissImageBatch() {
+    if (state.imageUploadBatch?.isUploading == true) return;
+    state = state.copyWith(clearImageUploadBatch: true);
+  }
+
+  Future<bool> _uploadImageBatch() async {
+    final initial = state.imageUploadBatch;
+    final chatId = state.chatId;
+    if (initial == null || chatId == null) return false;
+    if (!initial.isUploading) {
+      state = state.copyWith(imageUploadBatch: initial.copyWith(
+        isUploading: true,
+        clearError: true,
+      ));
+    }
+    var failed = false;
+    final api = ref.read(chatApiProvider);
+    for (var index = 0; index < initial.files.length; index++) {
+      if (_isDisposed || state.chatId != chatId) return false;
+      final current = state.imageUploadBatch;
+      if (current == null) return false;
+      final file = current.files[index];
+      if (file.messageId != null) continue; // 재시도 시 성공한 사진 재전송 방지
+      try {
+        final sent = await api.sendAttachmentMessage(
+          chatId: chatId,
+          messageType: ChatMessageType.image,
+          filePath: file.path,
+          fileName: file.name,
+          onSendProgress: (sentBytes, totalBytes) {
+            if (_isDisposed || totalBytes <= 0 || state.chatId != chatId) return;
+            final batch = state.imageUploadBatch;
+            if (batch == null || batch.id != initial.id) return;
+            final updated = [...batch.files];
+            updated[index] = updated[index].copyWith(
+              progress: (sentBytes / totalBytes).clamp(0.0, 1.0).toDouble(),
+            );
+            state = state.copyWith(imageUploadBatch: batch.copyWith(
+              files: List.unmodifiable(updated),
+            ));
+          },
+        );
+        if (_isDisposed || state.chatId != chatId) return false;
+        final batch = state.imageUploadBatch;
+        if (batch == null || batch.id != initial.id) return false;
+        final updated = [...batch.files];
+        updated[index] = updated[index].copyWith(
+          progress: 1.0,
+          messageId: sent.messageId,
+        );
+        state = state.copyWith(
+          imageUploadBatch: batch.copyWith(files: List.unmodifiable(updated)),
+          imageBatchGroups: Map.unmodifiable({
+            ...state.imageBatchGroups,
+            sent.messageId: batch.id,
+          }),
+        );
+        _localAttachmentMetadata[sent.messageId] = _LocalAttachmentMetadata(
+          name: file.name,
+          sizeBytes: file.sizeBytes,
+        );
+        _appendSentMessage(sent,
+          attachmentName: file.name,
+          attachmentSizeBytes: file.sizeBytes,
+        );
+      } catch (error) {
+        failed = true;
+        final batch = state.imageUploadBatch;
+        if (batch != null) {
+          state = state.copyWith(imageUploadBatch: batch.copyWith(
+            errorMessage: _errorMessage(error, '일부 사진을 전송하지 못했습니다.'),
+          ));
+        }
+      }
+    }
+    if (_isDisposed || state.chatId != chatId) return false;
+    await _refreshLatestMessages(
+      fallbackMessage: '사진을 전송했지만 채팅 내용을 다시 불러오지 못했습니다.',
+    );
+    final batch = state.imageUploadBatch;
+    if (batch == null) return false;
+    if (!failed && batch.isComplete) {
+      state = state.copyWith(clearImageUploadBatch: true);
+      return true;
+    }
+    state = state.copyWith(imageUploadBatch: batch.copyWith(
+      isUploading: false,
+      errorMessage: batch.errorMessage ?? '전송하지 못한 사진이 있습니다.',
+    ));
+    return false;
   }
 
   Future<bool> retryAttachment(String localId) async {
@@ -471,6 +657,11 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     try {
       final detail = await ref.read(chatApiProvider).getChatRoomDetails(
         chatId: chatId,
+        onReadMarkers: (markers) {
+          if (state.chatId == chatId && !_isDisposed) {
+            _mergeReadMarkers(markers);
+          }
+        },
         page: nextPage,
         size: _pageSize,
       );
@@ -599,6 +790,22 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     }
   }
 
+  void _mergeReadMarkers(Map<int, ChatReadMarker> incoming) {
+    if (_isDisposed || incoming.isEmpty) return;
+    final merged = <int, ChatReadMarker>{...state.readMarkers};
+    var changed = false;
+    for (final entry in incoming.entries) {
+      final previous = merged[entry.key];
+      if (previous == null || entry.value.messageId > previous.messageId ||
+          (entry.value.messageId == previous.messageId &&
+           previous.profileImageUrl == null && entry.value.profileImageUrl != null)) {
+        merged[entry.key] = entry.value;
+        changed = true;
+      }
+    }
+    if (changed) state = state.copyWith(readMarkers: Map.unmodifiable(merged));
+  }
+
   void _handleSocketMessage(int chatId, String payload) {
     if (_isDisposed || state.chatId != chatId) {
       debugPrint(
@@ -618,6 +825,20 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
       }
 
       final eventJson = Map<String, dynamic>.from(decoded);
+      if (eventJson['type'] == 'READ') {
+        final eventChatId = (eventJson['chatId'] as num?)?.toInt();
+        final userId = (eventJson['userId'] as num?)?.toInt();
+        final lastId = (eventJson['lastReadMessageId'] as num?)?.toInt();
+        final currentId = ref.read(authProvider).asData?.value?.userId;
+        if (eventChatId == chatId && userId != null && userId != currentId &&
+            lastId != null) {
+          final previous = state.readMarkers[userId];
+          _mergeReadMarkers({userId: (previous ?? ChatReadMarker(userId: userId, messageId: lastId)).atMessage(lastId)});
+          // 서버가 프로필을 함께 보내지 않으므로 상세 조회로 보강합니다.
+          unawaited(_queueSocketSync());
+        }
+        return;
+      }
       eventJson['createdAt'] = _normalizeSocketCreatedAt(
         eventJson['createdAt'],
       );
@@ -791,6 +1012,11 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     try {
       final detail = await ref.read(chatApiProvider).getChatRoomDetails(
         chatId: chatId,
+        onReadMarkers: (markers) {
+          if (state.chatId == chatId && !_isDisposed) {
+            _mergeReadMarkers(markers);
+          }
+        },
         page: 0,
         size: _pageSize,
       );
@@ -887,6 +1113,11 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     try {
       final detail = await ref.read(chatApiProvider).getChatRoomDetails(
         chatId: chatId,
+        onReadMarkers: (markers) {
+          if (state.chatId == chatId && !_isDisposed) {
+            _mergeReadMarkers(markers);
+          }
+        },
         page: 0,
         size: _pageSize,
       );

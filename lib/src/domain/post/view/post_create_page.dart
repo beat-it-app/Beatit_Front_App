@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -18,11 +19,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 class PostCreatePage extends ConsumerStatefulWidget {
-  const PostCreatePage({
-    super.key,
-    this.initialNotice,
-    this.maxImageCount = 10,
-  }) : assert(maxImageCount >= 1 && maxImageCount <= 10);
+  const PostCreatePage({super.key, this.initialNotice, this.maxImageCount = 10})
+    : assert(maxImageCount >= 1 && maxImageCount <= 10);
 
   /// 일반 등록은 최대 10장, 단일 이미지 화면은 1장으로 지정할 수 있습니다.
   final int maxImageCount;
@@ -40,7 +38,12 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   static const int _maxImageBytes = 50 * 1024 * 1024;
   static const int _maxUploadRequestBytes = 300 * 1024 * 1024;
   static const Set<String> _allowedImageExtensions = {
-    'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic',
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
   };
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
@@ -48,6 +51,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   final List<XFile> _images = [];
   final Map<String, int> _imageSizeBytes = <String, int>{};
+  final ScrollController _formScrollController = ScrollController();
 
   int? _pendingDeleteExistingImageIndex;
   int? _pendingDeleteImageIndex;
@@ -60,7 +64,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   int get _imageCount => _existingImageUrls.length + _images.length;
   bool get _canAddImage => _imageCount < widget.maxImageCount;
-
 
   bool get _hasChanges {
     if (!_isEditMode) return true;
@@ -148,10 +151,13 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         _pendingDeleteImageIndex = null;
         _refreshImagesChanged();
       });
+      unawaited(_scrollToFormEndAfterSelection());
     }
 
     if (exceedsImageCount) {
-      await _showImageBlockedPopup('사진은 최대 ${widget.maxImageCount}장까지 등록할 수 있습니다.');
+      await _showImageBlockedPopup(
+        '사진은 최대 ${widget.maxImageCount}장까지 등록할 수 있습니다.',
+      );
     } else if (hasOversizeImage) {
       await _showImageBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
     } else if (exceedsRequestLimit) {
@@ -159,6 +165,29 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     } else if (hasUnsupportedImage) {
       await _showImageBlockedPopup('지원하지 않는 이미지 형식이 포함되어 있습니다.');
     }
+  }
+
+  Future<void> _scrollToFormEndAfterSelection() async {
+    // 갤러리 복귀 후 키보드/이미지의 크기 변경이 끝나도록 레이아웃을
+    // 여러 번 확인합니다. 애니메이션 도중 maxScrollExtent가 바뀌어
+    // 중간 위치에서 멈추지 않도록 마지막 위치로 즉시 이동합니다.
+    for (final delay in <Duration>[
+      Duration.zero,
+      const Duration(milliseconds: 120),
+      const Duration(milliseconds: 350),
+    ]) {
+      if (delay != Duration.zero) await Future<void>.delayed(delay);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToPhotoUploadBottom();
+      });
+    }
+  }
+
+  void _scrollToPhotoUploadBottom() {
+    if (!mounted || !_formScrollController.hasClients) return;
+    final bottom = _formScrollController.position.maxScrollExtent;
+    _formScrollController.jumpTo(bottom);
   }
 
   Future<void> _showImageBlockedPopup(String content) async {
@@ -196,7 +225,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   void _handleImageTap(int index) {
     setState(() {
-      _pendingDeleteImageIndex = _pendingDeleteImageIndex == index ? null : index;
+      _pendingDeleteImageIndex = _pendingDeleteImageIndex == index
+          ? null
+          : index;
       _pendingDeleteExistingImageIndex = null;
     });
   }
@@ -319,9 +350,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -332,6 +363,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _formScrollController.dispose();
     super.dispose();
   }
 
@@ -351,6 +383,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  controller: _formScrollController,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
@@ -387,7 +420,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         ...List.generate(
                           _existingImageUrls.length,
                           (index) => Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.x8),
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.x8,
+                            ),
                             child: _ExistingPostImagePreview(
                               imageUrl: _existingImageUrls[index],
                               pendingDelete:
@@ -410,6 +445,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                               pendingDelete: _pendingDeleteImageIndex == index,
                               onTap: () => _handleImageTap(index),
                               onDelete: () => _deleteImage(index),
+                              onFirstFrame: _scrollToPhotoUploadBottom,
                             ),
                           ),
                         ),
@@ -502,7 +538,8 @@ class _ExistingPostImagePreview extends StatelessWidget {
                   ),
                 ),
               ),
-              if (pendingDelete) _DeleteImageOverlay(onDelete: onDelete),
+              if (pendingDelete)
+                Positioned.fill(child: _DeleteImageOverlay(onDelete: onDelete)),
             ],
           ),
         ),
@@ -517,12 +554,14 @@ class _PostImagePreview extends StatelessWidget {
     required this.pendingDelete,
     required this.onTap,
     required this.onDelete,
+    this.onFirstFrame,
   });
 
   final XFile image;
   final bool pendingDelete;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onFirstFrame;
 
   @override
   Widget build(BuildContext context) {
@@ -543,6 +582,15 @@ class _PostImagePreview extends StatelessWidget {
                 File(image.path),
                 width: double.infinity,
                 fit: BoxFit.fitWidth,
+                // 디코딩 후 사진 높이가 변경되는 시점에도 가장 아래로 이동.
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (frame == 0) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      onFirstFrame?.call();
+                    });
+                  }
+                  return child;
+                },
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: double.infinity,
                   height: 180,
@@ -554,7 +602,8 @@ class _PostImagePreview extends StatelessWidget {
                   ),
                 ),
               ),
-              if (pendingDelete) _DeleteImageOverlay(onDelete: onDelete),
+              if (pendingDelete)
+                Positioned.fill(child: _DeleteImageOverlay(onDelete: onDelete)),
             ],
           ),
         ),
@@ -574,9 +623,7 @@ class _DeleteImageOverlay extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Positioned.fill(
-          child: ColoredBox(
-            color: context.grays.white.withValues(alpha: 0.4),
-          ),
+          child: ColoredBox(color: context.grays.white.withValues(alpha: 0.4)),
         ),
         Semantics(
           button: true,

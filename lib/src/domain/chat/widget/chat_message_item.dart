@@ -20,6 +20,9 @@ class ChatMessageItem extends StatelessWidget {
     this.showProfile = true,
     this.showSenderName = true,
     this.showTime = true,
+    this.showRead = false,
+    this.imageGroup = const <ChatMessage>[],
+    this.onGroupedImagePressed,
   });
 
   final ChatMessage message;
@@ -28,6 +31,9 @@ class ChatMessageItem extends StatelessWidget {
   final bool showProfile;
   final bool showSenderName;
   final bool showTime;
+  final bool showRead;
+  final List<ChatMessage> imageGroup;
+  final ValueChanged<ChatMessage>? onGroupedImagePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +47,9 @@ class ChatMessageItem extends StatelessWidget {
         onImagePressed: onImagePressed,
         onAttachmentPressed: onAttachmentPressed,
         showTime: showTime,
+        showRead: showRead,
+        imageGroup: imageGroup,
+        onGroupedImagePressed: onGroupedImagePressed,
       );
     }
 
@@ -51,6 +60,8 @@ class ChatMessageItem extends StatelessWidget {
       showProfile: showProfile,
       showSenderName: showSenderName,
       showTime: showTime,
+      imageGroup: imageGroup,
+      onGroupedImagePressed: onGroupedImagePressed,
     );
   }
 }
@@ -63,6 +74,8 @@ class _ReceivedMessage extends StatelessWidget {
     required this.showProfile,
     required this.showSenderName,
     required this.showTime,
+    required this.imageGroup,
+    required this.onGroupedImagePressed,
   });
 
   final ChatMessage message;
@@ -71,6 +84,8 @@ class _ReceivedMessage extends StatelessWidget {
   final bool showProfile;
   final bool showSenderName;
   final bool showTime;
+  final List<ChatMessage> imageGroup;
+  final ValueChanged<ChatMessage>? onGroupedImagePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +119,8 @@ class _ReceivedMessage extends StatelessWidget {
                       child: _MessageContent(
                         message: message,
                         isMine: false,
+                        imageGroup: imageGroup,
+                        onGroupedImagePressed: onGroupedImagePressed,
                         onImagePressed: onImagePressed,
                         onAttachmentPressed: onAttachmentPressed,
                       ),
@@ -129,12 +146,18 @@ class _SentMessage extends StatelessWidget {
     required this.onImagePressed,
     required this.onAttachmentPressed,
     required this.showTime,
+    required this.showRead,
+    required this.imageGroup,
+    required this.onGroupedImagePressed,
   });
 
   final ChatMessage message;
   final VoidCallback? onImagePressed;
   final VoidCallback? onAttachmentPressed;
   final bool showTime;
+  final bool showRead;
+  final List<ChatMessage> imageGroup;
+  final ValueChanged<ChatMessage>? onGroupedImagePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -145,13 +168,29 @@ class _SentMessage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (showTime) ...[
-            _MessageTime(createdAt: message.createdAt),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (showRead)
+                  Text(
+                    '읽음',
+                    style: FontStyles.med12.copyWith(
+                      color: context.grays.gray5,
+                    ),
+                  ),
+                const SizedBox(width: AppSpacing.x4),
+                _MessageTime(createdAt: message.createdAt),
+              ],
+            ),
             const SizedBox(width: AppSpacing.x8),
           ],
           Flexible(
             child: _MessageContent(
               message: message,
               isMine: true,
+              imageGroup: imageGroup,
+              onGroupedImagePressed: onGroupedImagePressed,
               onImagePressed: onImagePressed,
               onAttachmentPressed: onAttachmentPressed,
             ),
@@ -166,12 +205,16 @@ class _MessageContent extends StatelessWidget {
   const _MessageContent({
     required this.message,
     required this.isMine,
+    required this.imageGroup,
+    required this.onGroupedImagePressed,
     required this.onImagePressed,
     required this.onAttachmentPressed,
   });
 
   final ChatMessage message;
   final bool isMine;
+  final List<ChatMessage> imageGroup;
+  final ValueChanged<ChatMessage>? onGroupedImagePressed;
   final VoidCallback? onImagePressed;
   final VoidCallback? onAttachmentPressed;
 
@@ -186,6 +229,12 @@ class _MessageContent extends StatelessWidget {
           fileName: ChatAttachmentMessageCard.resolveFileName(message),
           mimeType: message.attachmentMimeType,
         );
+        if (kind == ChatAttachmentKind.image && imageGroup.length > 1) {
+          return _ChatImageGrid(
+            messages: imageGroup,
+            onPressed: onGroupedImagePressed,
+          );
+        }
         if (kind == ChatAttachmentKind.image) {
           return ChatImageMessage(
             imageUrl: message.content,
@@ -292,7 +341,7 @@ class _MessageTime extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       AppDateTimeFormatter.formatTime(createdAt),
-      style: FontStyles.med11.copyWith(color: context.grays.gray5),
+      style: FontStyles.med12.copyWith(color: context.grays.gray5),
     );
   }
 }
@@ -309,6 +358,44 @@ class _ChatProfileImage extends StatelessWidget {
     return GroupChatProfile(
       imageUrls: hasImage ? <String>[imageUrl!] : const <String>[],
       size: size,
+    );
+  }
+}
+
+/// 연속 전송된 사진만 묶어 보여 주는 기존 메시지 위젯의 확장입니다.
+class _ChatImageGrid extends StatelessWidget {
+  const _ChatImageGrid({required this.messages, required this.onPressed});
+  final List<ChatMessage> messages;
+  final ValueChanged<ChatMessage>? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = messages.length;
+    final columns = count <= 4 ? 2 : 3;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: SizedBox(
+        width: 245,
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: AppSpacing.x4,
+            crossAxisSpacing: AppSpacing.x4,
+          ),
+          itemCount: count,
+          itemBuilder: (context, index) => InkWell(
+            onTap: () => onPressed?.call(messages[index]),
+            child: Image.network(
+              messages[index].content,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  Icon(Icons.broken_image_outlined, color: context.grays.gray5),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
