@@ -160,10 +160,9 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
     return false;
   }
 
-  // 💡 변경점이 있고 필수값이 유효할 때만 제출 가능
   bool get _canSubmit {
     return _isTeamNameValid &&
-        teamDescriptionController.text.trim().isNotEmpty &&
+        teamDateController.text.trim().isNotEmpty &&
         _hasChanges &&
         !_isSubmitting;
   }
@@ -337,7 +336,7 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
                       // 2. 팀 개설일
                       AppTextField(
                         label: '팀 개설일',
-                        requiredMark: false,
+                        requiredMark: true,
                         hintText: '날짜를 선택해주세요',
                         controller: teamDateController,
                         readOnly: true,
@@ -466,7 +465,7 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
                       // 5. 팀 소개
                       AppTextArea(
                         label: '팀 소개',
-                        requiredMark: true,
+                        requiredMark: false,
                         hintText: '모임에 어울리는 팀 소개글을 작성해주세요.',
                         controller: teamDescriptionController,
                         maxLength: 200,

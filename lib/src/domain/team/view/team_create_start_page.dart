@@ -65,7 +65,6 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
   bool get _canSubmit {
     return _isTeamNameValid &&
         teamDateController.text.trim().isNotEmpty &&
-        teamDescriptionController.text.isNotEmpty &&
         selectedTeamType != null;
   }
 
@@ -329,7 +328,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
                       AppTextArea(
                         label: '팀 소개',
-                        requiredMark: true,
+                        requiredMark: false,
                         hintText: '모임에 어울리는 팀 소개글을 작성해주세요.',
                         controller: teamDescriptionController,
                         maxLength: 200,

@@ -187,14 +187,14 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   },
                 ),
               ),
-            const SizedBox(height: AppSpacing.x16),
+            const SizedBox(height: AppSpacing.x40),
             GestureDetector(
               onTap: _openTeamAddOptionPage,
               behavior: HitTestBehavior.opaque,
               child: Center(
                 child: Container(
-                  width: 34,
-                  height: 34,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: context.grays.gray8,
@@ -202,8 +202,8 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
                   child: Center(
                     child: SvgPicture.asset(
                       'assets/icons/plus/plus.svg',
-                      width: 26,
-                      height: 26,
+                      width: 33,
+                      height: 33,
                       colorFilter: ColorFilter.mode(
                         context.grays.gray6,
                         BlendMode.srcIn,

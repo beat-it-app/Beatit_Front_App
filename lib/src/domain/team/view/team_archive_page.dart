@@ -222,11 +222,11 @@ class _TeamArchivePageState extends ConsumerState<TeamArchivePage> {
 
                       const SizedBox(height: AppSpacing.x20),
 
-                      // 3. 일정 설명 (필수, 500자 제한)
+                      // 3. 장소 설명 (필수, 500자 제한)
                       AppTextArea(
-                        label: '일정 설명',
+                        label: '장소 설명',
                         requiredMark: true,
-                        hintText: '모임에 어울리는 일정 설명을 작성해주세요.',
+                        hintText: '장소에 어울리는 설명을 작성해주세요.',
                         controller: _descriptionController,
                         maxLength: 500,
                         fieldHeight: 220,

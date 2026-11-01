@@ -150,18 +150,12 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         return;
       }
     } else {
+      // 수정 후 즉시 최신 멤버 목록 및 myRole 재동기화
       await notifier.fetchMembers();
       if (!mounted) return;
       setState(() {
         _currentMode = 'normal';
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('변경 사항이 성공적으로 저장되었습니다.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
     }
   }
 
@@ -300,16 +294,15 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
     final members = state.members;
     final positionMembers = state.positionMembers;
 
-    // 💡 myRole에 따른 권한 계산
+    // 권한 계산
     final String myRole = (state.myRole ?? '').trim().toUpperCase();
     final bool isLeader = myRole == 'LEADER';
     final bool isManager = myRole == 'MANAGER';
     final bool canEdit = isLeader || isManager;
 
-    // 💡 권한별 드롭다운 메뉴 리스트 동적 구성
+    // 권한별 드롭다운 메뉴 리스트 구성
     final List<AppDropdownItem> menuItems = [];
 
-    // 1. 운영진 수정 (LEADER, MANAGER 가능)
     if (isLeader || isManager) {
       menuItems.add(
         AppDropdownItem(
@@ -325,7 +318,6 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
       );
     }
 
-    // 2. 대표 수정 (LEADER만 가능)
     if (isLeader) {
       menuItems.add(
         AppDropdownItem(
@@ -341,7 +333,6 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
       );
     }
 
-    // 3. 포지션 수정 (LEADER, MANAGER 가능)
     if (isLeader || isManager) {
       menuItems.add(
         AppDropdownItem(
@@ -357,13 +348,19 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
       );
     }
 
+    // 수정 모드 중이 아닐 때만 더보기 메뉴 노출
     final bool showMoreMenu = canEdit && _currentMode == 'normal';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      // 💡 일반 멤버(MEMBER)인 경우 더보기 메뉴 자체를 숨기거나(backOnly), 편집 권한이 있을 때만 backMore 노출
       appBar: showMoreMenu
           ? AppTopAppBar.backMore(
+              onBackPressed: () => Navigator.of(context).pop(),
+              onMorePressed: () {},
+              moreMenuOffset: const Offset(-20, 56),
+              moreMenuItems: menuItems,
+            )
+          : AppTopAppBar.backOnly(
               onBackPressed: () {
                 if (_currentMode != 'normal') {
                   setState(() => _currentMode = 'normal');
@@ -371,12 +368,6 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                   Navigator.of(context).pop();
                 }
               },
-              onMorePressed: () {},
-              moreMenuOffset: const Offset(-20, 56),
-              moreMenuItems: menuItems,
-            )
-          : AppTopAppBar.backOnly(
-              onBackPressed: () => Navigator.of(context).pop(),
             ),
       body: SafeArea(
         child: Padding(
@@ -406,14 +397,15 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                         child: TextField(
                           controller: _searchController,
                           onChanged: _onSearchChanged,
+                          style: FontStyles.reg18.copyWith(
+                            color: colors.onSurface,
+                          ),
                           decoration: InputDecoration(
                             hintText: '찾고 싶은 멤버를 검색하세요.',
                             hintStyle: FontStyles.reg18.copyWith(
                               color: context.grays.gray5,
                             ),
                             border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
@@ -511,14 +503,19 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         final name = member.name;
         final isLeader = member.isLeader;
         final isManager = member.isManager;
-        final positionText = member.position ?? '';
+        final rawPosition = member.position?.trim();
+        // 포지션 존재 여부 체크
+        final bool hasPosition =
+            rawPosition != null &&
+            rawPosition.isNotEmpty &&
+            rawPosition != '미지정';
 
         Widget? rightWidget;
 
         if (_currentMode == 'normal') {
           if (isLeader) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: context.grays.gray1,
                 borderRadius: BorderRadius.circular(5),
@@ -530,7 +527,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
             );
           } else if (isManager) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: context.grays.gray8,
                 borderRadius: BorderRadius.circular(5),
@@ -572,7 +569,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                       BlendMode.srcIn,
                     ),
                   ),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: 4),
                   Text(
                     '대표',
                     style: FontStyles.med14.copyWith(color: Colors.white),
@@ -606,14 +603,14 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         } else if (_currentMode == 'manager') {
           if (isLeader) {
             rightWidget = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: context.grays.gray1,
-                borderRadius: BorderRadius.circular(5),
+                color: context.grays.gray2,
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 '대표',
-                style: FontStyles.med14.copyWith(color: Colors.white),
+                style: FontStyles.med12.copyWith(color: Colors.white),
               ),
             );
           } else {
@@ -648,7 +645,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
                         BlendMode.srcIn,
                       ),
                     ),
-                    const SizedBox(width: 2),
+                    const SizedBox(width: 4),
                     Text(
                       '운영진',
                       style: FontStyles.med14.copyWith(color: colors.primary),
@@ -683,28 +680,43 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         }
 
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ClipOval(
               child: _buildProfileImage(member.profileImageUrl, size: 56),
             ),
             const SizedBox(width: 16),
+            // 포지션이 있을 때는 Column, 없을 때는 이름 단독으로 가운데 정렬
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: FontStyles.semi20.copyWith(color: colors.onSurface),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    positionText,
-                    style: FontStyles.reg16.copyWith(
-                      color: context.grays.gray5,
+              child: hasPosition
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          name,
+                          style: FontStyles.semi20.copyWith(
+                            color: colors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          rawPosition!,
+                          style: FontStyles.reg16.copyWith(
+                            color: context.grays.gray5,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        name,
+                        style: FontStyles.semi20.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
             ),
             if (rightWidget != null) rightWidget,
           ],
@@ -713,7 +725,7 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
     );
   }
 
-  // 2. 포지션 수정 모드 전용 리스트 렌더링 (GET /teams/members/position 바인딩)
+  // 2. 포지션 수정 모드 전용 리스트 렌더링
   Widget _buildPositionListView(
     List<TeamMemberPositionModel> positionMembers,
     ColorScheme colors,
@@ -737,15 +749,19 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
         final controller = _tempPositionControllers[member.userId];
 
         return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ClipOval(
               child: _buildProfileImage(member.profileImageUrl, size: 56),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                member.userName,
-                style: FontStyles.semi20.copyWith(color: colors.onSurface),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  member.userName,
+                  style: FontStyles.semi20.copyWith(color: colors.onSurface),
+                ),
               ),
             ),
             SizedBox(

@@ -289,9 +289,8 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _canSubmit
-                              ? context.grays.gray8
-                              : context.grays.gray8.withOpacity(0.5),
-                          elevation: 0,
+                              ? context.colors.primary
+                              : context.grays.gray7,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(5),
                           ),
@@ -302,7 +301,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                           '탈퇴하기',
                           style: FontStyles.med16.copyWith(
                             color: _canSubmit
-                                ? context.grays.gray2
+                                ? context.colors.surface
                                 : context.grays.gray4,
                           ),
                         ),

@@ -11,6 +11,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 
 import '../../model/mypage/mypage_model.dart';
 import '../../provider/mypage_provider.dart';
@@ -43,9 +44,9 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('로그아웃에 실패했습니다: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그아웃에 실패했습니다: $error')));
     } finally {
       if (mounted) setState(() => _isLoggingOut = false);
     }
@@ -133,31 +134,22 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/appbar/bell.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(colors.onSurface, BlendMode.srcIn),
-            ),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
-            },
-          ),
-          const SizedBox(width: AppSpacing.x8),
-        ],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64.0),
+        child: AppTopAppBar.alarmOnly(
+          actionIconColor: colors.onSurface,
+          onAlarmPressed: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
+          },
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 프로필 정보 영역
+            // 1. 프로필 정보 영역
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _openProfileEditPage,
@@ -226,123 +218,128 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
               color: context.grays.gray8,
             ),
 
-            const SizedBox(height: AppSpacing.x16),
+            // 💡 2. 현재 팀 영역 (currentTeam이 있을 때만 전체 노출)
+            if (currentTeam != null) ...[
+              const SizedBox(height: AppSpacing.x16),
 
-            // 현재 팀 타이틀 & 전환 버튼
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '현재 팀',
-                    style: FontStyles.bold18.copyWith(color: colors.onSurface),
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: SvgPicture.asset(
-                      'assets/icons/auth/team_change.svg',
-                      width: 24,
-                      height: 24,
-                      colorFilter: ColorFilter.mode(
-                        colors.onSurface,
-                        BlendMode.srcIn,
+              // 현재 팀 타이틀 & 전환 버튼
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '현재 팀',
+                      style: FontStyles.bold18.copyWith(
+                        color: colors.onSurface,
                       ),
                     ),
-                    onPressed: () =>
-                        _openTeamSwitchSheet(currentTeam?.teamPublicId),
-                  ),
-                ],
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: SvgPicture.asset(
+                        'assets/icons/auth/team_change.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(
+                          colors.onSurface,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      onPressed: () =>
+                          _openTeamSwitchSheet(currentTeam.teamPublicId),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: AppSpacing.x12),
+              const SizedBox(height: AppSpacing.x12),
 
-            // 현재 팀 카드 (클릭 불가)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: Container(
-                  height: 200,
-                  width: double.infinity,
-                  color: const Color(0xFF1C1C1E),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: hasTeamImage
-                            ? Image.network(
-                                teamImageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Image.asset(
+              // 현재 팀 카드
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: const Color(0xFF1C1C1E),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: hasTeamImage
+                              ? Image.network(
+                                  teamImageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Image.asset(
+                                    'assets/images/team/team_view_profile.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Image.asset(
                                   'assets/images/team/team_view_profile.png',
                                   fit: BoxFit.cover,
                                 ),
-                              )
-                            : Image.asset(
-                                'assets/images/team/team_view_profile.png',
-                                fit: BoxFit.cover,
-                              ),
-                      ),
-                      Positioned.fill(
-                        child: Container(color: Colors.black.withOpacity(0.5)),
-                      ),
-                      Positioned(
-                        top: AppSpacing.x20,
-                        right: AppSpacing.x20,
-                        child: Image.asset(
-                          'assets/images/auth/profile_orange.png',
-                          width: 46,
-                          height: 46,
-                          fit: BoxFit.contain,
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.x20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              currentTeam?.type ?? '',
-                              style: FontStyles.med14.copyWith(
-                                color: context.colors.primary,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              currentTeam?.name ?? '현재 참여 중인 팀이 없습니다.',
-                              style: FontStyles.bold22.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              currentTeam != null
-                                  ? '${currentTeam.leaderName} 외 ${currentTeam.memberCount > 1 ? currentTeam.memberCount - 1 : 0}명'
-                                  : '+ 버튼을 눌러 팀을 생성해보세요.',
-                              style: FontStyles.reg16.copyWith(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black.withOpacity(0.5),
+                          ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: AppSpacing.x20,
+                          right: AppSpacing.x20,
+                          child: Image.asset(
+                            'assets/images/auth/profile_orange.png',
+                            width: 46,
+                            height: 46,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.x20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentTeam.type,
+                                style: FontStyles.med14.copyWith(
+                                  color: context.colors.primary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                currentTeam.name,
+                                style: FontStyles.bold22.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${currentTeam.leaderName} 외 ${currentTeam.memberCount > 1 ? currentTeam.memberCount - 1 : 0}명',
+                                style: FontStyles.reg16.copyWith(
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: AppSpacing.x24),
+              const SizedBox(height: AppSpacing.x24),
 
-            Container(
-              height: 6,
-              width: double.infinity,
-              color: context.grays.gray8,
-            ),
+              Container(
+                height: 6,
+                width: double.infinity,
+                color: context.grays.gray8,
+              ),
+            ],
 
-            // 설정 목록
+            // 3. 설정 목록 영역
             _SettingTile(
               title: '알림 설정',
               onTap: () {
@@ -360,7 +357,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
               },
             ),
 
-            // 💡 myRole이 LEADER 또는 MANAGER일 때만 노출
             if (currentTeam?.isLeaderOrManager ?? false)
               _SettingTile(
                 title: '팀 관리하기',
