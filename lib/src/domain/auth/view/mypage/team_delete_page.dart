@@ -25,9 +25,9 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
   bool _isLoading = true;
   bool _isConfirmed = false;
 
-  int _fileCount = 26;
-  int _sharedMusicCount = 57;
-  int _scheduleCount = 21;
+  int _fileCount = 0;
+  int _sharedMusicCount = 0;
+  int _scheduleCount = 0;
 
   @override
   void initState() {
@@ -35,21 +35,26 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
     _fetchInfo();
   }
 
+  // 💡 GET /teams/deletion-info 호출 연동
   Future<void> _fetchInfo() async {
     try {
-      final info = await ref
-          .read(withdrawalApiProvider)
-          .getTeamWithdrawalInfo();
+      final info = await ref.read(withdrawalApiProvider).getTeamDeletionInfo();
+
       if (mounted) {
         setState(() {
-          _fileCount = (info['fileCount'] as num?)?.toInt() ?? 26;
-          _sharedMusicCount = (info['sharedMusicCount'] as num?)?.toInt() ?? 57;
-          _scheduleCount = (info['scheduleCount'] as num?)?.toInt() ?? 21;
+          _fileCount = (info['fileCount'] as num?)?.toInt() ?? 0;
+          _sharedMusicCount = (info['sharedMusicCount'] as num?)?.toInt() ?? 0;
+          _scheduleCount = (info['scheduleCount'] as num?)?.toInt() ?? 0;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('팀 정보 조회 실패: $e')));
+      }
     }
   }
 
@@ -69,19 +74,8 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
 
     if (confirmed != true || !mounted) return;
 
-    // 💡 teamId 대신 teamPublicId를 추출
-    final teamPublicId =
-        ref.read(myPageProvider).data?.team?.teamPublicId ?? '';
-
-    if (teamPublicId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('팀 식별 정보를 찾을 수 없습니다.')));
-      return;
-    }
-
     try {
-      // DELETE /teams/{teamPublicId} 로 호출
+      // 💡 현재 활성화된 팀 삭제 (DELETE /teams/delete)
       await ref.read(withdrawalApiProvider).deleteTeam();
 
       // 마이페이지 최신 상태 갱신
@@ -277,7 +271,7 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _isConfirmed
-                              ? context.grays.gray8
+                              ? context.colors.primary
                               : context.grays.gray8.withOpacity(0.5),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -289,7 +283,7 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
                           '삭제하기',
                           style: FontStyles.med16.copyWith(
                             color: _isConfirmed
-                                ? context.grays.gray4
+                                ? context.colors.surface
                                 : context.grays.gray5,
                           ),
                         ),

@@ -50,7 +50,7 @@ class TeamArchiveApi {
         final innerData = resData['data'];
         if (innerData is Map<String, dynamic>) {
           final parsed = TeamArchiveResponseModel.fromJson(innerData);
-          return parsed.archives; // 👈 parsed.items 대신 parsed.archives 사용
+          return parsed.archives;
         }
       }
 
@@ -76,14 +76,12 @@ class TeamArchiveApi {
     try {
       final formData = FormData();
 
-      // 1. 폼 데이터에만 필드 추가 (쿼리 스트링 중복 전송 방지)
       formData.fields.addAll([
         MapEntry('title', title),
         MapEntry('locationId', locationId.toString()),
         MapEntry('description', description),
       ]);
 
-      // 2. 이미지 파일들 추가
       if (images != null && images.isNotEmpty) {
         for (final image in images) {
           final fileName = image.path.split('/').last;
@@ -96,7 +94,6 @@ class TeamArchiveApi {
         }
       }
 
-      // 💡 queryParameters를 제거하고 FormData만 전송
       await _dio.post('/teams/archives', data: formData);
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -120,14 +117,12 @@ class TeamArchiveApi {
     try {
       final formData = FormData();
 
-      // 텍스트 필드 추가
       formData.fields.addAll([
         MapEntry('title', title),
         MapEntry('locationId', locationId.toString()),
         MapEntry('description', description),
       ]);
 
-      // 새 이미지 파일들 추가 (MultipartFile)
       if (newImages != null && newImages.isNotEmpty) {
         for (final image in newImages) {
           final fileName = image.path.split('/').last;
@@ -211,7 +206,7 @@ class TeamArchiveApi {
     List<int>? mentionedUserIds,
   }) async {
     try {
-      // 💡 Swagger 명세: 모두 Query Parameters로 전송
+      // 💡 쿼리 파라미터 리스트를 백엔드가 정상 파싱하도록 listFormat 지정
       await _dio.post(
         '/teams/archives/$archiveId/comments',
         queryParameters: {
@@ -220,6 +215,7 @@ class TeamArchiveApi {
           if (mentionedUserIds != null && mentionedUserIds.isNotEmpty)
             'mentionedUserIds': mentionedUserIds,
         },
+        options: Options(listFormat: ListFormat.multiCompatible),
       );
     } on DioException catch (e) {
       final data = e.response?.data;

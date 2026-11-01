@@ -1,4 +1,6 @@
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_setting_page.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -65,57 +67,34 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
   }
 
   Future<void> _handleFinalWithdraw() async {
-    final passwordController = TextEditingController();
+    // 1. 유의사항 미동의 시 팝업 노출
+    if (!_isConfirmed) {
+      await AppPopup.show(
+        context,
+        title: '유의 사항을 확인해 주세요.',
+        content: '탈퇴 희망 시, 유의 사항 확인에\n동의해 주세요.',
+        warningType: WarningType.circle,
+        warningColor: context.grays.gray7,
+        contentType: ContentType.small,
+        buttonNum: ButtonNum.one,
+        confirmText: '확인',
+      );
+      return;
+    }
 
+    // 2. 최종 탈퇴 확정 팝업
     final confirmed = await AppPopup.show(
       context,
-      title: '비밀번호 확인',
-      warningType: WarningType.none,
-      contentType: ContentType.large,
+      title: '정말 탈퇴하시겠습니까?',
+      content: '탈퇴 시 계정 복구가 불가능하며\n모든 데이터 접근이 제한됩니다.',
+      warningType: WarningType.triangle,
+      contentType: ContentType.small,
       buttonNum: ButtonNum.two,
       confirmText: '탈퇴 확정',
       cancelText: '취소',
-      contentWidget: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '본인 확인을 위해 현재 비밀번호를 입력해주세요.',
-            style: FontStyles.reg14.copyWith(color: context.grays.gray4),
-          ),
-          const SizedBox(height: AppSpacing.x16),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: '비밀번호',
-              hintStyle: FontStyles.reg14.copyWith(color: context.grays.gray5),
-              filled: true,
-              fillColor: context.grays.gray8,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.x8),
-        ],
-      ),
     );
 
     if (confirmed != true || !mounted) return;
-
-    final password = passwordController.text.trim();
-    if (password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호를 입력해주세요.')));
-      return;
-    }
 
     try {
       await ref
@@ -123,30 +102,24 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
           .withdrawAuth(
             withdrawalReason: widget.withdrawalReason,
             detailReason: widget.detailReason,
-            password: password,
           );
 
       if (!mounted) return;
 
-      ref.read(authProvider.notifier).logout();
+      // 💡 로그아웃 처리 후 로그인 화면(SigninPage)으로 스택 비우며 이동
+      await ref.read(authProvider.notifier).logout();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SigninPage()),
+        (route) => false,
+      );
     } on WithdrawalApiException catch (e) {
       if (!mounted) return;
-      if (e.code == 'LOGIN-002') {
-        await AppPopup.show(
-          context,
-          title: '비밀번호 불일치',
-          content: '입력하신 비밀번호가 일치하지 않습니다.\n다시 확인해주세요.',
-          warningType: WarningType.circle,
-          warningColor: context.colors.primary,
-          contentType: ContentType.small,
-          buttonNum: ButtonNum.one,
-          confirmText: '확인',
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -319,13 +292,24 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
                     ),
                     const SizedBox(height: AppSpacing.x12),
 
-                    // 💡 대안 2: 팀 탈퇴 바로가기 (이모지 대신 alarm.svg 아이콘 적용)
+                    // 대안 2: 팀 탈퇴 바로가기
                     _AlternativeActionCard(
                       svgPath: 'assets/icons/auth/alarm.svg',
                       title: '활동하지 않는 팀이 있나요?',
                       subtitle: '서비스 탈퇴 대신 해당 팀에서만 나갈 수 있어요.',
                       buttonText: '팀 탈퇴 바로가기',
                       onTap: () {
+                        final currentTeam = ref.read(myPageProvider).data?.team;
+                        if (currentTeam == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('현재 참여 중인 팀이 없습니다.'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          return;
+                        }
+
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const TeamWithdrawPage(),
@@ -386,15 +370,14 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
                     // 그래도 탈퇴하기 링크 버튼
                     Center(
                       child: GestureDetector(
-                        onTap: _isConfirmed ? _handleFinalWithdraw : null,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _handleFinalWithdraw,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
                             '그래도 탈퇴하기',
                             style: FontStyles.med14.copyWith(
-                              color: _isConfirmed
-                                  ? context.grays.gray3
-                                  : context.grays.gray6,
+                              color: context.grays.gray3,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -495,7 +478,6 @@ class _AlternativeActionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // 💡 아이콘 너비(20px) + 간격(8px) = 28px 들여쓰기로 제목 텍스트 시작 위치와 세로 정렬 일치
           Padding(
             padding: const EdgeInsets.only(left: 28),
             child: Text(
