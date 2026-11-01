@@ -139,6 +139,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                           obscureText: !_isPasswordVisible,
                           errorText: _passwordErrorText,
                           onChanged: (_) {
+                            ref.read(resetPasswordProvider.notifier).onNewPasswordChanged();
                             setState(() {});
                           },
                           suffixIcon: value.text.isEmpty
