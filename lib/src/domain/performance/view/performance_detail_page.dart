@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
@@ -7,33 +11,37 @@ import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.da
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/tabs/app_tab_bar.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
+import 'package:beatit_front_app/src/domain/performance/provider/performance_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_detail_sections.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_hero.dart';
-import 'package:flutter/material.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_host_dialog.dart';
 
-/// 공연 상세보기와 나의 공연 상세보기에 동일하게 사용한다.
-/// 나의 공연 전용 액션은 isMine 일 때만 노출한다.
-class PerformanceDetailPage extends StatefulWidget {
+class PerformanceDetailPage extends ConsumerStatefulWidget {
   const PerformanceDetailPage({
     super.key,
-    required this.performance,
+    required this.performancePublicId,
+    this.initialPerformance,
     this.isMine = false,
     this.onEdit,
     this.onDelete,
     this.onViewResponses,
   });
 
-  final PerformanceDetailData performance;
+  final String performancePublicId;
+  final PerformanceDetailData? initialPerformance;
   final bool isMine;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onViewResponses;
 
   @override
-  State<PerformanceDetailPage> createState() => _PerformanceDetailPageState();
+  ConsumerState<PerformanceDetailPage> createState() =>
+      _PerformanceDetailPageState();
 }
 
-class _PerformanceDetailPageState extends State<PerformanceDetailPage> {
+class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
   int _selectedTab = 0;
 
   Future<void> _confirmDelete() async {
@@ -60,82 +68,241 @@ class _PerformanceDetailPageState extends State<PerformanceDetailPage> {
     context,
   ).showSnackBar(SnackBar(content: Text(message)));
 
+  void _openHostDialog(PerformanceDetailData performance) {
+    if (performance.hostContact.trim().isEmpty &&
+        performance.hostName.trim().isEmpty) {
+      _unavailable('등록된 호스트 연락처 정보가 없습니다.');
+      return;
+    }
+
+    showPerformanceHostDialog(
+      context: context,
+      hostName: performance.hostName.isNotEmpty ? performance.hostName : '호스트',
+      contactType:
+          performance.hostContactType ?? PerformanceHostContactType.phone,
+      contact: performance.hostContact.isNotEmpty
+          ? performance.hostContact
+          : '연락처 정보 없음',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final performance = widget.performance;
-    return Scaffold(
-      backgroundColor: context.grays.white,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Stack(
+    final detailAsync = ref.watch(
+      performanceDetailProvider(widget.performancePublicId),
+    );
+
+    return detailAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: context.grays.white,
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        backgroundColor: context.grays.white,
+        appBar: AppTopAppBar.backOnly(
+          onBackPressed: () => Navigator.of(context).maybePop(),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '공연 정보를 불러오지 못했습니다.',
+                style: FontStyles.med16.copyWith(color: context.colors.error),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => ref.refresh(
+                  performanceDetailProvider(widget.performancePublicId),
+                ),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (serverModel) {
+        final performance = serverModel.toDetailData();
+
+        return Scaffold(
+          backgroundColor: context.grays.white,
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PerformanceHero(performance: performance),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: MediaQuery.removePadding(
-                      context: context,
-                      removeTop: true,
-                      child: Theme(
-                        // 헤더의 배경만 투명하게. 아이콘 색상은 optional parameter로
-                        // 지정해서 드롭다운 글씨까지 흰색으로 바뀌지 않게 한다.
-                        data: Theme.of(
-                          context,
-                        ).copyWith(scaffoldBackgroundColor: Colors.transparent),
-                        child: widget.isMine
-                            ? AppTopAppBar.backMore(
-                                actionIconColor: AppColor.white,
-                                onBackPressed: () =>
-                                    Navigator.of(context).maybePop(),
-                                moreMenuOffset: const Offset(-16, 56),
-                                moreMenuItems: [
-                                  AppDropdownItem(
-                                    label: '수정하기',
-                                    onPressed:
-                                        widget.onEdit ??
-                                        () => _unavailable(
-                                          '공연 수정 기능은 아직 연결되지 않았습니다.',
-                                        ),
+                Stack(
+                  children: [
+                    PerformanceHero(
+                      performance: performance,
+                      isMine: widget.isMine,
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                icon: SvgPicture.asset(
+                                  'assets/icons/appbar/back.svg',
+                                  width: 20,
+                                  height: 20,
+                                  colorFilter: const ColorFilter.mode(
+                                    AppColor.white,
+                                    BlendMode.srcIn,
                                   ),
-                                  AppDropdownItem(
-                                    label: '삭제하기',
-                                    onPressed: _confirmDelete,
-                                  ),
-                                ],
-                              )
-                            : AppTopAppBar.backOnly(
-                                actionIconColor: AppColor.white,
-                                onBackPressed: () =>
+                                ),
+                                onPressed: () =>
                                     Navigator.of(context).maybePop(),
                               ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!widget.isMine)
+                                    IconButton(
+                                      icon: SvgPicture.asset(
+                                        'assets/icons/team/share.svg',
+                                        width: 22,
+                                        height: 22,
+                                        colorFilter: const ColorFilter.mode(
+                                          AppColor.white,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          _openHostDialog(performance),
+                                    ),
+                                  if (widget.isMine)
+                                    AppDropdownList(
+                                      items: [
+                                        AppDropdownItem(
+                                          label: '수정하기',
+                                          onPressed: () {
+                                            if (widget.onEdit != null) {
+                                              widget.onEdit!();
+                                              return;
+                                            }
+                                            Navigator.of(context)
+                                                .push(
+                                                  MaterialPageRoute<void>(
+                                                    builder: (_) =>
+                                                        PerformanceInformationPage(
+                                                          editTarget:
+                                                              serverModel,
+                                                        ),
+                                                  ),
+                                                )
+                                                .then((_) {
+                                                  ref.refresh(
+                                                    performanceDetailProvider(
+                                                      widget
+                                                          .performancePublicId,
+                                                    ),
+                                                  );
+                                                });
+                                          },
+                                        ),
+                                        AppDropdownItem(
+                                          label: '삭제하기',
+                                          onPressed: _confirmDelete,
+                                        ),
+                                      ],
+                                      width: 170.0,
+                                      anchorWidth: 48.0,
+                                      itemHeight: 44.0,
+                                      alignment: AppDropdownAlignment.right,
+                                      alignmentOffset: const Offset(-16, 44),
+                                      triggerBuilder: (context, controller) {
+                                        return IconButton(
+                                          icon: SvgPicture.asset(
+                                            'assets/icons/appbar/menu.svg',
+                                            width: 20,
+                                            height: 20,
+                                            colorFilter: const ColorFilter.mode(
+                                              AppColor.white,
+                                              BlendMode.srcIn,
+                                            ),
+                                          ),
+                                          onPressed: () {
+                                            if (controller.isOpen) {
+                                              controller.close();
+                                            } else {
+                                              controller.open();
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.isMine)
+                  _BookingDeadlineBand(performance: performance),
+                AppTabBar(
+                  labels: const ['공연 정보', '상세 정보'],
+                  selectedIndex: _selectedTab,
+                  onChanged: (value) => setState(() => _selectedTab = value),
+                ),
+                if (_selectedTab == 0)
+                  PerformanceInfoSection(
+                    performance: performance,
+                    isMine: false,
+                  )
+                else
+                  PerformanceDetailSection(performance: performance),
+                if (widget.isMine) const SizedBox(height: 80),
+              ],
+            ),
+          ),
+          bottomNavigationBar: widget.isMine
+              ? SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.x20,
+                      vertical: AppSpacing.x12,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed:
+                            widget.onViewResponses ??
+                            () => _unavailable('초대장 보기 기능 준비 중입니다.'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.colors.primary,
+                          foregroundColor: context.grays.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: Text(
+                          '초대장 보기',
+                          style: FontStyles.med16.copyWith(
+                            color: context.grays.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            if (widget.isMine) _BookingDeadlineBand(performance: performance),
-            AppTabBar(
-              labels: const ['공연 정보', '상세 정보'],
-              selectedIndex: _selectedTab,
-              onChanged: (value) => setState(() => _selectedTab = value),
-            ),
-            if (_selectedTab == 0)
-              PerformanceInfoSection(
-                performance: performance,
-                isMine: widget.isMine,
-                onViewResponses: widget.onViewResponses,
-              )
-            else
-              PerformanceDetailSection(performance: performance),
-          ],
-        ),
-      ),
+                )
+              : null,
+        );
+      },
     );
   }
 }
@@ -147,15 +314,17 @@ class _BookingDeadlineBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deadline = performance.bookingClosesAt;
     final remaining = DateUtils.dateOnly(
-      deadline ?? performance.startsAt,
+      performance.startsAt,
     ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+
     final dayLabel = remaining == 0
         ? 'D-Day'
         : remaining > 0
         ? 'D-$remaining'
         : 'D+${-remaining}';
+
+    final deadline = performance.bookingClosesAt;
     final dateText = deadline == null
         ? '공연일 ${_formatDate(performance.startsAt)}'
         : '공연 예매 마감일 ${_formatDate(deadline)}';

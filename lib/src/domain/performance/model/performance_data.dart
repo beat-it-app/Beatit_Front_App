@@ -1,3 +1,5 @@
+// lib/src/domain/performance/model/performance_data.dart
+
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -66,10 +68,10 @@ class PerformanceCreateData {
   final bool hasNoDetails;
 }
 
-/// 조회 API가 준비되면 해당 응답을 이 화면 전용 데이터로 변환하여 전달한다.
-/// 미전달 항목은 허구의 값으로 채우지 않고 상세 화면에서 표시하지 않는다.
+/// 조회 API 응답을 이 화면 전용 데이터로 변환하여 전달한다.
 class PerformanceDetailData {
   const PerformanceDetailData({
+    this.performancePublicId, // 💡 추가: 공연 식별자
     required this.title,
     required this.startsAt,
     this.posterUrl,
@@ -77,6 +79,10 @@ class PerformanceDetailData {
     this.teamName,
     this.introduction = '',
     this.location,
+    this.locationName, // 💡 추가: 장소명
+    this.roadAddress, // 💡 추가: 도로명 주소
+    this.advancePrice, // 💡 추가: 예매 가격
+    this.onSitePrice, // 💡 추가: 현매 가격
     this.ticketTypes = const <PerformanceTicketType>{},
     this.ticketPrices = const <PerformanceTicketType, String>{},
     this.bookingClosesAt,
@@ -90,6 +96,7 @@ class PerformanceDetailData {
     this.hasNoDetails = false,
   });
 
+  final String? performancePublicId;
   final String title;
   final DateTime startsAt;
   final String? posterUrl;
@@ -97,6 +104,10 @@ class PerformanceDetailData {
   final String? teamName;
   final String introduction;
   final LocationData? location;
+  final String? locationName;
+  final String? roadAddress;
+  final int? advancePrice;
+  final int? onSitePrice;
   final Set<PerformanceTicketType> ticketTypes;
   final Map<PerformanceTicketType, String> ticketPrices;
   final DateTime? bookingClosesAt;
@@ -110,7 +121,8 @@ class PerformanceDetailData {
   final bool hasNoDetails;
 
   factory PerformanceDetailData.fromSummary(PerformanceSummary summary) =>
-      summary.detail ?? PerformanceDetailData(
+      summary.detail ??
+      PerformanceDetailData(
         title: summary.title,
         startsAt: summary.startsAt,
         posterUrl: summary.imageUrl,

@@ -19,6 +19,8 @@ import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_main_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_detail_page.dart';
 
 import '../../cloud/view/cloud_main_page.dart';
 
@@ -188,18 +190,34 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           ),
                         ],
                       ),
-                      SvgPicture.asset(
-                        'assets/icons/auth/back.svg',
-                        width: 15,
-                        height: 15,
-                        colorFilter: ColorFilter.mode(
-                          colors.onSurface,
-                          BlendMode.srcIn,
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const PerformanceMainPage(),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: SvgPicture.asset(
+                            'assets/icons/auth/back.svg',
+                            width: 15,
+                            height: 15,
+                            colorFilter: ColorFilter.mode(
+                              colors.onSurface,
+                              BlendMode.srcIn,
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.x12),
+                  const SizedBox(height: AppSpacing.x16),
                   _buildLiveConcertList(context),
 
                   const SizedBox(height: AppSpacing.x40),
@@ -537,7 +555,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     return (dDayText: dDayText, dateDisplay: dateDisplay);
   }
 
-  // 5. 다가오는 LIVE 공연 섹션
+  // 5. 다가오는 LIVE 공연 섹션 (시안 디자인 규격에 맞춤)
   Widget _buildLiveConcertList(BuildContext context) {
     final performanceAsync = ref.watch(teamUpcomingPerformancesProvider);
 
@@ -552,7 +570,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           return _buildLiveConcertEmpty(context);
         }
         return SizedBox(
-          height: 190,
+          // 포스터(167) + 여백(8) + 날짜(16) + 여백(4) + 제목 2줄(38) 확보
+          height: 236,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: performances.length,
@@ -581,68 +600,97 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
+  // 시안의 [포스터 카드] -> [날짜(YYYY. M. D.)] -> [제목(2줄, Bold)] 레이아웃 반영[cite: 7]
   Widget _buildPerformanceCard(
     BuildContext context,
     TeamPerformanceModel performance,
   ) {
     final colors = Theme.of(context).colorScheme;
     final date = performance.performanceDateTime;
+
+    // 시안 포맷: 2026. 4. 14. (0 패딩 없는 띄어쓰기 형식)[cite: 7]
     final String dateStr = date != null
-        ? '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}'
+        ? '${date.year}. ${date.month}. ${date.day}.'
         : '-';
 
-    return Container(
-      width: 130,
-      decoration: BoxDecoration(
-        color: context.grays.gray8,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child:
-                (performance.posterImageUrl != null &&
-                    performance.posterImageUrl!.isNotEmpty)
-                ? Image.network(
-                    performance.posterImageUrl!,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: context.grays.gray7,
-                      child: const Center(
-                        child: Icon(Icons.broken_image, size: 24),
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: context.grays.gray7,
-                    child: const Center(
-                      child: Icon(Icons.music_note, size: 28),
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  performance.title,
-                  style: FontStyles.semi14.copyWith(color: colors.onSurface),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  dateStr,
-                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-                ),
-              ],
+    final bool hasPoster =
+        performance.posterImageUrl != null &&
+        performance.posterImageUrl!.trim().isNotEmpty;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PerformanceDetailPage(
+              performancePublicId: performance.performancePublicId,
             ),
           ),
-        ],
+        );
+      },
+      child: SizedBox(
+        width: 131,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. 포스터 영역 (이미지 없을 시 performance.svg 로고 표시)
+            Container(
+              width: 131,
+              height: 167,
+              decoration: BoxDecoration(
+                color: context.grays.gray8,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: context.grays.gray7, width: 1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: hasPoster
+                  ? Image.network(
+                      performance.posterImageUrl!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _buildPlaceholderLogo(context),
+                    )
+                  : _buildPlaceholderLogo(context),
+            ),
+            const SizedBox(height: 8),
+
+            // 2. 날짜 (포스터 바로 아래)[cite: 7]
+            Text(
+              dateStr,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+
+            // 3. 공연 제목 (최대 2줄, 볼드 스타일)[cite: 7]
+            Text(
+              performance.title,
+              style: FontStyles.semi18.copyWith(
+                color: colors.onSurface,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 이미지가 없을 때 중앙에 표시할 performance.svg 로고 위젯
+  Widget _buildPlaceholderLogo(BuildContext context) {
+    return Container(
+      color: context.grays.gray8,
+      child: Center(
+        child: SvgPicture.asset(
+          'assets/icons/performance/performance.svg',
+          width: 36,
+          height: 36,
+        ),
       ),
     );
   }
@@ -709,7 +757,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
               ),
             ),
 
-            // 💡 상단 탑바 (헤더 이미지 상단에 고정 배치되어 스크롤 시 함께 위로 이동)
+            // 상단 탑바 (헤더 이미지 상단에 고정 배치되어 스크롤 시 함께 위로 이동)
             Positioned(
               top: 0,
               left: 0,

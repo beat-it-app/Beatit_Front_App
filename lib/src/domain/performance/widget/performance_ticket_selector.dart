@@ -1,11 +1,15 @@
+// lib/src/domain/performance/widget/performance_ticket_selector.dart
+
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_ticket_information_popup.dart';
 
 class PerformanceTicketSelector extends StatelessWidget {
   const PerformanceTicketSelector({
@@ -33,8 +37,9 @@ class PerformanceTicketSelector extends StatelessWidget {
   bool _isDisabled(PerformanceTicketType type) {
     if (selectedTypes.contains(type) || selectedTypes.isEmpty) return false;
     if (selectedTypes.contains(PerformanceTicketType.free) ||
-        selectedTypes.contains(PerformanceTicketType.general))
+        selectedTypes.contains(PerformanceTicketType.general)) {
       return true;
+    }
     return type == PerformanceTicketType.free ||
         type == PerformanceTicketType.general;
   }
@@ -43,11 +48,57 @@ class PerformanceTicketSelector extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      // 1. 티켓 가격 라벨 및 info 안내 버튼
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '티켓 가격',
+                  style: FontStyles.med15.copyWith(color: context.grays.black),
+                ),
+                TextSpan(
+                  text: ' *',
+                  style: FontStyles.med15.copyWith(
+                    color: context.brands.beatOrange1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => PerformanceTicketInformationPopup.show(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ), // 💡 터치 타겟 영역 확장
+              child: SvgPicture.asset(
+                'assets/icons/performance/info.svg',
+                width: 16,
+                height: 16,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray5,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.x8),
+
+      // 2. 안내 문구
       Text(
         '사전 예매와 현장 예매 공연은 중복 선택이 가능합니다.',
         style: FontStyles.med14.copyWith(color: context.grays.gray4),
       ),
-      const SizedBox(height: AppSpacing.x8),
+      const SizedBox(height: AppSpacing.x12),
+
+      // 3. 티켓 옵션 및 가격 입력창 리스트
       for (final type in PerformanceTicketType.values) ...[
         _TicketOption(
           text: labels[type]!,

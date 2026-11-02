@@ -1,121 +1,199 @@
+// lib/src/domain/performance/view/performance_main_page.dart
+
+import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
-import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_model.dart';
 import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
 import 'package:beatit_front_app/src/domain/performance/view/performance_detail_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_mine_page.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_item_widget.dart';
-import 'package:flutter/material.dart';
 
-enum _PerformanceFilter { all, upcoming, past }
+enum _PerformanceFilter {
+  all('ALL'),
+  upcoming('UPCOMING'),
+  past('PAST');
 
-class PerformanceMainPage extends StatefulWidget {
-  const PerformanceMainPage({
-    super.key,
-    this.performances,
-    this.onPerformanceTap,
-    this.previewDraft,
-    this.onSubmit,
-  });
+  final String apiValue;
 
-  /// API 연결 전에는 예시 카드가 보인다. API 연결 후에는 실제 목록을 전달한다.
-  final List<PerformanceSummary>? performances;
-  final ValueChanged<PerformanceSummary>? onPerformanceTap;
-  /// 마이페이지 UI 테스트 시에만 더미 입력값을 전달한다.
-  final PerformanceCreateData? previewDraft;
-  final ValueChanged<PerformanceCreateData>? onSubmit;
-
-  @override
-  State<PerformanceMainPage> createState() => _PerformanceMainPageState();
+  const _PerformanceFilter(this.apiValue);
 }
 
-class _PerformanceMainPageState extends State<PerformanceMainPage> {
+class PerformanceMainPage extends ConsumerStatefulWidget {
+  const PerformanceMainPage({super.key, this.onPerformanceTap});
+
+  final ValueChanged<PerformanceModel>? onPerformanceTap;
+
+  @override
+  ConsumerState<PerformanceMainPage> createState() =>
+      _PerformanceMainPageState();
+}
+
+class _PerformanceMainPageState extends ConsumerState<PerformanceMainPage> {
   final _searchController = TextEditingController();
   _PerformanceFilter _filter = _PerformanceFilter.all;
   String _query = '';
+  Timer? _debounce;
 
-  // 실제 공연이 아닌 UI 확인용 임시 항목이다.
-  late final List<PerformanceSummary> _previewPerformances = [
-    PerformanceSummary(
-      title: '첫 번째 공연 예시',
-      startsAt: DateTime.now().add(const Duration(days: 14)),
-    ),
-    PerformanceSummary(
-      title: '두 번째 공연 예시',
-      startsAt: DateTime.now().add(const Duration(days: 30)),
-    ),
-    PerformanceSummary(
-      title: '지난 공연 예시',
-      startsAt: DateTime.now().subtract(const Duration(days: 14)),
-    ),
-    PerformanceSummary(
-      title: '작은 공연 예시',
-      startsAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-  ];
+  bool _isLoading = false;
+  String? _errorMessage;
+  List<PerformanceModel> _performances = [];
 
-  List<PerformanceSummary> get _filteredPerformances {
-    final now = DateTime.now();
-    final query = _query.trim().toLowerCase();
-    return (widget.performances ?? _previewPerformances)
-        .where((item) {
-          final isPast = item.startsAt.isBefore(now);
-          final matchesFilter = switch (_filter) {
-            _PerformanceFilter.all => true,
-            _PerformanceFilter.upcoming => !isPast,
-            _PerformanceFilter.past => isPast,
-          };
-          return matchesFilter && item.title.toLowerCase().contains(query);
-        })
-        .toList(growable: false);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchPerformances();
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  /// 백엔드 API (GET /performances) 호출
+  Future<void> _fetchPerformances() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get(
+        '/performances',
+        queryParameters: {
+          'filter': _filter.apiValue,
+          if (_query.trim().isNotEmpty) 'keyword': _query.trim(),
+          'page': 0,
+          'size': 30,
+        },
+      );
+
+      final resData = response.data;
+      if (resData is Map<String, dynamic> && resData['data'] != null) {
+        final parsedResponse = PerformanceResponseModel.fromJson(
+          resData['data'] as Map<String, dynamic>,
+        );
+
+        final List<PerformanceModel> items = switch (_filter) {
+          _PerformanceFilter.all => parsedResponse.allItems,
+          _PerformanceFilter.upcoming => parsedResponse.upcoming,
+          _PerformanceFilter.past => parsedResponse.past,
+        };
+
+        if (mounted) {
+          setState(() {
+            _performances = items;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _performances = [];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _query = value;
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchPerformances();
+    });
+  }
+
+  void _onFilterChanged(_PerformanceFilter filter) {
+    if (_filter == filter) return;
+    setState(() {
+      _filter = filter;
+    });
+    _fetchPerformances();
+  }
+
   void _openCreatePage() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PerformanceInformationPage(
-          initialDraft: widget.previewDraft,
-          onSubmit: widget.onSubmit,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => const PerformanceInformationPage(),
+          ),
+        )
+        .then((_) {
+          _fetchPerformances();
+        });
+  }
+
+  /// 💡 '내 공연 보기' 페이지로 이동
+  void _openMinePage() {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(builder: (_) => const PerformanceMinePage()),
+        )
+        .then((_) {
+          // 내 공연 페이지에서 수정/삭제 후 돌아왔을 때 메인 목록 갱신
+          _fetchPerformances();
+        });
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = _filteredPerformances;
     return Scaffold(
       backgroundColor: context.grays.white,
-      appBar: AppTopAppBar.backOnly(
+      appBar: AppTopAppBar.backMore(
         onBackPressed: () => Navigator.of(context).maybePop(),
+        actionIconColor: context.grays.black,
+        moreMenuOffset: const Offset(-16, 56),
+        moreMenuItems: [
+          AppDropdownItem(
+            label: '내 공연 보기',
+            onPressed: _openMinePage, // 💡 PerformanceMinePage로 이동
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: Column(
           children: [
+            // 1. 검색 입력창
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
               child: SearchInputWidget(
                 controller: _searchController,
                 onSearchPressed: () => FocusScope.of(context).unfocus(),
-                onChanged: (value) => setState(() => _query = value),
+                onChanged: _onSearchChanged,
               ),
             ),
             const SizedBox(height: AppSpacing.x10),
+
+            // 2. 필터 토글 버튼 영역
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-                mainAxisSize: MainAxisSize.max,
                 spacing: AppSpacing.x8,
                 children: [
                   _filterToggle('전체 보기', _PerformanceFilter.all),
@@ -125,8 +203,31 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
               ),
             ),
             const SizedBox(height: AppSpacing.x16),
+
+            // 3. 공연 그리드 목록 영역
             Expanded(
-              child: items.isEmpty
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '공연 목록을 불러오지 못했습니다.',
+                            style: FontStyles.med14.copyWith(
+                              color: context.colors.error,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _fetchPerformances,
+                            child: const Text('다시 시도'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _performances.isEmpty
                   ? Center(
                       child: Text(
                         '조건에 맞는 공연이 없습니다.',
@@ -136,7 +237,8 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
                       ),
                     )
                   : PerformanceGrid(
-                      performances: items,
+                      performances: _performances,
+                      showPastLabel: _filter == _PerformanceFilter.all,
                       onTap: (item) {
                         if (widget.onPerformanceTap != null) {
                           widget.onPerformanceTap!(item);
@@ -145,7 +247,7 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => PerformanceDetailPage(
-                              performance: PerformanceDetailData.fromSummary(item),
+                              performancePublicId: item.performancePublicId,
                             ),
                           ),
                         );
@@ -155,6 +257,7 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
           ],
         ),
       ),
+      // 4. 하단 공연 등록 플로팅 버튼
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: SizedBox(
         width: 155,
@@ -177,6 +280,6 @@ class _PerformanceMainPageState extends State<PerformanceMainPage> {
   Widget _filterToggle(String label, _PerformanceFilter filter) => AppToggle(
     text: label,
     isSelected: _filter == filter,
-    onChanged: (_) => setState(() => _filter = filter),
+    onChanged: (_) => _onFilterChanged(filter),
   );
 }
