@@ -3,12 +3,10 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
 
-// 네이버 Client Secret을 local.properties에서 로드
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 
@@ -32,7 +30,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: 배포 전에는 com.example.* 형태가 아닌 실제 고유 applicationId로 변경해야 함.
         applicationId = "com.beatit.app"
 
         minSdk = flutter.minSdkVersion
@@ -40,7 +37,6 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // 네이버 로그인 SDK에서 사용할 Client Secret 리소스 생성
         resValue("string", "client_secret", naverClientSecret)
     }
 

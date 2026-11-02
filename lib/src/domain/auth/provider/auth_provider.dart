@@ -158,25 +158,37 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       Map<String, dynamic> deviceFields,
     ) authenticate,
   }) async {
+    if (state.isLoading) return;
+
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      debugPrint('[Auth] social SDK login started');
       final token = await getToken();
-      if (token == null) return null; // SDK 로그인 취소
+      if (token == null) {
+        debugPrint('[Auth] social SDK login cancelled');
+        return null;
+      }
+      if (token.trim().isEmpty) {
+        throw StateError('소셜 로그인 토큰이 비어 있습니다.');
+      }
 
+      debugPrint('[Auth] social SDK token acquired');
+      // FCM 권한 요청은 로그인 이후에 처리한다. 기기 정보는 먼저 보낸다.
       final deviceFields = await ref
           .read(authPushRegistrationProvider)
-          .collectLoginFields();
+          .collectLoginFields(includePushToken: false);
+      debugPrint('[Auth] BeatIt server login started');
       final result = await authenticate(token, deviceFields);
 
       await ref.read(authTokenStorageProvider).saveTokens(
         accessToken: result.session.accessToken,
         refreshToken: result.refreshToken,
       );
+      debugPrint('[Auth] BeatIt session saved');
 
       _startTokenRefreshListener();
-      if (deviceFields['pushToken'] == null) {
-        unawaited(_retryPushRegistration(result.session.accessToken));
-      }
+      // 소셜 로그인 완료 이후 FCM 토큰이 준비되면 별도 API로 등록한다.
+      unawaited(_retryPushRegistration(result.session.accessToken));
       return result.session;
     });
   }

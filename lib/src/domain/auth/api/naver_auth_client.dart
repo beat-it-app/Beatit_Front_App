@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:naver_login_flutter/naver_login_flutter.dart';
 
 class NaverAuthClient {
@@ -11,6 +11,9 @@ class NaverAuthClient {
       debugPrint('[NaverAuth] SDK login status: ${result.status}');
 
       if (result.status == NaverLoginStatus.loggedOut) {
+        debugPrint(
+          '[NaverAuth] SDK returned loggedOut (cancelled or not authenticated)',
+        );
         return null;
       }
       if (result.status != NaverLoginStatus.loggedIn) {
@@ -22,6 +25,7 @@ class NaverAuthClient {
         throw StateError('네이버 로그인 토큰을 가져오지 못했습니다.');
       }
 
+      debugPrint('[NaverAuth] SDK access token acquired');
       return token.accessToken;
     } catch (error) {
       debugPrint('[NaverAuth] SDK login error: $error');
