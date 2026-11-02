@@ -18,6 +18,7 @@ import 'package:beatit_front_app/src/domain/team/view/team_archive_list_page.dar
 import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
+import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
 
 import '../../cloud/view/cloud_main_page.dart';
 
@@ -86,43 +87,12 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64.0),
-        child: AppTopAppBar.alarmOnly(
-          onEditPressed: isManagerOrLeader
-              ? () {
-                  Navigator.of(context)
-                      .push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamUpdatePage(),
-                        ),
-                      )
-                      .then((_) => _refreshAll());
-                }
-              : null,
-          onSharePressed: isManagerOrLeader
-              ? () {
-                  showTeamInviteDialog(
-                    context: context,
-                    teamName: detail.teamName,
-                    inviteCode: detail.inviteCode,
-                  );
-                }
-              : null,
-          onAlarmPressed: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
-          },
-        ),
-      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. 상단 프로필 헤더 (배경, 팀명, 개설일, SNS 링크)
-            _buildHeader(context, detail),
+            // 1. 상단 프로필 헤더 (버튼 3개가 헤더 위에 올라가며, 스크롤 시 함께 위로 이동)
+            _buildHeader(context, detail, isManagerOrLeader),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
@@ -145,7 +115,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.x20),
+                  const SizedBox(height: AppSpacing.x40),
 
                   // 3. 멤버 목록 영역
                   _buildSectionTitle(
@@ -163,7 +133,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   const SizedBox(height: AppSpacing.x12),
                   _buildMemberList(context, detail),
 
-                  const SizedBox(height: AppSpacing.x30),
+                  const SizedBox(height: AppSpacing.x40),
 
                   // 4. 다가오는 일정 타이틀
                   Row(
@@ -181,7 +151,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                       const SizedBox(width: 6),
                       Text(
                         '다가오는 일정',
-                        style: FontStyles.semi24.copyWith(
+                        style: FontStyles.semi22.copyWith(
                           color: colors.onSurface,
                         ),
                       ),
@@ -190,7 +160,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   const SizedBox(height: AppSpacing.x20),
                   _buildScheduleSection(context),
 
-                  const SizedBox(height: AppSpacing.x30),
+                  const SizedBox(height: AppSpacing.x40),
 
                   // 5. 다가오는 LIVE 공연 타이틀
                   Row(
@@ -212,7 +182,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           const SizedBox(width: 6),
                           Text(
                             '다가오는 LIVE 공연',
-                            style: FontStyles.semi24.copyWith(
+                            style: FontStyles.semi22.copyWith(
                               color: colors.onSurface,
                             ),
                           ),
@@ -232,7 +202,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   const SizedBox(height: AppSpacing.x12),
                   _buildLiveConcertList(context),
 
-                  const SizedBox(height: AppSpacing.x30),
+                  const SizedBox(height: AppSpacing.x40),
 
                   // 6. 하단 액션 버튼
                   _buildActionButton(
@@ -272,7 +242,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 4. 다가오는 일정 섹션 (API 연동)
+  // 4. 다가오는 일정 섹션
   Widget _buildScheduleSection(BuildContext context) {
     final scheduleAsync = ref.watch(teamUpcomingSchedulesProvider);
 
@@ -287,10 +257,8 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           return _buildScheduleEmpty(context);
         }
 
-        // 전체 일정 중 가장 빠른 첫 번째 일정의 ID 확인
         final int earliestScheduleId = schedules.first.scheduleId;
 
-        // 날짜(YYYY.MM.DD)별로 일정 그룹화
         final Map<String, List<TeamScheduleModel>> groupedByDate = {};
         for (final item in schedules) {
           final dt = item.startsAt;
@@ -407,14 +375,15 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(width: 4),
-            // 1. 시간 컬럼
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Text(
                   startTime,
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray2),
+                  style: FontStyles.reg14.copyWith(
+                    color: isDimmed ? context.grays.gray5 : context.grays.gray2,
+                  ),
                 ),
                 Text(
                   endTime,
@@ -423,67 +392,80 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
               ],
             ),
             const SizedBox(width: 10),
-            // 2. 세로 구분선
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Container(width: 1, color: context.grays.gray7),
             ),
             const SizedBox(width: 10),
-            // 3. 3:1 비율 박스 카드
             Expanded(
-              child: AspectRatio(
-                aspectRatio: 3 / 1,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDimmed
-                        ? context.grays.gray8.withOpacity(0.5)
-                        : context.grays.gray8,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              data.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: FontStyles.semi18.copyWith(
-                                color: isDimmed
-                                    ? context.grays.gray4
-                                    : colors.onSurface,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () async {
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CalDetailPage(scheduleId: data.scheduleId),
+                    ),
+                  );
+
+                  if (result == true) {
+                    _refreshAll();
+                  }
+                },
+                child: AspectRatio(
+                  aspectRatio: 3 / 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDimmed
+                          ? context.grays.gray8.withOpacity(0.5)
+                          : context.grays.gray8,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                data.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: FontStyles.semi18.copyWith(
+                                  color: isDimmed
+                                      ? context.grays.gray4
+                                      : colors.onSurface,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data.locationName.isNotEmpty
-                                  ? data.locationName
-                                  : '장소 미지정',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: FontStyles.med12.copyWith(
-                                color: isDimmed
-                                    ? context.grays.gray6
-                                    : context.grays.gray4,
+                              const SizedBox(height: 4),
+                              Text(
+                                data.locationName.isNotEmpty
+                                    ? data.locationName
+                                    : '장소 미지정',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: FontStyles.med12.copyWith(
+                                  color: isDimmed
+                                      ? context.grays.gray6
+                                      : context.grays.gray4,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Center(
-                        child: _buildCheckIcon(
-                          context,
-                          isTodayDDay: isTodayDDay,
-                          isEarliest: isEarliest,
+                        const SizedBox(width: 8),
+                        Center(
+                          child: _buildCheckIcon(
+                            context,
+                            isTodayDDay: isTodayDDay,
+                            isEarliest: isEarliest,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -501,7 +483,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
   }) {
     final colors = Theme.of(context).colorScheme;
 
-    // 1. D-D(오늘)이고 가장 빠른 첫 일정: 채워진 주황색 원
     if (isTodayDDay && isEarliest) {
       return SvgPicture.asset(
         'assets/icons/check/check_round_on.svg',
@@ -511,21 +492,16 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
       );
     }
 
-    // 2. D-D(오늘)이고 당일 나머지 일정들: 주황색 점선 체크
     if (isTodayDDay && !isEarliest) {
       return SvgPicture.asset(
         'assets/icons/check/check_dot.svg',
         width: 25,
         height: 25,
         fit: BoxFit.contain,
-        colorFilter: ColorFilter.mode(
-          context.brands.beatOrange4,
-          BlendMode.srcIn,
-        ),
+        colorFilter: ColorFilter.mode(colors.primary, BlendMode.srcIn),
       );
     }
 
-    // 3. D-숫자(미래 일정): 회색/검정 점선 체크
     return SvgPicture.asset(
       'assets/icons/check/check_dot.svg',
       width: 25,
@@ -546,7 +522,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final diffDays = targetDate.difference(today).inDays;
 
     final String dateDisplay =
-        '${date.year}. ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}.'
+        '${date.year}. ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}'
         '${diffDays == 0 ? ' (오늘)' : ''}';
 
     String dDayText;
@@ -561,7 +537,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     return (dDayText: dDayText, dateDisplay: dateDisplay);
   }
 
-  // 5. 다가오는 LIVE 공연 섹션 (API 연동)
+  // 5. 다가오는 LIVE 공연 섹션
   Widget _buildLiveConcertList(BuildContext context) {
     final performanceAsync = ref.watch(teamUpcomingPerformancesProvider);
 
@@ -672,7 +648,11 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
   }
 
   // 상단 프로필 헤더
-  Widget _buildHeader(BuildContext context, TeamDetailModel detail) {
+  Widget _buildHeader(
+    BuildContext context,
+    TeamDetailModel detail,
+    bool isManagerOrLeader,
+  ) {
     final colors = Theme.of(context).colorScheme;
     final bool hasImage =
         detail.teamImageUrl != null && detail.teamImageUrl!.trim().isNotEmpty;
@@ -693,76 +673,128 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     return SizedBox(
       height: 400,
       width: double.infinity,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: hasImage
-                ? Image.network(
-                    detail.teamImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Image.asset(
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(5)),
+        child: Stack(
+          children: [
+            // 배경 이미지
+            Positioned.fill(
+              child: hasImage
+                  ? Image.network(
+                      detail.teamImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        'assets/images/team/team_view_profile.png',
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(
                       'assets/images/team/team_view_profile.png',
                       fit: BoxFit.cover,
                     ),
-                  )
-                : Image.asset(
-                    'assets/images/team/team_view_profile.png',
-                    fit: BoxFit.cover,
+            ),
+            // 그라데이션 오버레이
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.15),
+                      Colors.black.withOpacity(0.85),
+                    ],
                   ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.15),
-                    Colors.black.withOpacity(0.85),
-                  ],
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 42,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    'band',
-                    style: FontStyles.reg12.copyWith(color: Colors.white),
+
+            // 💡 상단 탑바 (헤더 이미지 상단에 고정 배치되어 스크롤 시 함께 위로 이동)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  height: 64.0,
+                  child: AppTopAppBar.alarmOnly(
+                    onEditPressed: isManagerOrLeader
+                        ? () {
+                            Navigator.of(context)
+                                .push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TeamUpdatePage(),
+                                  ),
+                                )
+                                .then((_) => _refreshAll());
+                          }
+                        : null,
+                    onSharePressed: isManagerOrLeader
+                        ? () {
+                            showTeamInviteDialog(
+                              context: context,
+                              teamName: detail.teamName,
+                              inviteCode: detail.inviteCode,
+                            );
+                          }
+                        : null,
+                    onAlarmPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AlarmMainPage(),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  detail.teamName,
-                  style: FontStyles.bold28.copyWith(color: colors.primary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '개설일  |  $dateDisplay',
-                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-                ),
-                if (hasLinks) ...[
-                  const SizedBox(height: 18),
-                  _buildDynamicSocialLinks(detail.links),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+
+            // 텍스트 및 링크 아이콘
+            Positioned(
+              bottom: 42,
+              left: 0,
+              right: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      'band',
+                      style: FontStyles.reg12.copyWith(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail.teamName,
+                    style: FontStyles.bold28.copyWith(color: colors.primary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '개설일  |  $dateDisplay',
+                    style: FontStyles.reg12.copyWith(
+                      color: context.grays.gray4,
+                    ),
+                  ),
+                  if (hasLinks) ...[
+                    const SizedBox(height: 18),
+                    _buildDynamicSocialLinks(detail.links),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -903,11 +935,11 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text('', style: FontStyles.semi16),
+                Text('', style: FontStyles.semi18),
                 const SizedBox(height: 2),
                 Text(
                   '멤버',
-                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray4),
                 ),
               ],
             ),
@@ -941,7 +973,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           )
                           as ImageProvider,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 68),
                 child: Text(
@@ -949,12 +981,11 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: FontStyles.semi16.copyWith(
+                  style: FontStyles.semi18.copyWith(
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 68),
                 child: Text(
@@ -965,7 +996,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
+                  style: FontStyles.reg14.copyWith(color: context.grays.gray4),
                 ),
               ),
             ],

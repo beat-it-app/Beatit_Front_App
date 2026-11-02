@@ -20,7 +20,7 @@ class WithdrawalApi {
   // 1. 팀 탈퇴 안내 정보 조회 (GET /teams/withdrawal-info)
   Future<Map<String, dynamic>> getTeamWithdrawalInfo() async {
     try {
-      final res = await _dio.get('/teams/withdrawal-info');
+      final res = await _dio.get('/teams/withdrawl-info');
       return (res.data['data'] as Map<String, dynamic>?) ?? {};
     } on DioException catch (e) {
       throw _parseError(e, '팀 탈퇴 안내 정보 조회에 실패했습니다.');
@@ -51,7 +51,6 @@ class WithdrawalApi {
   Future<Map<String, dynamic>> withdrawAuth({
     required String withdrawalReason,
     required String detailReason,
-    required String password,
   }) async {
     try {
       final res = await _dio.patch(
@@ -59,7 +58,6 @@ class WithdrawalApi {
         data: {
           'withdrawalReason': withdrawalReason,
           'detailReason': detailReason,
-          'password': password,
         },
       );
       return (res.data['data'] as Map<String, dynamic>?) ?? {};
@@ -80,6 +78,19 @@ class WithdrawalApi {
     } on DioException catch (e) {
       final errorMsg = e.response?.data?['message'] ?? '팀 삭제 요청 중 오류가 발생했습니다.';
       throw WithdrawalApiException(errorMsg);
+    }
+  }
+
+  Future<Map<String, dynamic>> getTeamDeletionInfo() async {
+    try {
+      final res = await _dio.get('/teams/deletion-info');
+      final raw = res.data;
+      if (raw is Map<String, dynamic> && raw['data'] is Map<String, dynamic>) {
+        return raw['data'] as Map<String, dynamic>;
+      }
+      return {};
+    } on DioException catch (e) {
+      throw _parseError(e, '팀 삭제 안내 정보 조회에 실패했습니다.');
     }
   }
 

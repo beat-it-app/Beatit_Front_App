@@ -141,12 +141,14 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        toolbarHeight = toolbarHeight,
        actionIconColor = null;
 
+  // 💡 actionIconColor 파라미터 추가 (기본값 미지정 시 null)
   const AppTopAppBar.alarmOnly({
     super.key,
     VoidCallback? onAlarmPressed,
     VoidCallback? onEditPressed,
     VoidCallback? onSharePressed,
     double toolbarHeight = 64.0,
+    this.actionIconColor,
   }) : title = null,
        showBackButton = false,
        trailing = AppTopAppBarTrailing.alarm,
@@ -161,8 +163,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        moreMenuWidth = 170.0,
        moreMenuItemHeight = 44.0,
        moreMenuOffset = const Offset(0, 56),
-       toolbarHeight = toolbarHeight,
-       actionIconColor = null;
+       toolbarHeight = toolbarHeight;
 
   final String? title;
   final bool showBackButton;
@@ -175,30 +176,13 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onEditPressed;
   final VoidCallback? onSharePressed;
 
-  /// 더보기 버튼을 눌렀을 때 표시할 드롭다운 항목
-  ///
-  /// 비어 있으면 드롭다운을 표시하지 않고 [onMorePressed]를 실행한다.
   final List<AppDropdownItem> moreMenuItems;
-
-  /// 드롭다운의 왼쪽 또는 오른쪽 정렬
   final AppDropdownAlignment moreMenuAlignment;
-
-  /// 드롭다운 너비
   final double moreMenuWidth;
-
-  /// 드롭다운 항목 하나의 높이
   final double moreMenuItemHeight;
-
-  /// 정렬된 위치를 기준으로 한 추가 이동값
-  ///
-  /// 예:
-  /// `Offset(-16, 56)`
-  /// - 오른쪽 정렬 위치에서 왼쪽으로 16px
-  /// - 버튼 상단 기준 아래로 56px
   final Offset moreMenuOffset;
 
   final double toolbarHeight;
-  /// 기본값은 기존 grays.black. 상세 헤더에서만 흰 SVG가 필요할 때 지정한다.
   final Color? actionIconColor;
 
   static void _noop() {}
@@ -211,6 +195,9 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
+    // 💡 전달된 actionIconColor가 있으면 사용하고, 없으면 기본 흰색(Colors.white) 적용
+    final effectiveAlarmActionColor = actionIconColor ?? Colors.white;
+
     return AppBar(
       automaticallyImplyLeading: false,
       centerTitle: title != null,
@@ -219,12 +206,10 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       scrolledUnderElevation: 0,
 
-      // 💡 [수정] AppTopAppBar.alarmOnly 대신 trailing 변수를 검사합니다.
       backgroundColor: (trailing == AppTopAppBarTrailing.alarm)
           ? Colors.transparent
           : theme.scaffoldBackgroundColor,
 
-      // 💡 Material3 스크롤 시 틴트 색상 오버레이 방지 (필수)
       surfaceTintColor: (trailing == AppTopAppBarTrailing.alarm)
           ? Colors.transparent
           : null,
@@ -265,8 +250,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
                     'assets/icons/team/edit.svg',
                     width: 24,
                     height: 24,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
+                    colorFilter: ColorFilter.mode(
+                      effectiveAlarmActionColor,
                       BlendMode.srcATop,
                     ),
                   ),
@@ -281,8 +266,8 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
                     'assets/icons/team/share.svg',
                     width: 24,
                     height: 24,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
+                    colorFilter: ColorFilter.mode(
+                      effectiveAlarmActionColor,
                       BlendMode.srcIn,
                     ),
                   ),
@@ -296,13 +281,13 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
                   'assets/icons/appbar/bell.svg',
                   width: 24,
                   height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    Colors.white,
+                  colorFilter: ColorFilter.mode(
+                    effectiveAlarmActionColor,
                     BlendMode.srcIn,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
             ],
           ),
         },
@@ -311,7 +296,6 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildMoreAction() {
-    // 메뉴 항목이 없는 화면에서는 기존처럼 콜백만 실행한다.
     if (moreMenuItems.isEmpty) {
       return _AppBarPressIconButton(
         icon: 'assets/icons/appbar/menu.svg',
@@ -321,14 +305,10 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       );
     }
 
-    // 메뉴 항목이 있으면 더보기 버튼이 드롭다운을 연다.
     return AppDropdownList(
       items: moreMenuItems,
       width: moreMenuWidth,
-
-      // 더보기 버튼의 실제 너비와 동일해야 한다.
       anchorWidth: _appBarActionButtonWidth,
-
       itemHeight: moreMenuItemHeight,
       alignment: moreMenuAlignment,
       alignmentOffset: moreMenuOffset,

@@ -256,7 +256,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                     // 탈퇴하기 버튼
                     AppButton(
                       text: '탈퇴하기',
-                      variant: ButtonVariant.black,
+                      variant: ButtonVariant.primary,
                       width: ButtonWidth.expand,
                       height: ButtonHeight.normal,
                       onPressed: _isConfirmed ? _handleWithdraw : null,

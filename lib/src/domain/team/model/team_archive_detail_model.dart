@@ -27,7 +27,9 @@ class ArchiveMentionUserModel {
   factory ArchiveMentionUserModel.fromJson(Map<String, dynamic> json) {
     return ArchiveMentionUserModel(
       userId: json['userId'] as int? ?? 0,
-      nickname: json['nickname'] as String? ?? '',
+      nickname:
+          (json['nickname'] ?? json['name'] ?? json['userName'] ?? '')
+              as String,
     );
   }
 }

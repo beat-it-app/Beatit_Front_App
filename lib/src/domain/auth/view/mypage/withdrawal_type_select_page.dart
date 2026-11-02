@@ -1,6 +1,8 @@
+import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/app_withdraw_reason_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/team_withdraw_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -8,22 +10,34 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 
-import 'app_withdraw_info_page.dart';
-
-class WithdrawalTypeSelectPage extends StatefulWidget {
+class WithdrawalTypeSelectPage extends ConsumerStatefulWidget {
   const WithdrawalTypeSelectPage({super.key});
 
   @override
-  State<WithdrawalTypeSelectPage> createState() =>
+  ConsumerState<WithdrawalTypeSelectPage> createState() =>
       _WithdrawalTypeSelectPageState();
 }
 
-class _WithdrawalTypeSelectPageState extends State<WithdrawalTypeSelectPage> {
+class _WithdrawalTypeSelectPageState
+    extends ConsumerState<WithdrawalTypeSelectPage> {
   // 'team' 또는 'app'
   String? _selectedType;
 
   void _handleNext() {
     if (_selectedType == 'team') {
+      // 💡 현재 참여 중인 팀 유무 확인
+      final currentTeam = ref.read(myPageProvider).data?.team;
+
+      if (currentTeam == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('현재 참여 중인 팀이 없습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const TeamWithdrawPage()));

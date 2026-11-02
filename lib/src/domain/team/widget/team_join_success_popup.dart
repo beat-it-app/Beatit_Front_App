@@ -46,13 +46,13 @@ class TeamJoinSuccessPopup extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 300,
-          minHeight: 440,
-          maxHeight: 440,
+          minHeight: 445,
+          maxHeight: 445,
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.x20,
-            AppSpacing.x40,
+            AppSpacing.x55,
             AppSpacing.x20,
             AppSpacing.x20,
           ),
@@ -68,7 +68,6 @@ class TeamJoinSuccessPopup extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
               ),
-              const SizedBox(height: AppSpacing.x10),
 
               RichText(
                 textAlign: TextAlign.center,
