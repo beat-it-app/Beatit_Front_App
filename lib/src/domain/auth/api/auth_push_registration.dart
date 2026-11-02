@@ -27,19 +27,24 @@ class AuthPushRegistration {
   String get _platformType => Platform.isIOS ? 'IOS' : 'ANDROID';
 
   /// 가능한 필드는 전송하며, FCM 미지원 환경이라도 인증 필드는 유지한다.
-  Future<Map<String, dynamic>> collectLoginFields() async {
+  /// 소셜 SDK 인증 직후에는 푸시 권한 창으로 서버 로그인을 지연시키지 않는다.
+  Future<Map<String, dynamic>> collectLoginFields({
+    bool includePushToken = true,
+  }) async {
     if (!_isSupportedPlatform) return const {};
 
     final fields = <String, dynamic>{'platformType': _platformType};
     final results = await Future.wait<String?>([
       _getDeviceIdSafely(),
       _getAppVersionSafely(),
-      _getFcmTokenSafely(),
+      if (includePushToken) _getFcmTokenSafely(),
     ]);
 
     if (results[0] != null) fields['deviceId'] = results[0];
     if (results[1] != null) fields['appVersion'] = results[1];
-    if (results[2] != null) fields['pushToken'] = results[2];
+    if (includePushToken && results[2] != null) {
+      fields['pushToken'] = results[2];
+    }
 
     return fields;
   }
