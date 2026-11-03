@@ -91,6 +91,7 @@ class PerformanceDetailModel {
   final int teamId;
   final String teamName;
   final int createdUserId;
+  final bool isWriter;
   final String title;
   final String description;
   final DateTime performanceDateTime;
@@ -115,6 +116,7 @@ class PerformanceDetailModel {
     required this.teamId,
     required this.teamName,
     required this.createdUserId,
+    this.isWriter = false,
     required this.title,
     required this.description,
     required this.performanceDateTime,
@@ -167,6 +169,7 @@ class PerformanceDetailModel {
       teamId: (json['teamId'] as num?)?.toInt() ?? 0,
       teamName: json['teamName']?.toString() ?? '',
       createdUserId: (json['createdUserId'] as num?)?.toInt() ?? 0,
+      isWriter: json['isWriter'] as bool? ?? false,
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       performanceDateTime: json['performanceDateTime'] != null

@@ -28,7 +28,7 @@ class PerformanceDetailPage extends ConsumerStatefulWidget {
     super.key,
     required this.performancePublicId,
     this.initialPerformance,
-    this.fromMyPage = false, // 💡 나의 공연 목록에서 들어올 때만 true 전달
+    this.fromMyPage = false, // 나의 공연 목록 진입 여부
     this.onEdit,
     this.onDelete,
     this.onViewResponses,
@@ -175,8 +175,14 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
       data: (serverModel) {
         final performance = serverModel.toDetailData();
 
-        // 💡 백엔드 isMine 필드 없이 오직 '나의 공연 목록' 진입 여부로만 제어
-        final bool canEditOrDelete = widget.fromMyPage;
+        // 💡 1. 수정하기/삭제하기 더보기 메뉴: fromMyPage && isWriter 일 때만
+        final bool canEditOrDelete = widget.fromMyPage && serverModel.isWriter;
+
+        // 💡 2. D-Day 밴드 및 하단 초대장 보기 고정 버튼: fromMyPage 일 때만
+        final bool showMyPageFeatures = widget.fromMyPage;
+
+        // 💡 3. 공유(문의) 버튼: fromMyPage가 아닐 때만 노출
+        final bool showShareButton = !widget.fromMyPage;
 
         return Scaffold(
           backgroundColor: context.grays.white,
@@ -188,7 +194,7 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                   children: [
                     PerformanceHero(
                       performance: performance,
-                      isMine: canEditOrDelete,
+                      isMine: showMyPageFeatures,
                     ),
                     Positioned(
                       top: 0,
@@ -220,8 +226,8 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // 나의 공연 목록을 통해 들어온 것이 아닐 때: 공유(문의) 버튼만 노출
-                                  if (!canEditOrDelete)
+                                  // 💡 fromMyPage가 아닐 때만 공유(문의) 버튼 노출
+                                  if (showShareButton)
                                     IconButton(
                                       icon: SvgPicture.asset(
                                         'assets/icons/team/share.svg',
@@ -236,7 +242,7 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                                           _openHostDialog(performance),
                                     ),
 
-                                  // 나의 공연 목록을 통해 들어왔을 때만: 수정/삭제 드롭다운 메뉴 노출
+                                  // 💡 fromMyPage && isWriter 일 때만 수정/삭제 드롭다운 노출
                                   if (canEditOrDelete)
                                     AppDropdownList(
                                       items: [
@@ -307,8 +313,8 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                     ),
                   ],
                 ),
-                // 나의 공연 목록에서 들어왔을 때만 D-Day 밴드 노출
-                if (canEditOrDelete)
+                // 💡 fromMyPage일 때만 D-Day 밴드 노출
+                if (showMyPageFeatures)
                   _BookingDeadlineBand(performance: performance),
                 AppTabBar(
                   labels: const ['공연 정보', '상세 정보'],
@@ -322,12 +328,12 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                   )
                 else
                   PerformanceDetailSection(performance: performance),
-                if (canEditOrDelete) const SizedBox(height: 80),
+                if (showMyPageFeatures) const SizedBox(height: 80),
               ],
             ),
           ),
-          // 나의 공연 목록에서 들어왔을 때만 하단 초대장 보기 고정 버튼 노출
-          bottomNavigationBar: canEditOrDelete
+          // 💡 fromMyPage일 때만 하단 고정 초대장 보기 버튼 노출
+          bottomNavigationBar: showMyPageFeatures
               ? SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
