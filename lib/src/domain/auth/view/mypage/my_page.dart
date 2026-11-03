@@ -11,13 +11,17 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 
 import '../../model/mypage/mypage_model.dart';
 import '../../provider/mypage_provider.dart';
 import '../../widget/team_switch_bottom_sheet.dart';
+import 'customer_support_page.dart';
 import 'display_setting_page.dart';
 import 'profile_edit_page.dart';
+import 'terms_of_service_page.dart';
 
 class MyPageView extends ConsumerStatefulWidget {
   const MyPageView({super.key});
@@ -31,6 +35,23 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
   Future<void> _logout() async {
     if (_isLoggingOut) return;
+
+    // 💡 로그아웃 확인 팝업
+    final confirmed = await AppPopup.show(
+      context,
+      title: '로그아웃 하시겠습니까?',
+      content: '로그아웃시 설정된 로그인이\n해제됩니다. 다시 로그인해 주세요.',
+      warningType: WarningType.circle,
+      warningColor: context.grays.gray7,
+      contentType: ContentType.small,
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed != true || !mounted) return;
+
     setState(() => _isLoggingOut = true);
 
     try {
@@ -218,11 +239,10 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
               color: context.grays.gray8,
             ),
 
-            // 💡 2. 현재 팀 영역 (currentTeam이 있을 때만 전체 노출)
+            // 2. 현재 팀 영역
             if (currentTeam != null) ...[
               const SizedBox(height: AppSpacing.x16),
 
-              // 현재 팀 타이틀 & 전환 버튼
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
                 child: Row(
@@ -255,7 +275,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
               const SizedBox(height: AppSpacing.x12),
 
-              // 현재 팀 카드
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
                 child: ClipRRect(
@@ -371,8 +390,24 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                 },
               ),
 
-            _SettingTile(title: '서비스 약관', onTap: () {}),
-            _SettingTile(title: '고객 지원', onTap: () {}),
+            _SettingTile(
+              title: '서비스 약관',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TermsOfServicePage()),
+                );
+              },
+            ),
+            _SettingTile(
+              title: '고객 지원',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const CustomerSupportPage(),
+                  ),
+                );
+              },
+            ),
             _SettingTile(
               title: _isLoggingOut ? '로그아웃 중...' : '로그아웃',
               onTap: _logout,
