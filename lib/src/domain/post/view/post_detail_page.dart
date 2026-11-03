@@ -52,6 +52,19 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  void _scrollToLatestComment() {
+    // 키보드가 올라와 Scaffold가 리사이즈된 다음 마지막 댓글을 보여줍니다.
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (!mounted || !_scrollController.hasClients ||
+          _composerKey.currentState?.isReplying == true) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   void _showError(Object error) {
     if (mounted)
       ScaffoldMessenger.of(
@@ -532,7 +545,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                       ),
                       child: PostCommentList(
                         comments: _data!.commentList,
-                        canModerate: _data!.isWriter,
                         onReply: (comment) =>
                             _composerKey.currentState?.replyTo(comment),
                         onDelete: _deleteComment,
@@ -547,6 +559,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               child: PostCommentComposer(
                 key: _composerKey,
                 onSend: _addComment,
+                onFocusForNewComment: _scrollToLatestComment,
               ),
             ),
           ],

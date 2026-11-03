@@ -10,12 +10,38 @@ class AlarmItemWidget extends StatelessWidget {
     super.key,
     required this.notification,
     required this.onTap,
+    this.teamName,
     this.isBusy = false,
   });
 
   final AlarmNotification notification;
   final VoidCallback? onTap;
+  final String? teamName;
   final bool isBusy;
+
+  // 서버의 알림 본문은 그대로 두고, 현재 팀 이름이 붙은 접두어만 화면에서 숨깁니다.
+  // 사용자 입력(투표명, 공지 제목, 메시지) 안의 동일한 문자열은 수정하지 않습니다.
+  String _withoutTeamPrefix(String value) {
+    final name = teamName?.trim();
+    if (name == null || name.isEmpty) return value;
+
+    final bracketPrefix = '[$name]';
+    if (value.startsWith(bracketPrefix)) {
+      return value.substring(bracketPrefix.length).trimLeft();
+    }
+
+    // 채팅 알림은 '[팀명 / 채팅방명]'에서 팀명만 제거합니다.
+    final chatPrefix = '[$name / ';
+    if (value.startsWith(chatPrefix)) {
+      return '[${value.substring(chatPrefix.length)}';
+    }
+
+    final titlePrefix = '$name ';
+    if (value.startsWith(titlePrefix)) {
+      return value.substring(titlePrefix.length);
+    }
+    return value;
+  }
 
   String _elapsedTime(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);
@@ -60,7 +86,7 @@ class AlarmItemWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      notification.title,
+                      _withoutTeamPrefix(notification.title),
                       style: FontStyles.semi18.copyWith(
                         color: grayTitleTone,
                         height: 1,
@@ -70,7 +96,7 @@ class AlarmItemWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.x8),
                     Text(
-                      notification.content,
+                      _withoutTeamPrefix(notification.content),
                       style: FontStyles.med16.copyWith(color: grayContentTone),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -79,19 +105,14 @@ class AlarmItemWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.x8),
-              isBusy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _elapsedTime(notification.createdAt),
-                      style: FontStyles.med12.copyWith(
-                        color: gray.gray5,
-                        height: 1,
-                      ),
-                    ),
+              // 읽음 처리 중에도 알림 생성 시각은 그대로 보여줍니다.
+              Text(
+                _elapsedTime(notification.createdAt),
+                style: FontStyles.med12.copyWith(
+                  color: gray.gray5,
+                  height: 1,
+                ),
+              ),
             ],
           ),
         ),

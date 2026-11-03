@@ -40,7 +40,7 @@ class CloudStorageApiBottomSheet extends ConsumerWidget {
           AppSpacing.x20,
           AppSpacing.x30,
           AppSpacing.x20,
-          AppSpacing.x30,
+          80.0,
         ),
         child: storage.when(
           loading: () => const SizedBox(
@@ -112,7 +112,10 @@ class _CloudStorageApiContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.x24),
         Text(
           '${data.teamName} 팀 클라우드',
-          style: FontStyles.med20.copyWith(color: context.grays.black),
+          style: FontStyles.med20.copyWith(
+            color: context.grays.black,
+            fontSize: 22.0,
+          ),
         ),
         const SizedBox(height: AppSpacing.x4),
         Row(
@@ -170,9 +173,7 @@ class _CloudStorageApiContent extends StatelessWidget {
                 ),
                 Text(
                   category.displaySize,
-                  style: FontStyles.reg18.copyWith(
-                    color: context.grays.black,
-                  ),
+                  style: FontStyles.reg18.copyWith(color: context.grays.black),
                 ),
               ],
             ),
@@ -223,52 +224,55 @@ class _ApiStorageProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: SizedBox(
-        height: 38,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final safeTotal = totalBytes <= 0 ? 1 : totalBytes;
-            var usedWidth = 0.0;
-            final children = <Widget>[];
+      child: ColoredBox(
+        color: context.grays.gray8,
+        child: SizedBox(
+          height: 38,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final safeTotal = totalBytes <= 0 ? 1 : totalBytes;
+              var usedWidth = 0.0;
+              final children = <Widget>[];
 
-            for (var index = 0; index < categories.length; index += 1) {
-              final category = categories[index];
-              if (category.bytes <= 0 || usedWidth >= constraints.maxWidth) {
-                continue;
+              for (var index = 0; index < categories.length; index += 1) {
+                final category = categories[index];
+                if (category.bytes <= 0 || usedWidth >= constraints.maxWidth) {
+                  continue;
+                }
+
+                final rawWidth =
+                    constraints.maxWidth * (category.bytes / safeTotal);
+                final availableWidth = constraints.maxWidth - usedWidth;
+                final width = rawWidth.clamp(0.0, availableWidth).toDouble();
+                if (width <= 0) continue;
+
+                usedWidth += width;
+                children.add(
+                  SizedBox(
+                    width: width,
+                    child: ColoredBox(
+                      color: colorFor(category.category, index),
+                    ),
+                  ),
+                );
               }
 
-              final rawWidth =
-                  constraints.maxWidth * (category.bytes / safeTotal);
-              final availableWidth = constraints.maxWidth - usedWidth;
-              final width = rawWidth.clamp(0.0, availableWidth).toDouble();
-              if (width <= 0) continue;
+              final remainingWidth = (constraints.maxWidth - usedWidth)
+                  .clamp(0.0, constraints.maxWidth)
+                  .toDouble();
 
-              usedWidth += width;
-              children.add(
-                SizedBox(
-                  width: width,
-                  child: ColoredBox(
-                    color: colorFor(category.category, index),
+              if (remainingWidth > 0) {
+                children.add(
+                  SizedBox(
+                    width: remainingWidth,
+                    child: ColoredBox(color: context.grays.gray7),
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            final remainingWidth = (constraints.maxWidth - usedWidth)
-                .clamp(0.0, constraints.maxWidth)
-                .toDouble();
-
-            if (remainingWidth > 0) {
-              children.add(
-                SizedBox(
-                  width: remainingWidth,
-                  child: ColoredBox(color: context.grays.gray7),
-                ),
-              );
-            }
-
-            return Row(children: children);
-          },
+              return Row(children: children);
+            },
+          ),
         ),
       ),
     );

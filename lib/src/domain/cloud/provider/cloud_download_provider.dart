@@ -197,8 +197,8 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
           throw const CloudDownloadException('공유가 취소되었습니다.');
         }
         return result.status == ShareResultStatus.unavailable
-            ? '공유 창을 열었습니다. 저장 여부를 확인해주세요.'
-            : '공유할 앱을 선택했습니다.';
+            ? '파일 다운로드가 완료되었습니다. 저장 여부를 확인해주세요.'
+            : '파일 다운로드가 완료되었습니다.';
       } on CloudDownloadException {
         rethrow;
       } catch (_) {
@@ -262,7 +262,7 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
             : 'Downloads 폴더에 파일을 저장하지 못했습니다: $fileName',
       );
     }
-    return isImage ? '사진 폴더에 저장했습니다.' : 'Downloads 폴더에 저장했습니다.';
+    return isImage ? '이미지 저장이 완료되었습니다.' : '파일 다운로드가 완료되었습니다.';
   }
 
   bool _isPhoto(String name, String? mimeType) {

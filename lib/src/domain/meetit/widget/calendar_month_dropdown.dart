@@ -160,12 +160,15 @@ class _CalendarMonthDropdownState extends State<CalendarMonthDropdown> {
     widget.onMonthSelected(_monthForIndex(index));
   }
 
-  void _handleMonthPressed(int index) {
-    _scrollController.animateToItem(
+  Future<void> _handleMonthPressed(int index) async {
+    await _scrollController.animateToItem(
       index,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
     );
+    if (!mounted) return;
+    _handleMonthChanged(index);
+    _menuController.close();
   }
 
   void _handleMenuOpened() {

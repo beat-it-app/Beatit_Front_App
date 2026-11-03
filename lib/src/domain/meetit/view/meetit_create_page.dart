@@ -102,14 +102,13 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   void _setDateOnly(bool selected) {
     setState(() {
       _dateOnly = selected;
-      if (selected) {
-        // 날짜 전용 모드에서는 전송하지 않지만 시간 모드로 돌아오면 기본값을 유지합니다.
-        _timeError = null;
-      }
+      // 날짜만 선택 시 에러를 숨기고, 시간 모드로 돌아오면 재검증합니다.
+      _timeError = _timeValidationMessage();
     });
   }
 
   Future<void> _chooseMembers() async {
+    FocusScope.of(context).unfocus();
     final selected = await Navigator.of(context)
         .push<List<MemberSelectionMember>>(
           MaterialPageRoute(
@@ -154,6 +153,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   }
 
   Future<void> _chooseTime(TextEditingController controller) async {
+    FocusScope.of(context).unfocus();
     final parts = controller.text.split(':');
     final initialTime = parts.length == 2
         ? TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]))
@@ -172,9 +172,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     setState(() {
       controller.text =
           '${time.hour.toString()}:${time.minute.toString().padLeft(2, '0')}';
-      if (_timeError != null) {
-        _timeError = _timeValidationMessage();
-      }
+      // 제출 버튼과 관계없이 선택값이 바뀔 때 즉시 검증합니다.
+      _timeError = _timeValidationMessage();
     });
   }
 
@@ -194,11 +193,17 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       return '종료 시간을 입력해주세요.';
     }
 
-    final timePattern = RegExp(r'^(?:[01]\d|2[0-3]):(?:00|30)$');
+    final timePattern = RegExp(r'^(?:[0-9]|1\d|2[0-3]):(?:00|30)$');
     if (!timePattern.hasMatch(start) || !timePattern.hasMatch(end)) {
       return '시간은 30분 단위로 선택해주세요.';
     }
-    if (start.compareTo(end) >= 0) {
+    // 9:00과 18:00을 문자열로 비교하면 시간 순서가 뒤집힐 수 있습니다.
+    int toMinutes(String time) {
+      final parts = time.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    }
+
+    if (toMinutes(start) >= toMinutes(end)) {
       return '종료 시간은 시작 시간보다 늦게 설정해주세요.';
     }
 
@@ -278,8 +283,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                         '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
                   )
                   .toList(),
-              startTime: dateOnly ? null : start,
-              endTime: dateOnly ? null : end,
+              startTime: dateOnly ? null : start.padLeft(5, '0'),
+              endTime: dateOnly ? null : end.padLeft(5, '0'),
               dateOnly: dateOnly,
               participantUserIds: userIds,
             ),
@@ -554,6 +559,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
+              FocusScope.of(context).unfocus();
               if (controller.isOpen) {
                 controller.close();
                 return;

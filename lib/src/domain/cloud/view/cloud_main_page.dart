@@ -21,6 +21,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
+import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -35,6 +36,9 @@ class CloudMainPage extends ConsumerStatefulWidget {
 class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   int? _selectedItemId;
   bool _isSelectionMode = false;
+  bool _isSearchMode = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   final Set<int> _selectedItemIds = <int>{};
   final Set<int> _selectedFolderIds = <int>{};
 
@@ -42,7 +46,36 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   bool get _hasSelection => _selectedCount > 0;
   bool get _hasSelectedFolders => _selectedFolderIds.isNotEmpty;
 
-  void _navigateBack() => Navigator.of(context).pop();
+  void _navigateBack() {
+    if (_isSearchMode) {
+      _setSearchMode(false);
+    } else if (_isSelectionMode) {
+      _setSelectionMode(false);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _setSearchMode(bool value) {
+    if (_isSearchMode == value) return;
+    FocusScope.of(context).unfocus();
+    if (value) ref.invalidate(cloudSearchEntriesProvider);
+    setState(() {
+      _isSearchMode = value;
+      _isSelectionMode = false;
+      _selectedItemIds.clear();
+      _selectedFolderIds.clear();
+      _selectedItemId = null;
+      _searchController.clear();
+      _searchQuery = '';
+    });
+  }
 
   void _setSelectionMode(bool value) {
     if (_isSelectionMode == value) return;
@@ -292,13 +325,31 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _showUnsupportedRename() {
-    return AppPopup.show(
+  Future<void> _renameItem(CloudItem item) async {
+    final name = await showCloudFolderNameBottomSheet(
+      context: context,
+      initialName: item.itemName,
+      isItemName: true,
+      itemLabel: item.linkUrl == null ? '파일' : '링크',
+      preserveExtension: item.linkUrl == null,
+    );
+    if (!mounted || name == null || name == item.itemName) return;
+
+    final success = await ref.read(cloudMutationProvider.notifier).renameItem(
+      itemId: item.itemId,
+      itemName: name,
+    );
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '이름을 수정했습니다.');
+  }
+
+  Future<void> _showUnsupportedLinkEdit() async {
+    await AppPopup.show(
       context,
-      title: '이름 수정 준비 중',
-      content: '현재 백엔드에는 파일·링크 이름 수정 API가 없습니다.\n폴더 이름 수정만 연동되어 있습니다.',
+      title: '링크 수정 준비 중',
+      content: '링크 주소 수정 기능은 아직 제공되지 않습니다.',
       buttonNum: ButtonNum.one,
-    ).then((_) {});
+    );
   }
 
   @override
@@ -310,6 +361,8 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
         .watch(cloudCurrentUserNameProvider)
         .asData
         ?.value;
+    final canManageAsStaff =
+        ref.watch(cloudIsStaffProvider).asData?.value ?? false;
     final data = cloudList.asData?.value;
     final allOwned = _allSelectedAreMine(data, currentUserName);
     final canDelete = _hasSelection && allOwned;
@@ -337,9 +390,15 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
           AppDropdownItem(label: '링크 등록하기', onPressed: _createLink),
         ],
       ),
-      floatingActionButton: _isSelectionMode
+      floatingActionButton: _isSearchMode
+          ? CloudConfirmFloatingButton(
+              semanticLabel: '검색 완료',
+              onPressed: () => _setSearchMode(false),
+            )
+          : _isSelectionMode
           ? SelectFloatButton(
               isVisible: true,
+              showActions: true,
               isEnabled: _hasSelection,
               isDeleteEnabled: canDelete,
               isMoveEnabled: canMove,
@@ -354,7 +413,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
               onConfirmPressed: () => _setSelectionMode(false),
             )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      floatingActionButtonLocation: _isSearchMode
+          ? FloatingActionButtonLocation.endFloat
+          : FloatingActionButtonLocation.startFloat,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,22 +449,37 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.x8),
-                  _buildHeaderMenu(),
+                  if (!_isSearchMode) _buildHeaderMenu(),
                 ],
               ),
             ),
-            Expanded(
-              child: cloudList.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => _CloudErrorView(
-                  message: error.toString(),
-                  onRetry: () => ref.invalidate(cloudListProvider(null)),
-                ),
-                data: (cloudData) => _buildCloudList(
-                  cloudData,
-                  currentUserName: currentUserName,
+            if (_isSearchMode) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+                child: SearchInputWidget(
+                  controller: _searchController,
+                  hintText: '파일 이름 검색',
+                  onSearchPressed: () => FocusScope.of(context).unfocus(),
+                  onChanged: (text) => setState(() => _searchQuery = text.trim()),
                 ),
               ),
+              const SizedBox(height: AppSpacing.x8),
+            ],
+            Expanded(
+              child: _isSearchMode
+                  ? _buildSearchResults()
+                  : cloudList.when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (error, _) => _CloudErrorView(
+                        message: error.toString(),
+                        onRetry: () => ref.invalidate(cloudListProvider(null)),
+                      ),
+                      data: (cloudData) => _buildCloudList(
+                        cloudData,
+                        currentUserName: currentUserName,
+                        canManageAsStaff: canManageAsStaff,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -411,9 +487,83 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     );
   }
 
+  Widget _buildSearchResults() {
+    final query = _searchQuery.toLowerCase();
+    if (query.isEmpty) return const SizedBox.shrink();
+
+    return ref.watch(cloudSearchEntriesProvider).when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _CloudErrorView(
+        message: error.toString(),
+        onRetry: () => ref.invalidate(cloudSearchEntriesProvider),
+      ),
+      data: (entries) {
+        final matches = entries
+            .where((entry) => entry.item.itemName.toLowerCase().contains(query))
+            .toList(growable: false);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.x24, AppSpacing.x4, AppSpacing.x16, AppSpacing.x12,
+              ),
+              child: Text(
+                '${matches.length}개의 검색 결과',
+                style: FontStyles.med14.copyWith(color: context.grays.gray4),
+              ),
+            ),
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(
+                      child: Text(
+                        '검색 결과가 없습니다.',
+                        style: FontStyles.med14.copyWith(color: context.grays.gray4),
+                      ),
+                    )
+                  : ListView.separated(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.zero,
+                      itemCount: matches.length,
+                      itemBuilder: (context, index) {
+                        final entry = matches[index];
+                        final item = entry.item;
+                        return CloudItemWidget(
+                          key: ValueKey('search-${entry.folderId}-${item.itemId}'),
+                          itemType: _itemType(item),
+                          fileName: item.itemName,
+                          fileSize: _formatFileSize(item.fileSize),
+                          uploadedAt: _formatDate(item.createdAt),
+                          uploaderName: item.uploaderName,
+                          showMoreMenu: false,
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CloudPreviewHostPage(
+                                  folderName: entry.folderName,
+                                  folderId: entry.folderId,
+                                  items: entry.siblings,
+                                  initialItemId: item.itemId,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      separatorBuilder: (_, __) => _buildDivider(),
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildCloudList(
     CloudListData data, {
     required String? currentUserName,
+    required bool canManageAsStaff,
   }) {
     final totalCount = data.folders.length + data.items.length;
     if (totalCount == 0) {
@@ -431,6 +581,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
           data.items[index - data.folders.length],
           allItems: data.items,
           currentUserName: currentUserName,
+          canManageAsStaff: canManageAsStaff,
         );
       },
       separatorBuilder: (_, __) => _buildDivider(),
@@ -466,11 +617,17 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     CloudItem item, {
     required List<CloudItem> allItems,
     required String? currentUserName,
+    required bool canManageAsStaff,
   }) {
     final selected = _isSelectionMode
         ? _selectedItemIds.contains(item.itemId)
         : _selectedItemId == item.itemId;
 
+    final menuItems = _menuItemsFor(
+      item,
+      currentUserName: currentUserName,
+      canManageAsStaff: canManageAsStaff,
+    );
     return CloudItemWidget(
       key: ValueKey('item-${item.itemId}'),
       itemType: _itemType(item),
@@ -480,7 +637,8 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       uploaderName: item.uploaderName,
       isSelectionMode: _isSelectionMode,
       isSelected: selected,
-      menuItems: _menuItemsFor(item, currentUserName: currentUserName),
+      menuItems: menuItems,
+      showMoreMenu: menuItems.isNotEmpty,
       onMenuTap: () => _selectItem(item.itemId),
       onTap: () {
         if (_isSelectionMode) {
@@ -504,41 +662,51 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   List<AppDropdownItem> _menuItemsFor(
     CloudItem item, {
     required String? currentUserName,
+    required bool canManageAsStaff,
   }) {
     final type = _itemType(item);
-    final isMine = _isMine(item.uploaderName, currentUserName);
-    final items = <AppDropdownItem>[
-      AppDropdownItem(label: '이름 수정하기', onPressed: _showUnsupportedRename),
-      AppDropdownItem(
-        label: '이동하기',
-        enabled: isMine,
-        onPressed: () => _moveItems([item.itemId], displayName: item.itemName),
-      ),
-    ];
+    final canManage =
+        _isMine(item.uploaderName, currentUserName) || canManageAsStaff;
+    final items = <AppDropdownItem>[];
 
-    if (type == CloudItemType.link) {
-      items.add(
-        AppDropdownItem(label: '링크 수정하기', onPressed: _showUnsupportedRename),
-      );
-    } else {
-      items.add(
-        AppDropdownItem(
-          label: '${_downloadLabel(type)} 다운로드하기',
-          onPressed: () {
-            final data = ref.read(cloudListProvider(null)).asData?.value;
-            if (data != null) _downloadItems([item.itemId], data);
-          },
+    // 권한이 없는 작업은 비활성화 상태로 남기지 않고 메뉴에서 제외합니다.
+    if (canManage) {
+      items.add(AppDropdownItem(
+        label: '이름 수정하기',
+        onPressed: () => _renameItem(item),
+      ));
+      items.add(AppDropdownItem(
+        label: '이동하기',
+        onPressed: () => _moveItems(
+          [item.itemId],
+          displayName: item.itemName,
         ),
-      );
+      ));
     }
 
-    items.add(
-      AppDropdownItem(
+    if (type == CloudItemType.link) {
+      if (canManage) {
+        items.add(AppDropdownItem(
+          label: '링크 수정하기',
+          onPressed: _showUnsupportedLinkEdit,
+        ));
+      }
+    } else {
+      items.add(AppDropdownItem(
+        label: '${_downloadLabel(type)} 다운로드하기',
+        onPressed: () {
+          final data = ref.read(cloudListProvider(null)).asData?.value;
+          if (data != null) _downloadItems([item.itemId], data);
+        },
+      ));
+    }
+
+    if (canManage) {
+      items.add(AppDropdownItem(
         label: '삭제하기',
-        enabled: isMine,
         onPressed: () => _deleteSingleItem(item.itemId),
-      ),
-    );
+      ));
+    }
     return items;
   }
 
@@ -556,6 +724,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
             showCloudStorageApiBottomSheet(context: context);
           },
         ),
+        AppDropdownItem(label: '검색하기', onPressed: () => _setSearchMode(true)),
       ],
       width: 170.0,
       anchorWidth: 48.0,

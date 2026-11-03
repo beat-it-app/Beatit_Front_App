@@ -135,6 +135,25 @@ class CloudApi {
     }
   }
 
+  Future<void> renameItem({
+    required int itemId,
+    required String itemName,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '$_cloudPath/items/$itemId/name',
+        data: {'itemName': itemName},
+        options: _cloudRequestOptions(),
+      );
+      _requireSuccessBody(
+        response: response,
+        fallbackMessage: '파일 이름을 변경하지 못했습니다.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
+
   Future<void> deleteFolder({required int folderId}) async {
     try {
       final response = await _dio.delete<Map<String, dynamic>>(

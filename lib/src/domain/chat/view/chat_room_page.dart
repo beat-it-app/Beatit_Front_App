@@ -19,6 +19,7 @@ import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_
 import 'package:beatit_front_app/src/domain/chat/widget/chat_message_composer.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_message_item.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_pending_attachment_item.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_pending_image_batch_item.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_room_app_bar.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_room_name_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/group_chat_profile.dart';
@@ -28,6 +29,7 @@ import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_other_file_preview.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_video_preview.dart';
 import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
+import 'package:beatit_front_app/src/domain/etc/view/picture_preview_page.dart';
 
 class RoomChatPage extends ConsumerStatefulWidget {
   const RoomChatPage({
@@ -53,6 +55,7 @@ class RoomChatPage extends ConsumerStatefulWidget {
 
 class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   static const int _maxAttachmentBytes = 50 * 1024 * 1024;
+  static const int _maxAttachmentsPerSelection = 10;
 
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
@@ -182,6 +185,10 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   Future<void> _handleSend(String message) async {
     final state = ref.read(chatRoomProvider);
     final notifier = ref.read(chatRoomProvider.notifier);
+    if (state.imageUploadBatch != null) {
+      _showMessage('사진 전송이 끝나면 메시지를 보낼 수 있습니다.');
+      return;
+    }
 
     final bool success;
     if (state.isDraft) {
@@ -219,30 +226,53 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   Future<void> _handleFilePressed() async {
     if (!_canSendAttachment()) return;
 
+    // 최신 file_picker는 pickFiles()가 다중 선택을 기본 지원합니다.
     final pickedFiles = await FilePicker.pickFiles();
     if (!mounted || pickedFiles.isEmpty) return;
-
-    final file = pickedFiles.first;
-    final path = file.path;
-    if (path == null || path.isEmpty) {
-      _showMessage('선택한 파일을 불러올 수 없습니다.');
+    if (pickedFiles.length > _maxAttachmentsPerSelection) {
+      _showMessage('파일은 한 번에 최대 10개까지 선택할 수 있습니다.');
       return;
     }
-
-    final extension = _extensionOf(file.name);
-    final messageType = _imageExtensions.contains(extension)
-        ? ChatMessageType.image
-        : _videoExtensions.contains(extension)
-        ? ChatMessageType.video
-        : ChatMessageType.file;
-
-    final fileSizeBytes = await file.length() ?? 0;
-    await _sendPickedAttachment(
-      path: path,
-      fileName: file.name,
-      fileSizeBytes: fileSizeBytes,
-      messageType: messageType,
-    );
+    // 파일 선택기에서 사진과 영상/문서를 섞어 골라도 사진들만 한 카드로 묶습니다.
+    final images = pickedFiles.where((file) =>
+        _imageExtensions.contains(_extensionOf(file.name))).toList();
+    if (images.isNotEmpty) {
+      final batchFiles = <ChatImageBatchFile>[];
+      for (final file in images) {
+        final path = file.path;
+        final size = await file.length() ?? 0;
+        if (path == null || path.isEmpty || size <= 0 || size > _maxAttachmentBytes) {
+          await _showUploadBlockedPopup('50MB 이하의 사진을 선택해주세요.');
+          continue;
+        }
+        batchFiles.add(ChatImageBatchFile(
+            path: path, name: file.name, sizeBytes: size));
+      }
+      if (batchFiles.isNotEmpty && mounted) {
+        await ref.read(chatRoomProvider.notifier).sendImageBatch(batchFiles);
+      }
+    }
+    for (final file in pickedFiles) {
+      if (!mounted) return;
+      if (_imageExtensions.contains(_extensionOf(file.name))) continue;
+      final path = file.path;
+      if (path == null || path.isEmpty) {
+        _showMessage('선택한 파일을 불러올 수 없습니다.');
+        continue;
+      }
+      final extension = _extensionOf(file.name);
+      final messageType = _imageExtensions.contains(extension)
+          ? ChatMessageType.image
+          : _videoExtensions.contains(extension)
+          ? ChatMessageType.video
+          : ChatMessageType.file;
+      await _sendPickedAttachment(
+        path: path,
+        fileName: file.name,
+        fileSizeBytes: await file.length() ?? 0,
+        messageType: messageType,
+      );
+    }
   }
 
   Future<void> _handleMediaPressed() async {
@@ -257,27 +287,59 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     final messageType = source == AppMediaSource.videoLibrary
         ? ChatMessageType.video
         : ChatMessageType.image;
-    final XFile? pickedMedia;
-    if (messageType == ChatMessageType.video) {
-      pickedMedia = await _imagePicker.pickVideo(source: ImageSource.gallery);
-    } else {
-      pickedMedia = await _imagePicker.pickImage(source: ImageSource.gallery);
+    // 사진·영상 모두 한 번에 최대 10개 선택합니다.
+    // 영상은 각각 독립 메시지이며 사진 메시지만 묶음 UI로 표시됩니다.
+    final pickedMedia = messageType == ChatMessageType.image
+        ? await _imagePicker.pickMultiImage(limit: _maxAttachmentsPerSelection)
+        : await _imagePicker.pickMultipleMedia(limit: _maxAttachmentsPerSelection);
+    if (!mounted || pickedMedia.isEmpty) return;
+    if (pickedMedia.length > _maxAttachmentsPerSelection) {
+      _showMessage('첨부파일은 한 번에 최대 10개까지 선택할 수 있습니다.');
+      return;
     }
-
-    if (!mounted || pickedMedia == null) return;
-
-    final extension = _extensionOf(pickedMedia.name);
-    if (!_mediaExtensions.contains(extension)) {
-      await _showUploadBlockedPopup('지원하지 않는 이미지 또는 영상 형식입니다.');
+    if (messageType == ChatMessageType.image) {
+      final batchFiles = <ChatImageBatchFile>[];
+      for (final media in pickedMedia) {
+        final extension = _extensionOf(media.name);
+        if (!_imageExtensions.contains(extension)) {
+          await _showUploadBlockedPopup('지원하지 않는 이미지 형식입니다.');
+          continue;
+        }
+        final size = await media.length();
+        if (size <= 0 || size > _maxAttachmentBytes) {
+          await _showUploadBlockedPopup('사진은 장당 50MB 이하로 선택해주세요.');
+          continue;
+        }
+        batchFiles.add(ChatImageBatchFile(
+          path: media.path,
+          name: media.name,
+          sizeBytes: size,
+        ));
+      }
+      if (batchFiles.isNotEmpty && mounted) {
+        _goToLatestMessage();
+        await ref.read(chatRoomProvider.notifier).sendImageBatch(batchFiles);
+        if (mounted) _goToLatestMessage();
+      }
       return;
     }
 
-    await _sendPickedAttachment(
-      path: pickedMedia.path,
-      fileName: pickedMedia.name,
-      fileSizeBytes: await pickedMedia.length(),
-      messageType: messageType,
-    );
+    for (final media in pickedMedia) {
+      if (!mounted) return;
+      final extension = _extensionOf(media.name);
+      if (!_mediaExtensions.contains(extension)) {
+        await _showUploadBlockedPopup('지원하지 않는 이미지 또는 영상 형식입니다.');
+        continue;
+      }
+      await _sendPickedAttachment(
+        path: media.path,
+        fileName: media.name,
+        fileSizeBytes: await media.length(),
+        messageType: _videoExtensions.contains(extension)
+            ? ChatMessageType.video
+            : ChatMessageType.image,
+      );
+    }
   }
 
 
@@ -287,7 +349,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       _showMessage('첫 메시지는 텍스트로 시작해주세요.');
       return false;
     }
-    return !state.isSendingMessage;
+    return !state.isSendingMessage && state.imageUploadBatch == null;
   }
 
   Future<void> _sendPickedAttachment({
@@ -379,8 +441,11 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     Navigator.of(context).pop();
   }
 
-  void _openImagePreview(ChatMessage selectedMessage) {
-    final images = ref
+  void _openImagePreview(
+    ChatMessage selectedMessage, {
+    List<ChatMessage>? selectedBatch,
+  }) {
+    final images = selectedBatch ?? ref
         .read(chatRoomProvider)
         .messages
         .where(
@@ -388,6 +453,19 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
         )
         .toList(growable: false);
     if (images.isEmpty) return;
+    if (selectedBatch != null && images.length > 1) {
+      final index = images.indexWhere((item) =>
+          item.messageId == selectedMessage.messageId);
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => PicturePreviewPage(
+            imageUrls: images.map((item) => item.content).toList(growable: false),
+            initialIndex: index < 0 ? 0 : index,
+          ),
+        ),
+      );
+      return;
+    }
 
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -705,7 +783,7 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                 focusNode: _messageFocusNode,
                 hintText: '대화 시작하기',
                 // Keep the input focused while async send state changes.
-                canSend: !state.isBusy,
+                canSend: !state.isBusy && state.imageUploadBatch == null,
                 onSend: _handleSend,
                 onFilePressed: _handleFilePressed,
                 onMediaPressed: _handleMediaPressed,
@@ -731,7 +809,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       );
     }
 
-    if (state.messages.isEmpty && state.pendingAttachments.isEmpty) {
+    if (state.messages.isEmpty &&
+        state.pendingAttachments.isEmpty &&
+        state.imageUploadBatch == null) {
       return _EmptyRoomContent(
         roomType: state.roomType,
         roomName: state.roomName,
@@ -761,10 +841,30 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
         },
         child: _ChatMessageList(
           controller: _scrollController,
-          messages: state.messages,
+          messages: state.imageUploadBatch == null
+              ? state.messages
+              : state.messages.where((message) =>
+                  !(message.isMine &&
+                    message.messageType == ChatMessageType.image &&
+                    (state.imageUploadBatch!.files.any(
+                        (file) => file.messageId == message.messageId) ||
+                    message.createdAt.isAfter(state.imageUploadBatch!.startedAt))))
+                  .toList(growable: false),
+          imageBatchGroups: state.imageBatchGroups,
+          uploadingImageBatch: state.imageUploadBatch,
+          onRetryImageBatch: () =>
+              ref.read(chatRoomProvider.notifier).retryImageBatch(),
+          onDismissImageBatch: () =>
+              ref.read(chatRoomProvider.notifier).dismissImageBatch(),
+          readMarkers: state.readMarkers,
+          participantCount: state.participantCount,
           pendingAttachments: state.pendingAttachments,
           isLoadingOlderMessages: state.isLoadingOlderMessages,
           onImagePressed: _openImagePreview,
+          onImageBatchPressed: (message, batch) => _openImagePreview(
+            message,
+            selectedBatch: batch,
+          ),
           onAttachmentPressed: _openAttachmentPreview,
           onRetryPending: (localId) {
             ref.read(chatRoomProvider.notifier).retryAttachment(localId);
@@ -908,9 +1008,16 @@ class _ChatMessageList extends StatelessWidget {
   const _ChatMessageList({
     required this.controller,
     required this.messages,
+    required this.readMarkers,
+    required this.participantCount,
     required this.pendingAttachments,
+    required this.imageBatchGroups,
+    required this.uploadingImageBatch,
+    required this.onRetryImageBatch,
+    required this.onDismissImageBatch,
     required this.isLoadingOlderMessages,
     required this.onImagePressed,
+    required this.onImageBatchPressed,
     required this.onAttachmentPressed,
     required this.onRetryPending,
     required this.onDeletePending,
@@ -918,16 +1025,36 @@ class _ChatMessageList extends StatelessWidget {
 
   final ScrollController controller;
   final List<ChatMessage> messages;
+  final Map<int, ChatReadMarker> readMarkers;
+  final int participantCount;
   final List<ChatPendingAttachment> pendingAttachments;
+  final Map<int, String> imageBatchGroups;
+  final ChatImageUploadBatch? uploadingImageBatch;
+  final VoidCallback onRetryImageBatch;
+  final VoidCallback onDismissImageBatch;
   final bool isLoadingOlderMessages;
   final ValueChanged<ChatMessage> onImagePressed;
+  final void Function(ChatMessage, List<ChatMessage>) onImageBatchPressed;
   final ValueChanged<ChatMessage> onAttachmentPressed;
   final ValueChanged<String> onRetryPending;
   final ValueChanged<String> onDeletePending;
 
   @override
   Widget build(BuildContext context) {
-    final contentCount = messages.length + pendingAttachments.length;
+    final batchCount = uploadingImageBatch == null ? 0 : 1;
+    final contentCount = messages.length + pendingAttachments.length + batchCount;
+    // 마지막 읽음 위치가 상대방이 보낸 메시지인 경우에도,
+    // 그 이전에 보낸 내 마지막 메시지에 읽음 표시를 남깁니다.
+    final lastReadId = readMarkers.values.fold<int>(0, (latest, marker) =>
+        marker.messageId > latest ? marker.messageId : latest);
+    int? lastMineReadId;
+    if (participantCount == 2 && lastReadId > 0) {
+      for (final item in messages) {
+        if (item.isMine && item.messageId <= lastReadId) {
+          lastMineReadId = item.messageId;
+        }
+      }
+    }
 
     // Index 0 is the newest item, rendered at the bottom when scrollable.
     // shrinkWrap + Align keeps short conversations at the top. Only the
@@ -961,9 +1088,21 @@ class _ChatMessageList extends StatelessWidget {
             );
           }
 
-          if (index < pendingAttachments.length) {
+          if (index == 0 && uploadingImageBatch != null) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.x16),
+              child: ChatPendingImageBatchItem(
+                key: ValueKey(uploadingImageBatch!.id),
+                batch: uploadingImageBatch!,
+                onRetry: onRetryImageBatch,
+                onDismiss: onDismissImageBatch,
+              ),
+            );
+          }
+          final effectiveIndex = index - batchCount;
+          if (effectiveIndex < pendingAttachments.length) {
             final pending =
-                pendingAttachments[pendingAttachments.length - index - 1];
+                pendingAttachments[pendingAttachments.length - effectiveIndex - 1];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.x16),
               child: ChatPendingAttachmentItem(
@@ -976,8 +1115,19 @@ class _ChatMessageList extends StatelessWidget {
           }
 
           final messageIndex =
-              messages.length - 1 - (index - pendingAttachments.length);
+              messages.length - 1 - (effectiveIndex - pendingAttachments.length);
           final message = messages[messageIndex];
+          // 묶음의 마지막 사진에서만 그리드를 렌더링합니다.
+          final imageBatch = _imageBatchAt(messageIndex);
+          if (imageBatch.isNotEmpty &&
+              imageBatch.last.messageId != message.messageId) {
+            return const SizedBox.shrink();
+          }
+          final readersHere = readMarkers.values
+              .where((reader) => imageBatch.isNotEmpty
+                  ? imageBatch.any((photo) => photo.messageId == reader.messageId)
+                  : reader.messageId == message.messageId)
+              .toList(growable: false);
           final previousMessage = messageIndex > 0
               ? messages[messageIndex - 1]
               : null;
@@ -988,9 +1138,9 @@ class _ChatMessageList extends StatelessWidget {
               previousMessage == null ||
               !_isSameDate(previousMessage.createdAt, message.createdAt);
           final isGroupStart =
-              previousMessage == null ||
+              imageBatch.length > 1 || previousMessage == null ||
               !_isSameMessageGroup(previousMessage, message);
-          final isGroupEnd =
+          final isGroupEnd = imageBatch.length > 1 ||
               nextMessage == null || !_isSameMessageGroup(message, nextMessage);
           final isLastMessage =
               messageIndex == messages.length - 1 && pendingAttachments.isEmpty;
@@ -1012,7 +1162,16 @@ class _ChatMessageList extends StatelessWidget {
                 message: message,
                 showProfile: isGroupStart,
                 showSenderName: isGroupStart,
-                showTime: isGroupEnd,
+                showTime: isGroupEnd ||
+                    (participantCount == 2 && message.isMine &&
+                     message.messageId == lastMineReadId),
+                showRead: participantCount == 2 && message.isMine &&
+                    message.messageId == lastMineReadId,
+                imageGroup: imageBatch,
+                onGroupedImagePressed: (selected) => onImageBatchPressed(
+                  selected,
+                  imageBatch,
+                ),
                 onImagePressed: _kindOf(message) == ChatAttachmentKind.image
                     ? () => onImagePressed(message)
                     : null,
@@ -1023,12 +1182,75 @@ class _ChatMessageList extends StatelessWidget {
                     ? () => onAttachmentPressed(message)
                     : null,
               ),
+              if (participantCount > 2)
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  child: readersHere.isEmpty
+                      ? const SizedBox.shrink(key: ValueKey('read-empty'))
+                      : Align(
+                          key: ValueKey('read-${message.messageId}-${readersHere.map((r) => r.userId).join('-')}'),
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.x4),
+                            child: Wrap(
+                              spacing: AppSpacing.x4,
+                              children: [
+                                for (final reader in readersHere)
+                                  Tooltip(
+                                    message: reader.name,
+                                    child: GroupChatProfile(
+                                      imageUrls: reader.profileImageUrl == null
+                                          ? const <String>[]
+                                          : <String>[reader.profileImageUrl!],
+                                      size: 20,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
               if (messageGap > 0) SizedBox(height: messageGap),
             ],
           );
         },
       ),
     );
+  }
+
+  // 현재 서버에는 사진 묶음 ID가 없어서 연속된 같은 작성자의 사진을
+  // 짧은 전송 간격으로 묶습니다. 서로 다른 전송을 완벽히 구분하려면 서버 batchId가 필요합니다.
+  List<ChatMessage> _imageBatchAt(int index) {
+    if (_kindOf(messages[index]) != ChatAttachmentKind.image) {
+      return const <ChatMessage>[];
+    }
+    var first = index;
+    while (first > 0 && _sameImageBurst(messages[first - 1], messages[first])) {
+      first--;
+    }
+    final batchStart = first + ((index - first) ~/ 10) * 10;
+    var last = batchStart;
+    while (last + 1 < messages.length && last < batchStart + 9 &&
+        _sameImageBurst(messages[last], messages[last + 1])) {
+      last++;
+    }
+    return messages.sublist(batchStart, last + 1);
+  }
+
+  bool _sameImageBurst(ChatMessage a, ChatMessage b) {
+    final aGroup = imageBatchGroups[a.messageId];
+    final bGroup = imageBatchGroups[b.messageId];
+    if (aGroup != null || bGroup != null) {
+      return aGroup != null && aGroup == bGroup &&
+          a.senderId == b.senderId &&
+          _kindOf(a) == ChatAttachmentKind.image &&
+          _kindOf(b) == ChatAttachmentKind.image;
+    }
+    return a.senderId == b.senderId &&
+        _kindOf(a) == ChatAttachmentKind.image &&
+        _kindOf(b) == ChatAttachmentKind.image &&
+        b.createdAt.difference(a.createdAt).inSeconds >= 0 &&
+        b.createdAt.difference(a.createdAt).inSeconds <= 20;
   }
 
   static ChatAttachmentKind _kindOf(ChatMessage message) {

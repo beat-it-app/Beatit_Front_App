@@ -64,6 +64,19 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
     }
   }
 
+  void _scrollToLatestComment() {
+    // 키보드가 올라와 Scaffold가 리사이즈된 다음 마지막 댓글을 보여줍니다.
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (!mounted || !_scrollController.hasClients ||
+          _composerKey.currentState?.isReplying == true) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   void _showError(Object error) {
     if (mounted)
       ScaffoldMessenger.of(
@@ -93,8 +106,8 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
 
   void _showOptionVoters(int index) {
     final data = _data;
+    // 익명 투표에서는 백엔드도 투표자 신원을 반환하지 않습니다.
     if (data == null || data.isAnonymous ||
-        !data.pollItems.any((item) => item.isVoted) ||
         index < 0 || index >= data.pollItems.length) return;
     final optionId = data.pollItems[index].itemId;
     final voters = _votersByOption[optionId] ?? const <PollVoter>[];
@@ -477,7 +490,6 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
                       ),
                       child: PostCommentList(
                         comments: _data!.commentList,
-                        canModerate: _data!.isWriter,
                         onReply: (comment) =>
                             _composerKey.currentState?.replyTo(comment),
                         onDelete: _deleteComment,
@@ -492,6 +504,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
               child: PostCommentComposer(
                 key: _composerKey,
                 onSend: _addComment,
+                onFocusForNewComment: _scrollToLatestComment,
               ),
             ),
           ],

@@ -1,10 +1,12 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/cloud/model/cloud_models.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_list_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/provider/cloud_mutation_provider.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -28,17 +30,40 @@ class CloudMovePage extends ConsumerStatefulWidget {
 }
 
 class _CloudMovePageState extends ConsumerState<CloudMovePage> {
-  static const int _rootTargetValue = -1;
-  int? _selectedTargetValue;
+  // 1. 이동 시작 화면 -> 2. 팀 클라우드(루트) -> 3. 하위 폴더
+  // 폴더를 선택하는 즉시 그 폴더 안으로 진입하며, 현재 열린 위치가 이동 목적지입니다.
+  bool _hasEnteredCloud = false;
+  int? _openedFolderId;
+  String _openedFolderName = '팀 클라우드';
 
-  int? get _targetFolderId =>
-      _selectedTargetValue == _rootTargetValue ? null : _selectedTargetValue;
+  int? get _targetFolderId => _openedFolderId;
 
-  bool get _canConfirm {
-    final selected = _selectedTargetValue;
-    if (selected == null) return false;
-    if (selected == _rootTargetValue) return widget.currentFolderId != null;
-    return selected != widget.currentFolderId;
+  bool get _canConfirm =>
+      _hasEnteredCloud && _openedFolderId != widget.currentFolderId;
+
+  void _openRoot() {
+    setState(() {
+      _hasEnteredCloud = true;
+      _openedFolderId = null;
+      _openedFolderName = '팀 클라우드';
+    });
+  }
+
+  void _openFolder(CloudFolder folder) {
+    setState(() {
+      _openedFolderId = folder.folderId;
+      _openedFolderName = folder.folderName;
+    });
+  }
+
+  void _navigateBack() {
+    if (!_hasEnteredCloud) {
+      Navigator.of(context).pop(false);
+    } else if (_openedFolderId != null) {
+      _openRoot();
+    } else {
+      setState(() => _hasEnteredCloud = false);
+    }
   }
 
   Future<void> _confirmMove() async {
@@ -67,7 +92,9 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
 
   @override
   Widget build(BuildContext context) {
-    final root = ref.watch(cloudListProvider(null));
+    final location = ref.watch(
+      cloudListProvider(_hasEnteredCloud ? _openedFolderId : null),
+    );
     final mutation = ref.watch(cloudMutationProvider);
 
     return Scaffold(
@@ -80,7 +107,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
         backgroundColor: context.grays.white,
         leadingWidth: 60,
         leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: mutation.isMoving ? null : _navigateBack,
           icon: SvgPicture.asset(
             'assets/icons/appbar/back.svg',
             width: 22,
@@ -89,7 +116,13 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
           ),
         ),
         title: Text(
-          '파일 이동하기',
+          !_hasEnteredCloud
+              ? '파일 이동'
+              : _openedFolderId == null
+              ? '팀 클라우드'
+              : location.asData?.value.currentFolderName ?? _openedFolderName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: FontStyles.semi18.copyWith(color: context.grays.black),
         ),
       ),
@@ -123,13 +156,15 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
                   ),
                 ),
                 Expanded(
-                  child: root.when(
+                  child: location.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (error, _) => Center(
                       child: TextButton(
                         onPressed: () =>
-                            ref.invalidate(cloudListProvider(null)),
+                            ref.invalidate(cloudListProvider(
+                              _hasEnteredCloud ? _openedFolderId : null,
+                            )),
                         child: const Text('폴더 목록 다시 불러오기'),
                       ),
                     ),
@@ -142,7 +177,7 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
               right: AppSpacing.x16,
               bottom: AppSpacing.x16,
               child: CloudConfirmFloatingButton(
-                isEnabled: _canConfirm && !mutation.isMoving,
+                isEnabled: _canConfirm && location.asData != null && !mutation.isMoving,
                 onPressed: _confirmMove,
                 semanticLabel: '선택한 위치로 이동',
               ),
@@ -210,127 +245,160 @@ class _CloudMovePageState extends ConsumerState<CloudMovePage> {
   }
 
   Widget _buildTargets(CloudListData data) {
-    final folders = data.folders;
-    final targets = <_MoveTarget>[
-      _MoveTarget(
-        value: _rootTargetValue,
-        label: '팀 클라우드',
-        // 루트의 파일/링크 개수는 루트 목록의 items 개수와 같습니다.
-        itemCount: data.items.length,
-      ),
-      ...folders.map(
-        (folder) => _MoveTarget(
-          value: folder.folderId,
-          label: folder.folderName,
-          itemCount: folder.itemCount,
-        ),
-      ),
-    ];
+    if (!_hasEnteredCloud) {
+      // 최초에는 오직 팀 클라우드만 표시하고, 확인은 비활성화합니다.
+      return _buildLocationList(
+        folders: [
+          _MoveLocation(
+            name: '팀 클라우드',
+            itemCount: data.folders.length + data.items.length,
+            onOpen: _openRoot,
+          ),
+        ],
+      );
+    }
 
+    if (_openedFolderId == null) {
+      // 루트에 들어온 뒤 확인하면 루트로 이동하며, 폴더를 누르면 폴더에 진입합니다.
+      return _buildLocationList(
+        folders: [
+          for (final folder in data.folders)
+            _MoveLocation(
+              name: folder.folderName,
+              itemCount: folder.itemCount,
+              enabled: folder.folderId != widget.currentFolderId,
+              onOpen: () => _openFolder(folder),
+            ),
+        ],
+      );
+    }
+
+    // 폴더 내부에서는 그 폴더의 파일을 보여 주되, 목록의 파일은 선택하지 않습니다.
+    // 현재 백엔드는 폴더 안에 하위 폴더 목록을 반환하지 않습니다.
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 100),
-      itemCount: targets.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
-        indent: AppSpacing.x16,
-        endIndent: AppSpacing.x16,
-        color: context.grays.gray7,
-      ),
+      itemCount: data.folders.length + data.items.length,
+      separatorBuilder: (_, __) => _divider(),
       itemBuilder: (context, index) {
-        final target = targets[index];
-        final isCurrent = target.value == _rootTargetValue
-            ? widget.currentFolderId == null
-            : target.value == widget.currentFolderId;
-        final isSelected = target.value == _selectedTargetValue;
-        final isRoot = target.value == _rootTargetValue;
-
-        return InkWell(
-          onTap: isCurrent
-              ? null
-              : () => setState(() => _selectedTargetValue = target.value),
-          child: Container(
-            height: 58,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
-            color: isSelected
-                ? isRoot
-                      ? context.grays.gray8.withValues(alpha: 0.65)
-                      : context.brands.beatOrange6.withValues(alpha: 0.55)
-                : context.grays.white.withValues(alpha: 0.0),
-            child: Row(
-              children: [
-                SvgPicture.asset(
-                  'assets/icons/cloud/folder.svg',
-                  width: 20,
-                  height: 20,
-                  colorFilter: ColorFilter.mode(
-                    isCurrent
-                        ? context.grays.gray6
-                        : isRoot
-                        ? context.grays.gray1
-                        : context.brands.beatOrange1,
-                    BlendMode.srcIn,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.x16),
-                Expanded(
-                  child: Text(
-                    target.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: FontStyles.med16.copyWith(
-                      color: isCurrent
-                          ? context.grays.gray5
-                          : context.grays.black,
-                    ),
-                  ),
-                ),
-                if (target.itemCount != null) ...[
-                  Text(
-                    '${target.itemCount}',
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray5,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.x4),
-                ],
-                if (isCurrent)
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.x8),
-                    child: Text(
-                      '현재 위치',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                  )
-                else
-                  SvgPicture.asset(
-                    'assets/icons/cloud/back.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(
-                      context.grays.gray6,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-              ],
+        if (index < data.folders.length) {
+          final folder = data.folders[index];
+          return _buildLocationRow(
+            _MoveLocation(
+              name: folder.folderName,
+              itemCount: folder.itemCount,
+              enabled: folder.folderId != widget.currentFolderId,
+              onOpen: () => _openFolder(folder),
             ),
-          ),
+          );
+        }
+        final item = data.items[index - data.folders.length];
+        return CloudItemWidget(
+          key: ValueKey('move-file-${item.itemId}'),
+          itemType: _itemType(item),
+          fileName: item.itemName,
+          fileSize: _formatFileSize(item.fileSize),
+          uploadedAt: AppDateTimeFormatter.formatDate(item.createdAt),
+          uploaderName: item.uploaderName,
+          showMoreMenu: false,
         );
       },
     );
   }
+
+  Widget _buildLocationList({required List<_MoveLocation> folders}) {
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 100),
+      itemCount: folders.length,
+      separatorBuilder: (_, __) => _divider(),
+      itemBuilder: (context, index) => _buildLocationRow(folders[index]),
+    );
+  }
+
+  Widget _divider() => Divider(
+    height: 1,
+    thickness: 1,
+    indent: AppSpacing.x16,
+    endIndent: AppSpacing.x16,
+    color: context.grays.gray7,
+  );
+
+  Widget _buildLocationRow(_MoveLocation location) {
+    return InkWell(
+      onTap: location.enabled ? location.onOpen : null,
+      child: SizedBox(
+        height: 58,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x20),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                'assets/icons/cloud/folder.svg',
+                width: 20,
+                height: 20,
+                colorFilter: location.enabled
+                    ? null
+                    : ColorFilter.mode(context.grays.gray6, BlendMode.srcIn),
+              ),
+              const SizedBox(width: AppSpacing.x16),
+              Expanded(
+                child: Text(
+                  location.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FontStyles.med16.copyWith(
+                    color: location.enabled ? context.grays.black : context.grays.gray5,
+                  ),
+                ),
+              ),
+              Text(
+                '${location.itemCount}',
+                style: FontStyles.med16.copyWith(color: context.grays.gray5),
+              ),
+              const SizedBox(width: AppSpacing.x4),
+              SvgPicture.asset(
+                'assets/icons/cloud/back.svg',
+                width: 18,
+                height: 18,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray6,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  CloudItemType _itemType(CloudItem item) {
+    if (item.linkUrl?.isNotEmpty == true) return CloudItemType.link;
+    final mime = item.mimeType ?? '';
+    if (mime.startsWith('audio/')) return CloudItemType.audio;
+    if (mime.startsWith('video/')) return CloudItemType.video;
+    return CloudItemType.file;
+  }
+
+  String? _formatFileSize(int? size) {
+    if (size == null) return null;
+    if (size >= 1024 * 1024) {
+      return '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
+    if (size >= 1024) return '${(size / 1024).toStringAsFixed(1)}KB';
+    return '${size}B';
+  }
 }
 
-class _MoveTarget {
-  const _MoveTarget({
-    required this.value,
-    required this.label,
+class _MoveLocation {
+  const _MoveLocation({
+    required this.name,
     required this.itemCount,
+    required this.onOpen,
+    this.enabled = true,
   });
 
-  final int value;
-  final String label;
-  final int? itemCount;
+  final String name;
+  final int itemCount;
+  final VoidCallback onOpen;
+  final bool enabled;
 }

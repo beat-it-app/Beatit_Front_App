@@ -285,13 +285,32 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _showUnsupportedRename() {
-    return AppPopup.show(
+  Future<void> _renameItem(CloudItem item) async {
+    final name = await showCloudFolderNameBottomSheet(
+      context: context,
+      initialName: item.itemName,
+      isItemName: true,
+      itemLabel: item.linkUrl == null ? '파일' : '링크',
+      preserveExtension: item.linkUrl == null,
+    );
+    if (!mounted || name == null || name == item.itemName) return;
+
+    final success = await ref.read(cloudMutationProvider.notifier).renameItem(
+      itemId: item.itemId,
+      itemName: name,
+      folderId: widget.folderId,
+    );
+    if (!mounted) return;
+    _showMutationResult(success, successMessage: '이름을 수정했습니다.');
+  }
+
+  Future<void> _showUnsupportedLinkEdit() async {
+    await AppPopup.show(
       context,
-      title: '이름 수정 준비 중',
-      content: '현재 백엔드에는 파일·링크 이름 수정 API가 없습니다. 폴더 이름 수정만 연동되어 있습니다.',
+      title: '링크 수정 준비 중',
+      content: '링크 주소 수정 기능은 아직 제공되지 않습니다.',
       buttonNum: ButtonNum.one,
-    ).then((_) {});
+    );
   }
 
   @override
@@ -300,10 +319,14 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     final mutation = ref.watch(cloudMutationProvider);
     final download = ref.watch(cloudDownloadProvider);
     final currentUserName = ref.watch(cloudCurrentUserNameProvider).asData?.value;
+    final canManageAsStaff =
+        ref.watch(cloudIsStaffProvider).asData?.value ?? false;
     final data = cloudList.asData?.value;
     final allOwned = _allSelectedAreMine(data, currentUserName);
-    final folderOwned = widget.creatorName != null &&
-        _isMine(widget.creatorName!, currentUserName);
+    final folderOwned =
+        (widget.creatorName != null &&
+            _isMine(widget.creatorName!, currentUserName)) ||
+        canManageAsStaff;
 
     return Scaffold(
       appBar: AppTwoAppBar(
@@ -320,6 +343,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       floatingActionButton: _isSelectionMode
           ? SelectFloatButton(
               isVisible: true,
+              showActions: true,
               isEnabled: _hasSelectedItems,
               isDeleteEnabled: _hasSelectedItems && allOwned,
               isMoveEnabled: _hasSelectedItems && allOwned,
@@ -367,6 +391,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
                 data: (cloudData) => _buildFolderContent(
                   cloudData,
                   currentUserName: currentUserName,
+                  canManageAsStaff: canManageAsStaff,
                   folderOwned: folderOwned,
                 ),
               ),
@@ -380,6 +405,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   Widget _buildFolderContent(
     CloudListData data, {
     required String? currentUserName,
+    required bool canManageAsStaff,
     required bool folderOwned,
   }) {
     final folderName = data.currentFolderName ?? '팀 클라우드';
@@ -434,6 +460,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
                     allItems: data.items,
                     folderName: folderName,
                     currentUserName: currentUserName,
+                    canManageAsStaff: canManageAsStaff,
                   ),
                   separatorBuilder: (_, __) => _buildDivider(),
                 ),
@@ -447,11 +474,18 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
     required List<CloudItem> allItems,
     required String folderName,
     required String? currentUserName,
+    required bool canManageAsStaff,
   }) {
     final selected = _isSelectionMode
         ? _selectedItemIds.contains(item.itemId)
         : _selectedItemId == item.itemId;
 
+    final menuItems = _menuItemsFor(
+      item,
+      currentUserName: currentUserName,
+      canManageAsStaff: canManageAsStaff,
+      folderName: folderName,
+    );
     return CloudItemWidget(
       key: ValueKey('item-${item.itemId}'),
       itemType: _itemType(item),
@@ -461,11 +495,8 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       uploaderName: item.uploaderName,
       isSelectionMode: _isSelectionMode,
       isSelected: selected,
-      menuItems: _menuItemsFor(
-        item,
-        currentUserName: currentUserName,
-        folderName: folderName,
-      ),
+      menuItems: menuItems,
+      showMoreMenu: menuItems.isNotEmpty,
       onMenuTap: () => _selectItem(item.itemId),
       onTap: () {
         if (_isSelectionMode) {
@@ -490,46 +521,52 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   List<AppDropdownItem> _menuItemsFor(
     CloudItem item, {
     required String? currentUserName,
+    required bool canManageAsStaff,
     required String folderName,
   }) {
     final type = _itemType(item);
-    final isMine = _isMine(item.uploaderName, currentUserName);
-    final items = <AppDropdownItem>[
-      AppDropdownItem(label: '이름 수정하기', onPressed: _showUnsupportedRename),
-      AppDropdownItem(
+    final canManage =
+        _isMine(item.uploaderName, currentUserName) || canManageAsStaff;
+    final items = <AppDropdownItem>[];
+
+    if (canManage) {
+      items.add(AppDropdownItem(
+        label: '이름 수정하기',
+        onPressed: () => _renameItem(item),
+      ));
+      items.add(AppDropdownItem(
         label: '이동하기',
-        enabled: isMine,
         onPressed: () => _moveItems(
           [item.itemId],
           folderName,
           displayName: item.itemName,
         ),
-      ),
-    ];
-
-    if (type == CloudItemType.link) {
-      items.add(
-        AppDropdownItem(label: '링크 수정하기', onPressed: _showUnsupportedRename),
-      );
-    } else {
-      items.add(
-        AppDropdownItem(
-          label: '${_downloadLabel(type)} 다운로드하기',
-          onPressed: () {
-            final data = ref.read(cloudListProvider(widget.folderId)).asData?.value;
-            if (data != null) _downloadItems([item.itemId], data);
-          },
-        ),
-      );
+      ));
     }
 
-    items.add(
-      AppDropdownItem(
+    if (type == CloudItemType.link) {
+      if (canManage) {
+        items.add(AppDropdownItem(
+          label: '링크 수정하기',
+          onPressed: _showUnsupportedLinkEdit,
+        ));
+      }
+    } else {
+      items.add(AppDropdownItem(
+        label: '${_downloadLabel(type)} 다운로드하기',
+        onPressed: () {
+          final data = ref.read(cloudListProvider(widget.folderId)).asData?.value;
+          if (data != null) _downloadItems([item.itemId], data);
+        },
+      ));
+    }
+
+    if (canManage) {
+      items.add(AppDropdownItem(
         label: '삭제하기',
-        enabled: isMine,
         onPressed: () => _deleteItems([item.itemId]),
-      ),
-    );
+      ));
+    }
     return items;
   }
 
@@ -540,16 +577,16 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
           label: _isSelectionMode ? '선택 취소' : '선택하기',
           onPressed: () => _setSelectionMode(!_isSelectionMode),
         ),
-        AppDropdownItem(
-          label: '폴더 이름 수정하기',
-          enabled: folderOwned,
-          onPressed: () => _renameFolder(folderName),
-        ),
-        AppDropdownItem(
-          label: '폴더 삭제하기',
-          enabled: folderOwned,
-          onPressed: _deleteFolder,
-        ),
+        if (folderOwned) ...[
+          AppDropdownItem(
+            label: '폴더 이름 수정하기',
+            onPressed: () => _renameFolder(folderName),
+          ),
+          AppDropdownItem(
+            label: '폴더 삭제하기',
+            onPressed: _deleteFolder,
+          ),
+        ],
         AppDropdownItem(
           label: '저장 용량',
           onPressed: () {

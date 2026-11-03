@@ -110,3 +110,26 @@ abstract class ChatPendingAttachment with _$ChatPendingAttachment {
   }) = _ChatPendingAttachment;
 }
 
+
+/// 읽음 위치는 메시지 내용과 별도의 실시간 상태입니다.
+/// Freezed 생성 코드를 수정하지 않고 기존 메시지 모델을 유지합니다.
+class ChatReadMarker {
+  const ChatReadMarker({
+    required this.userId,
+    required this.messageId,
+    this.name = '',
+    this.profileImageUrl,
+  });
+
+  final int userId;
+  final int messageId;
+  final String name;
+  final String? profileImageUrl;
+
+  ChatReadMarker atMessage(int nextMessageId) => ChatReadMarker(
+    userId: userId,
+    messageId: nextMessageId,
+    name: name,
+    profileImageUrl: profileImageUrl,
+  );
+}

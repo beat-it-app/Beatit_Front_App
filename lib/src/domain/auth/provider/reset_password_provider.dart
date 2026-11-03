@@ -142,12 +142,22 @@ class ResetPasswordNotifier extends Notifier<ResetPasswordState> {
 
       return true;
     } catch (error) {
+      final message = _getErrorMessage(error);
       state = state.copyWith(
         isResettingPassword: false,
-        resetError: _getErrorMessage(error),
+        resetError: (error is AuthApiException && error.code == 'SIGNUP-012') ||
+                message.contains('기존 비밀번호와 동일')
+            ? '현재 사용 중인 비밀번호입니다. 다른 비밀번호로 변경해주세요.'
+            : message,
       );
 
       return false;
+    }
+  }
+
+  void onNewPasswordChanged() {
+    if (state.resetError != null) {
+      state = state.copyWith(clearResetError: true);
     }
   }
 

@@ -93,6 +93,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
   bool _waveformFailed = false;
 
   bool _isPlaying = false;
+  bool _wasPlayingBeforeScrub = false;
   bool _isSelectionMode = false;
   bool _isClipApplied = false;
 
@@ -725,12 +726,19 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     if (wasPlaying) unawaited(_player.play());
   }
 
+  void _startScrub() {
+    _wasPlayingBeforeScrub = _player.playing;
+    unawaited(_player.pause());
+  }
+
   Future<void> _resumeFromScrub(Duration target) async {
     if (_loadState != _AudioLoadState.ready) return;
-    // 스크럽 도중의 재생 위치 업데이트는 중지하고 마지막 드래그 위치부터 재생.
     await _player.pause();
     await _seek(target);
-    if (mounted && _loadState == _AudioLoadState.ready) {
+    final resume = _wasPlayingBeforeScrub;
+    _wasPlayingBeforeScrub = false;
+    // 원래 정지 중이었으면 seek 이후에도 정지 상태를 유지합니다.
+    if (resume && mounted && _loadState == _AudioLoadState.ready) {
       unawaited(_player.play());
     }
   }
@@ -861,11 +869,12 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 hasError: _waveformFailed,
                 duration: _sourceDuration,
                 position: _displayPosition,
+                isPlaying: _isPlaying,
                 isSelectionMode: _isSelectionMode,
                 selectionStart: _selectionStart,
                 selectionEnd: _selectionEnd,
                 onSeek: (position) => unawaited(_seek(position)),
-                onScrubStart: () => unawaited(_player.pause()),
+                onScrubStart: _startScrub,
                 onScrubEnd: _resumeFromScrub,
                 onSelectionChanged: _updateSelection,
                 onSelectionChangeEnd: (start, end) {

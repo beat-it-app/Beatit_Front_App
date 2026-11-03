@@ -103,7 +103,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       );
     }
 
-    _remindBeforeClose = widget.initialRemindBeforeClose;
+    _remindBeforeClose = _closeAt != null && widget.initialRemindBeforeClose;
     if (initial.isAnonymous) {
       _voteSelectedOptions.add('익명 투표');
     }
@@ -166,6 +166,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _handleMusicPressed(int index) async {
+    FocusScope.of(context).unfocus();
     final id = _pollOptions[index].id;
     final chosen = await Navigator.of(context).push<MusicSearchResult>(
       MaterialPageRoute(
@@ -182,6 +183,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _handlePlacePressed(int index) async {
+    FocusScope.of(context).unfocus();
     final id = _pollOptions[index].id;
     final chosen = await Navigator.of(context).push<LocationData>(
       MaterialPageRoute(
@@ -199,6 +201,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _pickDeadlineDate() async {
+    FocusScope.of(context).unfocus();
     final now = DateTime.now();
     final initialDate =
         _selectedDeadlineDate ??
@@ -220,6 +223,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   Future<void> _pickDeadlineTime() async {
+    FocusScope.of(context).unfocus();
     final now = DateTime.now();
     final initialTime =
         _selectedDeadlineTime ?? TimeOfDay(hour: now.hour + 1, minute: 0);
@@ -245,6 +249,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       _deadlineDateController.clear();
       _deadlineTimeController.clear();
       _closeAt = null;
+      _remindBeforeClose = false;
       _deadlineError = null;
     });
   }
@@ -265,6 +270,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       time.hour,
       time.minute,
     );
+    if (_closeAt == null) _remindBeforeClose = true;
     _closeAt = deadline;
     _deadlineError = deadline.isAfter(DateTime.now())
         ? null
@@ -307,7 +313,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
           .toList(growable: false),
       allowMultipleChoice: initial.allowMultipleChoice,
       isAnonymous: initial.isAnonymous,
-      remindBeforeClose: widget.initialRemindBeforeClose,
+      remindBeforeClose:
+          initial.closeAt != null && widget.initialRemindBeforeClose,
       closeAt: initial.closeAt?.toLocal(),
     );
   }
@@ -466,7 +473,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       pollList: options,
       allowMultipleChoice: _voteSelectedOptions.contains('중복 투표'),
       isAnonymous: _voteSelectedOptions.contains('익명 투표'),
-      remindBeforeClose: _remindBeforeClose,
+      remindBeforeClose: _closeAt != null && _remindBeforeClose,
       closeAt: _closeAt,
     );
   }
@@ -643,38 +650,39 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         AppFieldMessage(text: _deadlineError!, isError: true),
                       ],
                       const SizedBox(height: AppSpacing.x20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '투표 마감 알림',
-                                  style: FontStyles.reg18.copyWith(
-                                    color: context.grays.black,
+                      if (_closeAt != null)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '투표 마감 알림',
+                                    style: FontStyles.reg18.copyWith(
+                                      color: context.grays.black,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '투표 마감 하루 전과 1시간 전에 알림을 보내드릴게요.',
-                                  style: FontStyles.med14.copyWith(
-                                    color: context.grays.gray4,
+                                  Text(
+                                    '투표 마감 하루 전과 1시간 전에 알림을 보내드릴게요.',
+                                    style: FontStyles.med14.copyWith(
+                                      color: context.grays.gray4,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          AppSwitch(
-                            value: _remindBeforeClose,
-                            onChanged: (value) {
-                              setState(() => _remindBeforeClose = value);
-                            },
-                            height: 27.0,
-                            width: 50.0,
-                            ballPadding: 2.0,
-                          ),
-                        ],
-                      ),
+                            AppSwitch(
+                              value: _remindBeforeClose,
+                              onChanged: (value) {
+                                setState(() => _remindBeforeClose = value);
+                              },
+                              height: 27.0,
+                              width: 50.0,
+                              ballPadding: 2.0,
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: AppSpacing.x20),
                       _RequiredLabel(text: '투표 옵션', color: colors.onSurface),
                       const SizedBox(height: AppSpacing.x8),

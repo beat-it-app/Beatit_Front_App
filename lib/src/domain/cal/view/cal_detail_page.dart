@@ -8,6 +8,8 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/model/schedule/schedule_detail_response.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_detail_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/provider/cal_mutation_provider.dart';
@@ -104,26 +106,31 @@ class _CalDetailPageState extends ConsumerState<CalDetailPage> {
   @override
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(calDetailProvider(widget.scheduleId));
-    final moreMenuItems = detailAsync.when(
-      loading: () => const <AppDropdownItem>[],
-      error: (_, __) => const <AppDropdownItem>[],
-      data: (schedule) => <AppDropdownItem>[
-        AppDropdownItem(
-          label: '일정 수정하기',
-          onPressed: () => _openEditPage(schedule),
-        ),
-        AppDropdownItem(label: '일정 삭제하기', onPressed: _deleteSchedule),
-      ],
-    );
+    final currentUserId =
+        ref.watch(authProvider).asData?.value?.userId ??
+        ref.watch(myPageProvider).data?.userId;
+    final schedule = detailAsync.asData?.value;
+    final isOwner = currentUserId != null && schedule?.userId == currentUserId;
+    final moreMenuItems = isOwner && schedule != null
+        ? <AppDropdownItem>[
+            AppDropdownItem(
+              label: '일정 수정하기',
+              onPressed: () => _openEditPage(schedule),
+            ),
+            AppDropdownItem(label: '일정 삭제하기', onPressed: _deleteSchedule),
+          ]
+        : const <AppDropdownItem>[];
 
     return WillPopScope(
       onWillPop: _handleSystemBack,
       child: Scaffold(
-        appBar: AppTopAppBar.backMore(
-          onBackPressed: _handleBack,
-          moreMenuOffset: const Offset(-16, 56),
-          moreMenuItems: moreMenuItems,
-        ),
+        appBar: isOwner
+            ? AppTopAppBar.backMore(
+                onBackPressed: _handleBack,
+                moreMenuOffset: const Offset(-16, 56),
+                moreMenuItems: moreMenuItems,
+              )
+            : AppTopAppBar.backOnly(onBackPressed: _handleBack),
         body: SafeArea(
           child: detailAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -697,7 +704,7 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
               children: [
                 Text(
                   '지도보기',
-                  style: FontStyles.med16.copyWith(
+                  style: FontStyles.med15.copyWith(
                     color: canShowMap
                         ? context.brands.beatOrange2
                         : context.grays.gray5,
@@ -709,15 +716,15 @@ class _LocationInfoState extends ConsumerState<_LocationInfo> {
                     height: 1,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.x4),
+                const SizedBox(width: 3.0),
                 AnimatedRotation(
                   turns: _isMapVisible ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
                   child: SvgPicture.asset(
                     'assets/icons/cal/toggle_down.svg',
-                    width: 20,
-                    height: 20,
+                    width: 19,
+                    height: 19,
                     colorFilter: ColorFilter.mode(
                       canShowMap
                           ? context.brands.beatOrange2

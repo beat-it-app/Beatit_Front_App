@@ -113,6 +113,38 @@ class CloudMutationNotifier extends Notifier<CloudMutationState> {
     }
   }
 
+  Future<bool> renameItem({
+    required int itemId,
+    required String itemName,
+    int? folderId,
+  }) async {
+    final trimmed = itemName.trim();
+    if (trimmed.isEmpty) {
+      state = state.copyWith(errorMessage: '파일 이름을 입력해주세요.');
+      return false;
+    }
+
+    state = state.copyWith(isRenamingFolder: true, clearError: true);
+    try {
+      await ref.read(cloudApiProvider).renameItem(
+        itemId: itemId,
+        itemName: trimmed,
+      );
+      ref.invalidate(cloudListProvider(folderId));
+      ref.invalidate(cloudListProvider(null));
+      ref.invalidate(cloudFileDetailProvider(itemId));
+      ref.invalidate(cloudSearchEntriesProvider);
+      state = state.copyWith(isRenamingFolder: false, clearError: true);
+      return true;
+    } catch (error) {
+      state = state.copyWith(
+        isRenamingFolder: false,
+        errorMessage: _message(error),
+      );
+      return false;
+    }
+  }
+
   Future<bool> deleteFolder({required int folderId}) async {
     state = state.copyWith(isDeleting: true, clearError: true);
     try {

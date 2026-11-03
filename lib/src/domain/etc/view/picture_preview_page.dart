@@ -5,9 +5,12 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:beatit_front_app/src/domain/cloud/provider/cloud_download_provider.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PicturePreviewPage extends StatefulWidget {
+class PicturePreviewPage extends ConsumerStatefulWidget {
   const PicturePreviewPage({
     super.key,
     required this.imageUrls,
@@ -21,12 +24,63 @@ class PicturePreviewPage extends StatefulWidget {
   final int initialIndex;
 
   @override
-  State<PicturePreviewPage> createState() => _PicturePreviewPageState();
+  ConsumerState<PicturePreviewPage> createState() => _PicturePreviewPageState();
 }
 
-class _PicturePreviewPageState extends State<PicturePreviewPage> {
+class _PicturePreviewPageState extends ConsumerState<PicturePreviewPage> {
   late final PageController _pageController;
   late int _currentIndex;
+  bool _isDownloading = false;
+
+  bool get _canDownloadCurrent {
+    if (widget.imageUrls.isEmpty) return false;
+    final uri = Uri.tryParse(widget.imageUrls[_currentIndex]);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  Future<void> _downloadCurrentImage() async {
+    if (_isDownloading || !_canDownloadCurrent) return;
+    if (ref.read(cloudDownloadProvider).isDownloading) {
+      _showResult('다른 파일을 다운로드하고 있습니다.');
+      return;
+    }
+    final url = widget.imageUrls[_currentIndex];
+    final uri = Uri.parse(url);
+    final fileName = uri.pathSegments.isNotEmpty &&
+            uri.pathSegments.last.trim().isNotEmpty
+        ? uri.pathSegments.last
+        : 'photo_${_currentIndex + 1}.jpg';
+    setState(() => _isDownloading = true);
+    try {
+      final success = await ref.read(cloudDownloadProvider.notifier).downloadFiles([
+        CloudDownloadRequest(
+          itemId: _currentIndex,
+          fileName: fileName,
+          fileUrl: url,
+          mimeType: switch (fileName.split('.').last.toLowerCase()) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'heic' => 'image/heic',
+            _ => 'image/jpeg',
+          },
+        ),
+      ]);
+      if (!mounted) return;
+      final downloadState = ref.read(cloudDownloadProvider);
+      _showResult(success
+          ? downloadState.successMessage ?? '이미지 저장이 완료되었습니다.'
+          : downloadState.errorMessage ?? '사진을 저장하지 못했습니다.');
+    } catch (_) {
+      if (mounted) _showResult('사진 저장 중 오류가 발생했습니다.');
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  void _showResult(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   void initState() {
@@ -101,6 +155,28 @@ class _PicturePreviewPageState extends State<PicturePreviewPage> {
                       },
                     ),
             ),
+            if (_canDownloadCurrent)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.x16,
+                    bottom: AppSpacing.x12,
+                  ),
+                  child: IgnorePointer(
+                    ignoring: _isDownloading,
+                    child: CloudSelectionFloatingBar(
+                      showDelete: false,
+                      showMove: false,
+                      showDownload: true,
+                      isDownloadEnabled: !_isDownloading,
+                      onDeletePressed: () {},
+                      onMovePressed: () {},
+                      onDownloadPressed: _downloadCurrentImage,
+                    ),
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.x20),
               child: _buildPageIndicator(

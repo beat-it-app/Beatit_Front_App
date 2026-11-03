@@ -179,8 +179,7 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
   Widget build(BuildContext context) {
     final searchState = ref.watch(locationSearchProvider);
     final showReferenceResults =
-        searchState.isReferenceLoading ||
-        searchState.referenceQuery.isNotEmpty;
+        searchState.isReferenceLoading || searchState.referenceQuery.isNotEmpty;
 
     return Scaffold(
       body: SafeArea(
@@ -268,7 +267,8 @@ class _LocationSearchPageState extends ConsumerState<LocationSearchPage> {
                             selectedLocation: searchState.selectedLocation,
                             hasMore: searchState.hasMore,
                             isLoadingMore: searchState.isLoadingMore,
-                            loadMoreErrorMessage: searchState.loadMoreErrorMessage,
+                            loadMoreErrorMessage:
+                                searchState.loadMoreErrorMessage,
                             onLoadMore: _loadMoreLocations,
                             onTap: _handleLocationSelected,
                           ),
@@ -345,9 +345,9 @@ class _LocationResultList extends StatelessWidget {
       onLoadMore: onLoadMore,
       child: ListView.builder(
         padding: EdgeInsets.zero,
-        // 결과가 화면에 다 차지 않아도 사용자가 스와이프하면 다음 페이지를 조회할 수 있습니다.
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: results.length +
+        itemCount:
+            results.length +
             (isLoadingMore || loadMoreErrorMessage != null ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == results.length) {

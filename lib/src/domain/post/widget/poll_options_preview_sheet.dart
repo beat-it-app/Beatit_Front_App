@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/music/music_preview_list_item.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/location_result_widget.dart';
 import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/widget/poll_location_result.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -179,7 +180,7 @@ class _PollOptionsPreviewSheetState extends State<PollOptionsPreviewSheet> {
                   itemBuilder: (context, index) {
                     final item = widget.items[index];
                     if (!widget.isMusic) {
-                      return LocationResultWidget(
+                      return PollLocationResult(
                         name: item.locationName ?? item.location ?? '장소',
                         address: item.roadAddress ?? '',
                         onTap: item.locationId == null

@@ -68,6 +68,7 @@ class ChatApi {
     required int chatId,
     int page = 0,
     int size = 30,
+    void Function(Map<int, ChatReadMarker>)? onReadMarkers,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -85,6 +86,28 @@ class ChatApi {
         throw const ChatApiException(
           message: '채팅 메시지 응답 형식이 올바르지 않습니다.',
         );
+      }
+
+      // readByUsers는 각 참여자가 '마지막으로 읽은 메시지'에만 포함됩니다.
+      // generated Freezed 파일 수정 없이 별도 읽음 상태로 전달합니다.
+      if (onReadMarkers != null) {
+        final markers = <int, ChatReadMarker>{};
+        for (final entry in rawMessages.whereType<Map>()) {
+          final messageId = _optionalInt(entry['messageId']);
+          final readers = entry['readByUsers'];
+          if (messageId == null || readers is! List) continue;
+          for (final rawUser in readers.whereType<Map>()) {
+            final userId = _optionalInt(rawUser['userId']);
+            if (userId == null) continue;
+            markers[userId] = ChatReadMarker(
+              userId: userId,
+              messageId: messageId,
+              name: rawUser['name']?.toString() ?? '',
+              profileImageUrl: rawUser['profileImageUrl']?.toString(),
+            );
+          }
+        }
+        onReadMarkers(markers);
       }
 
       final messages = rawMessages
@@ -282,6 +305,10 @@ class ChatApi {
             await MultipartFile.fromFile(
               filePath,
               filename: fileName,
+              // 서버 FileService는 multipart Content-Type을 S3에 그대로 보존합니다.
+              // 특히 MP4/MOV가 application/octet-stream으로 저장되면
+              // CDN 영상 재생기의 포맷 인식이 실패할 수 있습니다.
+              contentType: _uploadMediaType(fileName),
             ),
           ),
         );
@@ -319,6 +346,26 @@ class ChatApi {
     } catch (_) {
       throw const ChatApiException(message: '메시지 전송 응답을 처리하지 못했습니다.');
     }
+  }
+
+  DioMediaType _uploadMediaType(String? fileName) {
+    final ext = (fileName ?? '').split('.').last.toLowerCase();
+    final type = switch (ext) {
+      'mp4' || 'm4v' => 'video/mp4',
+      'mov' => 'video/quicktime',
+      'avi' => 'video/x-msvideo',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      'heic' => 'image/heic',
+      'mp3' => 'audio/mpeg',
+      'm4a' => 'audio/mp4',
+      'wav' => 'audio/wav',
+      'pdf' => 'application/pdf',
+      _ => 'application/octet-stream',
+    };
+    return DioMediaType.parse(type);
   }
 
   Map<String, dynamic> _requireSuccessBody({
