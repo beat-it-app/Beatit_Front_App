@@ -19,6 +19,8 @@ import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
 import 'package:beatit_front_app/src/domain/team/widget/team_invite_dialog.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_main_page.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_detail_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_main_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_detail_page.dart';
 
 import '../../cloud/view/cloud_main_page.dart';
 
@@ -47,6 +49,14 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  // 💡 당겨서 새로고침(Pull-to-Refresh) 시 비동기 완료를 보장하는 함수
+  Future<void> _onRefresh() async {
+    ref.invalidate(currentTeamProvider);
+    ref.invalidate(teamUpcomingPerformancesProvider);
+    ref.invalidate(teamUpcomingSchedulesProvider);
+    await ref.read(teamDetailProvider.notifier).fetchTeamDetail();
   }
 
   void _refreshAll() {
@@ -87,156 +97,180 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. 상단 프로필 헤더 (버튼 3개가 헤더 위에 올라가며, 스크롤 시 함께 위로 이동)
-            _buildHeader(context, detail, isManagerOrLeader),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: context.brands.beatOrange1,
+        backgroundColor: Colors.white,
+        child: SingleChildScrollView(
+          // 💡 스크롤 영역이 화면보다 짧아도 당겨서 새로고침이 동작하도록 설정
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. 상단 프로필 헤더
+              _buildHeader(context, detail, isManagerOrLeader),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppSpacing.x24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSpacing.x24),
 
-                  // 2. 밴드 소개 영역
-                  _buildSectionTitle(context, '밴드 소개'),
-                  const SizedBox(height: AppSpacing.x8),
-                  Text(
-                    detail.description != null &&
-                            detail.description!.trim().isNotEmpty
-                        ? detail.description!
-                        : '등록된 소개글이 없습니다.',
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray3,
-                      height: 1.5,
+                    // 2. 밴드 소개 영역
+                    _buildSectionTitle(context, '밴드 소개'),
+                    const SizedBox(height: AppSpacing.x8),
+                    Text(
+                      detail.description != null &&
+                              detail.description!.trim().isNotEmpty
+                          ? detail.description!
+                          : '등록된 소개글이 없습니다.',
+                      style: FontStyles.med16.copyWith(
+                        color: context.grays.gray3,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: AppSpacing.x40),
+                    const SizedBox(height: AppSpacing.x40),
 
-                  // 3. 멤버 목록 영역
-                  _buildSectionTitle(
-                    context,
-                    '멤버 목록 (${detail.memberCount})',
-                    trailingText: '더보기',
-                    onTrailingTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamMemberPage(),
+                    // 3. 멤버 목록 영역
+                    _buildSectionTitle(
+                      context,
+                      '멤버 목록 (${detail.memberCount})',
+                      trailingText: '더보기',
+                      onTrailingTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const TeamMemberPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.x12),
+                    _buildMemberList(context, detail),
+
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 4. 다가오는 일정 타이틀
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/icons/team/title.svg',
+                          width: 16,
+                          height: 16,
+                          colorFilter: ColorFilter.mode(
+                            context.colors.onSurface,
+                            BlendMode.srcIn,
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.x12),
-                  _buildMemberList(context, detail),
-
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 4. 다가오는 일정 타이틀
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SvgPicture.asset(
-                        'assets/icons/team/title.svg',
-                        width: 16,
-                        height: 16,
-                        colorFilter: ColorFilter.mode(
-                          context.colors.onSurface,
-                          BlendMode.srcIn,
+                        const SizedBox(width: 6),
+                        Text(
+                          '다가오는 일정',
+                          style: FontStyles.semi22.copyWith(
+                            color: colors.onSurface,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '다가오는 일정',
-                        style: FontStyles.semi22.copyWith(
-                          color: colors.onSurface,
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.x20),
+                    _buildScheduleSection(context),
+
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 5. 다가오는 LIVE 공연 타이틀
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/icons/team/title.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: ColorFilter.mode(
+                                context.colors.onSurface,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '다가오는 LIVE 공연',
+                              style: FontStyles.semi22.copyWith(
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x20),
-                  _buildScheduleSection(context),
-
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 5. 다가오는 LIVE 공연 타이틀
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/icons/team/title.svg',
-                            width: 16,
-                            height: 16,
-                            colorFilter: ColorFilter.mode(
-                              context.colors.onSurface,
-                              BlendMode.srcIn,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PerformanceMainPage(),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            child: SvgPicture.asset(
+                              'assets/icons/auth/back.svg',
+                              width: 15,
+                              height: 15,
+                              colorFilter: ColorFilter.mode(
+                                colors.onSurface,
+                                BlendMode.srcIn,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '다가오는 LIVE 공연',
-                            style: FontStyles.semi22.copyWith(
-                              color: colors.onSurface,
-                            ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.x16),
+                    _buildLiveConcertList(context),
+
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 6. 하단 액션 버튼
+                    _buildActionButton(
+                      context,
+                      svgPath: 'assets/icons/team/archive.svg',
+                      title: '합주실/연습실 기록하기',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const TeamArchiveListPage(),
                           ),
-                        ],
-                      ),
-                      SvgPicture.asset(
-                        'assets/icons/auth/back.svg',
-                        width: 15,
-                        height: 15,
-                        colorFilter: ColorFilter.mode(
-                          colors.onSurface,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x12),
-                  _buildLiveConcertList(context),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.x12),
+                    _buildActionButton(
+                      context,
+                      svgPath: 'assets/icons/team/cloud.svg',
+                      title: '팀 클라우드',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CloudMainPage(),
+                          ),
+                        );
+                      },
+                    ),
 
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 6. 하단 액션 버튼
-                  _buildActionButton(
-                    context,
-                    svgPath: 'assets/icons/team/archive.svg',
-                    title: '합주실/연습실 기록하기',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamArchiveListPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.x12),
-                  _buildActionButton(
-                    context,
-                    svgPath: 'assets/icons/team/cloud.svg',
-                    title: '팀 클라우드',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CloudMainPage(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: AppSpacing.x40),
-                ],
+                    const SizedBox(height: AppSpacing.x40),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -552,7 +586,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           return _buildLiveConcertEmpty(context);
         }
         return SizedBox(
-          height: 190,
+          height: 248,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: performances.length,
@@ -587,62 +621,89 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
   ) {
     final colors = Theme.of(context).colorScheme;
     final date = performance.performanceDateTime;
+
     final String dateStr = date != null
-        ? '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}'
+        ? '${date.year}. ${date.month}. ${date.day}.'
         : '-';
 
-    return Container(
-      width: 130,
-      decoration: BoxDecoration(
-        color: context.grays.gray8,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child:
-                (performance.posterImageUrl != null &&
-                    performance.posterImageUrl!.isNotEmpty)
-                ? Image.network(
-                    performance.posterImageUrl!,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: context.grays.gray7,
-                      child: const Center(
-                        child: Icon(Icons.broken_image, size: 24),
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: context.grays.gray7,
-                    child: const Center(
-                      child: Icon(Icons.music_note, size: 28),
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  performance.title,
-                  style: FontStyles.semi14.copyWith(color: colors.onSurface),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  dateStr,
-                  style: FontStyles.reg12.copyWith(color: context.grays.gray4),
-                ),
-              ],
+    final bool hasPoster =
+        performance.posterImageUrl != null &&
+        performance.posterImageUrl!.trim().isNotEmpty;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PerformanceDetailPage(
+              performancePublicId: performance.performancePublicId,
             ),
           ),
-        ],
+        );
+      },
+      child: SizedBox(
+        width: 131,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. 포스터 영역
+            Container(
+              width: 131,
+              height: 167,
+              decoration: BoxDecoration(
+                color: context.grays.gray8,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: context.grays.gray7, width: 1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: hasPoster
+                  ? Image.network(
+                      performance.posterImageUrl!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _buildPlaceholderLogo(context),
+                    )
+                  : _buildPlaceholderLogo(context),
+            ),
+            const SizedBox(height: 8),
+
+            // 2. 날짜
+            Text(
+              dateStr,
+              style: FontStyles.reg14.copyWith(color: context.grays.gray4),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+
+            // 3. 공연 제목
+            Text(
+              performance.title,
+              style: FontStyles.semi18.copyWith(
+                color: colors.onSurface,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderLogo(BuildContext context) {
+    return Container(
+      color: context.grays.gray8,
+      child: Center(
+        child: SvgPicture.asset(
+          'assets/icons/performance/performance.svg',
+          width: 36,
+          height: 36,
+        ),
       ),
     );
   }
@@ -709,7 +770,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
               ),
             ),
 
-            // 💡 상단 탑바 (헤더 이미지 상단에 고정 배치되어 스크롤 시 함께 위로 이동)
+            // 상단 탑바
             Positioned(
               top: 0,
               left: 0,

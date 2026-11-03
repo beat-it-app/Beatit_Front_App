@@ -9,76 +9,99 @@ class PerformanceProgressBar extends StatelessWidget {
   const PerformanceProgressBar({
     super.key,
     required this.step,
-    this.totalSteps = 2,
+    this.totalSteps = 3,
   }) : assert(totalSteps > 0),
        assert(step > 0 && step <= totalSteps);
 
   final int step;
   final int totalSteps;
 
+  String get _titleText {
+    switch (step) {
+      case 1:
+        return '공연 정보를 입력해주세요.';
+      case 2:
+        return '공연 상세 정보를 입력해주세요.';
+      case 3:
+      default:
+        return '모바일 초대장';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final progress = step / totalSteps;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) => SizedBox(
-            height: 22,
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    color: context.grays.gray7,
-                  ),
-                ),
-                Container(
-                  height: 6,
-                  width: constraints.maxWidth * progress,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    color: context.brands.beatOrange2,
-                  ),
-                ),
-                Positioned(
-                  left: (constraints.maxWidth * progress - 9)
-                      .clamp(0.0, constraints.maxWidth - 22)
-                      .toDouble(),
-                  child: Container(
-                    width: 22,
-                    height: 22,
-                    padding: EdgeInsets.only(left: 2.0),
-                    decoration: BoxDecoration(
-                      color: context.brands.beatOrange1,
-                      shape: BoxShape.circle,
+        // 💡 ExcludeSemantics로 감싸 LayoutBuilder/Stack의 접근성 트리 충돌을 완전히 방지
+        ExcludeSemantics(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double barWidth = constraints.maxWidth;
+              final double knobLeft = (barWidth * progress - 11)
+                  .clamp(0.0, barWidth - 22)
+                  .toDouble();
+
+              return SizedBox(
+                height: 22,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // 배경 바
+                    Container(
+                      height: 6,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        color: context.grays.gray7,
+                      ),
                     ),
-                    child: Center(
-                      child: SvgPicture.asset(
-                        'assets/icons/performance/play.svg',
-                        width: 9.0,
-                        height: 9.0,
-                        colorFilter: ColorFilter.mode(
-                          context.grays.white,
-                          BlendMode.srcIn,
+                    // 주황색 진행 바
+                    Container(
+                      height: 6,
+                      width: barWidth * progress,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        color: context.brands.beatOrange2,
+                      ),
+                    ),
+                    // 주황색 재생 아이콘 손잡이
+                    Positioned(
+                      left: knobLeft,
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        padding: const EdgeInsets.only(left: 2.0),
+                        decoration: BoxDecoration(
+                          color: context.brands.beatOrange1,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/icons/performance/play.svg',
+                            width: 9.0,
+                            height: 9.0,
+                            colorFilter: ColorFilter.mode(
+                              context.grays.white,
+                              BlendMode.srcIn,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
         const SizedBox(height: AppSpacing.x12),
         Text.rich(
           TextSpan(
             children: [
-              TextSpan(
-                text: step == 1 ? '공연 정보를 입력해주세요.' : '공연 상세 정보를 입력해주세요.',
-              ),
+              TextSpan(text: _titleText),
               TextSpan(
                 text: ' *',
                 style: FontStyles.bold22.copyWith(

@@ -1,3 +1,5 @@
+// lib/src/core/widgets/appbars/app_top_appbar.dart
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
@@ -63,6 +65,30 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onBackPressed = onBackPressed,
        onMorePressed = null,
        onClosePressed = null,
+       onAlarmPressed = null,
+       onEditPressed = null,
+       onSharePressed = null,
+       moreMenuItems = const [],
+       moreMenuAlignment = AppDropdownAlignment.right,
+       moreMenuWidth = 170.0,
+       moreMenuItemHeight = 44.0,
+       moreMenuOffset = const Offset(0, 56),
+       toolbarHeight = toolbarHeight;
+
+  // 💡 [추가] 뒤로가기 버튼(왼쪽) + 닫기(X) 버튼(오른쪽)을 동시에 제공하는 생성자
+  const AppTopAppBar.backClose({
+    super.key,
+    String? title,
+    VoidCallback? onBackPressed,
+    VoidCallback? onClosePressed,
+    double toolbarHeight = 64.0,
+    this.actionIconColor,
+  }) : title = title,
+       showBackButton = true,
+       trailing = AppTopAppBarTrailing.close,
+       onBackPressed = onBackPressed,
+       onMorePressed = null,
+       onClosePressed = onClosePressed,
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
@@ -141,7 +167,6 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        toolbarHeight = toolbarHeight,
        actionIconColor = null;
 
-  // 💡 actionIconColor 파라미터 추가 (기본값 미지정 시 null)
   const AppTopAppBar.alarmOnly({
     super.key,
     VoidCallback? onAlarmPressed,
@@ -194,8 +219,6 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-
-    // 💡 전달된 actionIconColor가 있으면 사용하고, 없으면 기본 흰색(Colors.white) 적용
     final effectiveAlarmActionColor = actionIconColor ?? Colors.white;
 
     return AppBar(
@@ -205,15 +228,12 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: _appBarActionButtonWidth,
       elevation: 0,
       scrolledUnderElevation: 0,
-
       backgroundColor: (trailing == AppTopAppBarTrailing.alarm)
           ? Colors.transparent
           : theme.scaffoldBackgroundColor,
-
       surfaceTintColor: (trailing == AppTopAppBarTrailing.alarm)
           ? Colors.transparent
           : null,
-
       foregroundColor: colors.onSurface,
       titleTextStyle: FontStyles.semi18.copyWith(color: colors.onSurface),
       leading: showBackButton
