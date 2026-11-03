@@ -33,43 +33,57 @@ class PerformanceInfoSection extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 1. 공연 팀
         if (performance.teamName?.isNotEmpty ?? false)
           _InfoItem(label: '공연 팀', content: performance.teamName!),
+
+        // 2. 공연 소개 (description)
         _InfoItem(
           label: '공연 소개',
-          content: performance.introduction.isEmpty
+          content: performance.introduction.trim().isEmpty
               ? '등록된 공연 소개가 없습니다.'
               : performance.introduction,
         ),
+
+        // 3. 공연 시간
         _InfoItem(
           label: '공연 시간',
           content: _formatDateTime(performance.startsAt),
         ),
+
+        // 4. 공연 장소 및 지도
         if (performance.location != null)
           PerformanceLocationSection(location: performance.location!),
+
+        // 5. 티켓 정보 (무료/사전예매/현장예매)
         if (performance.ticketTypes.isNotEmpty)
           _InfoItem(label: '티켓 정보', content: _ticketDescription(performance)),
+
+        // 6. 예매 링크
         if (performance.bookingUrl.trim().isNotEmpty)
           _InfoItem(
             label: '예매 링크',
             content: performance.bookingUrl,
             onTap: () => _launchExternalLink(context, performance.bookingUrl),
           ),
+
+        // 7. 호스트 정보 및 문의하기
         if (performance.hostName.trim().isNotEmpty) ...[
           Row(
             children: [
               SvgPicture.asset(
                 'assets/icons/performance/lines.svg',
-                width: 24,
-                height: 24,
+                width: 10,
+                height: 16,
                 colorFilter: ColorFilter.mode(
-                  context.grays.gray5,
+                  context.grays.gray3,
                   BlendMode.srcIn,
                 ),
               ),
+              const SizedBox(width: AppSpacing.x4),
               Text(
                 '호스트',
-                style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+                style: FontStyles.reg14.copyWith(color: context.grays.gray3),
               ),
             ],
           ),
@@ -83,13 +97,15 @@ class PerformanceInfoSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.x8),
-              if (performance.hostContact.trim().isNotEmpty &&
-                  performance.hostContactType != null)
+              // 💡 hostContactType이 null이어도 contact 내용이 있으면 기본 Phone 타입으로 다이얼로그 호출
+              if (performance.hostContact.trim().isNotEmpty)
                 InkWell(
                   onTap: () => showPerformanceHostDialog(
                     context: context,
                     hostName: performance.hostName,
-                    contactType: performance.hostContactType!,
+                    contactType:
+                        performance.hostContactType ??
+                        PerformanceHostContactType.phone,
                     contact: performance.hostContact,
                   ),
                   child: Text(
@@ -105,6 +121,8 @@ class PerformanceInfoSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.x20),
         ],
+
+        // 8. 내가 등록한 공연인 경우 응답 보기
         if (isMine) ...[
           const SizedBox(height: AppSpacing.x8),
           AppButton(
@@ -141,14 +159,14 @@ class _InfoItem extends StatelessWidget {
               width: 10,
               height: 16,
               colorFilter: ColorFilter.mode(
-                context.grays.gray5,
+                context.grays.gray3,
                 BlendMode.srcIn,
               ),
             ),
             const SizedBox(width: AppSpacing.x4),
             Text(
               label,
-              style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+              style: FontStyles.reg14.copyWith(color: context.grays.gray3),
             ),
           ],
         ),
@@ -181,54 +199,70 @@ class PerformanceDetailSection extends StatelessWidget {
   final PerformanceDetailData performance;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.x20,
-      AppSpacing.x24,
-      AppSpacing.x20,
-      AppSpacing.x40,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final url in performance.detailImageUrls)
-          if (url.isNotEmpty) ...[
-            Image.network(
-              url,
-              width: double.infinity,
-              fit: BoxFit.fitWidth,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+  Widget build(BuildContext context) {
+    final hasImages =
+        performance.detailImageUrls.isNotEmpty ||
+        performance.detailImageFiles.isNotEmpty;
+    final hasText = performance.detailDescription.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.x20,
+        AppSpacing.x24,
+        AppSpacing.x20,
+        AppSpacing.x40,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. 상세 이미지 목록 (네트워크 이미지)
+          for (final url in performance.detailImageUrls)
+            if (url.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                  url,
+                  width: double.infinity,
+                  fit: BoxFit.fitWidth,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.x16),
+            ],
+
+          // 2. 상세 이미지 파일 (로컬 파일 미리보기용)
+          for (final file in performance.detailImageFiles) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: PerformanceXFileImage(
+                file: file,
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+              ),
             ),
-            const SizedBox(height: AppSpacing.x12),
+            const SizedBox(height: AppSpacing.x16),
           ],
-        for (final file in performance.detailImageFiles) ...[
-          PerformanceXFileImage(
-            file: file,
-            width: double.infinity,
-            fit: BoxFit.fitWidth,
-          ),
-          const SizedBox(height: AppSpacing.x12),
-        ],
-        if (!performance.hasNoDetails &&
-            performance.detailDescription.trim().isNotEmpty)
-          Text(
-            performance.detailDescription,
-            style: FontStyles.reg14.copyWith(
-              color: context.colors.onSurface,
-              height: 1.5,
+
+          // 3. 상세 정보 설명글 (detailInfo)
+          if (hasText)
+            Text(
+              performance.detailDescription,
+              style: FontStyles.reg14.copyWith(
+                color: context.colors.onSurface,
+                height: 1.6,
+              ),
             ),
-          ),
-        if ((performance.detailImageUrls.isEmpty &&
-                performance.detailImageFiles.isEmpty) &&
-            (performance.hasNoDetails ||
-                performance.detailDescription.trim().isEmpty))
-          Text(
-            '등록된 상세 정보가 없습니다.',
-            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
-          ),
-      ],
-    ),
-  );
+
+          // 4. 정보가 전혀 없는 경우
+          if (!hasImages && !hasText)
+            Text(
+              '등록된 상세 정보가 없습니다.',
+              style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 String _formatDateTime(DateTime date) =>
@@ -252,7 +286,7 @@ String _ticketDescription(PerformanceDetailData data) {
       );
     }
   }
-  return parts.join(' / ');
+  return parts.isEmpty ? '티켓 정보 없음' : parts.join(' / ');
 }
 
 Future<void> _launchExternalLink(BuildContext context, String url) async {

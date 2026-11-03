@@ -16,7 +16,7 @@ class TeamPerformanceModel {
       performancePublicId: json['performancePublicId'] as String? ?? '',
       title: json['title'] as String? ?? '',
       performanceDateTime: json['performanceDateTime'] != null
-          ? DateTime.tryParse(json['performanceDateTime'] as String)
+          ? DateTime.tryParse(json['performanceDateTime'] as String)?.toLocal()
           : null,
       posterImageUrl: json['posterImageUrl'] as String?,
     );

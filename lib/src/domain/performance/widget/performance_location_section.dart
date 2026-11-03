@@ -105,9 +105,24 @@ class _PerformanceLocationSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '공연 장소',
-            style: FontStyles.reg14.copyWith(color: context.grays.gray5),
+          // 💡 다른 항목들과 동일한 [lines.svg 아이콘 + '공연 장소' 라벨]
+          Row(
+            children: [
+              SvgPicture.asset(
+                'assets/icons/performance/lines.svg',
+                width: 10,
+                height: 16,
+                colorFilter: ColorFilter.mode(
+                  context.grays.gray3,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x4),
+              Text(
+                '공연 장소',
+                style: FontStyles.reg14.copyWith(color: context.grays.gray3),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.x8),
           Row(
@@ -115,9 +130,7 @@ class _PerformanceLocationSectionState
               Expanded(
                 child: Text(
                   name,
-                  style: FontStyles.reg14.copyWith(
-                    color: context.colors.onSurface,
-                  ),
+                  style: FontStyles.med16.copyWith(color: context.grays.gray2),
                 ),
               ),
               if (hasMap)
