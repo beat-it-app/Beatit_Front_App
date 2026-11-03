@@ -53,6 +53,12 @@ abstract class FontStyles {
     fontWeight: FontWeight.w700,
     letterSpacing: -0.32,
   );
+  static const TextStyle bold17 = TextStyle(
+    fontSize: 17,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.32,
+  );
   static const TextStyle bold14 = TextStyle(
     fontSize: 14,
     fontFamily: _fontFamily,
