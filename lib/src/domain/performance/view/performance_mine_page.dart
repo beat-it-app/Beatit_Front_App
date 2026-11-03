@@ -1,3 +1,5 @@
+// lib/src/domain/performance/view/performance_mine_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -27,7 +29,8 @@ class PerformanceMinePage extends ConsumerWidget {
           MaterialPageRoute<void>(
             builder: (_) => PerformanceDetailPage(
               performancePublicId: item.performancePublicId,
-              isMine: true,
+              fromMyPage: true,
+              // 💡 isMine: true 대신 fromMyPage: true로 전달!
               onEdit: onEdit == null ? null : () => onEdit!(item),
               onDelete: onDelete == null ? null : () => onDelete!(item),
               onViewResponses: onViewResponses == null

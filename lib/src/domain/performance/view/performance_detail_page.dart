@@ -1,8 +1,12 @@
+// lib/src/domain/performance/view/performance_detail_page.dart
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -17,13 +21,14 @@ import 'package:beatit_front_app/src/domain/performance/view/performance_informa
 import 'package:beatit_front_app/src/domain/performance/widget/performance_detail_sections.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_hero.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_host_dialog.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_upcoming_provider.dart';
 
 class PerformanceDetailPage extends ConsumerStatefulWidget {
   const PerformanceDetailPage({
     super.key,
     required this.performancePublicId,
     this.initialPerformance,
-    this.isMine = false,
+    this.fromMyPage = false, // 💡 나의 공연 목록에서 들어올 때만 true 전달
     this.onEdit,
     this.onDelete,
     this.onViewResponses,
@@ -31,7 +36,7 @@ class PerformanceDetailPage extends ConsumerStatefulWidget {
 
   final String performancePublicId;
   final PerformanceDetailData? initialPerformance;
-  final bool isMine;
+  final bool fromMyPage;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onViewResponses;
@@ -43,6 +48,7 @@ class PerformanceDetailPage extends ConsumerStatefulWidget {
 
 class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
   int _selectedTab = 0;
+  bool _isDeleting = false;
 
   Future<void> _confirmDelete() async {
     final confirmed = await AppPopup.show(
@@ -57,10 +63,48 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
       cancelText: '취소',
     );
     if (!mounted || confirmed != true) return;
+
     if (widget.onDelete != null) {
       widget.onDelete!();
-    } else {
-      _unavailable('공연 삭제 기능은 아직 연결되지 않았습니다.');
+      return;
+    }
+
+    setState(() => _isDeleting = true);
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('/performances/${widget.performancePublicId}');
+
+      ref.invalidate(teamUpcomingPerformancesProvider);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('공연이 삭제되었습니다.')));
+
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      String errorMessage = '공연 삭제에 실패했습니다.';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map<String, dynamic>) {
+          errorMessage =
+              data['message']?.toString() ??
+              data['error']?.toString() ??
+              errorMessage;
+        }
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
     }
   }
 
@@ -88,6 +132,13 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isDeleting) {
+      return Scaffold(
+        backgroundColor: context.grays.white,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final detailAsync = ref.watch(
       performanceDetailProvider(widget.performancePublicId),
     );
@@ -124,6 +175,9 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
       data: (serverModel) {
         final performance = serverModel.toDetailData();
 
+        // 💡 백엔드 isMine 필드 없이 오직 '나의 공연 목록' 진입 여부로만 제어
+        final bool canEditOrDelete = widget.fromMyPage;
+
         return Scaffold(
           backgroundColor: context.grays.white,
           body: SingleChildScrollView(
@@ -134,7 +188,7 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                   children: [
                     PerformanceHero(
                       performance: performance,
-                      isMine: widget.isMine,
+                      isMine: canEditOrDelete,
                     ),
                     Positioned(
                       top: 0,
@@ -166,7 +220,8 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!widget.isMine)
+                                  // 나의 공연 목록을 통해 들어온 것이 아닐 때: 공유(문의) 버튼만 노출
+                                  if (!canEditOrDelete)
                                     IconButton(
                                       icon: SvgPicture.asset(
                                         'assets/icons/team/share.svg',
@@ -180,7 +235,9 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                                       onPressed: () =>
                                           _openHostDialog(performance),
                                     ),
-                                  if (widget.isMine)
+
+                                  // 나의 공연 목록을 통해 들어왔을 때만: 수정/삭제 드롭다운 메뉴 노출
+                                  if (canEditOrDelete)
                                     AppDropdownList(
                                       items: [
                                         AppDropdownItem(
@@ -250,7 +307,8 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                     ),
                   ],
                 ),
-                if (widget.isMine)
+                // 나의 공연 목록에서 들어왔을 때만 D-Day 밴드 노출
+                if (canEditOrDelete)
                   _BookingDeadlineBand(performance: performance),
                 AppTabBar(
                   labels: const ['공연 정보', '상세 정보'],
@@ -264,11 +322,12 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                   )
                 else
                   PerformanceDetailSection(performance: performance),
-                if (widget.isMine) const SizedBox(height: 80),
+                if (canEditOrDelete) const SizedBox(height: 80),
               ],
             ),
           ),
-          bottomNavigationBar: widget.isMine
+          // 나의 공연 목록에서 들어왔을 때만 하단 초대장 보기 고정 버튼 노출
+          bottomNavigationBar: canEditOrDelete
               ? SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(

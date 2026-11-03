@@ -51,6 +51,14 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     }
   }
 
+  // 💡 당겨서 새로고침(Pull-to-Refresh) 시 비동기 완료를 보장하는 함수
+  Future<void> _onRefresh() async {
+    ref.invalidate(currentTeamProvider);
+    ref.invalidate(teamUpcomingPerformancesProvider);
+    ref.invalidate(teamUpcomingSchedulesProvider);
+    await ref.read(teamDetailProvider.notifier).fetchTeamDetail();
+  }
+
   void _refreshAll() {
     ref.invalidate(currentTeamProvider);
     ref.read(teamDetailProvider.notifier).fetchTeamDetail();
@@ -89,172 +97,180 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. 상단 프로필 헤더 (버튼 3개가 헤더 위에 올라가며, 스크롤 시 함께 위로 이동)
-            _buildHeader(context, detail, isManagerOrLeader),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: context.brands.beatOrange1,
+        backgroundColor: Colors.white,
+        child: SingleChildScrollView(
+          // 💡 스크롤 영역이 화면보다 짧아도 당겨서 새로고침이 동작하도록 설정
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. 상단 프로필 헤더
+              _buildHeader(context, detail, isManagerOrLeader),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppSpacing.x24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSpacing.x24),
 
-                  // 2. 밴드 소개 영역
-                  _buildSectionTitle(context, '밴드 소개'),
-                  const SizedBox(height: AppSpacing.x8),
-                  Text(
-                    detail.description != null &&
-                            detail.description!.trim().isNotEmpty
-                        ? detail.description!
-                        : '등록된 소개글이 없습니다.',
-                    style: FontStyles.med16.copyWith(
-                      color: context.grays.gray3,
-                      height: 1.5,
+                    // 2. 밴드 소개 영역
+                    _buildSectionTitle(context, '밴드 소개'),
+                    const SizedBox(height: AppSpacing.x8),
+                    Text(
+                      detail.description != null &&
+                              detail.description!.trim().isNotEmpty
+                          ? detail.description!
+                          : '등록된 소개글이 없습니다.',
+                      style: FontStyles.med16.copyWith(
+                        color: context.grays.gray3,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: AppSpacing.x40),
+                    const SizedBox(height: AppSpacing.x40),
 
-                  // 3. 멤버 목록 영역
-                  _buildSectionTitle(
-                    context,
-                    '멤버 목록 (${detail.memberCount})',
-                    trailingText: '더보기',
-                    onTrailingTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamMemberPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.x12),
-                  _buildMemberList(context, detail),
-
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 4. 다가오는 일정 타이틀
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SvgPicture.asset(
-                        'assets/icons/team/title.svg',
-                        width: 16,
-                        height: 16,
-                        colorFilter: ColorFilter.mode(
-                          context.colors.onSurface,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '다가오는 일정',
-                        style: FontStyles.semi22.copyWith(
-                          color: colors.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x20),
-                  _buildScheduleSection(context),
-
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 5. 다가오는 LIVE 공연 타이틀
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/icons/team/title.svg',
-                            width: 16,
-                            height: 16,
-                            colorFilter: ColorFilter.mode(
-                              context.colors.onSurface,
-                              BlendMode.srcIn,
-                            ),
+                    // 3. 멤버 목록 영역
+                    _buildSectionTitle(
+                      context,
+                      '멤버 목록 (${detail.memberCount})',
+                      trailingText: '더보기',
+                      onTrailingTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const TeamMemberPage(),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '다가오는 LIVE 공연',
-                            style: FontStyles.semi22.copyWith(
-                              color: colors.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const PerformanceMainPage(),
-                            ),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          child: SvgPicture.asset(
-                            'assets/icons/auth/back.svg',
-                            width: 15,
-                            height: 15,
-                            colorFilter: ColorFilter.mode(
-                              colors.onSurface,
-                              BlendMode.srcIn,
-                            ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.x12),
+                    _buildMemberList(context, detail),
+
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 4. 다가오는 일정 타이틀
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/icons/team/title.svg',
+                          width: 16,
+                          height: 16,
+                          colorFilter: ColorFilter.mode(
+                            context.colors.onSurface,
+                            BlendMode.srcIn,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x16),
-                  _buildLiveConcertList(context),
-
-                  const SizedBox(height: AppSpacing.x40),
-
-                  // 6. 하단 액션 버튼
-                  _buildActionButton(
-                    context,
-                    svgPath: 'assets/icons/team/archive.svg',
-                    title: '합주실/연습실 기록하기',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TeamArchiveListPage(),
+                        const SizedBox(width: 6),
+                        Text(
+                          '다가오는 일정',
+                          style: FontStyles.semi22.copyWith(
+                            color: colors.onSurface,
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.x12),
-                  _buildActionButton(
-                    context,
-                    svgPath: 'assets/icons/team/cloud.svg',
-                    title: '팀 클라우드',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CloudMainPage(),
-                        ),
-                      );
-                    },
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.x20),
+                    _buildScheduleSection(context),
 
-                  const SizedBox(height: AppSpacing.x40),
-                ],
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 5. 다가오는 LIVE 공연 타이틀
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/icons/team/title.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: ColorFilter.mode(
+                                context.colors.onSurface,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '다가오는 LIVE 공연',
+                              style: FontStyles.semi22.copyWith(
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PerformanceMainPage(),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            child: SvgPicture.asset(
+                              'assets/icons/auth/back.svg',
+                              width: 15,
+                              height: 15,
+                              colorFilter: ColorFilter.mode(
+                                colors.onSurface,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.x16),
+                    _buildLiveConcertList(context),
+
+                    const SizedBox(height: AppSpacing.x40),
+
+                    // 6. 하단 액션 버튼
+                    _buildActionButton(
+                      context,
+                      svgPath: 'assets/icons/team/archive.svg',
+                      title: '합주실/연습실 기록하기',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const TeamArchiveListPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.x12),
+                    _buildActionButton(
+                      context,
+                      svgPath: 'assets/icons/team/cloud.svg',
+                      title: '팀 클라우드',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CloudMainPage(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: AppSpacing.x40),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -555,7 +571,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     return (dDayText: dDayText, dateDisplay: dateDisplay);
   }
 
-  // 5. 다가오는 LIVE 공연 섹션 (시안 디자인 규격에 맞춤)
+  // 5. 다가오는 LIVE 공연 섹션
   Widget _buildLiveConcertList(BuildContext context) {
     final performanceAsync = ref.watch(teamUpcomingPerformancesProvider);
 
@@ -570,8 +586,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
           return _buildLiveConcertEmpty(context);
         }
         return SizedBox(
-          // 포스터(167) + 여백(8) + 날짜(16) + 여백(4) + 제목 2줄(38) 확보
-          height: 236,
+          height: 248,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: performances.length,
@@ -600,7 +615,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 시안의 [포스터 카드] -> [날짜(YYYY. M. D.)] -> [제목(2줄, Bold)] 레이아웃 반영[cite: 7]
   Widget _buildPerformanceCard(
     BuildContext context,
     TeamPerformanceModel performance,
@@ -608,7 +622,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final colors = Theme.of(context).colorScheme;
     final date = performance.performanceDateTime;
 
-    // 시안 포맷: 2026. 4. 14. (0 패딩 없는 띄어쓰기 형식)[cite: 7]
     final String dateStr = date != null
         ? '${date.year}. ${date.month}. ${date.day}.'
         : '-';
@@ -632,8 +645,9 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
         width: 131,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. 포스터 영역 (이미지 없을 시 performance.svg 로고 표시)
+            // 1. 포스터 영역
             Container(
               width: 131,
               height: 167,
@@ -656,7 +670,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
             ),
             const SizedBox(height: 8),
 
-            // 2. 날짜 (포스터 바로 아래)[cite: 7]
+            // 2. 날짜
             Text(
               dateStr,
               style: FontStyles.reg14.copyWith(color: context.grays.gray4),
@@ -665,7 +679,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
             ),
             const SizedBox(height: 4),
 
-            // 3. 공연 제목 (최대 2줄, 볼드 스타일)[cite: 7]
+            // 3. 공연 제목
             Text(
               performance.title,
               style: FontStyles.semi18.copyWith(
@@ -681,7 +695,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     );
   }
 
-  // 이미지가 없을 때 중앙에 표시할 performance.svg 로고 위젯
   Widget _buildPlaceholderLogo(BuildContext context) {
     return Container(
       color: context.grays.gray8,
@@ -757,7 +770,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
               ),
             ),
 
-            // 상단 탑바 (헤더 이미지 상단에 고정 배치되어 스크롤 시 함께 위로 이동)
+            // 상단 탑바
             Positioned(
               top: 0,
               left: 0,

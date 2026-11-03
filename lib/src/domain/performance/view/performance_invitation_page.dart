@@ -156,6 +156,37 @@ class _PerformanceInvitationPageState
     return '$y-$m-${d}T$h:$min:$sec$offsetStr';
   }
 
+  // 💡 티켓 목록 매핑 헬퍼 (onsite, general, advance, free 모두 정상 매핑)
+  List _buildPriceList() {
+    return widget.step1.ticketTypes.map((type) {
+      final priceStr = widget.step1.ticketPrices[type] ?? '0';
+
+      String priceType;
+      switch (type) {
+        case PerformanceTicketType.advance:
+          priceType = 'ADVANCE';
+          break;
+        case PerformanceTicketType.onsite:
+          priceType = 'ON_SITE'; // 💡 현장 예매를 정확히 ON_SITE로 매핑
+          break;
+        case PerformanceTicketType.general:
+          priceType = 'ON_SITE'; // 일반 예매도 현장/일반 정책에 맞춰 매핑
+          break;
+        case PerformanceTicketType.free:
+        default:
+          priceType = 'FREE';
+          break;
+      }
+
+      return {
+        'priceType': priceType,
+        'price': type == PerformanceTicketType.free
+            ? 0
+            : (int.tryParse(priceStr) ?? 0),
+      };
+    }).toList();
+  }
+
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 
@@ -263,17 +294,7 @@ class _PerformanceInvitationPageState
           widget.step1.location.locationName ??
           widget.step1.location.roadAddress ??
           widget.editTarget!.placeName,
-      'prices': widget.step1.ticketTypes.map((type) {
-        final priceStr = widget.step1.ticketPrices[type] ?? '0';
-        return {
-          'priceType': type == PerformanceTicketType.advance
-              ? 'ADVANCE'
-              : type == PerformanceTicketType.general
-              ? 'ON_SITE'
-              : 'FREE',
-          'price': int.tryParse(priceStr) ?? 0,
-        };
-      }).toList(),
+      'prices': _buildPriceList(), // 💡 수정됨
       'bookingDeadline': widget.step1.bookingClosesAt != null
           ? _formatOffsetDateTime(widget.step1.bookingClosesAt!)
           : null,
@@ -348,17 +369,7 @@ class _PerformanceInvitationPageState
           widget.step1.location.locationName ??
           widget.step1.location.roadAddress ??
           '',
-      'prices': widget.step1.ticketTypes.map((type) {
-        final priceStr = widget.step1.ticketPrices[type] ?? '0';
-        return {
-          'priceType': type == PerformanceTicketType.advance
-              ? 'ADVANCE'
-              : type == PerformanceTicketType.general
-              ? 'ON_SITE'
-              : 'FREE',
-          'price': int.tryParse(priceStr) ?? 0,
-        };
-      }).toList(),
+      'prices': _buildPriceList(), // 💡 수정됨
       'bookingDeadline': widget.step1.bookingClosesAt != null
           ? _formatOffsetDateTime(widget.step1.bookingClosesAt!)
           : null,
@@ -426,8 +437,8 @@ class _PerformanceInvitationPageState
     return Scaffold(
       backgroundColor: context.grays.white,
       appBar: AppTopAppBar.backClose(
-        onBackPressed: () => Navigator.of(context).pop(), // 2단계로 이동
-        onClosePressed: _handleCloseConfirmation, // 작성 중단 팝업
+        onBackPressed: () => Navigator.of(context).pop(),
+        onClosePressed: _handleCloseConfirmation,
       ),
       body: SafeArea(
         top: false,
@@ -458,6 +469,7 @@ class _PerformanceInvitationPageState
                       fieldHeight: 140,
                     ),
                     const SizedBox(height: AppSpacing.x28),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -484,6 +496,7 @@ class _PerformanceInvitationPageState
                       ),
                     ),
                     const SizedBox(height: AppSpacing.x16),
+
                     if (_enableSetlist && currentTeam != null) ...[
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -550,6 +563,7 @@ class _PerformanceInvitationPageState
                         ),
                       ),
                       const SizedBox(height: AppSpacing.x16),
+
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.x16),
                         decoration: BoxDecoration(
@@ -594,6 +608,7 @@ class _PerformanceInvitationPageState
                               ),
                             ),
                             const SizedBox(height: AppSpacing.x20),
+
                             Text(
                               '음원',
                               style: FontStyles.med15.copyWith(
@@ -601,6 +616,7 @@ class _PerformanceInvitationPageState
                               ),
                             ),
                             const SizedBox(height: AppSpacing.x8),
+
                             ReorderableListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -630,7 +646,9 @@ class _PerformanceInvitationPageState
                                 );
                               },
                             ),
+
                             const SizedBox(height: AppSpacing.x16),
+
                             Center(
                               child: GestureDetector(
                                 onTap: () {
@@ -664,6 +682,7 @@ class _PerformanceInvitationPageState
                         ),
                       ),
                     ],
+
                     const SizedBox(height: AppSpacing.x24),
                   ],
                 ),
@@ -722,6 +741,7 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
+
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -791,10 +811,12 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
+
               _DeleteCircleButton(onTap: onDelete),
             ],
           ),
           const SizedBox(height: 8),
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -829,6 +851,7 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
+
               _DeleteCircleButton(
                 onTap: () {
                   setState(() {

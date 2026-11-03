@@ -370,7 +370,7 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                                                 ),
                                                 const SizedBox(width: 8),
                                                 SvgPicture.asset(
-                                                  'assets/icons/team/reply.svg',
+                                                  'assets/icons/team/filled_reply.svg',
                                                   width: 16,
                                                   height: 16,
                                                   colorFilter: ColorFilter.mode(
