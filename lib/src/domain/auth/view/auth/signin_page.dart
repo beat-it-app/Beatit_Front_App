@@ -115,7 +115,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
 
   Future<void> _loginWithNaver() async {
     if (ref.read(authProvider).isLoading) return;
-    await ref.read(authProvider.notifier).loginWithNaver();
+    await ref.read(authProvider.notifier).loginWithNaver(context: context);
   }
 
   Future<void> _loginWithKakao() async {
@@ -178,7 +178,8 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     ref.listen(authProvider, (previous, next) {
       next.whenOrNull(
         data: (session) {
-          if (!mounted || session == null ||
+          if (!mounted ||
+              session == null ||
               ModalRoute.of(context)?.isCurrent != true) {
             return;
           }

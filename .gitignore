@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/release
 # Widget Preview related
 .widget_preview/
+
+# 환경 변수 및 시크릿 키 파일 제외
+*.env
+env.json
