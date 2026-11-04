@@ -120,7 +120,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
 
         return Padding(
           padding: const EdgeInsets.only(right: 6.0),
-          child: SvgPicture.asset(iconPath, width: 14, height: 14),
+          child: SvgPicture.asset(iconPath, width: 20, height: 20),
         );
       }).toList(),
     );

@@ -81,7 +81,9 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
         await tokenStorage.deleteTokens();
       }
 
-      debugPrint('[Auth] session restore failed: ${error.code} ${error.message}');
+      debugPrint(
+        '[Auth] session restore failed: ${error.code} ${error.message}',
+      );
       state = const AsyncData(null);
       return null;
     } catch (error) {
@@ -137,8 +139,9 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
         ),
   );
 
-  Future<void> loginWithNaver() => _loginWithSocial(
-    getToken: () => ref.read(naverAuthClientProvider).getAccessToken(),
+  Future<void> loginWithNaver({BuildContext? context}) => _loginWithSocial(
+    getToken: () =>
+        ref.read(naverAuthClientProvider).getAccessToken(context: context),
     authenticate: (token, deviceFields) => ref
         .read(authApiProvider)
         .loginWithNaver(accessToken: token, deviceFields: deviceFields),
@@ -156,7 +159,8 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
     required Future<AuthLoginResult> Function(
       String token,
       Map<String, dynamic> deviceFields,
-    ) authenticate,
+    )
+    authenticate,
   }) async {
     if (state.isLoading) return;
 
@@ -180,10 +184,12 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       debugPrint('[Auth] BeatIt server login started');
       final result = await authenticate(token, deviceFields);
 
-      await ref.read(authTokenStorageProvider).saveTokens(
-        accessToken: result.session.accessToken,
-        refreshToken: result.refreshToken,
-      );
+      await ref
+          .read(authTokenStorageProvider)
+          .saveTokens(
+            accessToken: result.session.accessToken,
+            refreshToken: result.refreshToken,
+          );
       debugPrint('[Auth] BeatIt session saved');
 
       _startTokenRefreshListener();
@@ -194,22 +200,22 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
   }
 
   void _startTokenRefreshListener() {
-    ref.read(authPushRegistrationProvider).startTokenRefreshListener(
-      (token) async {
-        final tokenStorage = ref.read(authTokenStorageProvider);
-        final accessToken = await tokenStorage.readAccessToken();
-        if (accessToken == null || accessToken.isEmpty) return;
+    ref.read(authPushRegistrationProvider).startTokenRefreshListener((
+      token,
+    ) async {
+      final tokenStorage = ref.read(authTokenStorageProvider);
+      final accessToken = await tokenStorage.readAccessToken();
+      if (accessToken == null || accessToken.isEmpty) return;
 
-        final registration = await ref
-            .read(authPushRegistrationProvider)
-            .registrationForRefreshedToken(token);
-        if (registration == null) return;
+      final registration = await ref
+          .read(authPushRegistrationProvider)
+          .registrationForRefreshedToken(token);
+      if (registration == null) return;
 
-        // 토큰 정보를 가져오는 중 로그아웃한 경우에는 전송하지 않는다.
-        if (await tokenStorage.readAccessToken() != accessToken) return;
-        await ref.read(authApiProvider).registerPushToken(registration);
-      },
-    );
+      // 토큰 정보를 가져오는 중 로그아웃한 경우에는 전송하지 않는다.
+      if (await tokenStorage.readAccessToken() != accessToken) return;
+      await ref.read(authApiProvider).registerPushToken(registration);
+    });
   }
 
   Future<void> _retryPushRegistration(String accessToken) async {
