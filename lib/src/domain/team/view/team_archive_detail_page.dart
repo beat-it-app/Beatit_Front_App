@@ -70,6 +70,8 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
           _isLoading = false;
           if (data.rating.myRating > 0) {
             _myRating = data.rating.myRating.toInt();
+          } else {
+            _myRating = null;
           }
         });
 
@@ -161,7 +163,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     );
   }
 
-  // 💡 디자인 시안과 동일한 '2026. 4. 2. 15:47' 형태 포맷팅
   String _formatDateTime(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     try {
@@ -177,7 +178,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     }
   }
 
-  // 💡 PostDetailPage에서 사용하는 shouldShowUpdatedAt 유틸리티 연동
   bool _isUpdated(String? createdAt, String? updatedAt) {
     if (createdAt == null || updatedAt == null) return false;
     if (createdAt.trim().isEmpty || updatedAt.trim().isEmpty) return false;
@@ -307,7 +307,55 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     }
   }
 
+  // 💡 별점 삭제 처리 함수 (DELETE /teams/archives/{archiveId}/ratings)
+  Future<void> _deleteRating() async {
+    try {
+      final api = ref.read(teamArchiveApiProvider);
+      final newRating = await api.deleteRating(archiveId: widget.archiveId);
+
+      if (mounted) {
+        setState(() {
+          _myRating = null;
+          if (_detail != null) {
+            _detail = TeamArchiveDetailModel(
+              archiveId: _detail!.archiveId,
+              teamId: _detail!.teamId,
+              writerId: _detail!.writerId,
+              title: _detail!.title,
+              roadAddress: _detail!.roadAddress,
+              locationId: _detail!.locationId,
+              description: _detail!.description,
+              archiveImageUrls: _detail!.archiveImageUrls,
+              writerName: _detail!.writerName,
+              writerProfileImageUrl: _detail!.writerProfileImageUrl,
+              isWriter: _detail!.isWriter,
+              topArchive: _detail!.topArchive,
+              rating: newRating,
+              commentCount: _detail!.commentCount,
+              commentList: _detail!.commentList,
+              createdAt: _detail!.createdAt,
+              updatedAt: _detail!.updatedAt,
+            );
+          }
+        });
+
+        ref.read(teamArchiveProvider.notifier).fetchArchives();
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('별점이 삭제되었습니다.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('별점 삭제 실패: $e')));
+      }
+    }
+  }
+
   void _showRatingDialog(BuildContext context) {
+    final bool isEditing = _myRating != null && _myRating! > 0;
     int tempRating = _myRating ?? 0;
 
     showDialog(
@@ -336,7 +384,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '별점을 남기시겠습니까?',
+                      isEditing ? '별점을 수정하시겠습니까?' : '별점을 남기시겠습니까?',
                       style: FontStyles.reg22.copyWith(
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -384,6 +432,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                     const SizedBox(height: 28),
                     Row(
                       children: [
+                        // 💡 수정 상태: 삭제 버튼 / 신규 등록: 취소 버튼
                         Expanded(
                           child: TextButton(
                             style: TextButton.styleFrom(
@@ -393,9 +442,14 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              if (isEditing) {
+                                _deleteRating();
+                              }
+                            },
                             child: Text(
-                              '취소',
+                              isEditing ? '삭제' : '취소',
                               style: FontStyles.semi16.copyWith(
                                 color: context.grays.gray4,
                               ),
@@ -403,6 +457,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        // 💡 확인 버튼: 기존 별점 그대로 유지하거나 변경된 별점 제출
                         Expanded(
                           child: TextButton(
                             style: TextButton.styleFrom(
@@ -417,7 +472,10 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                             onPressed: () {
                               if (tempRating > 0) {
                                 Navigator.pop(context);
-                                _submitRating(tempRating);
+                                // 기존 별점과 동일하면 불필요한 요청 방지 및 유지
+                                if (!isEditing || tempRating != _myRating) {
+                                  _submitRating(tempRating);
+                                }
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -503,7 +561,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
             AppDropdownItem(
               label: '수정하기',
               onPressed: () async {
-                // 💡 수정 화면으로 이동 후 복귀 시 무조건 최신 상세 정보 재조회
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -586,7 +643,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                           ),
                           const SizedBox(height: AppSpacing.x4),
 
-                          // 2. 작성일 / 최종수정일 (시안 포맷 적용)
+                          // 2. 작성일 / 최종수정일
                           Row(
                             children: [
                               Text(

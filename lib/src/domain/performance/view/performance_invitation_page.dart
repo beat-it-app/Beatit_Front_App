@@ -11,7 +11,6 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
-import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
@@ -105,7 +104,6 @@ class _PerformanceInvitationPageState
     super.dispose();
   }
 
-  // 💡 X 버튼 클릭 시 작성 중단 확인 팝업 (1, 2, 3단계 3개 pop하여 시작 전으로 복귀)
   Future<void> _handleCloseConfirmation() async {
     final confirmed = await AppPopup.show(
       context,
@@ -156,7 +154,6 @@ class _PerformanceInvitationPageState
     return '$y-$m-${d}T$h:$min:$sec$offsetStr';
   }
 
-  // 💡 티켓 목록 매핑 헬퍼 (onsite, general, advance, free 모두 정상 매핑)
   List _buildPriceList() {
     return widget.step1.ticketTypes.map((type) {
       final priceStr = widget.step1.ticketPrices[type] ?? '0';
@@ -167,10 +164,10 @@ class _PerformanceInvitationPageState
           priceType = 'ADVANCE';
           break;
         case PerformanceTicketType.onsite:
-          priceType = 'ON_SITE'; // 💡 현장 예매를 정확히 ON_SITE로 매핑
+          priceType = 'ON_SITE';
           break;
         case PerformanceTicketType.general:
-          priceType = 'ON_SITE'; // 일반 예매도 현장/일반 정책에 맞춰 매핑
+          priceType = 'GENERAL';
           break;
         case PerformanceTicketType.free:
         default:
@@ -185,6 +182,35 @@ class _PerformanceInvitationPageState
             : (int.tryParse(priceStr) ?? 0),
       };
     }).toList();
+  }
+
+  List _buildFormattedSetlist() {
+    if (!_enableSetlist) return [];
+
+    final List list = [];
+    for (final team in _teams) {
+      final teamName = team.nameController.text.trim().isEmpty
+          ? team.name
+          : team.nameController.text.trim();
+
+      final musics = [];
+      for (final m in team.musics) {
+        final title = m.musicTitle.text.trim();
+        final artist = m.musicArtist.text.trim();
+        if (title.isNotEmpty || artist.isNotEmpty) {
+          musics.add({
+            'musicTitle': title.isEmpty ? '미정' : title,
+            'musicArtist': artist.isEmpty ? '미정' : artist,
+            'description': m.description.text.trim(),
+          });
+        }
+      }
+
+      if (musics.isNotEmpty) {
+        list.add({'teamName': teamName, 'musics': musics});
+      }
+    }
+    return list;
   }
 
   Future<void> _submit() async {
@@ -247,54 +273,20 @@ class _PerformanceInvitationPageState
     }
   }
 
-  List _buildFormattedSetlist() {
-    if (!_enableSetlist) return [];
-
-    final List list = [];
-    for (final team in _teams) {
-      final teamName = team.nameController.text.trim().isEmpty
-          ? team.name
-          : team.nameController.text.trim();
-
-      final musics = [];
-      for (final m in team.musics) {
-        final title = m.musicTitle.text.trim();
-        final artist = m.musicArtist.text.trim();
-        if (title.isNotEmpty || artist.isNotEmpty) {
-          musics.add({
-            'musicTitle': title.isEmpty ? '미정' : title,
-            'musicArtist': artist.isEmpty ? '미정' : artist,
-            'description': m.description.text.trim(),
-          });
-        }
-      }
-
-      if (musics.isNotEmpty) {
-        list.add({'teamName': teamName, 'musics': musics});
-      }
-    }
-    return list;
-  }
-
-  Future<void> _updatePerformance(Dio dio) async {
-    final publicId = widget.editTarget!.performancePublicId;
+  /// 💡 공연 등록: 백엔드 @RequestPart("performanceCreateRequest") 스펙 충족
+  Future<void> _createPerformance(Dio dio) async {
     final formattedSetlist = _buildFormattedSetlist();
-
-    final retainUrls = widget.editTarget!.detailImages
-        .where((e) => widget.retainDetailFileIds.contains(e.fileId))
-        .map((e) => e.cdnUrl)
-        .toList();
 
     final requestMap = <String, dynamic>{
       'title': widget.step1.title,
       'description': widget.step1.introduction,
       'performanceDateTime': _formatOffsetDateTime(widget.step1.startsAt),
-      'locationId': widget.step1.location.locationId ?? 1,
+      'locationId': widget.step1.location.locationId,
       'placeName':
           widget.step1.location.locationName ??
           widget.step1.location.roadAddress ??
-          widget.editTarget!.placeName,
-      'prices': _buildPriceList(), // 💡 수정됨
+          '',
+      'prices': _buildPriceList(),
       'bookingDeadline': widget.step1.bookingClosesAt != null
           ? _formatOffsetDateTime(widget.step1.bookingClosesAt!)
           : null,
@@ -316,8 +308,83 @@ class _PerformanceInvitationPageState
         'description': _description.text.trim(),
         'setlist': formattedSetlist,
       },
+    };
+
+    final formData = FormData();
+
+    // 💡 키 이름을 'performanceCreateRequest'로 변경
+    formData.files.add(
+      MapEntry(
+        'performanceCreateRequest',
+        MultipartFile.fromString(
+          jsonEncode(requestMap),
+          contentType: DioMediaType('application', 'json'),
+        ),
+      ),
+    );
+
+    if (widget.step1.poster != null) {
+      formData.files.add(
+        MapEntry(
+          'posterImage',
+          await MultipartFile.fromFile(
+            widget.step1.poster!.path,
+            filename: widget.step1.poster!.name,
+          ),
+        ),
+      );
+    }
+
+    for (final image in widget.detailImages) {
+      formData.files.add(
+        MapEntry(
+          'detailImages',
+          await MultipartFile.fromFile(image.path, filename: image.name),
+        ),
+      );
+    }
+
+    await dio.post('/performances', data: formData);
+  }
+
+  /// 💡 공연 수정: 백엔드 @RequestPart("request") 및 retainDetailFileIds 단일화
+  Future<void> _updatePerformance(Dio dio) async {
+    final publicId = widget.editTarget!.performancePublicId;
+    final formattedSetlist = _buildFormattedSetlist();
+
+    final requestMap = <String, dynamic>{
+      'title': widget.step1.title,
+      'description': widget.step1.introduction,
+      'performanceDateTime': _formatOffsetDateTime(widget.step1.startsAt),
+      'locationId': widget.step1.location.locationId,
+      'placeName':
+          widget.step1.location.locationName ??
+          widget.step1.location.roadAddress ??
+          widget.editTarget!.placeName,
+      'prices': _buildPriceList(),
+      'bookingDeadline': widget.step1.bookingClosesAt != null
+          ? _formatOffsetDateTime(widget.step1.bookingClosesAt!)
+          : null,
+      'bookingLink': widget.step1.bookingUrl.isNotEmpty
+          ? widget.step1.bookingUrl
+          : null,
+      'hostName': widget.step1.hostName,
+      'hostContact':
+          widget.step1.hostContactType == PerformanceHostContactType.phone
+          ? widget.step1.hostContact
+          : null,
+      'hostLink':
+          widget.step1.hostContactType == PerformanceHostContactType.link
+          ? widget.step1.hostContact
+          : null,
+      'detailInfo': widget.detailDescription,
+      'invitationCard': {
+        'performanceTeam': _teamName.text.trim(),
+        'description': _description.text.trim(),
+        'setlist': formattedSetlist,
+      },
+      // 💡 retainDetailImageUrls 충돌 제거, 검증 가능한 ID 목록으로만 단일화
       'retainDetailFileIds': widget.retainDetailFileIds,
-      'retainDetailImageUrls': retainUrls,
       'deleteDetailFileIds': widget.deleteDetailFileIds,
       'deletePosterImage': widget.deletePosterImage,
     };
@@ -355,77 +422,6 @@ class _PerformanceInvitationPageState
     }
 
     await dio.patch('/performances/$publicId', data: formData);
-  }
-
-  Future<void> _createPerformance(Dio dio) async {
-    final formattedSetlist = _buildFormattedSetlist();
-
-    final requestMap = <String, dynamic>{
-      'title': widget.step1.title,
-      'description': widget.step1.introduction,
-      'performanceDateTime': _formatOffsetDateTime(widget.step1.startsAt),
-      'locationId': widget.step1.location.locationId ?? 1,
-      'placeName':
-          widget.step1.location.locationName ??
-          widget.step1.location.roadAddress ??
-          '',
-      'prices': _buildPriceList(), // 💡 수정됨
-      'bookingDeadline': widget.step1.bookingClosesAt != null
-          ? _formatOffsetDateTime(widget.step1.bookingClosesAt!)
-          : null,
-      'bookingLink': widget.step1.bookingUrl.isNotEmpty
-          ? widget.step1.bookingUrl
-          : null,
-      'hostName': widget.step1.hostName,
-      'hostContact':
-          widget.step1.hostContactType == PerformanceHostContactType.phone
-          ? widget.step1.hostContact
-          : null,
-      'hostLink':
-          widget.step1.hostContactType == PerformanceHostContactType.link
-          ? widget.step1.hostContact
-          : null,
-      'detailInfo': widget.detailDescription,
-      'invitationCard': {
-        'performanceTeam': _teamName.text.trim(),
-        'description': _description.text.trim(),
-        'setlist': formattedSetlist,
-      },
-    };
-
-    final formData = FormData();
-    formData.files.add(
-      MapEntry(
-        'request',
-        MultipartFile.fromString(
-          jsonEncode(requestMap),
-          contentType: DioMediaType('application', 'json'),
-        ),
-      ),
-    );
-
-    if (widget.step1.poster != null) {
-      formData.files.add(
-        MapEntry(
-          'posterImage',
-          await MultipartFile.fromFile(
-            widget.step1.poster!.path,
-            filename: widget.step1.poster!.name,
-          ),
-        ),
-      );
-    }
-
-    for (final image in widget.detailImages) {
-      formData.files.add(
-        MapEntry(
-          'detailImages',
-          await MultipartFile.fromFile(image.path, filename: image.name),
-        ),
-      );
-    }
-
-    await dio.post('/performances', data: formData);
   }
 
   @override
@@ -469,7 +465,6 @@ class _PerformanceInvitationPageState
                       fieldHeight: 140,
                     ),
                     const SizedBox(height: AppSpacing.x28),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -496,7 +491,6 @@ class _PerformanceInvitationPageState
                       ),
                     ),
                     const SizedBox(height: AppSpacing.x16),
-
                     if (_enableSetlist && currentTeam != null) ...[
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -563,7 +557,6 @@ class _PerformanceInvitationPageState
                         ),
                       ),
                       const SizedBox(height: AppSpacing.x16),
-
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.x16),
                         decoration: BoxDecoration(
@@ -608,7 +601,6 @@ class _PerformanceInvitationPageState
                               ),
                             ),
                             const SizedBox(height: AppSpacing.x20),
-
                             Text(
                               '음원',
                               style: FontStyles.med15.copyWith(
@@ -616,7 +608,6 @@ class _PerformanceInvitationPageState
                               ),
                             ),
                             const SizedBox(height: AppSpacing.x8),
-
                             ReorderableListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -646,9 +637,7 @@ class _PerformanceInvitationPageState
                                 );
                               },
                             ),
-
                             const SizedBox(height: AppSpacing.x16),
-
                             Center(
                               child: GestureDetector(
                                 onTap: () {
@@ -682,7 +671,6 @@ class _PerformanceInvitationPageState
                         ),
                       ),
                     ],
-
                     const SizedBox(height: AppSpacing.x24),
                   ],
                 ),
@@ -741,7 +729,6 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
-
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -803,6 +790,10 @@ class _PerformanceInvitationPageState
                               'assets/icons/performance/performance.svg',
                               width: 24,
                               height: 24,
+                              colorFilter: ColorFilter.mode(
+                                context.grays.gray4,
+                                BlendMode.srcIn,
+                              ),
                             ),
                           ),
                       ],
@@ -811,12 +802,10 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
-
               _DeleteCircleButton(onTap: onDelete),
             ],
           ),
           const SizedBox(height: 8),
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -851,7 +840,6 @@ class _PerformanceInvitationPageState
                 ),
               ),
               const SizedBox(width: 8),
-
               _DeleteCircleButton(
                 onTap: () {
                   setState(() {

@@ -260,4 +260,33 @@ class TeamArchiveApi {
       throw TeamArchiveApiException('아카이브 삭제 중 오류가 발생했습니다: $e');
     }
   }
+
+  /// 연습실 기록 별점 삭제 (DELETE /teams/archives/{archiveId}/ratings)
+  Future<TeamArchiveDetailRating> deleteRating({required int archiveId}) async {
+    try {
+      final response = await _dio.delete('/teams/archives/$archiveId/ratings');
+
+      final resData = response.data;
+      if (resData is Map<String, dynamic> && resData['data'] != null) {
+        return TeamArchiveDetailRating.fromJson(
+          resData['data'] as Map<String, dynamic>,
+        );
+      }
+
+      // 백엔드가 성공 시 빈 응답이나 단순 메시지만 보낼 경우 fallback
+      return TeamArchiveDetailRating(
+        averageRating: 0.0,
+        ratingCount: 0,
+        myRating: 0.0,
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      throw TeamArchiveApiException(
+        data?['message'] ?? '별점을 삭제하지 못했습니다.',
+        code: data?['code']?.toString(),
+      );
+    } catch (e) {
+      throw TeamArchiveApiException('별점 삭제 중 오류가 발생했습니다: $e');
+    }
+  }
 }
