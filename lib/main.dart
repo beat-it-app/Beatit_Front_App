@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/core/theme/theme_mode_provider.dart'; // 💡 테마 모드 프로바이더 import
+import 'package:beatit_front_app/src/domain/alarm/widget/foreground_alarm_banner_host.dart';
 import 'package:beatit_front_app/src/domain/auth/api/kakao_auth_client.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/auth_splash_page.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
@@ -9,6 +10,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,10 +42,16 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       title: 'Beatit',
+      navigatorKey: _rootNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: currentThemeMode,
+      // 실제 Navigator Overlay에 Android 포그라운드 배너를 표시한다.
+      builder: (context, child) => ForegroundAlarmBannerHost(
+        navigatorKey: _rootNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
       // 👈 고정값(ThemeMode.system) 대신 프로바이더 상태 바인딩
       home: const AuthSplashPage(),
     );
