@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
+import 'package:beatit_front_app/src/core/utils/platform_media_image_saver.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,6 +176,22 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
     CloudDownloadRequest file,
     String fileName,
   ) async {
+    // 이미지 파일은 공연 셋리스트 PNG와 동일한 공통 저장 경로를 사용한다.
+    // Android: MediaStore/Pictures, iOS: 시스템 공유 시트.
+    if (_isPhoto(fileName, file.mimeType) &&
+        (Platform.isAndroid || Platform.isIOS)) {
+      final filePath = await task.filePath();
+      final outcome = await PlatformMediaImageSaver.saveImageFile(
+        filePath: filePath,
+        fileName: fileName,
+        mimeType: file.mimeType,
+        sharePositionOrigin: _sharePositionOrigin(),
+      );
+      return outcome == PlatformImageSaveOutcome.savedToGallery
+          ? '이미지 저장이 완료되었습니다.'
+          : '이미지 공유를 완료했습니다. 사진 앱 저장 여부를 확인해주세요.';
+    }
+
     // Android에는 iOS의 사진/파일 저장 메뉴가 공통으로 제공되지 않으므로
     // 공유 시트를 거치지 않고 플랫폼 공유 저장소로 직접 저장합니다.
     if (Platform.isAndroid) {

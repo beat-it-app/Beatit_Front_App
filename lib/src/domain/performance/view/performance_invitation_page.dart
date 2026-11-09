@@ -10,6 +10,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:beatit_front_app/src/core/network/dio_provider.dart';
+import 'package:beatit_front_app/src/domain/performance/api/performance_api.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -61,6 +63,8 @@ class _PerformanceInvitationPageState
   int _selectedTeamIndex = 0;
   final List<_TeamGroup> _teams = [];
   bool _isLoading = false;
+  bool _isPrefillingInvitation = false;
+  String? _prefillError;
 
   bool get _isEditMode => widget.editTarget != null;
 
@@ -68,18 +72,69 @@ class _PerformanceInvitationPageState
   void initState() {
     super.initState();
     if (_isEditMode) {
-      _prefillInvitationData();
+      // 일반 공연 상세 API에 초대장 데이터가 없으므로 전용 API로 복원한다.
+      // 로딩 중에는 수정 폼을 잠가 저장 데이터가 덮어써지는 것을 방지한다.
+      _isPrefillingInvitation = true;
+      Future.microtask(_loadInvitationForEdit);
     } else {
       _teamName.text = widget.step1.hostName;
       _teams.add(_TeamGroup(name: '알사탕')..addMusic());
     }
   }
 
-  void _prefillInvitationData() {
-    final detail = widget.editTarget!.toDetailData();
-    _teamName.text = detail.hostName;
-    _description.text = detail.introduction;
+  Future<void> _loadInvitationForEdit() async {
+    setState(() {
+      _isPrefillingInvitation = true;
+      _prefillError = null;
+    });
+    try {
+      final response = await ref.read(performanceApiProvider).getPerformanceInvitation(
+        widget.editTarget!.performancePublicId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _prefillInvitationData(response.toInvitationCard());
+        _isPrefillingInvitation = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _prefillError = '저장된 셋리스트를 불러오지 못했습니다.';
+        _isPrefillingInvitation = false;
+      });
+    }
+  }
 
+  void _prefillInvitationData(PerformanceInvitationCard? savedCard) {
+    final detail = widget.editTarget!.toDetailData();
+    _enableSetlist = savedCard?.setlist.isNotEmpty ?? false;
+    _teamName.text = savedCard?.performanceTeam.isNotEmpty == true
+        ? savedCard!.performanceTeam
+        : detail.hostName;
+    _description.text = savedCard?.description.isNotEmpty == true
+        ? savedCard!.description
+        : detail.introduction;
+
+    // 공연 조회 응답에 저장된 invitationCard가 포함되어 있으면
+    // 수정 화면에서도 기존 팀과 곡을 그대로 불러온다.
+    if (savedCard != null && savedCard.setlist.isNotEmpty) {
+      for (final savedTeam in savedCard.setlist) {
+        final group = _TeamGroup(name: savedTeam.teamName);
+        for (final song in savedTeam.musics) {
+          final item = _MusicEntry();
+          item.musicTitle.text = song.musicTitle;
+          item.musicArtist.text = song.musicArtist;
+          item.description.text = song.description;
+          // 수정 시 서버에 저장된 음원 메타데이터도 복원해야
+          // 다시 저장해도 커버 이미지와 미리듣기 URL이 사라지지 않는다.
+          item.musicPreviewUrl = song.musicPreviewUrl;
+          item.musicImageUrl = song.musicImageUrl;
+          group.musics.add(item);
+        }
+        if (group.musics.isEmpty) group.addMusic();
+        _teams.add(group);
+      }
+    }
     if (_teams.isEmpty) {
       _teams.add(_TeamGroup(name: detail.hostName)..addMusic());
     }
@@ -133,6 +188,9 @@ class _PerformanceInvitationPageState
       setState(() {
         music.musicTitle.text = selected.title;
         music.musicArtist.text = selected.artist;
+        // 음악 검색 API 응답에서 제목/가수 외에 이미지와 미리듣기 URL도 보존한다.
+        music.musicPreviewUrl = selected.previewUrl;
+        music.musicImageUrl = selected.imageUrl;
       });
     }
   }
@@ -202,6 +260,11 @@ class _PerformanceInvitationPageState
             'musicTitle': title.isEmpty ? '미정' : title,
             'musicArtist': artist.isEmpty ? '미정' : artist,
             'description': m.description.text.trim(),
+            // 서버 SetlistMusicDto의 필드명과 일치시킨다.
+            if (m.musicPreviewUrl?.trim().isNotEmpty ?? false)
+              'musicPreviewUrl': m.musicPreviewUrl!.trim(),
+            if (m.musicImageUrl?.trim().isNotEmpty ?? false)
+              'musicImageUrl': m.musicImageUrl!.trim(),
           });
         }
       }
@@ -426,6 +489,31 @@ class _PerformanceInvitationPageState
 
   @override
   Widget build(BuildContext context) {
+    if (_isEditMode && (_isPrefillingInvitation || _prefillError != null)) {
+      return Scaffold(
+        backgroundColor: context.grays.white,
+        appBar: AppTopAppBar.backClose(
+          onBackPressed: () => Navigator.of(context).pop(),
+          onClosePressed: _handleCloseConfirmation,
+        ),
+        body: Center(
+          child: _isPrefillingInvitation
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_prefillError!, textAlign: TextAlign.center),
+                    const SizedBox(height: AppSpacing.x16),
+                    TextButton(
+                      onPressed: _loadInvitationForEdit,
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
+
     final currentTeam = _teams.isNotEmpty && _selectedTeamIndex < _teams.length
         ? _teams[_selectedTeamIndex]
         : null;
@@ -913,11 +1001,15 @@ class _MusicEntry {
   final musicTitle = TextEditingController();
   final musicArtist = TextEditingController();
   final description = TextEditingController();
+  String? musicPreviewUrl;
+  String? musicImageUrl;
 
   void clear() {
     musicTitle.clear();
     musicArtist.clear();
     description.clear();
+    musicPreviewUrl = null;
+    musicImageUrl = null;
   }
 
   void dispose() {

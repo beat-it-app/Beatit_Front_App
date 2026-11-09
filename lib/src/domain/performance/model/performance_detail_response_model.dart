@@ -2,6 +2,7 @@
 
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 
 class PerformanceLocation {
   final int locationId;
@@ -107,6 +108,7 @@ class PerformanceDetailModel {
   final List<PerformanceFile> detailImages;
   final String detailInfo;
   final String performanceStatus;
+  final PerformanceInvitationCard? invitationCard;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -132,9 +134,45 @@ class PerformanceDetailModel {
     required this.detailImages,
     required this.detailInfo,
     required this.performanceStatus,
+    this.invitationCard,
     this.createdAt,
     this.updatedAt,
   });
+
+  /// 일반 공연 상세 데이터에 초대장 전용 API 결과를 결합한다.
+  /// 기존 공연 상세 UI에서 사용 중인 모델의 다른 필드는 유지한다.
+  PerformanceDetailModel withInvitationResponse(
+    PerformanceInvitationResponse invitation,
+  ) {
+    return PerformanceDetailModel(
+      performanceId: performanceId,
+      performancePublicId: performancePublicId,
+      teamId: teamId,
+      teamName: teamName,
+      createdUserId: createdUserId,
+      isWriter: isWriter,
+      title: invitation.title.isNotEmpty ? invitation.title : title,
+      description: description,
+      performanceDateTime:
+          invitation.performanceDateTime ?? performanceDateTime,
+      location: location,
+      placeName:
+          invitation.placeName.isNotEmpty ? invitation.placeName : placeName,
+      poster: poster,
+      prices: prices,
+      bookingDeadline: bookingDeadline,
+      bookingLink: bookingLink,
+      hostName: hostName,
+      hostContact: hostContact,
+      hostLink: hostLink,
+      detailImages: detailImages,
+      detailInfo: detailInfo,
+      performanceStatus: performanceStatus,
+      invitationCard: invitation.toInvitationCard(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 
   factory PerformanceDetailModel.fromJson(Map<String, dynamic> json) {
     final List<PerformancePrice> parsedPrices = [];
@@ -198,6 +236,11 @@ class PerformanceDetailModel {
       detailImages: parsedDetailImages,
       detailInfo: json['detailInfo']?.toString() ?? '',
       performanceStatus: json['performanceStatus']?.toString() ?? 'UPCOMING',
+      invitationCard: json['invitationCard'] is Map
+          ? PerformanceInvitationCard.fromJson(
+              Map<String, dynamic>.from(json['invitationCard'] as Map),
+            )
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,

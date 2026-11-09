@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import '../model/performance_create_model.dart';
 import '../model/performance_detail_response_model.dart';
 import '../model/performance_model.dart';
+import '../model/performance_invitation_view_model.dart';
 
 final performanceApiProvider = Provider<PerformanceApi>((ref) {
   return PerformanceApi(ref.watch(dioProvider));
@@ -127,6 +128,24 @@ class PerformanceApi {
       debugPrint('🚨 [공연 수정 알 수 없는 오류]: $e');
       rethrow;
     }
+  }
+
+  /// 모바일 초대장 조회. 일반 공연 상세 응답에는 셋리스트가 없으므로 전용 API를 호출한다.
+  Future<PerformanceInvitationResponse> getPerformanceInvitation(
+    String publicId,
+  ) async {
+    final response = await _dio.get('/performances/$publicId/invitation');
+    final body = response.data;
+    if (body is! Map || body['success'] == false || body['data'] is! Map) {
+      throw const FormatException('모바일 초대장 응답 형식이 올바르지 않습니다.');
+    }
+    final invitation = PerformanceInvitationResponse.fromJson(
+      Map<String, dynamic>.from(body['data'] as Map),
+    );
+    debugPrint(
+      '📥 [모바일 초대장 조회] 공연: $publicId, 팀: ${invitation.setlist.length}개',
+    );
+    return invitation;
   }
 
   /// 3. 공연 삭제 (DELETE /performances/{publicId})
