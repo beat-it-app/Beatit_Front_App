@@ -18,6 +18,7 @@ import 'package:beatit_front_app/src/domain/performance/model/performance_data.d
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
 import 'package:beatit_front_app/src/domain/performance/provider/performance_detail_provider.dart';
 import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_invite_view_page.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_detail_sections.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_hero.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_host_dialog.dart';
@@ -346,7 +347,13 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                       child: ElevatedButton(
                         onPressed:
                             widget.onViewResponses ??
-                            () => _unavailable('초대장 보기 기능 준비 중입니다.'),
+                            () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => PerformanceInviteViewPage(
+                                  performance: serverModel,
+                                ),
+                              ),
+                            ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: context.colors.primary,
                           foregroundColor: context.grays.white,

@@ -77,9 +77,30 @@ class _PerformanceInvitationPageState
 
   void _prefillInvitationData() {
     final detail = widget.editTarget!.toDetailData();
-    _teamName.text = detail.hostName;
-    _description.text = detail.introduction;
+    final savedCard = widget.editTarget!.invitationCard;
+    _teamName.text = savedCard?.performanceTeam.isNotEmpty == true
+        ? savedCard!.performanceTeam
+        : detail.hostName;
+    _description.text = savedCard?.description.isNotEmpty == true
+        ? savedCard!.description
+        : detail.introduction;
 
+    // 공연 조회 응답에 저장된 invitationCard가 포함되어 있으면
+    // 수정 화면에서도 기존 팀과 곡을 그대로 불러온다.
+    if (savedCard != null && savedCard.setlist.isNotEmpty) {
+      for (final savedTeam in savedCard.setlist) {
+        final group = _TeamGroup(name: savedTeam.teamName);
+        for (final song in savedTeam.musics) {
+          final item = _MusicEntry();
+          item.musicTitle.text = song.musicTitle;
+          item.musicArtist.text = song.musicArtist;
+          item.description.text = song.description;
+          group.musics.add(item);
+        }
+        if (group.musics.isEmpty) group.addMusic();
+        _teams.add(group);
+      }
+    }
     if (_teams.isEmpty) {
       _teams.add(_TeamGroup(name: detail.hostName)..addMusic());
     }

@@ -2,6 +2,7 @@
 
 import 'package:beatit_front_app/src/domain/etc/model/location_search_result.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 
 class PerformanceLocation {
   final int locationId;
@@ -107,6 +108,7 @@ class PerformanceDetailModel {
   final List<PerformanceFile> detailImages;
   final String detailInfo;
   final String performanceStatus;
+  final PerformanceInvitationCard? invitationCard;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -132,6 +134,7 @@ class PerformanceDetailModel {
     required this.detailImages,
     required this.detailInfo,
     required this.performanceStatus,
+    this.invitationCard,
     this.createdAt,
     this.updatedAt,
   });
@@ -198,6 +201,11 @@ class PerformanceDetailModel {
       detailImages: parsedDetailImages,
       detailInfo: json['detailInfo']?.toString() ?? '',
       performanceStatus: json['performanceStatus']?.toString() ?? 'UPCOMING',
+      invitationCard: json['invitationCard'] is Map
+          ? PerformanceInvitationCard.fromJson(
+              Map<String, dynamic>.from(json['invitationCard'] as Map),
+            )
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
