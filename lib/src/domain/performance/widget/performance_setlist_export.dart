@@ -111,19 +111,16 @@ class _ExportSongRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
                 width: 28,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Text(
-                    '$number',
-                    style: FontStyles.med14.copyWith(color: AppColor.white),
-                  ),
+                child: Text(
+                  '$number',
+                  style: FontStyles.med14.copyWith(color: AppColor.white),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 4),
               Container(
                 width: 24,
                 height: 24,
@@ -188,10 +185,7 @@ class PerformanceSetlistFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       width: PerformanceSetlistExport.imageWidth,
-      child: ColoredBox(
-        color: AppColor.black,
-        child: _SetlistFooterContents(),
-      ),
+      child: ColoredBox(color: AppColor.black, child: _SetlistFooterContents()),
     );
   }
 }
