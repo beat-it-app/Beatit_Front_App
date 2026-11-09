@@ -20,41 +20,49 @@ class PerformanceInvitationExport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: imageWidth,
-      height: imageHeight,
-      child: ColoredBox(
-        color: AppColor.black,
-        child: Column(
-          children: [
-            const SizedBox(height: 139),
-            SizedBox(
-              width: 254,
-              height: 416,
-              child: PerformanceInvitationTicket(
-                performance: performance,
-                face: InvitationTicketFace.information,
-              ),
-            ),
-            const SizedBox(height: 78),
-            Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: '*',
-                  style: FontStyles.semi14.copyWith(color: AppColor.beatOrange1),
+    return ClipRect(
+      child: SizedBox(
+        width: imageWidth,
+        height: imageHeight,
+        child: ColoredBox(
+          color: AppColor.black,
+          child: Column(
+            children: [
+              const SizedBox(height: 139),
+              SizedBox(
+                width: 254,
+                height: 416,
+                child: PerformanceInvitationTicket(
+                  performance: performance,
+                  face: InvitationTicketFace.information,
                 ),
-                const TextSpan(text: '본 이미지는 공연 관람용 티켓이 아닙니다.'),
-              ]),
-              style: FontStyles.semi14.copyWith(color: AppColor.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '관람용 티켓은 공연 상세페이지에서 운영진을 통해 구매해주세요.',
-              style: FontStyles.reg11.copyWith(color: AppColor.gray5),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              ),
+              const SizedBox(height: 78),
+              Text.rich(
+                TextSpan(children: [
+                  TextSpan(
+                    text: '*',
+                    style: FontStyles.semi14.copyWith(
+                      color: AppColor.beatOrange1,
+                    ),
+                  ),
+                  const TextSpan(text: '본 이미지는 공연 관람용 티켓이 아닙니다.'),
+                ]),
+                style: FontStyles.semi14.copyWith(color: AppColor.white),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '관람용 티켓은 공연 상세페이지에서 운영진을 통해 구매해주세요.',
+                style: FontStyles.reg11.copyWith(color: AppColor.gray5),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

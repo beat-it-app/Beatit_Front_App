@@ -4,19 +4,17 @@ import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// 한 팀당 PNG 한 장. 곡 수만큼 이미지 높이를 늘려 목록 전체를 출력한다.
 /// (스크롤 가능한 ListView가 아니므로 스크롤에 가려진 곡도 잘리지 않는다.)
 class PerformanceSetlistExport extends StatelessWidget {
-  const PerformanceSetlistExport({
-    super.key,
-    required this.team,
-  });
+  const PerformanceSetlistExport({super.key, required this.team});
 
   final PerformanceSetlistTeam team;
 
-  static const double imageWidth = 360;
-  static const double _rowHeight = 58;
+  static const double imageWidth = 450;
+  static const double _rowHeight = 70;
 
   double get imageHeight =>
       math.max(800, 280 + team.musics.length * _rowHeight).toDouble();
@@ -41,15 +39,17 @@ class PerformanceSetlistExport extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text.rich(
-                  TextSpan(children: [
-                    TextSpan(
-                      text: '*',
-                      style: FontStyles.semi14.copyWith(
-                        color: AppColor.beatOrange1,
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '*',
+                        style: FontStyles.semi14.copyWith(
+                          color: AppColor.beatOrange1,
+                        ),
                       ),
-                    ),
-                    TextSpan(text: team.teamName),
-                  ]),
+                      TextSpan(text: team.teamName),
+                    ],
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: FontStyles.semi14.copyWith(color: AppColor.white),
@@ -67,11 +67,10 @@ class PerformanceSetlistExport extends StatelessWidget {
               for (var i = 0; i < team.musics.length; i++)
                 _ExportSongRow(number: i + 1, song: team.musics[i]),
               const Spacer(),
-              Text(
-                'Beat It!',
-                style: FontStyles.bold18.copyWith(
-                  color: AppColor.beatOrange1,
-                ),
+              Image.asset(
+                'assets/images/beat_it_app_icon.png',
+                width: 33,
+                height: 33,
               ),
               const SizedBox(height: 36),
             ],
@@ -97,28 +96,35 @@ class _ExportSongRow extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                SizedBox(
-                  width: 24,
-                  child: Text(
-                    '$number',
-                    textAlign: TextAlign.left,
-                    style: FontStyles.reg14.copyWith(color: AppColor.white),
-                  ),
+                Text(
+                  '$number',
+                  textAlign: TextAlign.left,
+                  style: FontStyles.med14.copyWith(color: AppColor.white),
                 ),
+                const SizedBox(width: 16),
                 Container(
-                  height: 22,
-                  width: 22,
+                  height: 24,
+                  width: 24,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColor.beatOrange1,
                   ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    size: 15,
-                    color: AppColor.white,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: SvgPicture.asset(
+                        'assets/icons/cloud/play.svg',
+                        width: 10,
+                        height: 10,
+                        colorFilter: const ColorFilter.mode(
+                          AppColor.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 13),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,7 +134,7 @@ class _ExportSongRow extends StatelessWidget {
                         song.musicTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FontStyles.semi16.copyWith(
+                        style: FontStyles.semi18.copyWith(
                           color: AppColor.white,
                         ),
                       ),
@@ -137,9 +143,7 @@ class _ExportSongRow extends StatelessWidget {
                         song.musicArtist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FontStyles.reg12.copyWith(
-                          color: AppColor.gray5,
-                        ),
+                        style: FontStyles.med14.copyWith(color: AppColor.gray5),
                       ),
                     ],
                   ),

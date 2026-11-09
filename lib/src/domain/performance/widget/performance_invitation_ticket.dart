@@ -34,7 +34,6 @@ class PerformanceInvitationTicket extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 티켓 자체는 공연 브랜드 그래픽이므로 앱의 밝기 설정과 무관하게 고정 팔레트.
     final orange = AppColor.beatOrange1;
     final darkGray = AppColor.gray1;
 
@@ -45,9 +44,9 @@ class PerformanceInvitationTicket extends StatelessWidget {
           decoration: const BoxDecoration(
             boxShadow: [
               BoxShadow(
-                color: Color(0x99000000),
+                color: Color(0x50000000),
                 blurRadius: 4,
-                offset: Offset(3, 0),
+                offset: Offset(5, 0),
                 spreadRadius: 0,
               ),
             ],
@@ -109,7 +108,6 @@ class _CoverFace extends StatelessWidget {
         const SizedBox(height: AppSpacing.x24),
         const _LiveStageCaption(),
         Expanded(
-          // 로고는 티켓 가로폭 전체를 사용한다 (좌우 padding 없음).
           child: ClipRect(
             child: SizedBox.expand(
               child: SvgPicture.asset(
@@ -136,10 +134,9 @@ class _InformationFace extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 325;
-        // 정보 필드의 1/1/2줄에 필요한 높이를 항상 확보한다.
         final detailsHeight = math.min(
-          constraints.maxHeight * 0.48,
-          math.max(115.0, constraints.maxHeight * 0.345),
+          constraints.maxHeight * 0.30,
+          math.max(110.0, constraints.maxHeight * 0.345),
         );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,33 +150,38 @@ class _InformationFace extends StatelessWidget {
                   AppSpacing.x8,
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Center(child: _LiveStageCaption()),
-                        const SizedBox(height: AppSpacing.x12),
-                        Padding(
-                          padding: const EdgeInsets.only(left: AppSpacing.x8),
+                    const Center(child: _LiveStageCaption()),
+                    const SizedBox(height: AppSpacing.x12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.x8),
+                        child: Align(
+                          alignment: Alignment.topLeft,
                           child: Text(
                             performance.title,
                             maxLines: compact ? 2 : 3,
                             overflow: TextOverflow.ellipsis,
-                            style: (compact ? FontStyles.bold22 : FontStyles.bold28)
-                                .copyWith(color: AppColor.black, height: 1.18),
+                            style:
+                                (compact
+                                        ? FontStyles.bold22
+                                        : FontStyles.bold28)
+                                    .copyWith(
+                                      color: AppColor.black,
+                                      height: 1.18,
+                                    ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.x8),
                     Align(
                       alignment: Alignment.centerRight,
                       child: SvgPicture.asset(
-                        'assets/icons/performance/black_logo.svg',
-                        width: compact ? 42 : 62,
-                        height: compact ? 42 : 62,
+                        'assets/icons/performance/black_arrow.svg',
+                        width: 70,
+                        height: 70,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -193,15 +195,18 @@ class _InformationFace extends StatelessWidget {
                 color: AppColor.gray8,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.x20,
-                    vertical: AppSpacing.x12,
+                    horizontal: AppSpacing.x24,
+                    vertical: AppSpacing.x16,
                   ),
-                  // 텍스트 크기를 줄이는 FittedBox 대신 줄 수와 생략 규칙을 사용한다.
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      _InformationLine(label: '팀', value: teamName, maxLines: 1),
+                      _InformationLine(
+                        label: '팀',
+                        value: teamName,
+                        maxLines: 1,
+                      ),
                       const SizedBox(height: 2),
                       _InformationLine(
                         label: '날짜',

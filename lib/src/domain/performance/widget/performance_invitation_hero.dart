@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
@@ -23,6 +25,11 @@ class PerformanceInvitationHero extends StatefulWidget {
 
 class _PerformanceInvitationHeroState extends State<PerformanceInvitationHero> {
   int _currentTicket = 0;
+
+  // 참고 이미지에서 파란 선으로 표시한 티켓 위치.
+  // 위젯 크기(화면 높이 50%, 가로:세로 5:8)는 건드리지 않고
+  // 티켓만 내려서 하단 화살표와 안내 문구는 기존 위치에 유지한다.
+  static const double _ticketDownOffset = 52;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +69,11 @@ class _PerformanceInvitationHeroState extends State<PerformanceInvitationHero> {
               animation: widget.entrance,
               builder: (context, child) {
                 final progress = widget.entrance.value;
+                // 작은 화면에서는 화살표 영역을 침범하지 않도록 보정량을 제한한다.
+                final downOffset = math.min(
+                  _ticketDownOffset,
+                  constraints.maxHeight * 0.075,
+                );
                 return IgnorePointer(
                   ignoring: progress < 0.95,
                   child: Opacity(
@@ -69,7 +81,8 @@ class _PerformanceInvitationHeroState extends State<PerformanceInvitationHero> {
                     child: Transform.translate(
                       offset: Offset(
                         0,
-                        (1 - progress) * constraints.maxHeight * 0.52,
+                        downOffset +
+                            (1 - progress) * constraints.maxHeight * 0.52,
                       ),
                       child: child,
                     ),

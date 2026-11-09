@@ -41,6 +41,7 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
   bool _isLowerSectionVisible = false;
   bool _isProgrammaticScroll = false;
   int _selectedTeamIndex = 0;
+  bool _showAllSongs = false;
   double _heroHeight = 0;
   bool _isSharing = false;
 
@@ -53,6 +54,11 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
   }
 
   bool get _hasSetlist => _teams.any((team) => team.musics.isNotEmpty);
+
+  // 각 팀은 처음 10곡만 노출한다. 더보기는 화면 표시만 확장하며,
+  // 저장용 PNG에는 항상 해당 팀의 전체 곡이 들어간다.
+  int get _visibleSongCount =>
+      _showAllSongs || _selectedSongs.length <= 10 ? _selectedSongs.length : 10;
 
   @override
   void initState() {
@@ -294,7 +300,10 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
                             teams: _teams,
                             selectedIndex: _selectedTeamIndex,
                             onTeamSelected: (index) {
-                              setState(() => _selectedTeamIndex = index);
+                              setState(() {
+                                _selectedTeamIndex = index;
+                                _showAllSongs = false;
+                              });
                             },
                           ),
                         ),
@@ -305,12 +314,20 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
                         )
                       else
                         SliverList.builder(
-                          itemCount: _selectedSongs.length,
+                          itemCount: _visibleSongCount,
                           itemBuilder: (context, index) =>
                               PerformanceSetlistSongItem(
                                 number: index + 1,
                                 song: _selectedSongs[index],
                               ),
+                        ),
+                      if (_selectedSongs.length > 10)
+                        SliverToBoxAdapter(
+                          child: PerformanceSetlistExpandButton(
+                            expanded: _showAllSongs,
+                            onPressed: () =>
+                                setState(() => _showAllSongs = !_showAllSongs),
+                          ),
                         ),
                       const SliverToBoxAdapter(
                         child: SizedBox(height: AppSpacing.x70),

@@ -29,13 +29,15 @@ abstract final class PerformanceImageCapture {
               left: 0,
               child: RepaintBoundary(
                 key: key,
-                child: Theme(
-                  data: AppTheme.dark,
-                  child: MediaQuery(
-                    data: MediaQuery.of(overlayContext).copyWith(
-                      textScaler: TextScaler.noScaling,
+                child: ClipRect(
+                  child: Theme(
+                    data: AppTheme.dark,
+                    child: MediaQuery(
+                      data: MediaQuery.of(
+                        overlayContext,
+                      ).copyWith(textScaler: TextScaler.noScaling),
+                      child: SizedBox(width: width, child: child),
                     ),
-                    child: SizedBox(width: width, child: child),
                   ),
                 ),
               ),
@@ -53,16 +55,13 @@ abstract final class PerformanceImageCapture {
 
     overlay.insert(entry);
     try {
-      // 첫 프레임에서 레이아웃/페인트가 끝나야 캡처 가능하다.
       await WidgetsBinding.instance.endOfFrame;
-      // SVG 등의 에셋 로더도 그려질 기회를 한 프레임 더 준다.
       await WidgetsBinding.instance.endOfFrame;
       final boundary = key.currentContext?.findRenderObject();
       if (boundary is! RenderRepaintBoundary) {
         throw StateError('이미지 렌더 영역을 찾을 수 없습니다.');
       }
       final height = boundary.size.height;
-      // GPU 최대 텍스처 크기를 고려하면서 긴 셋리스트도 한 장으로 생성.
       final scale = math.min(
         3.0,
         math.min(9000 / math.max(1, height), 4096 / width),
@@ -71,10 +70,9 @@ abstract final class PerformanceImageCapture {
       try {
         final data = await image.toByteData(format: ui.ImageByteFormat.png);
         if (data == null) throw StateError('PNG 이미지 생성에 실패했습니다.');
-        return Uint8List.fromList(data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        ));
+        return Uint8List.fromList(
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        );
       } finally {
         image.dispose();
       }
