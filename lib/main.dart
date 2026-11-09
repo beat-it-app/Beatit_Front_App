@@ -31,13 +31,11 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-// 💡 StatelessWidget에서 ConsumerWidget으로 변경
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 💡 화면 설정에서 변경되는 ThemeMode를 실시간 구독
     final currentThemeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
@@ -47,12 +45,15 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: currentThemeMode,
+<<<<<<< HEAD
       // 실제 Navigator Overlay에 Android 포그라운드 배너를 표시한다.
       builder: (context, child) => ForegroundAlarmBannerHost(
         navigatorKey: _rootNavigatorKey,
         child: child ?? const SizedBox.shrink(),
       ),
       // 👈 고정값(ThemeMode.system) 대신 프로바이더 상태 바인딩
+=======
+>>>>>>> develop
       home: const AuthSplashPage(),
     );
   }

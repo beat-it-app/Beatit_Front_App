@@ -103,6 +103,8 @@ class PerformanceItem extends StatelessWidget {
             const SizedBox(height: AppSpacing.x8),
             Text(
               dateStr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: FontStyles.reg15.copyWith(color: context.grays.gray4),
             ),
             const SizedBox(height: AppSpacing.x4),
@@ -148,6 +150,32 @@ class PerformanceGrid extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final width = (constraints.maxWidth - AppSpacing.x20 * 3) / 2;
+
+      // 고정된 +78은 제목이 두 줄이거나 접근성 글꼴 크기가 커지면
+      // RenderFlex overflow(노랑/검정 줄무늬)를 발생시킬 수 있다.
+      // 실제 Pretendard 글꼴/시스템 텍스트 배율의 높이를 기준으로 카드 크기를 잡는다.
+      final direction = Directionality.of(context);
+      final scaler = MediaQuery.textScalerOf(context);
+      final titleMeasure = TextPainter(
+        text: const TextSpan(text: '공연 이름\n공연 이름', style: FontStyles.semi18),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 2,
+      )..layout(maxWidth: width);
+      final dateMeasure = TextPainter(
+        text: const TextSpan(text: '2026. 11. 10.', style: FontStyles.reg15),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout(maxWidth: width);
+      final detailsHeight = AppSpacing.x8 +
+          dateMeasure.height +
+          AppSpacing.x4 +
+          titleMeasure.height +
+          AppSpacing.x20; // 폰트별 ascent/descent 및 안전 여백
+      titleMeasure.dispose();
+      dateMeasure.dispose();
+
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.x20,
@@ -160,7 +188,7 @@ class PerformanceGrid extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: AppSpacing.x20,
           mainAxisSpacing: AppSpacing.x20,
-          mainAxisExtent: width * (210 / 165) + 78,
+          mainAxisExtent: width * (210 / 165) + detailsHeight,
         ),
         itemBuilder: (context, index) {
           final item = performances[index];
