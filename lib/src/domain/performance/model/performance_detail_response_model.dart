@@ -139,6 +139,41 @@ class PerformanceDetailModel {
     this.updatedAt,
   });
 
+  /// 일반 공연 상세 데이터에 초대장 전용 API 결과를 결합한다.
+  /// 기존 공연 상세 UI에서 사용 중인 모델의 다른 필드는 유지한다.
+  PerformanceDetailModel withInvitationResponse(
+    PerformanceInvitationResponse invitation,
+  ) {
+    return PerformanceDetailModel(
+      performanceId: performanceId,
+      performancePublicId: performancePublicId,
+      teamId: teamId,
+      teamName: teamName,
+      createdUserId: createdUserId,
+      isWriter: isWriter,
+      title: invitation.title.isNotEmpty ? invitation.title : title,
+      description: description,
+      performanceDateTime:
+          invitation.performanceDateTime ?? performanceDateTime,
+      location: location,
+      placeName:
+          invitation.placeName.isNotEmpty ? invitation.placeName : placeName,
+      poster: poster,
+      prices: prices,
+      bookingDeadline: bookingDeadline,
+      bookingLink: bookingLink,
+      hostName: hostName,
+      hostContact: hostContact,
+      hostLink: hostLink,
+      detailImages: detailImages,
+      detailInfo: detailInfo,
+      performanceStatus: performanceStatus,
+      invitationCard: invitation.toInvitationCard(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
   factory PerformanceDetailModel.fromJson(Map<String, dynamic> json) {
     final List<PerformancePrice> parsedPrices = [];
     final rawPrices = json['prices'];

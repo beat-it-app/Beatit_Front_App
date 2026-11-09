@@ -1,44 +1,57 @@
-import 'dart:math' as math;
-
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// 한 팀당 PNG 한 장. 곡 수만큼 이미지 높이를 늘려 목록 전체를 출력한다.
-/// (스크롤 가능한 ListView가 아니므로 스크롤에 가려진 곡도 잘리지 않는다.)
+/// 팀별 PNG 저장을 위한 렌더링 전용 위젯.
+///
+/// 화면에서 보이는 10곡 제한과 관계없이 전달된 songs 전체를 렌더링한다.
+/// 아주 긴 목록은 [PerformanceSetlistImageExporter]가 여러 조각으로 나눠
+/// 캡처 후 하나의 세로 이미지로 이어 붙인다.
 class PerformanceSetlistExport extends StatelessWidget {
-  const PerformanceSetlistExport({super.key, required this.team});
+  const PerformanceSetlistExport({
+    super.key,
+    required this.team,
+    this.songs,
+    this.startIndex = 0,
+    this.showHeading = true,
+    this.showFooter = true,
+  });
 
   final PerformanceSetlistTeam team;
+  final List<PerformanceSetlistSong>? songs;
+  final int startIndex;
+  final bool showHeading;
+  final bool showFooter;
 
   static const double imageWidth = 450;
-  static const double _rowHeight = 70;
-
-  double get imageHeight =>
-      math.max(800, 280 + team.musics.length * _rowHeight).toDouble();
 
   @override
   Widget build(BuildContext context) {
+    final exportSongs = songs ?? team.musics;
+
+    // 고정 높이 + Spacer를 제거한다. 긴 곡 제목/가수/소개가 자연스럽게
+    // 높이를 늘려 화면 밖의 데이터도 PNG에 모두 담긴다.
     return SizedBox(
       width: imageWidth,
-      height: imageHeight,
       child: ColoredBox(
         color: AppColor.black,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 35),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 88),
-              Text(
-                'SET LIST',
-                style: FontStyles.med12.copyWith(color: AppColor.white),
-              ),
-              const SizedBox(height: 29),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text.rich(
+              if (showHeading) ...[
+                const SizedBox(height: 88),
+                Text(
+                  'SET LIST',
+                  textAlign: TextAlign.center,
+                  style: FontStyles.med12.copyWith(color: AppColor.white),
+                ),
+                const SizedBox(height: 29),
+                Text.rich(
                   TextSpan(
                     children: [
                       TextSpan(
@@ -50,13 +63,12 @@ class PerformanceSetlistExport extends StatelessWidget {
                       TextSpan(text: team.teamName),
                     ],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: FontStyles.semi14.copyWith(color: AppColor.white),
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (team.musics.isEmpty)
+                const SizedBox(height: 16),
+              ],
+              if (exportSongs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Text(
@@ -64,15 +76,22 @@ class PerformanceSetlistExport extends StatelessWidget {
                     style: FontStyles.reg14.copyWith(color: AppColor.gray5),
                   ),
                 ),
-              for (var i = 0; i < team.musics.length; i++)
-                _ExportSongRow(number: i + 1, song: team.musics[i]),
-              const Spacer(),
-              Image.asset(
-                'assets/images/beat_it_app_icon.png',
-                width: 33,
-                height: 33,
-              ),
-              const SizedBox(height: 36),
+              for (var i = 0; i < exportSongs.length; i++)
+                _ExportSongRow(
+                  number: startIndex + i + 1,
+                  song: exportSongs[i],
+                ),
+              if (showFooter) ...[
+                const SizedBox(height: 56),
+                Center(
+                  child: Image.asset(
+                    'assets/images/beat_it_app_icon.png',
+                    width: 33,
+                    height: 33,
+                  ),
+                ),
+                const SizedBox(height: 36),
+              ],
             ],
           ),
         ),
@@ -89,68 +108,80 @@ class _ExportSongRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: PerformanceSetlistExport._rowHeight,
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Row(
-              children: [
-                Text(
-                  '$number',
-                  textAlign: TextAlign.left,
-                  style: FontStyles.med14.copyWith(color: AppColor.white),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  height: 24,
-                  width: 24,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColor.beatOrange1,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 28,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    '$number',
+                    style: FontStyles.med14.copyWith(color: AppColor.white),
                   ),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: SvgPicture.asset(
-                        'assets/icons/cloud/play.svg',
-                        width: 10,
-                        height: 10,
-                        colorFilter: const ColorFilter.mode(
-                          AppColor.white,
-                          BlendMode.srcIn,
-                        ),
-                      ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColor.beatOrange1,
+                ),
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: SvgPicture.asset(
+                    'assets/icons/cloud/play.svg',
+                    width: 10,
+                    height: 10,
+                    colorFilter: const ColorFilter.mode(
+                      AppColor.white,
+                      BlendMode.srcIn,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      song.musicTitle,
+                      softWrap: true,
+                      style: FontStyles.semi18.copyWith(color: AppColor.white),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      song.musicArtist,
+                      softWrap: true,
+                      style: FontStyles.med14.copyWith(color: AppColor.gray5),
+                    ),
+                    if (song.description.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
                       Text(
-                        song.musicTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: FontStyles.semi18.copyWith(
-                          color: AppColor.white,
+                        song.description,
+                        softWrap: true,
+                        style: FontStyles.med14.copyWith(
+                          color: AppColor.gray5,
+                          height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        song.musicArtist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: FontStyles.med14.copyWith(color: AppColor.gray5),
-                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
           const Divider(height: 1, thickness: 1, color: AppColor.gray4),
         ],
       ),

@@ -3,13 +3,19 @@
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
 import 'package:beatit_front_app/src/domain/performance/view/performance_invite_view_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    MaterialApp(
+    ProviderScope(
+      child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: PerformanceInviteViewPage(performance: previewPerformance),
+      home: PerformanceInviteViewPage(
+        performance: previewPerformance,
+        fetchFromApi: false,
+      ),
+      ),
     ),
   );
 }

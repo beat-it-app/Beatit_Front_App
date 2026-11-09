@@ -16,6 +16,7 @@ abstract final class PerformanceImageCapture {
     required BuildContext context,
     required Widget child,
     required double width,
+    double? pixelRatio,
   }) async {
     final key = GlobalKey();
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -63,7 +64,7 @@ abstract final class PerformanceImageCapture {
       }
       final height = boundary.size.height;
       final scale = math.min(
-        3.0,
+        pixelRatio ?? 3.0,
         math.min(9000 / math.max(1, height), 4096 / width),
       );
       final image = await boundary.toImage(pixelRatio: scale);

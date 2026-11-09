@@ -7,31 +7,108 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
+import 'package:beatit_front_app/src/domain/performance/provider/performance_invitation_provider.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_actions.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_hero.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_image_capture.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_export.dart';
-import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_export.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_image_exporter.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_scroll_arrow.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_section.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// 공연 상세 화면에서 진입하는 읽기 전용 모바일 초대장.
-/// 공연 생성/수정 화면에서 쓰는 입력용 컨트롤러와 책임을 분리한다.
-class PerformanceInviteViewPage extends StatefulWidget {
-  const PerformanceInviteViewPage({super.key, required this.performance});
+/// 서버의 모바일 초대장 API에서 셋리스트를 읽은 뒤 기존 UI에 전달한다.
+/// 디버그용 로컬 미리보기에서는 fetchFromApi: false로 기존 Mock 데이터를 사용한다.
+class PerformanceInviteViewPage extends ConsumerWidget {
+  const PerformanceInviteViewPage({
+    super.key,
+    required this.performance,
+    this.fetchFromApi = true,
+  });
+
+  final PerformanceDetailModel performance;
+  final bool fetchFromApi;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!fetchFromApi) {
+      return _PerformanceInviteViewContent(performance: performance);
+    }
+
+    final invitationAsync = ref.watch(
+      performanceInvitationProvider(performance.performancePublicId),
+    );
+    return invitationAsync.when(
+      data: (invitation) => _PerformanceInviteViewContent(
+        performance: performance.withInvitationResponse(invitation),
+      ),
+      loading: () => const _PerformanceInvitationLoadState(),
+      error: (error, stackTrace) => _PerformanceInvitationLoadState(
+        errorMessage: '초대장 정보를 불러오지 못했습니다.',
+        onRetry: () => ref.invalidate(
+          performanceInvitationProvider(performance.performancePublicId),
+        ),
+      ),
+    );
+  }
+}
+
+class _PerformanceInvitationLoadState extends StatelessWidget {
+  const _PerformanceInvitationLoadState({this.errorMessage, this.onRetry});
+
+  final String? errorMessage;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: AppTheme.dark,
+      child: Builder(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            leading: BackButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+          body: Center(
+            child: errorMessage == null
+                ? const CircularProgressIndicator()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(errorMessage!, textAlign: TextAlign.center),
+                      const SizedBox(height: AppSpacing.x16),
+                      TextButton(
+                        onPressed: onRetry,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 기존 티켓 캐러셀·셋리스트 슬리버 구조를 유지하면서 저장을 보완한다.
+class _PerformanceInviteViewContent extends StatefulWidget {
+  const _PerformanceInviteViewContent({required this.performance});
 
   final PerformanceDetailModel performance;
 
   @override
-  State<PerformanceInviteViewPage> createState() =>
-      _PerformanceInviteViewPageState();
+  State<_PerformanceInviteViewContent> createState() =>
+      _PerformanceInviteViewContentState();
 }
 
-class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
+class _PerformanceInviteViewContentState
+    extends State<_PerformanceInviteViewContent>
     with SingleTickerProviderStateMixin {
   static const double _arrowHeight = 80;
   final ScrollController _scrollController = ScrollController();
@@ -165,44 +242,60 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
     }
   }
 
-  /// 셋리스트는 선택한 팀 하나가 아니라 등록된 팀별로 이미지 한 장씩 생성한다.
-  /// 곡 수에 비례하여 위젯 높이가 늘어나므로 화면에 보이는 부분만 저장되지 않는다.
+  /// 저장용 PNG는 화면의 10곡 제한과 무관하게 팀별 전체 곡을 담는다.
+  /// 공유 시트가 여러 첨부파일 중 첫 번째만 저장하는 기기를 위해,
+  /// 각 팀의 PNG를 갤러리에 직접 한 장씩 저장한다.
   Future<void> _shareSetlist() async {
     if (_isSharing || !_hasSetlist) return;
     setState(() => _isSharing = true);
+    var savedCount = 0;
+    final failedTeams = <String>[];
+
     try {
-      final files = <XFile>[];
+      if (!await Gal.hasAccess() && !await Gal.requestAccess()) {
+        _notify('사진 저장 권한이 없어 셋리스트를 저장하지 못했습니다.');
+        return;
+      }
+
+      // 두 번 저장해도 파일명이 충돌하지 않도록 실행 시각을 포함한다.
+      final savedAt = DateTime.now().millisecondsSinceEpoch;
       for (var i = 0; i < _teams.length; i++) {
         if (!mounted) return;
         final team = _teams[i];
-        final bytes = await PerformanceImageCapture.capture(
-          context: context,
-          width: PerformanceSetlistExport.imageWidth,
-          child: PerformanceSetlistExport(team: team),
-        );
-        final safeName = team.teamName.replaceAll(
-          RegExp(r'[^a-zA-Z0-9가-힣_-]'),
-          '_',
-        );
-        final filename = safeName.isNotEmpty ? safeName : 'team_${i + 1}';
-        files.add(
-          XFile.fromData(
+        try {
+          final bytes = await PerformanceSetlistImageExporter.export(
+            context: context,
+            team: team,
+          );
+          final safeName = team.teamName.replaceAll(
+            RegExp(r'[^a-zA-Z0-9가-힣_-]'),
+            '_',
+          );
+          final fileName = safeName.isEmpty ? 'team_${i + 1}' : safeName;
+          await Gal.putImageBytes(
             bytes,
-            mimeType: 'image/png',
-            name: 'beatit_setlist_${i + 1}_$filename.png',
-          ),
+            name: 'beatit_setlist_${savedAt}_${i + 1}_$fileName.png',
+          );
+          savedCount++;
+        } catch (error, stackTrace) {
+          debugPrint('셋리스트 이미지 저장 실패 (${team.teamName}): $error');
+          debugPrintStack(stackTrace: stackTrace);
+          failedTeams.add(team.teamName.isEmpty ? '${i + 1}팀' : team.teamName);
+        }
+      }
+
+      if (failedTeams.isEmpty) {
+        _notify('총 $savedCount팀의 셋리스트 이미지가 갤러리에 저장되었습니다.');
+      } else {
+        _notify(
+          '$savedCount/${_teams.length}장 저장 완료. '
+          '실패: ${failedTeams.join(', ')}',
         );
       }
-      if (!mounted) return;
-      await SharePlus.instance.share(
-        ShareParams(
-          title: '${widget.performance.title} 셋리스트',
-          files: files,
-          sharePositionOrigin: _shareAnchor(),
-        ),
-      );
-    } catch (_) {
-      _notify('셋리스트 이미지를 만들거나 공유하지 못했습니다.');
+    } catch (error, stackTrace) {
+      debugPrint('셋리스트 저장 준비 실패: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _notify('셋리스트 저장에 실패했습니다. 저장 권한과 여유 공간을 확인해주세요.');
     } finally {
       if (mounted) setState(() => _isSharing = false);
     }
@@ -289,7 +382,7 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
                             onSaveSetlist: _shareSetlist,
                             onViewDetails: () =>
                                 Navigator.of(context).maybePop(),
-                            hasSetlist: _hasSetlist,
+                            hasSetlist: _hasSetlist && !_isSharing,
                           ),
                         ),
                       ),
@@ -330,7 +423,7 @@ class _PerformanceInviteViewPageState extends State<PerformanceInviteViewPage>
                           ),
                         ),
                       const SliverToBoxAdapter(
-                        child: SizedBox(height: AppSpacing.x70),
+                        child: SizedBox(height: AppSpacing.x20),
                       ),
                     ],
                   );

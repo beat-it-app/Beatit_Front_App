@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// SliverPersistentHeader 안에 넣을 제목과 팀 선택 영역. 배경은 불투명해야
 /// 아래 곡 목록이 위로 통과하더라도 글자가 겹쳐 보이지 않는다.
@@ -54,12 +55,18 @@ class PerformanceSetlistHeader extends StatelessWidget {
                   builder: (context, constraints) => SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          for (var index = 0; index < teams.length; index++) ...[
+                          for (
+                            var index = 0;
+                            index < teams.length;
+                            index++
+                          ) ...[
                             if (index != 0)
                               const SizedBox(width: AppSpacing.x8),
                             _TeamChip(
@@ -108,9 +115,9 @@ class _TeamChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.pill),
           onTap: onPressed,
           child: Container(
-            constraints: const BoxConstraints(minWidth: 54, maxWidth: 140),
+            constraints: const BoxConstraints(minWidth: 54),
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x12),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
             decoration: BoxDecoration(
               border: Border.all(
                 color: selected ? AppColor.beatOrange1 : AppColor.gray4,
@@ -121,7 +128,7 @@ class _TeamChip extends StatelessWidget {
               teamName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.med12.copyWith(color: AppColor.white),
+              style: FontStyles.semi14.copyWith(color: AppColor.white),
             ),
           ),
         ),
@@ -145,7 +152,10 @@ class PerformanceSetlistExpandButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.x12, bottom: AppSpacing.x16),
+        padding: const EdgeInsets.only(
+          top: AppSpacing.x12,
+          bottom: AppSpacing.x16,
+        ),
         child: Material(
           color: AppColor.black,
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -170,7 +180,9 @@ class PerformanceSetlistExpandButton extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.x4),
                   Icon(
-                    expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     size: 16,
                     color: AppColor.white,
                   ),
@@ -212,20 +224,7 @@ class PerformanceSetlistSongItem extends StatelessWidget {
                 style: FontStyles.med14.copyWith(color: AppColor.white),
               ),
               SizedBox(width: AppSpacing.x12),
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColor.gray1,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.music_note_rounded,
-                  size: 23,
-                  color: AppColor.gray5,
-                ),
-              ),
+              _SetlistAlbumCover(imageUrl: song.musicImageUrl),
               const SizedBox(width: AppSpacing.x12),
               Expanded(
                 child: Column(
@@ -251,13 +250,16 @@ class PerformanceSetlistSongItem extends StatelessWidget {
           ),
           if (song.description.trim().isNotEmpty) ...[
             const SizedBox(height: AppSpacing.x8),
-            Text(
-              song.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: FontStyles.med14.copyWith(
-                color: AppColor.gray5,
-                height: 1.4,
+            Padding(
+              padding: const EdgeInsets.only(left: 18),
+              child: Text(
+                song.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: FontStyles.med14.copyWith(
+                  color: AppColor.gray5,
+                  height: 1.4,
+                ),
               ),
             ),
           ],
@@ -265,6 +267,59 @@ class PerformanceSetlistSongItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 서버에 저장된 음원 커버 URL을 표시한다.
+/// 커버 정보가 없거나 네트워크 로딩에 실패했을 때만 음표로 대체한다.
+class _SetlistAlbumCover extends StatelessWidget {
+  const _SetlistAlbumCover({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = imageUrl?.trim();
+    final uri = value == null ? null : Uri.tryParse(value);
+    final validUrl =
+        uri != null &&
+        (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host.isNotEmpty;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: SizedBox(
+        width: 60,
+        height: 60,
+        child: validUrl
+            ? Image.network(
+                value!,
+                fit: BoxFit.cover,
+                cacheWidth: 180,
+                errorBuilder: (context, error, stackTrace) =>
+                    const _SetlistAlbumFallback(),
+              )
+            : const _SetlistAlbumFallback(),
+      ),
+    );
+  }
+}
+
+class _SetlistAlbumFallback extends StatelessWidget {
+  const _SetlistAlbumFallback();
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: AppColor.gray1,
+    child: Center(
+      child: Opacity(
+        opacity: 0.4,
+        child: SvgPicture.asset(
+          'assets/icons/performance/performance.svg',
+          width: 15,
+        ),
+      ),
+    ),
+  );
 }
 
 class PerformanceSetlistEmpty extends StatelessWidget {
