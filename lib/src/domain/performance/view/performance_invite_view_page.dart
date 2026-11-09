@@ -1,8 +1,10 @@
 // lib/src/domain/performance/view/performance_invite_view_page.dart
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/utils/platform_media_image_saver.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
@@ -15,12 +17,9 @@ import 'package:beatit_front_app/src/domain/performance/widget/performance_invit
 import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_image_exporter.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_scroll_arrow.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_section.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:gal/gal.dart';
-import 'package:share_plus/share_plus.dart';
 
 /// 서버의 모바일 초대장 API에서 셋리스트를 읽은 뒤 기존 UI에 전달한다.
 /// 디버그용 로컬 미리보기에서는 fetchFromApi: false로 기존 Mock 데이터를 사용한다.
@@ -211,8 +210,10 @@ class _PerformanceInviteViewContentState
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// 항상 행사 정보(두 번째) 티켓 + 하단 안내 문구가 있는 고정 PNG를 만든다.
-  Future<void> _shareInvitationImage() async {
+  /// 행사 정보(두 번째) 티켓 + 하단 안내 문구를 PNG로 만든다.
+  /// 셋리스트 및 팀 클라우드와 동일한 플랫폼별 저장 정책을 적용한다.
+  /// Android: 사진 앱에 직접 저장 / iOS: 공유 시트에서 '이미지 저장' 선택.
+  Future<void> _saveInvitationImage() async {
     if (_isSharing) return;
     setState(() => _isSharing = true);
     try {
@@ -222,80 +223,110 @@ class _PerformanceInviteViewContentState
         child: PerformanceInvitationExport(performance: widget.performance),
       );
       if (!mounted) return;
-      await SharePlus.instance.share(
-        ShareParams(
-          title: widget.performance.title,
-          files: [
-            XFile.fromData(
-              bytes,
-              mimeType: 'image/png',
-              name: 'beatit_invitation.png',
-            ),
-          ],
-          sharePositionOrigin: _shareAnchor(),
-        ),
+
+      // 고유한 이름을 사용해 여러 번 저장해도 이전 초대장을 덮어쓰지 않는다.
+      final fileName =
+          'beatit_invitation_${DateTime.now().millisecondsSinceEpoch}.png';
+      final outcome = await PlatformMediaImageSaver.savePngBytes(
+        bytes: bytes,
+        fileName: fileName,
+        sharePositionOrigin: _shareAnchor(),
       );
-    } catch (_) {
-      _notify('초대장 이미지를 만들거나 공유하지 못했습니다.');
+      if (!mounted) return;
+      if (outcome == PlatformImageSaveOutcome.savedToGallery) {
+        _notify('초대장 이미지를 갤러리에 저장했습니다.');
+      } else {
+        // iOS 공유 시트 종료는 사진 앱 저장 완료를 뜻하지 않는다.
+        _notify('초대장 공유를 마쳤습니다. 사진 앱 저장 여부를 확인해주세요.');
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[초대장 이미지 저장] 실패: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _notify('초대장 이미지 저장에 실패했습니다: $error');
     } finally {
       if (mounted) setState(() => _isSharing = false);
     }
   }
 
-  /// 저장용 PNG는 화면의 10곡 제한과 무관하게 팀별 전체 곡을 담는다.
-  /// 공유 시트가 여러 첨부파일 중 첫 번째만 저장하는 기기를 위해,
-  /// 각 팀의 PNG를 갤러리에 직접 한 장씩 저장한다.
+  /// 팀마다 전체 곡을 하나의 PNG로 생성한 뒤 플랫폼별로 내보낸다.
+  /// Android: 갤러리에 직접 저장 / iOS: 팀당 공유 시트에서 저장 선택.
   Future<void> _shareSetlist() async {
-    if (_isSharing || !_hasSetlist) return;
+    if (_isSharing) return;
+    final exportTeams = _teams
+        .asMap()
+        .entries
+        .where((entry) => entry.value.musics.isNotEmpty)
+        .toList();
+    if (exportTeams.isEmpty) {
+      _notify('저장할 셋리스트 곡이 없습니다.');
+      return;
+    }
+
     setState(() => _isSharing = true);
-    var savedCount = 0;
-    final failedTeams = <String>[];
+    var gallerySaved = 0;
+    var shared = 0;
+    final failures = <String>[];
+    final savedAt = DateTime.now().millisecondsSinceEpoch;
 
     try {
-      if (!await Gal.hasAccess() && !await Gal.requestAccess()) {
-        _notify('사진 저장 권한이 없어 셋리스트를 저장하지 못했습니다.');
-        return;
-      }
+      for (final entry in exportTeams) {
+        if (!mounted) break;
+        final team = entry.value;
+        final teamLabel = team.teamName.trim().isEmpty
+            ? '${entry.key + 1}팀'
+            : team.teamName;
+        final safeName = teamLabel.replaceAll(
+          RegExp(r'[^a-zA-Z0-9가-힣_-]'),
+          '_',
+        );
+        final fileName =
+            'beatit_setlist_${savedAt}_${entry.key + 1}_$safeName.png';
 
-      // 두 번 저장해도 파일명이 충돌하지 않도록 실행 시각을 포함한다.
-      final savedAt = DateTime.now().millisecondsSinceEpoch;
-      for (var i = 0; i < _teams.length; i++) {
-        if (!mounted) return;
-        final team = _teams[i];
         try {
-          final bytes = await PerformanceSetlistImageExporter.export(
+          // 더보기 여부와 무관하게 team.musics 전체를 렌더링한다.
+          final Uint8List bytes = await PerformanceSetlistImageExporter.export(
             context: context,
             team: team,
           );
-          final safeName = team.teamName.replaceAll(
-            RegExp(r'[^a-zA-Z0-9가-힣_-]'),
-            '_',
+          debugPrint(
+            '[셋리스트 저장] $teamLabel: '
+            '${team.musics.length}곡, ${bytes.length} bytes',
           );
-          final fileName = safeName.isEmpty ? 'team_${i + 1}' : safeName;
-          await Gal.putImageBytes(
-            bytes,
-            name: 'beatit_setlist_${savedAt}_${i + 1}_$fileName.png',
+          final outcome = await PlatformMediaImageSaver.savePngBytes(
+            bytes: bytes,
+            fileName: fileName,
+            sharePositionOrigin: _shareAnchor(),
           );
-          savedCount++;
+          if (outcome == PlatformImageSaveOutcome.savedToGallery) {
+            gallerySaved++;
+          } else {
+            shared++;
+          }
         } catch (error, stackTrace) {
-          debugPrint('셋리스트 이미지 저장 실패 (${team.teamName}): $error');
+          debugPrint('[셋리스트 저장] $teamLabel 실패: $error');
           debugPrintStack(stackTrace: stackTrace);
-          failedTeams.add(team.teamName.isEmpty ? '${i + 1}팀' : team.teamName);
+          failures.add('$teamLabel: $error');
         }
       }
 
-      if (failedTeams.isEmpty) {
-        _notify('총 $savedCount팀의 셋리스트 이미지가 갤러리에 저장되었습니다.');
-      } else {
+      if (failures.isNotEmpty) {
         _notify(
-          '$savedCount/${_teams.length}장 저장 완료. '
-          '실패: ${failedTeams.join(', ')}',
+          '갤러리 $gallerySaved장 저장, 공유 $shared건, '
+          '실패 ${failures.length}건: ${failures.first}',
         );
+      } else if (shared > 0) {
+        // iOS 공유 시트 종료가 사진 앱에 저장됐다는 의미는 아니다.
+        _notify(
+          '셋리스트 $shared팀 공유를 마쳤습니다. '
+          '사진 앱 저장 여부를 확인해주세요.',
+        );
+      } else {
+        _notify('셋리스트 $gallerySaved장 갤러리에 저장했습니다.');
       }
     } catch (error, stackTrace) {
-      debugPrint('셋리스트 저장 준비 실패: $error');
+      debugPrint('[셋리스트 저장] 처리 오류: $error');
       debugPrintStack(stackTrace: stackTrace);
-      _notify('셋리스트 저장에 실패했습니다. 저장 권한과 여유 공간을 확인해주세요.');
+      _notify('셋리스트 저장에 실패했습니다: $error');
     } finally {
       if (mounted) setState(() => _isSharing = false);
     }
@@ -329,7 +360,7 @@ class _PerformanceInviteViewContentState
               actions: [
                 IconButton(
                   tooltip: '현재 티켓 저장 또는 공유',
-                  onPressed: _isSharing ? null : _shareInvitationImage,
+                  onPressed: _isSharing ? null : _saveInvitationImage,
                   icon: SvgPicture.asset(
                     'assets/icons/team/share.svg',
                     width: 22,
@@ -378,7 +409,7 @@ class _PerformanceInviteViewContentState
                             bottom: AppSpacing.x40,
                           ),
                           child: PerformanceInvitationActions(
-                            onSaveInvitation: _shareInvitationImage,
+                            onSaveInvitation: _saveInvitationImage,
                             onSaveSetlist: _shareSetlist,
                             onViewDetails: () =>
                                 Navigator.of(context).maybePop(),

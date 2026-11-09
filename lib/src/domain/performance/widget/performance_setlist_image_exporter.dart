@@ -17,6 +17,13 @@ abstract final class PerformanceSetlistImageExporter {
     required BuildContext context,
     required PerformanceSetlistTeam team,
   }) async {
+    // 마지막 footer 에셋을 캡처 전에 미리 디코딩한다.
+    // 로딩 중인 Image.asset이 PNG에 빈 영역으로 찍히지 않게 한다.
+    await precacheImage(
+      const AssetImage(PerformanceSetlistFooter.iconAssetPath),
+      context,
+    );
+
     final parts = <Uint8List>[];
     final songs = team.musics;
     final partCount = math.max(1, (songs.length / songsPerChunk).ceil());
@@ -33,13 +40,23 @@ abstract final class PerformanceSetlistImageExporter {
           songs: songs.sublist(start, end),
           startIndex: start,
           showHeading: part == 0,
-          showFooter: part == partCount - 1,
+          // footer는 별도 작은 이미지로 캡처해 반드시 최하단에 합친다.
+          showFooter: false,
         ),
       );
       parts.add(bytes);
     }
 
-    if (parts.length == 1) return parts.single;
+    // 모든 곡의 길이와 관계없이 footer를 화면 안쪽에서 별도로 렌더링한다.
+    // 마지막 곡 이미지와 연결하면 footer가 긴 캡처 영역에 잘릴 수 있다.
+    final footerBytes = await PerformanceImageCapture.capture(
+      context: context,
+      width: PerformanceSetlistExport.imageWidth,
+      pixelRatio: 2,
+      child: const PerformanceSetlistFooter(),
+    );
+    parts.add(footerBytes);
+
     return compute(stitchSetlistPngParts, parts);
   }
 }

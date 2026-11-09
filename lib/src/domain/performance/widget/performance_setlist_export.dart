@@ -80,18 +80,10 @@ class PerformanceSetlistExport extends StatelessWidget {
                 _ExportSongRow(
                   number: startIndex + i + 1,
                   song: exportSongs[i],
+                  // 마지막 곡 아래에는 구분선을 그리지 않는다.
+                  showDivider: startIndex + i < team.musics.length - 1,
                 ),
-              if (showFooter) ...[
-                const SizedBox(height: 56),
-                Center(
-                  child: Image.asset(
-                    'assets/images/beat_it_app_icon.png',
-                    width: 33,
-                    height: 33,
-                  ),
-                ),
-                const SizedBox(height: 36),
-              ],
+              if (showFooter) const _SetlistFooterContents(),
             ],
           ),
         ),
@@ -101,10 +93,15 @@ class PerformanceSetlistExport extends StatelessWidget {
 }
 
 class _ExportSongRow extends StatelessWidget {
-  const _ExportSongRow({required this.number, required this.song});
+  const _ExportSongRow({
+    required this.number,
+    required this.song,
+    required this.showDivider,
+  });
 
   final int number;
   final PerformanceSetlistSong song;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
@@ -165,26 +162,56 @@ class _ExportSongRow extends StatelessWidget {
                       softWrap: true,
                       style: FontStyles.med14.copyWith(color: AppColor.gray5),
                     ),
-                    if (song.description.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        song.description,
-                        softWrap: true,
-                        style: FontStyles.med14.copyWith(
-                          color: AppColor.gray5,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, thickness: 1, color: AppColor.gray4),
+          if (showDivider) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, thickness: 1, color: AppColor.gray4),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// 저장용 footer는 곡 목록과 따로 캡처한다.
+/// 긴 목록의 마지막 부분이 화면 밖에 그려져 아이콘이 누락되는 일을 방지한다.
+class PerformanceSetlistFooter extends StatelessWidget {
+  const PerformanceSetlistFooter({super.key});
+
+  static const String iconAssetPath = 'assets/images/beat_it_app_icon.png';
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: PerformanceSetlistExport.imageWidth,
+      child: ColoredBox(
+        color: AppColor.black,
+        child: _SetlistFooterContents(),
+      ),
+    );
+  }
+}
+
+class _SetlistFooterContents extends StatelessWidget {
+  const _SetlistFooterContents();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 56),
+        Image.asset(
+          PerformanceSetlistFooter.iconAssetPath,
+          width: 33,
+          height: 33,
+        ),
+        const SizedBox(height: 36),
+      ],
     );
   }
 }
