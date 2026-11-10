@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/alarm/model/alarm_notification.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/alarm_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -19,29 +20,8 @@ class AlarmItemWidget extends StatelessWidget {
   final String? teamName;
   final bool isBusy;
 
-  // 서버의 알림 본문은 그대로 두고, 현재 팀 이름이 붙은 접두어만 화면에서 숨깁니다.
-  // 사용자 입력(투표명, 공지 제목, 메시지) 안의 동일한 문자열은 수정하지 않습니다.
-  String _withoutTeamPrefix(String value) {
-    final name = teamName?.trim();
-    if (name == null || name.isEmpty) return value;
-
-    final bracketPrefix = '[$name]';
-    if (value.startsWith(bracketPrefix)) {
-      return value.substring(bracketPrefix.length).trimLeft();
-    }
-
-    // 채팅 알림은 '[팀명 / 채팅방명]'에서 팀명만 제거합니다.
-    final chatPrefix = '[$name / ';
-    if (value.startsWith(chatPrefix)) {
-      return '[${value.substring(chatPrefix.length)}';
-    }
-
-    final titlePrefix = '$name ';
-    if (value.startsWith(titlePrefix)) {
-      return value.substring(titlePrefix.length);
-    }
-    return value;
-  }
+  String _withoutTeamPrefix(String value) =>
+      withoutTeamPrefix(value, teamName);
 
   String _elapsedTime(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);

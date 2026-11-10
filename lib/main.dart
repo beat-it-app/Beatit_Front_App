@@ -45,15 +45,11 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: currentThemeMode,
-<<<<<<< HEAD
-      // 실제 Navigator Overlay에 Android 포그라운드 배너를 표시한다.
+      // 기존 Navigator Overlay에 Android 포그라운드 배너를 표시한다.
       builder: (context, child) => ForegroundAlarmBannerHost(
         navigatorKey: _rootNavigatorKey,
         child: child ?? const SizedBox.shrink(),
       ),
-      // 👈 고정값(ThemeMode.system) 대신 프로바이더 상태 바인딩
-=======
->>>>>>> develop
       home: const AuthSplashPage(),
     );
   }

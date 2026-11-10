@@ -66,6 +66,14 @@
             android:name="com.naver.sdk.clientName"
             android:value="Beat It" />
 
+        <!-- FCM 푸시 알림 작은 아이콘 (흰색 단색 + 투명 배경) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+
         <!-- Flutter Plugin 등록 -->
         <meta-data
             android:name="flutterEmbedding"
