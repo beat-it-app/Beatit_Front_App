@@ -24,6 +24,8 @@ class AppAudioWaveform extends StatefulWidget {
     this.isPlaying = false,
     this.onScrubStart,
     this.onScrubEnd,
+    this.waveformBarWidth = 3.0,
+    this.waveformBarGap = 3.0,
     this.loadingProgress = 0.0,
     this.hasError = false,
     this.isSelectionMode = false,
@@ -43,6 +45,9 @@ class AppAudioWaveform extends StatefulWidget {
   final VoidCallback? onScrubStart;
   /// 손을 뗐을 때 최종 위치로 seek한 뒤 재생을 재개합니다.
   final Future<void> Function(Duration)? onScrubEnd;
+  /// 파형 막대의 두께와 간격은 기존 디자인인 3px + 3px을 유지합니다.
+  final double waveformBarWidth;
+  final double waveformBarGap;
   final double loadingProgress;
   final bool hasError;
 
@@ -59,7 +64,9 @@ class AppAudioWaveform extends StatefulWidget {
 enum _SelectionHandle { start, end }
 
 class _AppAudioWaveformState extends State<AppAudioWaveform> {
-  static const double _minVisibleFraction = 1 / 3;
+  // 막대 크기/간격 대신 막대 하나에 대응하는 재생 시간을 2/3로 줄입니다.
+  // 같은 실제 재생 속도에서도 파형이 화면을 약 1.5배 빠르게 지납니다.
+  static const double _minVisibleFraction = 2 / 9;
   static const double _maxVisibleFraction = 1.0;
   static const double _containerHeight = 60.0;
   static const double _playheadExtension = 4.0;
@@ -600,6 +607,8 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
                     viewportPosition: _viewportCenter,
                     playbackPosition: _pendingScrubPosition ?? _smoothPosition,
                     visibleSeconds: _visibleSeconds,
+                    waveformBarWidth: widget.waveformBarWidth,
+                    waveformBarGap: widget.waveformBarGap,
                     loadingProgress: widget.loadingProgress,
                     isSelectionMode: widget.isSelectionMode,
                     selectionStart: widget.selectionStart,
@@ -645,6 +654,8 @@ class _AppAudioWaveformPainter extends CustomPainter {
     required this.viewportPosition,
     required this.playbackPosition,
     required this.visibleSeconds,
+    required this.waveformBarWidth,
+    required this.waveformBarGap,
     required this.loadingProgress,
     required this.isSelectionMode,
     required this.selectionStart,
@@ -663,14 +674,13 @@ class _AppAudioWaveformPainter extends CustomPainter {
 
   static const double _playheadWidth = 8.0;
   static const double _playheadBorderWidth = 1.0;
-  static const double _waveformBarWidth = 3.0;
-  static const double _waveformBarGap = 3.0;
-
   final Waveform? waveform;
   final Duration duration;
   final Duration viewportPosition;
   final Duration playbackPosition;
   final double visibleSeconds;
+  final double waveformBarWidth;
+  final double waveformBarGap;
   final double loadingProgress;
   final bool isSelectionMode;
   final Duration selectionStart;
@@ -851,7 +861,7 @@ class _AppAudioWaveformPainter extends CustomPainter {
     final positionSeconds = _durationInSeconds(viewportPosition);
     final durationSeconds = _durationInSeconds(duration);
     final windowStart = positionSeconds - (visibleSeconds / 2);
-    final barStep = _waveformBarWidth + _waveformBarGap;
+    final barStep = waveformBarWidth + waveformBarGap;
 
     // 샘플 위치를 화면 픽셀이 아니라 음원의 절대 시간축에 고정한다.
     // 재생 중에는 막대 자체가 이동하며 높이는 바뀌지 않는다.
@@ -906,7 +916,7 @@ class _AppAudioWaveformPainter extends CustomPainter {
         Offset(x, barBottom.toDouble()),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = _waveformBarWidth
+          ..strokeWidth = waveformBarWidth
           ..strokeCap = StrokeCap.round
           ..color = (_isSelectedTime(sampleDuration)
               ? selectedWaveformColor
@@ -953,6 +963,8 @@ class _AppAudioWaveformPainter extends CustomPainter {
         oldDelegate.duration != duration ||
         oldDelegate.viewportPosition != viewportPosition ||
         oldDelegate.visibleSeconds != visibleSeconds ||
+        oldDelegate.waveformBarWidth != waveformBarWidth ||
+        oldDelegate.waveformBarGap != waveformBarGap ||
         oldDelegate.loadingProgress != loadingProgress ||
         oldDelegate.isSelectionMode != isSelectionMode ||
         oldDelegate.selectionStart != selectionStart ||
