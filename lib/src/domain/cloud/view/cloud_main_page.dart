@@ -2,6 +2,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
@@ -376,22 +377,25 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
         !download.isDownloading;
 
     return Scaffold(
-      appBar: AppTwoAppBar(
-        showBackButton: true,
-        onBackPressed: _navigateBack,
-        trailing: AppTwoAppBarTrailing.add,
-        addMenuAlignment: AppDropdownAlignment.right,
-        addMenuOffset: const Offset(-4, 68),
-        addMenuItems: [
-          AppDropdownItem(label: '새 폴더 만들기', onPressed: _createFolder),
-          AppDropdownItem(label: '파일 등록하기', onPressed: _uploadFile),
-          AppDropdownItem(label: '링크 등록하기', onPressed: _createLink),
-        ],
-      ),
+      appBar: _isSearchMode
+          ? AppTopAppBar.backOnly(onBackPressed: _navigateBack)
+          : AppTwoAppBar(
+              showBackButton: true,
+              onBackPressed: _navigateBack,
+              trailing: AppTwoAppBarTrailing.all,
+              onSearchPressed: () => _setSearchMode(true),
+              addMenuAlignment: AppDropdownAlignment.right,
+              addMenuOffset: const Offset(-4, 68),
+              addMenuItems: [
+                AppDropdownItem(label: '새 폴더 만들기', onPressed: _createFolder),
+                AppDropdownItem(label: '파일 등록하기', onPressed: _uploadFile),
+                AppDropdownItem(label: '링크 등록하기', onPressed: _createLink),
+              ],
+            ),
       floatingActionButton: _isSearchMode
           ? CloudConfirmFloatingButton(
               semanticLabel: '검색 완료',
-              onPressed: () => _setSearchMode(false),
+              onPressed: () => FocusScope.of(context).unfocus(),
             )
           : _isSelectionMode
           ? SelectFloatButton(
@@ -743,7 +747,6 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
             showCloudStorageApiBottomSheet(context: context);
           },
         ),
-        AppDropdownItem(label: '검색하기', onPressed: () => _setSearchMode(true)),
       ],
       width: 170.0,
       anchorWidth: 48.0,

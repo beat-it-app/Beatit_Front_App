@@ -169,17 +169,18 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.x16),
-              AppButton(
-                text: data.isParticipant
-                    ? (_hasCurrentUserResponded(data) ? '수정하기' : '응답하기')
-                    : '응답할 수 없음',
-                width: ButtonWidth.expand,
-                height: ButtonHeight.normal,
-                variant: ButtonVariant.black,
-                isDisabled: !data.isParticipant,
-                onPressed: data.isParticipant ? _openEditPage : null,
-              ),
+              // 초대 명단에 포함된 사용자에게만 응답/수정 버튼을 보여줍니다.
+              // 백엔드 isParticipant는 로그인 사용자의 초대 여부를 나타냅니다.
+              if (data.isParticipant) ...[
+                const SizedBox(height: AppSpacing.x16),
+                AppButton(
+                  text: _hasCurrentUserResponded(data) ? '수정하기' : '응답하기',
+                  width: ButtonWidth.expand,
+                  height: ButtonHeight.normal,
+                  variant: ButtonVariant.black,
+                  onPressed: _openEditPage,
+                ),
+              ],
             ],
           ),
         ),
@@ -191,11 +192,6 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     final currentUserId = _currentUserId;
     final isCreator = currentUserId != null && data.creatorId == currentUserId;
     final items = <AppDropdownItem>[
-      if (data.isParticipant)
-        AppDropdownItem(
-          label: _hasCurrentUserResponded(data) ? '수정하기' : '응답하기',
-          onPressed: _openEditPage,
-        ),
       if (isCreator)
         AppDropdownItem(
           label: '삭제하기',
@@ -425,42 +421,73 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     });
   }
 
+  // 응답자 배열이 일부 누락되어도 시간표에 선택 기록이 있다면 응답자로 취급합니다.
+  // 단, 아무 시간도 선택하지 않은 제출은 현재 API로 미응답과 구분할 수 없습니다.
+  Set<int> _respondedUserIds(MeetitDetailData data) => <int>{
+    ...data.respondedParticipants.map((participant) => participant.userId),
+    ...data.timetableGrid.expand((slot) => slot.availableUserIds),
+  };
+
   Widget _buildParticipantFilter(BuildContext context, MeetitDetailData data) {
+    final respondedIds = _respondedUserIds(data);
+
+    // 초대 명단이 제공되면 모두 보여주되, 응답자 정보가 누락되지 않도록
+    // 응답자 목록을 합칩니다. 같은 ID는 한 번만 표시하고 응답자 이름을 우선합니다.
+    // 초대 명단이 없는 기존 API에서는 응답한 사용자만 표시할 수 있습니다.
+    final participantsById = <int, MeetitRespondedParticipant>{
+      for (final participant in data.invitedParticipants)
+        participant.userId: participant,
+      for (final participant in data.respondedParticipants)
+        participant.userId: participant,
+    };
+    final participants = participantsById.values.toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionLabel(
-          text: '참여자 (${data.respondedCount})',
+          text: '참여자 (${participants.length})',
           iconPath: 'assets/icons/meetit/people.svg',
           color: Theme.of(context).colorScheme.onSurface,
         ),
         const SizedBox(height: AppSpacing.x10),
-        Wrap(
-          spacing: AppSpacing.x8,
-          runSpacing: AppSpacing.x8,
-          children: data.respondedParticipants
-              .map((participant) {
-                final isSelected = _selectedParticipantIds.contains(
-                  participant.userId,
-                );
-                return AppToggle(
-                  text: participant.name,
-                  isSelected: isSelected,
-                  onChanged: (selected) {
-                    setState(() {
-                      _selectedTimeFilter = null;
-                      if (selected) {
-                        _selectedParticipantIds.add(participant.userId);
-                      } else {
-                        _selectedParticipantIds.remove(participant.userId);
-                      }
-                    });
-                  },
-                );
-              })
-              .toList(growable: false),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < participants.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.x8),
+                _buildParticipantToggle(participants[i], respondedIds),
+              ],
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildParticipantToggle(
+    MeetitRespondedParticipant participant,
+    Set<int> respondedIds,
+  ) {
+    final hasResponded = respondedIds.contains(participant.userId);
+    return AppToggle(
+      text: participant.name,
+      isSelected: _selectedParticipantIds.contains(participant.userId),
+      isEnabled: hasResponded,
+      onChanged: hasResponded
+          ? (selected) {
+              setState(() {
+                _selectedTimeFilter = null;
+                if (selected) {
+                  _selectedParticipantIds.add(participant.userId);
+                } else {
+                  _selectedParticipantIds.remove(participant.userId);
+                }
+              });
+            }
+          : null,
     );
   }
 
@@ -570,12 +597,12 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
       widget.currentUserId ?? ref.read(authProvider).value?.userId;
 
   bool _hasCurrentUserResponded(MeetitDetailData data) {
-    final currentUserId = _currentUserId;
+    // 인증 정보가 뒤늦게 로드돼도 버튼 문구가 갱신되도록 구독합니다.
+    final currentUserId =
+        widget.currentUserId ?? ref.watch(authProvider).asData?.value?.userId;
     if (currentUserId == null) return false;
 
-    return data.respondedParticipants.any(
-      (participant) => participant.userId == currentUserId,
-    );
+    return _respondedUserIds(data).contains(currentUserId);
   }
 
   TimeOfDay _parseTimeOfDay(String? value) {

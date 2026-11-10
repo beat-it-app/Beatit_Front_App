@@ -40,6 +40,7 @@ class MeetitDetailData {
     required this.totalInvitedCount,
     required this.respondedCount,
     required this.respondedParticipants,
+    this.invitedParticipants = const <MeetitRespondedParticipant>[],
     required this.entireMemberOptimalSlots,
     required this.maxMemberOptimalSlots,
     required this.maxOverlappingCount,
@@ -57,6 +58,9 @@ class MeetitDetailData {
   final int totalInvitedCount;
   final int respondedCount;
   final List<MeetitRespondedParticipant> respondedParticipants;
+
+  /// 전체 초대 명단. 서버가 invitedParticipants를 내려주면 미응답자도 표시합니다.
+  final List<MeetitRespondedParticipant> invitedParticipants;
   final List<MeetitOptimalSlot> entireMemberOptimalSlots;
   final List<MeetitOptimalSlot> maxMemberOptimalSlots;
   final int maxOverlappingCount;
@@ -82,6 +86,16 @@ class MeetitDetailData {
       respondedCount: json['respondedCount'] as int? ?? 0,
       respondedParticipants:
           (json['respondedParticipants'] as List? ?? const <dynamic>[])
+              .whereType<Map>()
+              .map(
+                (item) => MeetitRespondedParticipant.fromJson(
+                  item.cast<String, dynamic>(),
+                ),
+              )
+              .toList(growable: false),
+      invitedParticipants:
+          ((json['invitedParticipants'] ?? json['participants']) as List? ??
+                  const <dynamic>[])
               .whereType<Map>()
               .map(
                 (item) => MeetitRespondedParticipant.fromJson(

@@ -35,7 +35,9 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
       MaterialPageRoute<void>(
         builder: (_) => RoomChatPage(
           chatId: room.chatId,
-          initialRoomName: room.roomName,
+          initialRoomName: room.roomName.trim().isEmpty
+              ? '채팅방'
+              : room.roomName,
           initialParticipantCount: room.participantCount,
           initialProfileImageUrls: room.profileImage,
         ),
@@ -153,7 +155,9 @@ class _ChatListBody extends StatelessWidget {
           final room = state.rooms[index];
 
           return ChatListItem(
-            roomName: room.roomName,
+            roomName: room.roomName.trim().isEmpty
+                ? '채팅방'
+                : room.roomName,
             lastMessage: _formatLastMessage(room.lastMessage),
             timeText: _formatListTime(room.lastMessageTime),
             unreadCount: room.unreadCount,

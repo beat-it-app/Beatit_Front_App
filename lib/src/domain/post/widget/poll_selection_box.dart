@@ -517,10 +517,8 @@ class _PollOptionButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Wrap(
-                    spacing: AppSpacing.x8,
-                    runSpacing: AppSpacing.x4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
                         width: 15,
@@ -546,15 +544,19 @@ class _PollOptionButton extends StatelessWidget {
                               )
                             : null,
                       ),
-                      Text(
-                        text,
-                        style: isSelected
-                            ? FontStyles.med14.copyWith(
-                                color: context.brands.beatOrange1,
-                              )
-                            : FontStyles.reg14.copyWith(
-                                color: context.grays.black,
-                              ),
+                      const SizedBox(width: AppSpacing.x8),
+                      Expanded(
+                        child: Text(
+                          text,
+                          softWrap: true,
+                          style: isSelected
+                              ? FontStyles.med14.copyWith(
+                                  color: context.brands.beatOrange1,
+                                )
+                              : FontStyles.reg14.copyWith(
+                                  color: context.grays.black,
+                                ),
+                        ),
                       ),
                     ],
                   ),

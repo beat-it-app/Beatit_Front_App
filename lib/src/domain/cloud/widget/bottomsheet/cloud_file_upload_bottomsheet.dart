@@ -315,7 +315,7 @@ class _CloudFileUploadBottomSheetState
                     const SizedBox(height: AppSpacing.x12),
                     Text(
                       _isPicking ? '불러오는 중...' : file ?? '파일 선택하기',
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: FontStyles.semi18.copyWith(

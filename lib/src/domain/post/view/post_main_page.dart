@@ -16,12 +16,27 @@ import 'package:beatit_front_app/src/domain/post/view/poll_create_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/post_detail_page.dart';
 import 'package:beatit_front_app/src/domain/post/view/poll_detail_page.dart';
 import 'package:beatit_front_app/src/domain/meetit/view/meetit_create_page.dart';
+import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
 import 'package:beatit_front_app/src/domain/meetit/view/meetit_detail_page.dart';
 import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
+// 목록에는 작성자 ID가 없어서 상세 API를 조회합니다.
+// 이미 필요한 상세 조회를 재사용하여 목록의 응답 상태도 보완합니다.
+// 서버가 NOT_RESPONDED를 반환하더라도 상세에 선택 기록이 있으면 응답 완료입니다.
+final _meetitListDetailProvider =
+    FutureProvider.autoDispose.family<MeetitDetailData?, int>((ref, meetitId) async {
+      final currentUserId = ref.watch(authProvider).asData?.value?.userId;
+      if (currentUserId == null) return null;
+      try {
+        return await ref.read(postApiProvider).getMeetit(meetitId);
+      } catch (_) {
+        return null; // 확인되지 않은 경우 삭제 메뉴를 보이지 않습니다.
+      }
+    });
 
 const String _goodIconPath = 'assets/icons/post/good.svg';
 const String _chatIconPath = 'assets/icons/post/chat.svg';
@@ -188,8 +203,12 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
           PostMainType.meetit => MeetitDetailPage(meetitId: postId),
         };
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-    if (mounted)
-      _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
+    if (!mounted) return;
+    // 상세에서 응답/수정했다면 목록 자체뿐 아니라 상세 기반 상태도 갱신합니다.
+    if (type == PostMainType.meetit) {
+      ref.invalidate(_meetitListDetailProvider(postId));
+    }
+    await _loadSelected(keyword: widget.searchOnly ? _searchController.text : '');
   }
 
   Future<void> _handleMeetitDelete(MeetitListItem item) async {
@@ -941,7 +960,7 @@ class _MeetitContent extends StatelessWidget {
   }
 }
 
-class _MeetitListItem extends StatelessWidget {
+class _MeetitListItem extends ConsumerWidget {
   const _MeetitListItem({
     required this.item,
     required this.onTap,
@@ -953,15 +972,30 @@ class _MeetitListItem extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detail = ref.watch(_meetitListDetailProvider(item.meetitId)).asData?.value;
+    final currentUserId = ref.watch(authProvider).asData?.value?.userId;
+    final canDelete = currentUserId != null && detail?.creatorId == currentUserId;
+    // 상세 응답자 명단과 실제 시간표 선택 기록을 모두 확인합니다.
+    // 목록 API의 RESPONDED는 보존하고, 상세에 근거가 있을 때만 보완합니다.
+    final hasDetailedResponse = currentUserId != null && detail != null &&
+        (detail.respondedParticipants.any(
+              (participant) => participant.userId == currentUserId,
+            ) ||
+            detail.timetableGrid.any(
+              (slot) => slot.availableUserIds.contains(currentUserId),
+            ));
+    final responseStatus = hasDetailedResponse
+        ? MeetitMyResponseStatus.responded
+        : item.myResponseStatus;
     final colorScheme = Theme.of(context).colorScheme;
-    final responseLabel = switch (item.myResponseStatus) {
+    final responseLabel = switch (responseStatus) {
       MeetitMyResponseStatus.responded => '응답 완료',
       MeetitMyResponseStatus.notResponded => '미응답',
       MeetitMyResponseStatus.notParticipant => '참여 대상 아님',
     };
     final hasResponded =
-        item.myResponseStatus == MeetitMyResponseStatus.responded;
+        responseStatus == MeetitMyResponseStatus.responded;
 
     return _PostItemTapSurface(
       semanticLabel: '${item.title} 밋잇 상세 보기',
@@ -994,40 +1028,41 @@ class _MeetitListItem extends StatelessWidget {
               ],
             ),
           ),
-          AppDropdownList(
-            width: 170,
-            anchorWidth: 44,
-            itemHeight: 44,
-            alignment: AppDropdownAlignment.right,
-            alignmentOffset: const Offset(0, AppSpacing.x30),
-            items: [AppDropdownItem(label: '삭제하기', onPressed: onDelete)],
-            triggerBuilder: (context, controller) {
-              return Semantics(
-                button: true,
-                expanded: controller.isOpen,
-                label: '${item.title} 밋잇 메뉴',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: () {
-                    if (controller.isOpen) {
-                      controller.close();
-                    } else {
-                      controller.open();
-                    }
-                  },
-                  child: SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: Icon(
-                      Icons.more_vert,
-                      size: 20,
-                      color: colorScheme.onSurface,
+          if (canDelete)
+            AppDropdownList(
+              width: 170,
+              anchorWidth: 44,
+              itemHeight: 44,
+              alignment: AppDropdownAlignment.right,
+              alignmentOffset: const Offset(0, AppSpacing.x30),
+              items: [AppDropdownItem(label: '삭제하기', onPressed: onDelete)],
+              triggerBuilder: (context, controller) {
+                return Semantics(
+                  button: true,
+                  expanded: controller.isOpen,
+                  label: '${item.title} 밋잇 메뉴',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(22),
+                    onTap: () {
+                      if (controller.isOpen) {
+                        controller.close();
+                      } else {
+                        controller.open();
+                      }
+                    },
+                    child: SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: Icon(
+                        Icons.more_vert,
+                        size: 20,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
