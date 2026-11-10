@@ -241,15 +241,21 @@ class MeetitRespondedParticipant {
   const MeetitRespondedParticipant({
     required this.userId,
     required this.name,
+    this.isResponded,
   });
 
   final int userId;
   final String name;
 
+  /// 전체 참여자 API가 제공하는 실제 응답 여부.
+  /// 구버전 API에서는 필드가 없으므로 null로 유지합니다.
+  final bool? isResponded;
+
   factory MeetitRespondedParticipant.fromJson(Map<String, dynamic> json) {
     return MeetitRespondedParticipant(
       userId: json['userId'] as int? ?? 0,
       name: json['name'] as String? ?? '',
+      isResponded: json['isResponded'] as bool?,
     );
   }
 }

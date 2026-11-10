@@ -421,26 +421,47 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     });
   }
 
-  // 응답자 배열이 일부 누락되어도 시간표에 선택 기록이 있다면 응답자로 취급합니다.
-  // 단, 아무 시간도 선택하지 않은 제출은 현재 API로 미응답과 구분할 수 없습니다.
-  Set<int> _respondedUserIds(MeetitDetailData data) => <int>{
-    ...data.respondedParticipants.map((participant) => participant.userId),
-    ...data.timetableGrid.expand((slot) => slot.availableUserIds),
-  };
+  // 최신 API의 participants[].isResponded를 우선합니다.
+  // 해당 필드가 없는 구버전 응답만 기존 응답자 목록/시간표로 보완합니다.
+  Set<int> _respondedUserIds(MeetitDetailData data) {
+    final fallbackIds = <int>{
+      ...data.respondedParticipants.map((participant) => participant.userId),
+      ...data.timetableGrid.expand((slot) => slot.availableUserIds),
+    };
+    final explicitStatuses = <int, bool>{
+      for (final participant in data.invitedParticipants)
+        if (participant.isResponded != null)
+          participant.userId: participant.isResponded!,
+    };
+
+    return <int>{
+      for (final id in fallbackIds)
+        if (explicitStatuses[id] ?? true) id,
+      for (final participant in data.invitedParticipants)
+        if (participant.isResponded == true) participant.userId,
+    };
+  }
 
   Widget _buildParticipantFilter(BuildContext context, MeetitDetailData data) {
     final respondedIds = _respondedUserIds(data);
 
-    // 초대 명단이 제공되면 모두 보여주되, 응답자 정보가 누락되지 않도록
-    // 응답자 목록을 합칩니다. 같은 ID는 한 번만 표시하고 응답자 이름을 우선합니다.
-    // 초대 명단이 없는 기존 API에서는 응답한 사용자만 표시할 수 있습니다.
+    // 전체 참여자 목록의 응답 여부를 우선하되, 구버전 응답자 목록도 합칩니다.
+    // 같은 ID는 한 번만 표시하고 원래 API 순서를 그룹 내에서 유지합니다.
     final participantsById = <int, MeetitRespondedParticipant>{
-      for (final participant in data.invitedParticipants)
-        participant.userId: participant,
       for (final participant in data.respondedParticipants)
         participant.userId: participant,
+      for (final participant in data.invitedParticipants)
+        participant.userId: participant,
     };
-    final participants = participantsById.values.toList(growable: false);
+    final uniqueParticipants = participantsById.values.toList(growable: false);
+    final participants = <MeetitRespondedParticipant>[
+      ...uniqueParticipants.where(
+        (participant) => respondedIds.contains(participant.userId),
+      ),
+      ...uniqueParticipants.where(
+        (participant) => !respondedIds.contains(participant.userId),
+      ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
