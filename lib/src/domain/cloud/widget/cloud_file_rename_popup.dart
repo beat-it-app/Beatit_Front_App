@@ -5,43 +5,69 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:flutter/material.dart';
 
-Future<String?> showCloudFileRenamePopup(
+Future<String?> showCloudRenamePopup(
   BuildContext context, {
-  required String initialFileName,
+  required String initialName,
+  bool preserveExtension = false,
 }) {
   return showDialog<String>(
     context: context,
-    builder: (_) => CloudFileRenamePopup(initialFileName: initialFileName),
+    builder: (_) => CloudRenamePopup(
+      initialName: initialName,
+      preserveExtension: preserveExtension,
+    ),
   );
 }
 
-class CloudFileRenamePopup extends StatefulWidget {
-  const CloudFileRenamePopup({super.key, required this.initialFileName});
+class CloudRenamePopup extends StatefulWidget {
+  const CloudRenamePopup({
+    super.key,
+    required this.initialName,
+    this.preserveExtension = false,
+  });
 
-  final String initialFileName;
+  final String initialName;
+  final bool preserveExtension;
 
   @override
-  State<CloudFileRenamePopup> createState() => _CloudFileRenamePopupState();
+  State<CloudRenamePopup> createState() => _CloudRenamePopupState();
 }
 
-class _CloudFileRenamePopupState extends State<CloudFileRenamePopup> {
+class _CloudRenamePopupState extends State<CloudRenamePopup> {
   late final _ParsedFileName _parsedFileName = _ParsedFileName.from(
-    widget.initialFileName,
+    widget.initialName,
+    preserveExtension: widget.preserveExtension,
   );
   late final TextEditingController _controller = TextEditingController(
     text: _parsedFileName.baseName,
   );
 
+  bool get _canSubmit => _controller.text.trim().isNotEmpty;
+
   String get _resolvedFileName {
-    final baseName = _controller.text.trim().isEmpty
-        ? _parsedFileName.baseName
-        : _controller.text.trim();
+    final baseName = _controller.text.trim();
 
     if (_parsedFileName.extension.isEmpty) {
       return baseName;
     }
 
     return '$baseName.${_parsedFileName.extension}';
+  }
+
+  double _fileNameTextWidth(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: _controller.text.isEmpty ? ' ' : _controller.text,
+        style: FontStyles.reg18,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    // 편집 커서가 잘리지 않도록 여유를 두고 짧은 이름도 편하게 편집합니다.
+    final width = painter.width + 4;
+    painter.dispose();
+    return width < 32 ? 32 : width;
   }
 
   @override
@@ -92,32 +118,43 @@ class _CloudFileRenamePopupState extends State<CloudFileRenamePopup> {
                 ),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _controller,
-                        maxLines: 1,
-                        cursorColor: context.colors.primary,
-                        style: FontStyles.reg18.copyWith(
-                          color: context.colors.onSurface,
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: SizedBox(
+                        // 파일명 길이만큼만 입력창을 차지하도록 하여 확장자가
+                        // 남은 입력 영역의 오른쪽 끝으로 밀리지 않게 합니다.
+                        width: _parsedFileName.extension.isEmpty
+                            ? double.infinity
+                            : _fileNameTextWidth(context),
+                        child: TextFormField(
+                          controller: _controller,
+                          maxLines: 1,
+                          cursorColor: context.colors.primary,
+                          style: FontStyles.reg18.copyWith(
+                            color: context.colors.onSurface,
+                          ),
+                          decoration: const InputDecoration(
+                            isCollapsed: true,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          onChanged: (_) => setState(() {}),
+                          onFieldSubmitted: (_) {
+                            if (_canSubmit) {
+                              Navigator.of(context).pop(_resolvedFileName);
+                            }
+                          },
                         ),
-                        decoration: const InputDecoration(
-                          isCollapsed: true,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                        onFieldSubmitted: (_) {
-                          Navigator.of(context).pop(_resolvedFileName);
-                        },
                       ),
                     ),
                     if (_parsedFileName.extension.isNotEmpty)
                       Text(
                         '.${_parsedFileName.extension}',
                         style: FontStyles.reg18.copyWith(
-                          color: context.colors.onSurface,
+                          color: context.grays.gray5,
                         ),
                       ),
                   ],
@@ -139,9 +176,10 @@ class _CloudFileRenamePopupState extends State<CloudFileRenamePopup> {
                   Expanded(
                     child: AppButton(
                       text: '확인',
-                      onPressed: () {
-                        Navigator.of(context).pop(_resolvedFileName);
-                      },
+                      isDisabled: !_canSubmit,
+                      onPressed: _canSubmit
+                          ? () => Navigator.of(context).pop(_resolvedFileName)
+                          : null,
                     ),
                   ),
                 ],
@@ -160,13 +198,35 @@ class _ParsedFileName {
   final String baseName;
   final String extension;
 
-  factory _ParsedFileName.from(String fileName) {
+  factory _ParsedFileName.from(
+    String fileName, {
+    required bool preserveExtension,
+  }) {
     final dotIndex = fileName.lastIndexOf('.');
-    final hasExtension = dotIndex > 0 && dotIndex < fileName.length - 1;
+    final hasExtension =
+        preserveExtension && dotIndex > 0 && dotIndex < fileName.length - 1;
 
     return _ParsedFileName(
       baseName: hasExtension ? fileName.substring(0, dotIndex) : fileName,
       extension: hasExtension ? fileName.substring(dotIndex + 1) : '',
     );
   }
+}
+
+/// 기존 파일 이름 수정 호출부와의 호환성을 유지합니다.
+Future<String?> showCloudFileRenamePopup(
+  BuildContext context, {
+  required String initialFileName,
+}) => showCloudRenamePopup(
+  context,
+  initialName: initialFileName,
+  preserveExtension: true,
+);
+
+/// 기존 이름 수정 팝업 타입과의 호환성을 유지합니다.
+class CloudFileRenamePopup extends CloudRenamePopup {
+  const CloudFileRenamePopup({
+    super.key,
+    required String initialFileName,
+  }) : super(initialName: initialFileName, preserveExtension: true);
 }

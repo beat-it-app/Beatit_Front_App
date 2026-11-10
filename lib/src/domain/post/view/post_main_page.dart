@@ -163,7 +163,12 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
     final created = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => page));
-    if (mounted && created == true) _loadSelected(keyword: '');
+    if (!mounted || created != true) return;
+    // 어떤 종류 화면에서 생성 메뉴를 열었든 방금 만든 유형을 선택합니다.
+    if (_selectedType != type) {
+      setState(() => _selectedType = type);
+    }
+    await _loadSelected(keyword: '');
   }
 
   Future<void> _openDetailPage({
@@ -482,9 +487,9 @@ class _PostTypeDropdown extends StatelessWidget {
       alignmentOffset: const Offset(0, AppSpacing.x60),
       showPressedCheck: false,
       items: PostMainType.values.map((type) {
-        final isSelected = type == selectedType;
         return AppDropdownItem(
-          label: isSelected ? '✓  ${type.title}' : '    ${type.title}',
+          label: type.title,
+          isSelected: type == selectedType,
           onPressed: () => onChanged(type),
         );
       }).toList(),

@@ -103,17 +103,15 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   bool get _hasTitle => _titleController.text.trim().isNotEmpty;
 
   bool get _hasValidTimeRange {
+    // 시작/종료 시간은 각각 선택 사항입니다.
+    // 두 시간을 모두 선택한 경우에만 앞뒤 순서를 검사합니다.
+    if (_endTime?.hour == 0) return false;
+    if (_startTime == null || _endTime == null) return true;
     if (_selectedDate == null) return false;
-    // 현재 서버는 시작/종료 시각을 모두 필수로 검증합니다.
-    if (_startTime == null || _endTime == null) return false;
 
     final startsAt = _combineDateAndTime(_selectedDate!, _startTime!);
-    final endsAt = _combineEndDateAndTime(
-      _selectedDate!,
-      _startTime!,
-      _endTime!,
-    );
-
+    final endsAt = _combineDateAndTime(_selectedDate!, _endTime!);
+    // 다음 날 00시로 넘기지 않고 선택한 날짜 안에서만 종료하도록 합니다.
     return endsAt.isAfter(startsAt);
   }
 
@@ -224,12 +222,16 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.primaryFocus?.unfocus();
+    // 새 화면 진입 시 기존 입력창의 포커스를 정리하고 키보드를 닫습니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
     final now = DateTime.now();
     _defaultCreateDate = DateUtils.dateOnly(widget.initialDate ?? now);
     if (!_isEditMode) {
       _selectedDate = _defaultCreateDate;
       _dateController.text = _formatDate(_defaultCreateDate);
-      // 입력창은 비워두되 현재 서버 저장 시에는 시작/종료 시간이 필수입니다.
     }
     _applyInitialSchedule();
   }
@@ -409,23 +411,9 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     return '날짜를 선택해주세요.';
   }
 
-  String? get _startTimeErrorText {
-    if (!_showValidation || _startTime != null) return null;
-    return '시작 시간을 선택해주세요.';
-  }
-
   String? get _endTimeErrorText {
-    if (!_showValidation) return null;
-
-    if (_endTime == null) {
-      return '끝나는 시간을 선택해주세요.';
-    }
-
-    if (_startTime != null && _endTime != null && !_hasValidTimeRange) {
-      return '끝나는 시간은 시작 시간보다 늦어야 합니다.';
-    }
-
-    return null;
+    if (!_showValidation || _hasValidTimeRange) return null;
+    return '끝나는 시간은 당일 오전 1시부터 오후 11시 59분까지, 시작 시간 이후로 설정해주세요.';
   }
 
   String? get _membersErrorText {
@@ -480,16 +468,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _startTime = selectedTime;
       _startTimeController.text = _formatTime(selectedTime);
-
-      // 종료 시각을 아직 고르지 않았다면 시작 시각 + 1시간을 바로 표시합니다.
-      // 이미 직접 고른 종료 시각(수정 모드 포함)은 덮어쓰지 않습니다.
-      if (_endTime == null) {
-        _endTime = TimeOfDay(
-          hour: (selectedTime.hour + 1) % 24,
-          minute: selectedTime.minute,
-        );
-        _endTimeController.text = _formatTime(_endTime!);
-      }
+      // 종료 시간은 자동 입력하지 않습니다. 각 시간을 독립적으로 선택할 수 있습니다.
     });
   }
 
@@ -504,10 +483,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           _endTime ??
           (_startTime == null
               ? TimeOfDay(hour: currentHour, minute: 0)
-              : TimeOfDay(
-                  hour: (_startTime!.hour + 1) % 24,
-                  minute: _startTime!.minute,
-                )),
+              : _startTime!.hour == 23
+                  ? const TimeOfDay(hour: 23, minute: 59)
+                  : TimeOfDay(
+                      hour: _startTime!.hour + 1,
+                      minute: _startTime!.minute,
+                    )),
+      excludeMidnightHour: true,
     );
 
     if (!mounted || selectedTime == null) return;
@@ -915,31 +897,13 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   }
 
   DateTime? _scheduleEndsAt(DateTime date) {
-    if (_startTime == null || _endTime == null) return null;
-    return _combineEndDateAndTime(date, _startTime!, _endTime!);
+    final endTime = _endTime;
+    if (endTime == null) return null;
+    return _combineDateAndTime(date, endTime);
   }
 
   DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
-  }
-
-  DateTime _combineEndDateAndTime(
-    DateTime date,
-    TimeOfDay startTime,
-    TimeOfDay endTime,
-  ) {
-    final startsAt = _combineDateAndTime(date, startTime);
-    final endsAt = _combineDateAndTime(date, endTime);
-    // 23:00 -> 00:00처럼 자정을 넘는 일정은 다음 날 종료로 저장합니다.
-    return endsAt.isBefore(startsAt)
-        ? DateTime(
-            date.year,
-            date.month,
-            date.day + 1,
-            endTime.hour,
-            endTime.minute,
-          )
-        : endsAt;
   }
 
   String _formatDate(DateTime date) {
@@ -1122,7 +1086,6 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                                 hintText: '시작 시간',
                                 controller: _startTimeController,
                                 readOnly: true,
-                                errorText: _startTimeErrorText,
                                 onTap: _selectStartTime,
                                 suffixIcon: SvgPicture.asset(
                                   'assets/icons/cal/clock.svg',

@@ -71,6 +71,11 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.primaryFocus?.unfocus();
+    // 새 화면 진입 시 이전 입력창의 포커스가 이어지지 않게 합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
 
     final initial = widget.initialData;
     if (initial == null) return;

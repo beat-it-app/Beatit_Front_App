@@ -97,7 +97,9 @@ class PollAddBoxState extends State<PollAddBox> {
         _items.add(_createDraft(value));
       }
     } else {
-      final count = widget.initialOptionCount < 0 ? 0 : widget.initialOptionCount;
+      final count = widget.initialOptionCount < 0
+          ? 0
+          : widget.initialOptionCount;
       for (var i = 0; i < count; i++) {
         _items.add(_createDraft());
       }
@@ -459,8 +461,8 @@ class _PollDeleteButton extends StatelessWidget {
           child: Center(
             child: SvgPicture.asset(
               'assets/icons/post/delete.svg',
-              width: 18,
-              height: 18,
+              width: 24,
+              height: 24,
               colorFilter: ColorFilter.mode(
                 context.grays.gray6,
                 BlendMode.srcIn,

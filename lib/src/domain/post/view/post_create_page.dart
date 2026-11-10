@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -51,7 +50,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   final List<XFile> _images = [];
   final Map<String, int> _imageSizeBytes = <String, int>{};
-  final ScrollController _formScrollController = ScrollController();
 
   int? _pendingDeleteExistingImageIndex;
   int? _pendingDeleteImageIndex;
@@ -77,6 +75,11 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.primaryFocus?.unfocus();
+    // 화면 진입 시 이전 화면의 입력 포커스가 이어져 키보드가 열리지 않게 합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
     _titleController = TextEditingController(
       text: widget.initialNotice?.title ?? '',
     );
@@ -151,7 +154,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         _pendingDeleteImageIndex = null;
         _refreshImagesChanged();
       });
-      unawaited(_scrollToFormEndAfterSelection());
     }
 
     if (exceedsImageCount) {
@@ -165,29 +167,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     } else if (hasUnsupportedImage) {
       await _showImageBlockedPopup('지원하지 않는 이미지 형식이 포함되어 있습니다.');
     }
-  }
-
-  Future<void> _scrollToFormEndAfterSelection() async {
-    // 갤러리 복귀 후 키보드/이미지의 크기 변경이 끝나도록 레이아웃을
-    // 여러 번 확인합니다. 애니메이션 도중 maxScrollExtent가 바뀌어
-    // 중간 위치에서 멈추지 않도록 마지막 위치로 즉시 이동합니다.
-    for (final delay in <Duration>[
-      Duration.zero,
-      const Duration(milliseconds: 120),
-      const Duration(milliseconds: 350),
-    ]) {
-      if (delay != Duration.zero) await Future<void>.delayed(delay);
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scrollToPhotoUploadBottom();
-      });
-    }
-  }
-
-  void _scrollToPhotoUploadBottom() {
-    if (!mounted || !_formScrollController.hasClients) return;
-    final bottom = _formScrollController.position.maxScrollExtent;
-    _formScrollController.jumpTo(bottom);
   }
 
   Future<void> _showImageBlockedPopup(String content) async {
@@ -363,7 +342,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
-    _formScrollController.dispose();
     super.dispose();
   }
 
@@ -383,7 +361,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  controller: _formScrollController,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
@@ -445,7 +422,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                               pendingDelete: _pendingDeleteImageIndex == index,
                               onTap: () => _handleImageTap(index),
                               onDelete: () => _deleteImage(index),
-                              onFirstFrame: _scrollToPhotoUploadBottom,
                             ),
                           ),
                         ),
@@ -554,14 +530,12 @@ class _PostImagePreview extends StatelessWidget {
     required this.pendingDelete,
     required this.onTap,
     required this.onDelete,
-    this.onFirstFrame,
   });
 
   final XFile image;
   final bool pendingDelete;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final VoidCallback? onFirstFrame;
 
   @override
   Widget build(BuildContext context) {
@@ -582,15 +556,6 @@ class _PostImagePreview extends StatelessWidget {
                 File(image.path),
                 width: double.infinity,
                 fit: BoxFit.fitWidth,
-                // 디코딩 후 사진 높이가 변경되는 시점에도 가장 아래로 이동.
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  if (frame == 0) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      onFirstFrame?.call();
-                    });
-                  }
-                  return child;
-                },
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: double.infinity,
                   height: 180,
