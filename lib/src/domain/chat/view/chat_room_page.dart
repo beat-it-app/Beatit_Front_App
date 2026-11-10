@@ -1182,33 +1182,28 @@ class _ChatMessageList extends StatelessWidget {
                     ? () => onAttachmentPressed(message)
                     : null,
               ),
-              if (participantCount > 2)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  child: readersHere.isEmpty
-                      ? const SizedBox.shrink(key: ValueKey('read-empty'))
-                      : Align(
-                          key: ValueKey('read-${message.messageId}-${readersHere.map((r) => r.userId).join('-')}'),
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.x4),
-                            child: Wrap(
-                              spacing: AppSpacing.x4,
-                              children: [
-                                for (final reader in readersHere)
-                                  Tooltip(
-                                    message: reader.name,
-                                    child: GroupChatProfile(
-                                      imageUrls: reader.profileImageUrl == null
-                                          ? const <String>[]
-                                          : <String>[reader.profileImageUrl!],
-                                      size: 20,
-                                    ),
-                                  ),
-                              ],
+              // 읽음 위치가 바뀌면 페이드 없이 즉시 표시합니다.
+              if (participantCount > 2 && readersHere.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.x4),
+                    child: Wrap(
+                      spacing: AppSpacing.x4,
+                      children: [
+                        for (final reader in readersHere)
+                          Tooltip(
+                            message: reader.name,
+                            child: GroupChatProfile(
+                              imageUrls: reader.profileImageUrl == null
+                                  ? const <String>[]
+                                  : <String>[reader.profileImageUrl!],
+                              size: 20,
                             ),
                           ),
-                        ),
+                      ],
+                    ),
+                  ),
                 ),
               if (messageGap > 0) SizedBox(height: messageGap),
             ],

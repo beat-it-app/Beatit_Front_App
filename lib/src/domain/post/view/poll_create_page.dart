@@ -329,10 +329,14 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     return _buildRequest() != _buildInitialRequest();
   }
 
-  bool _arePollOptionsValid() {
-    if (_pollOptions.length < 2) return false;
+  List<PollOptionValue> get _filledPollOptions => _pollOptions
+      .where((option) => option.value.trim().isNotEmpty)
+      .toList(growable: false);
 
-    return _pollOptions.every((option) {
+  bool _arePollOptionsValid() {
+    if (_filledPollOptions.length < 2) return false;
+
+    return _filledPollOptions.every((option) {
       final value = option.value.trim();
       if (value.isEmpty) return false;
 
@@ -351,8 +355,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   String? _pollOptionsValidationMessage() {
-    if (_pollOptions.length < 2) {
-      return '투표 항목을 2개 이상 입력해주세요.';
+    if (_filledPollOptions.length < 2) {
+      return '두 개 이상의 항목을 입력해야 합니다.';
     }
 
     if (!_arePollOptionsValid()) {
@@ -441,7 +445,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
     };
 
     final options = <PollCreateItem>[];
-    for (final option in _pollOptions) {
+    // 빈 입력란은 화면에 남겨 두되 서버 요청에서는 제외합니다.
+    for (final option in _filledPollOptions) {
       final text = option.value.trim();
       final music = _musicChoices[option.id];
       final place = _placeChoices[option.id];
@@ -485,8 +490,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
 
   bool get _hasRequiredInputs {
     return _titleController.text.trim().isNotEmpty &&
-        _pollOptions.length >= 2 &&
-        _pollOptions.every((option) => option.value.trim().isNotEmpty);
+        _arePollOptionsValid();
   }
 
   Future<void> _submitPoll() async {
@@ -576,6 +580,12 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                                   .map((option) => option.value)
                                   .toList(growable: false),
                         onChanged: _handlePollOptionsChanged,
+                        onMinimumItemCountReached: () {
+                          setState(() {
+                            _pollOptionsError =
+                                '두 개 이상의 항목을 입력해야 합니다.';
+                          });
+                        },
                         onMusicPressed: _handleMusicPressed,
                         onPlacePressed: _handlePlacePressed,
                       ),
