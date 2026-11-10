@@ -46,7 +46,6 @@ class _MainShellState extends ConsumerState<MainShell> {
       PostMainPage(initialType: widget.initialPostType),
       const CalMainPage(),
       const ListChatPage(),
-
       const MyPageView(),
     ];
     _currentIndex = widget.initialIndex.clamp(
