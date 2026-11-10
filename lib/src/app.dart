@@ -47,7 +47,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       const CalMainPage(),
       const ListChatPage(),
 
-      // const MyPageView(),
+      const MyPageView(),
     ];
     _currentIndex = widget.initialIndex.clamp(
       0,

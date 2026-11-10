@@ -335,10 +335,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     );
     if (!mounted || name == null || name == item.itemName) return;
 
-    final success = await ref.read(cloudMutationProvider.notifier).renameItem(
-      itemId: item.itemId,
-      itemName: name,
-    );
+    final success = await ref
+        .read(cloudMutationProvider.notifier)
+        .renameItem(itemId: item.itemId, itemName: name);
     if (!mounted) return;
     _showMutationResult(success, successMessage: '이름을 수정했습니다.');
   }
@@ -460,7 +459,8 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
                   controller: _searchController,
                   hintText: '파일 이름 검색',
                   onSearchPressed: () => FocusScope.of(context).unfocus(),
-                  onChanged: (text) => setState(() => _searchQuery = text.trim()),
+                  onChanged: (text) =>
+                      setState(() => _searchQuery = text.trim()),
                 ),
               ),
               const SizedBox(height: AppSpacing.x8),
@@ -469,7 +469,8 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
               child: _isSearchMode
                   ? _buildSearchResults()
                   : cloudList.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
                       error: (error, _) => _CloudErrorView(
                         message: error.toString(),
                         onRetry: () => ref.invalidate(cloudListProvider(null)),
@@ -491,73 +492,87 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
     final query = _searchQuery.toLowerCase();
     if (query.isEmpty) return const SizedBox.shrink();
 
-    return ref.watch(cloudSearchEntriesProvider).when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _CloudErrorView(
-        message: error.toString(),
-        onRetry: () => ref.invalidate(cloudSearchEntriesProvider),
-      ),
-      data: (entries) {
-        final matches = entries
-            .where((entry) => entry.item.itemName.toLowerCase().contains(query))
-            .toList(growable: false);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.x24, AppSpacing.x4, AppSpacing.x16, AppSpacing.x12,
-              ),
-              child: Text(
-                '${matches.length}개의 검색 결과',
-                style: FontStyles.med14.copyWith(color: context.grays.gray4),
-              ),
-            ),
-            Expanded(
-              child: matches.isEmpty
-                  ? Center(
-                      child: Text(
-                        '검색 결과가 없습니다.',
-                        style: FontStyles.med14.copyWith(color: context.grays.gray4),
-                      ),
-                    )
-                  : ListView.separated(
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.zero,
-                      itemCount: matches.length,
-                      itemBuilder: (context, index) {
-                        final entry = matches[index];
-                        final item = entry.item;
-                        return CloudItemWidget(
-                          key: ValueKey('search-${entry.folderId}-${item.itemId}'),
-                          itemType: _itemType(item),
-                          fileName: item.itemName,
-                          fileSize: _formatFileSize(item.fileSize),
-                          uploadedAt: _formatDate(item.createdAt),
-                          uploaderName: item.uploaderName,
-                          showMoreMenu: false,
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => CloudPreviewHostPage(
-                                  folderName: entry.folderName,
-                                  folderId: entry.folderId,
-                                  items: entry.siblings,
-                                  initialItemId: item.itemId,
-                                ),
+    return ref
+        .watch(cloudSearchEntriesProvider)
+        .when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _CloudErrorView(
+            message: error.toString(),
+            onRetry: () => ref.invalidate(cloudSearchEntriesProvider),
+          ),
+          data: (entries) {
+            final matches = entries
+                .where(
+                  (entry) => entry.item.itemName.toLowerCase().contains(query),
+                )
+                .toList(growable: false);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.x24,
+                    AppSpacing.x4,
+                    AppSpacing.x16,
+                    AppSpacing.x12,
+                  ),
+                  child: Text(
+                    '${matches.length}개의 검색 결과',
+                    style: FontStyles.med14.copyWith(
+                      color: context.grays.gray4,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: matches.isEmpty
+                      ? Center(
+                          child: Text(
+                            '검색 결과가 없습니다.',
+                            style: FontStyles.med14.copyWith(
+                              color: context.grays.gray4,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: EdgeInsets.zero,
+                          itemCount: matches.length,
+                          itemBuilder: (context, index) {
+                            final entry = matches[index];
+                            final item = entry.item;
+                            return CloudItemWidget(
+                              key: ValueKey(
+                                'search-${entry.folderId}-${item.itemId}',
                               ),
+                              itemType: _itemType(item),
+                              fileName: item.itemName,
+                              fileSize: _formatFileSize(item.fileSize),
+                              uploadedAt: _formatDate(item.createdAt),
+                              uploaderName: item.uploaderName,
+                              showMoreMenu: false,
+                              onTap: () {
+                                FocusScope.of(context).unfocus();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => CloudPreviewHostPage(
+                                      folderName: entry.folderName,
+                                      folderId: entry.folderId,
+                                      items: entry.siblings,
+                                      initialItemId: item.itemId,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                      separatorBuilder: (_, __) => _buildDivider(),
-                    ),
-            ),
-          ],
+                          separatorBuilder: (_, __) => _buildDivider(),
+                        ),
+                ),
+              ],
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildCloudList(
@@ -671,41 +686,46 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
 
     // 권한이 없는 작업은 비활성화 상태로 남기지 않고 메뉴에서 제외합니다.
     if (canManage) {
-      items.add(AppDropdownItem(
-        label: '이름 수정하기',
-        onPressed: () => _renameItem(item),
-      ));
-      items.add(AppDropdownItem(
-        label: '이동하기',
-        onPressed: () => _moveItems(
-          [item.itemId],
-          displayName: item.itemName,
+      items.add(
+        AppDropdownItem(label: '이름 수정하기', onPressed: () => _renameItem(item)),
+      );
+      items.add(
+        AppDropdownItem(
+          label: '이동하기',
+          onPressed: () =>
+              _moveItems([item.itemId], displayName: item.itemName),
         ),
-      ));
+      );
     }
 
     if (type == CloudItemType.link) {
       if (canManage) {
-        items.add(AppDropdownItem(
-          label: '링크 수정하기',
-          onPressed: _showUnsupportedLinkEdit,
-        ));
+        items.add(
+          AppDropdownItem(
+            label: '링크 수정하기',
+            onPressed: _showUnsupportedLinkEdit,
+          ),
+        );
       }
     } else {
-      items.add(AppDropdownItem(
-        label: '${_downloadLabel(type)} 다운로드하기',
-        onPressed: () {
-          final data = ref.read(cloudListProvider(null)).asData?.value;
-          if (data != null) _downloadItems([item.itemId], data);
-        },
-      ));
+      items.add(
+        AppDropdownItem(
+          label: '${_downloadLabel(type)} 다운로드하기',
+          onPressed: () {
+            final data = ref.read(cloudListProvider(null)).asData?.value;
+            if (data != null) _downloadItems([item.itemId], data);
+          },
+        ),
+      );
     }
 
     if (canManage) {
-      items.add(AppDropdownItem(
-        label: '삭제하기',
-        onPressed: () => _deleteSingleItem(item.itemId),
-      ));
+      items.add(
+        AppDropdownItem(
+          label: '삭제하기',
+          onPressed: () => _deleteSingleItem(item.itemId),
+        ),
+      );
     }
     return items;
   }
@@ -745,7 +765,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       thickness: 1,
       indent: AppSpacing.x30,
       endIndent: AppSpacing.x16,
-      color: Color.alphaBlend(colors.onSurface.withAlpha(18), colors.surface),
+      color: context.grays.gray7,
     );
   }
 

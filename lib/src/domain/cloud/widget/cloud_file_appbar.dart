@@ -58,11 +58,6 @@ class CloudFileAppbar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onTitlePressed,
                 ),
               ),
-              if (onLeadingPressed != null)
-                Positioned(
-                  right: AppSpacing.x20,
-                  child: CloudBasicButton(onPressed: onLeadingPressed),
-                ),
             ],
           ),
         ),
