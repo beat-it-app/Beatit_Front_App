@@ -166,10 +166,12 @@ class ChatApi {
     required String firstMessageContent,
   }) async {
     try {
-      // 최초 생성 시에는 이름을 보내지 않습니다. 서버가 사용자별 이름을 결정합니다.
+      // 이름을 직접 설정하기 전에는 서버에 반드시 null을 전달합니다.
+      // 화면에 표시하는 멤버 이름은 이 요청에 포함하지 않습니다.
       final response = await _dio.post<Map<String, dynamic>>(
         _chatRoomsPath,
         data: {
+          'roomName': null,
           'participantIds': participantIds,
           'firstMessageContent': firstMessageContent,
         },

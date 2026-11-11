@@ -13,6 +13,7 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
+import 'package:beatit_front_app/src/domain/chat/provider/chat_list_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_room_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_image_preview_page.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
@@ -214,6 +215,18 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     if (!success) {
       _showCurrentError();
       return;
+    }
+
+    if (state.isDraft) {
+      final createdId = ref.read(chatRoomProvider).chatId;
+      if (createdId != null) {
+        ref.read(chatListProvider.notifier).rememberCreatedRoomMembers(
+          chatId: createdId,
+          otherMemberNames: widget.draftMembers
+              .map((member) => member.userName)
+              .toList(growable: false),
+        );
+      }
     }
 
     // Keep focus (and the keyboard) while sending; do not erase a newer draft.
@@ -682,6 +695,15 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen<ChatRoomState>(chatRoomProvider, (previous, next) {
+      if (next.chatId != null && !next.isDraft &&
+          (next.messages.isNotEmpty || next.readMarkers.isNotEmpty)) {
+        ref.read(chatListProvider.notifier).rememberObservedRoomMembers(
+          chatId: next.chatId!,
+          participantCount: next.participantCount,
+          messages: next.messages,
+          readMarkers: next.readMarkers.values,
+        );
+      }
       // Reset the pagination autofill gate when a different room is opened.
       if (previous?.chatId != next.chatId ||
           (next.isInitialLoading && previous?.isInitialLoading == false)) {
