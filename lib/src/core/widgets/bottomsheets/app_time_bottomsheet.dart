@@ -14,6 +14,7 @@ class AppTimeBottomSheet extends StatefulWidget {
     this.title,
     this.initialTime,
     this.minuteInterval = 1,
+    this.excludeMidnightHour = false,
     this.initialDate,
     this.startYear = 2000,
     this.maxDate,
@@ -27,6 +28,11 @@ class AppTimeBottomSheet extends StatefulWidget {
 
   /// 시간 선택 간격입니다. 기본값은 기존 동작과 같은 1분입니다.
   final int minuteInterval;
+
+  /// 오전 12시(00:00~00:59)를 선택할 수 없게 합니다.
+  /// 일정의 종료 시간에서만 사용하고 다른 화면의 기본 동작은 유지합니다.
+  final bool excludeMidnightHour;
+
   final DateTime? initialDate;
   final int startYear;
   final DateTime? maxDate;
@@ -39,6 +45,7 @@ class AppTimeBottomSheet extends StatefulWidget {
     String? title,
     TimeOfDay? initialTime,
     int minuteInterval = 1,
+    bool excludeMidnightHour = false,
   }) {
     assert(minuteInterval > 0 && 60 % minuteInterval == 0);
     return showModalBottomSheet<TimeOfDay>(
@@ -50,6 +57,7 @@ class AppTimeBottomSheet extends StatefulWidget {
         title: title,
         initialTime: initialTime,
         minuteInterval: minuteInterval,
+        excludeMidnightHour: excludeMidnightHour,
         onConfirmTime: (selectedTime) {
           Navigator.of(context).pop(selectedTime);
         },
@@ -105,7 +113,11 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
     super.initState();
 
     if (widget.mode == AppTimePickerMode.time) {
-      final initial = widget.initialTime ?? TimeOfDay.now();
+      final requestedInitial = widget.initialTime ?? TimeOfDay.now();
+      // 기존 데이터나 기본 제안값이 00시여도 선택 불가능한 값으로 진입하지 않습니다.
+      final initial = widget.excludeMidnightHour && requestedInitial.hour == 0
+          ? const TimeOfDay(hour: 23, minute: 59)
+          : requestedInitial;
       _selectedPeriodIndex = initial.hour >= 12 ? 1 : 0;
       int hour12 = initial.hourOfPeriod;
       if (hour12 == 0) hour12 = 12;
@@ -308,8 +320,15 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             scrollController: FixedExtentScrollController(
               initialItem: _selectedPeriodIndex,
             ),
-            onSelectedItemChanged: (index) =>
-                setState(() => _selectedPeriodIndex = index),
+            onSelectedItemChanged: (index) => setState(() {
+              _selectedPeriodIndex = index;
+              // AM 12가 빠진 11개 항목으로 변경될 때 범위를 맞춥니다.
+              if (widget.excludeMidnightHour &&
+                  index == 0 &&
+                  _selectedHourIndex == 11) {
+                _selectedHourIndex = 10;
+              }
+            }),
             children: [
               Center(
                 child: Text(
@@ -328,6 +347,9 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
         ),
         Expanded(
           child: CupertinoPicker(
+            key: ValueKey(
+              'hour-${_selectedPeriodIndex}-${widget.excludeMidnightHour}',
+            ),
             itemExtent: 40,
             selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
@@ -335,14 +357,19 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             ),
             onSelectedItemChanged: (index) =>
                 setState(() => _selectedHourIndex = index),
-            children: List.generate(12, (index) {
-              return Center(
-                child: Text(
-                  '${index + 1}',
-                  style: FontStyles.reg18.copyWith(color: colors.onSurface),
-                ),
-              );
-            }),
+            children: List.generate(
+              widget.excludeMidnightHour && _selectedPeriodIndex == 0
+                  ? 11
+                  : 12,
+              (index) {
+                return Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: FontStyles.reg18.copyWith(color: colors.onSurface),
+                  ),
+                );
+              },
+            ),
           ),
         ),
         Expanded(

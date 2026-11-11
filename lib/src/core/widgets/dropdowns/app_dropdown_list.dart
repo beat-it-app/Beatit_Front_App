@@ -16,6 +16,7 @@ class AppDropdownItem {
     required this.label,
     required this.onPressed,
     this.svgLink = null,
+    this.isSelected = false,
     this.enabled = true,
   });
 
@@ -26,6 +27,9 @@ class AppDropdownItem {
   final VoidCallback onPressed;
 
   final String? svgLink;
+
+  /// 현재 드롭다운에서 선택된 항목인지 여부
+  final bool isSelected;
 
   /// 항목 활성화 여부
   final bool enabled;
@@ -261,6 +265,7 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
       button: true,
       enabled: widget.item.enabled,
       label: widget.item.label,
+      selected: widget.item.isSelected,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -297,7 +302,8 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
                       child: FadeTransition(opacity: animation, child: child),
                     );
                   },
-                  child: _isPressed && widget.showPressedCheck
+                  child: widget.item.isSelected ||
+                          (_isPressed && widget.showPressedCheck)
                       ? Center(
                           child: Padding(
                             key: const ValueKey('pressed-check'),

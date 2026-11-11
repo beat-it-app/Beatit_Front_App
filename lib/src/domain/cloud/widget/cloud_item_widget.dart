@@ -78,12 +78,12 @@ class CloudItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selectedColor = Color.alphaBlend(
-      colorScheme.onSurface.withAlpha(18),
-      colorScheme.surface,
+      context.grays.gray8.withAlpha(18),
+      context.grays.gray8,
     );
     final pressedColor = Color.alphaBlend(
-      colorScheme.onSurface.withAlpha(28),
-      colorScheme.surface,
+      context.grays.gray8.withAlpha(28),
+      context.grays.gray8,
     );
     final shouldShowFileSize =
         itemType.showsFileSize && fileSize?.isNotEmpty == true;
@@ -116,8 +116,8 @@ class CloudItemWidget extends StatelessWidget {
                   ],
                   SvgPicture.asset(
                     itemType.iconPath,
-                    width: 20.0,
-                    height: 20.0,
+                    width: 24.0,
+                    height: 24.0,
                   ),
                   const SizedBox(width: AppSpacing.x16),
                   Expanded(

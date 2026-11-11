@@ -6,6 +6,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_room_provider.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_image_collage.dart';
 
 /// 여러 사진을 하나의 업로드 중 채팅 카드로 표시합니다.
 /// 서버에는 사진별 메시지가 전송되지만, 완료 전에는 분리된 로딩 카드를 보여주지 않습니다.
@@ -23,66 +24,39 @@ class ChatPendingImageBatchItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final columns = batch.files.length <= 4 ? 2 : 3;
     return Align(
       alignment: Alignment.centerRight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: SizedBox(
-              width: 245,
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: AppSpacing.x4,
-                  crossAxisSpacing: AppSpacing.x4,
+          if (batch.files.length == 1)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: SizedBox(
+                width: 245,
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: AppSpacing.x4,
+                    crossAxisSpacing: AppSpacing.x4,
+                  ),
+                  itemCount: 1,
+                  itemBuilder: (context, index) => _PendingImageTile(
+                    file: batch.files[index],
+                  ),
                 ),
-                itemCount: batch.files.length,
-                itemBuilder: (context, index) {
-                  final file = batch.files[index];
-                  final done = file.messageId != null;
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.file(
-                        File(file.path),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.broken_image_outlined,
-                          color: context.grays.gray5,
-                        ),
-                      ),
-                      if (!done)
-                        ColoredBox(
-                          color: Theme.of(context)
-                              .colorScheme.scrim.withValues(alpha: 0.26),
-                          child: Center(
-                            child: file.progress > 0
-                                ? CircularProgressIndicator(value: file.progress)
-                                : Icon(Icons.cloud_upload_outlined,
-                                    color: context.grays.white),
-                          ),
-                        ),
-                      if (done)
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.x4),
-                            child: Icon(Icons.check_circle,
-                                color: context.grays.white, size: 18),
-                          ),
-                        ),
-                    ],
-                  );
-                },
+              ),
+            )
+          else
+            ChatImageCollage(
+              itemCount: batch.files.length,
+              itemBuilder: (context, index) => _PendingImageTile(
+                file: batch.files[index],
               ),
             ),
-          ),
           const SizedBox(height: AppSpacing.x8),
           Text(
             '${batch.completedCount}/${batch.files.length}장 전송 완료',
@@ -103,6 +77,50 @@ class ChatPendingImageBatchItem extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _PendingImageTile extends StatelessWidget {
+  const _PendingImageTile({required this.file});
+
+  final ChatImageBatchFile file;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = file.messageId != null;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.file(
+          File(file.path),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.broken_image_outlined,
+            color: context.grays.gray5,
+          ),
+        ),
+        if (!done)
+          ColoredBox(
+            color: Theme.of(context)
+                .colorScheme.scrim.withValues(alpha: 0.26),
+            child: Center(
+              child: file.progress > 0
+                  ? CircularProgressIndicator(value: file.progress)
+                  : Icon(Icons.cloud_upload_outlined,
+                      color: context.grays.white),
+            ),
+          ),
+        if (done)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.x4),
+              child: Icon(Icons.check_circle,
+                  color: context.grays.white, size: 18),
+            ),
+          ),
+      ],
     );
   }
 }

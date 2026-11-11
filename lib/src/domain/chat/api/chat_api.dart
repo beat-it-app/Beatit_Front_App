@@ -161,13 +161,20 @@ class ChatApi {
     }
   }
 
-  Future<ChatRoomCreateData> createChatRoom(
-    ChatRoomCreateRequest request,
-  ) async {
+  Future<ChatRoomCreateData> createChatRoom({
+    required List<int> participantIds,
+    required String firstMessageContent,
+  }) async {
     try {
+      // 이름을 직접 설정하기 전에는 서버에 반드시 null을 전달합니다.
+      // 화면에 표시하는 멤버 이름은 이 요청에 포함하지 않습니다.
       final response = await _dio.post<Map<String, dynamic>>(
         _chatRoomsPath,
-        data: request.toJson(),
+        data: {
+          'roomName': null,
+          'participantIds': participantIds,
+          'firstMessageContent': firstMessageContent,
+        },
       );
       final body = _requireSuccessBody(
         response: response,
@@ -177,7 +184,7 @@ class ChatApi {
 
       return ChatRoomCreateData(
         chatId: _requireInt(data['chatId'], fieldName: 'chatId'),
-        roomName: data['roomName']?.toString() ?? request.roomName,
+        roomName: data['roomName']?.toString() ?? '',
         createdAt: _requireDateTime(data['createdAt'], fieldName: 'createdAt'),
       );
     } on DioException catch (error) {

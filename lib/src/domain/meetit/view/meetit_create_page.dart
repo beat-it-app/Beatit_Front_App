@@ -30,6 +30,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   final _meetingNameController = TextEditingController();
   final _startTimeController = TextEditingController();
   final _endTimeController = TextEditingController();
+  final FocusNode _meetingNameFocusNode = FocusNode();
+  final ScrollController _formScrollController = ScrollController();
 
   /// 오늘 날짜입니다.
   /// getter로 계산해 hot reload 시 late 필드 미초기화 문제를 피합니다.
@@ -60,13 +62,36 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.primaryFocus?.unfocus();
+    // 새 화면 진입 시 이전 입력창의 포커스가 이어지지 않게 합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
     _focusedMonth = _firstCalendarMonth;
     _startTimeController.text = '9:00';
     _endTimeController.text = '18:00';
+    _meetingNameFocusNode.addListener(_keepMeetingNameVisible);
+  }
+
+  // 이름 입력에 포커스되면 달력 영역으로 남아 있던 스크롤을 복구합니다.
+  void _keepMeetingNameVisible() {
+    if (!_meetingNameFocusNode.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_meetingNameFocusNode.hasFocus ||
+          !_formScrollController.hasClients) return;
+      _formScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   void dispose() {
+    _meetingNameFocusNode.removeListener(_keepMeetingNameVisible);
+    _meetingNameFocusNode.dispose();
+    _formScrollController.dispose();
     _meetingNameController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
@@ -325,6 +350,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  controller: _formScrollController,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
@@ -339,6 +365,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                       AppTextField(
                         hintText: '이름',
                         controller: _meetingNameController,
+                        focusNode: _meetingNameFocusNode,
                         errorText: _meetingNameError,
                         onChanged: _handleMeetingNameChanged,
                       ),
