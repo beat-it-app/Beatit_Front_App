@@ -102,6 +102,12 @@ abstract class FontStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.32,
   );
+  static const TextStyle semi15 = TextStyle(
+    fontSize: 15,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.32,
+  );
   static const TextStyle semi14 = TextStyle(
     fontSize: 14,
     fontFamily: _fontFamily,
@@ -129,6 +135,12 @@ abstract class FontStyles {
   );
   static const TextStyle med18 = TextStyle(
     fontSize: 18,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w500,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle med17 = TextStyle(
+    fontSize: 17,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w500,
     letterSpacing: -0.32,
@@ -179,6 +191,12 @@ abstract class FontStyles {
   );
   static const TextStyle reg18 = TextStyle(
     fontSize: 18,
+    fontFamily: _fontFamily,
+    fontWeight: FontWeight.w400,
+    letterSpacing: -0.32,
+  );
+  static const TextStyle reg17 = TextStyle(
+    fontSize: 17,
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w400,
     letterSpacing: -0.32,

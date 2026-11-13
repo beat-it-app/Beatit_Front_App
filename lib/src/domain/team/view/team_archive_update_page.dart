@@ -75,7 +75,7 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
   }
 
   Future<void> _openLocationSelector() async {
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
 
     final selectedLocation = await Navigator.of(context).push<LocationData>(
       MaterialPageRoute(
@@ -83,6 +83,8 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
             const LocationSearchPage(returnRegisteredLocationOnSelect: true),
       ),
     );
+
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedLocation == null) {
       return;
@@ -95,7 +97,13 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
   }
 
   Future<void> _pickImages() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final pickedFiles = await _picker.pickMultiImage(imageQuality: 85);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    if (!mounted) return;
 
     if (pickedFiles.isNotEmpty) {
       setState(() {
@@ -123,6 +131,8 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
 
   Future<void> _submitUpdate() async {
     if (!_canSubmit) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
       _isSubmitting = true;
@@ -183,6 +193,8 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
     return Scaffold(
       appBar: AppTopAppBar.closeOnly(
         onClosePressed: () async {
+          FocusManager.instance.primaryFocus?.unfocus();
+
           final confirmed = await AppPopup.show(
             context,
             title: '작성을 중단하시겠습니까?',
@@ -194,6 +206,8 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
             confirmText: '확인',
             cancelText: '취소',
           );
+
+          FocusManager.instance.primaryFocus?.unfocus();
 
           if (!context.mounted) return;
 

@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/domain/performance/widget/performance_booking_dialog.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_xfile_image.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
@@ -64,7 +65,11 @@ class PerformanceInfoSection extends StatelessWidget {
           _InfoItem(
             label: '예매 링크',
             content: performance.bookingUrl,
-            onTap: () => _launchExternalLink(context, performance.bookingUrl),
+            onTap: () => showPerformanceBookingDialog(
+              context: context,
+              teamName: performance.teamName ?? '',
+              bookingUrl: performance.bookingUrl,
+            ),
           ),
 
         // 7. 호스트 정보 및 문의하기
@@ -175,7 +180,7 @@ class _InfoItem extends StatelessWidget {
           onTap: onTap,
           child: Text(
             content,
-            style: FontStyles.med16.copyWith(
+            style: FontStyles.med14.copyWith(
               color: onTap == null
                   ? context.grays.gray2
                   : context.brands.beatOrange2,

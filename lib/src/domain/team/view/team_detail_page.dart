@@ -51,7 +51,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     }
   }
 
-  // 💡 당겨서 새로고침(Pull-to-Refresh) 시 비동기 완료를 보장하는 함수
   Future<void> _onRefresh() async {
     ref.invalidate(currentTeamProvider);
     ref.invalidate(teamUpcomingPerformancesProvider);
@@ -102,7 +101,6 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
         color: context.brands.beatOrange1,
         backgroundColor: Colors.white,
         child: SingleChildScrollView(
-          // 💡 스크롤 영역이 화면보다 짧아도 당겨서 새로고침이 동작하도록 설정
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -780,6 +778,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                 child: SizedBox(
                   height: 64.0,
                   child: AppTopAppBar.alarmOnly(
+                    unreadNotificationCount: detail.unreadNotificationCount,
                     onEditPressed: isManagerOrLeader
                         ? () {
                             Navigator.of(context)
@@ -802,11 +801,13 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
                           }
                         : null,
                     onAlarmPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AlarmMainPage(),
-                        ),
-                      );
+                      Navigator.of(context)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) => const AlarmMainPage(),
+                            ),
+                          )
+                          .then((_) => _refreshAll());
                     },
                   ),
                 ),
