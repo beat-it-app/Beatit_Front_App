@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
@@ -10,15 +12,22 @@ class CustomerSupportPage extends StatelessWidget {
   const CustomerSupportPage({super.key});
 
   static const String _supportEmail = 'onbeat.it@gmail.com';
+  static const String _channelUrl = 'http://pf.kakao.com/_GvLxeX';
 
-  // 1:1 문의 토스트 띄우기
-  void _handleChannelTap(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('1:1 문의 채널은 아직 준비 중입니다.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  // 1:1 문의 카카오톡 채널 열기
+  Future<void> _handleChannelTap(BuildContext context) async {
+    final uri = Uri.parse(_channelUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('1:1 문의 채널을 열 수 없습니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   // 이메일 복사 및 토스트 띄우기
@@ -122,7 +131,7 @@ class CustomerSupportPage extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.x16),
 
-              // 2. 1:1 문의 카드 (채널 바로가기 버튼: gray1)
+              // 2. 1:1 문의 카드
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.x20),
@@ -134,38 +143,61 @@ class CustomerSupportPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '1:1 문의',
-                      style: FontStyles.bold17.copyWith(
-                        color: colors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '실시간 상담이 필요하신가요?',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray4,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          '1:1 문의',
+                          style: FontStyles.bold17.copyWith(
+                            color: colors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Beat It 카카오톡 채널로 이동합니다.',
+                            style: FontStyles.reg12.copyWith(
+                              color: context.grays.gray4,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.x16),
-                    // 💡 채널 바로가기 버튼 (배경: gray1, 글자: white)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: context.grays.gray1,
+                          backgroundColor: context.colors.primary,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                         ),
                         onPressed: () => _handleChannelTap(context),
-                        child: Text(
-                          '채널 바로가기',
-                          style: FontStyles.semi14.copyWith(
-                            color: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '채널 바로가기',
+                              style: FontStyles.semi14.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            SvgPicture.asset(
+                              'assets/icons/auth/link-outside.svg',
+                              width: 16,
+                              height: 16,
+                              colorFilter: const ColorFilter.mode(
+                                Colors.white,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -175,7 +207,7 @@ class CustomerSupportPage extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.x16),
 
-              // 3. 이메일 문의 카드 (이메일 표시 영역 + 바깥 분리된 복사 버튼: gray1)
+              // 3. 이메일 문의 카드 (흰색 배경 + 테두리 이메일 영역 & 복사 버튼 연결)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.x20),
@@ -193,18 +225,10 @@ class CustomerSupportPage extends StatelessWidget {
                         color: colors.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '확인 후 빠른 시일 내에 답변드리겠습니다.',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray4,
-                      ),
-                    ),
                     const SizedBox(height: AppSpacing.x16),
-                    // 💡 이메일 주소 영역과 복사 버튼 분리 배치
                     Row(
                       children: [
-                        // 이메일 텍스트 박스
+                        // 이메일 텍스트 박스 (흰색 배경 + 테두리, 왼쪽 라운딩)
                         Expanded(
                           child: Container(
                             height: 48,
@@ -212,21 +236,26 @@ class CustomerSupportPage extends StatelessWidget {
                               horizontal: AppSpacing.x16,
                             ),
                             decoration: BoxDecoration(
-                              color: context.grays.gray8,
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              color: Colors.white,
+                              borderRadius: const BorderRadius.horizontal(
+                                left: Radius.circular(AppRadius.sm),
+                              ),
+                              border: Border.all(
+                                color: context.grays.gray7,
+                                width: 1,
+                              ),
                             ),
                             alignment: Alignment.centerLeft,
                             child: Text(
                               _supportEmail,
-                              style: FontStyles.med14.copyWith(
-                                color: colors.onSurface,
+                              style: FontStyles.med17.copyWith(
+                                color: context.grays.gray1,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.x8),
-                        // 💡 별도로 분리된 복사 버튼 (배경: gray1, 글자: white)
+                        // 복사 버튼 (이메일 영역과 동일한 높이 48, 4꼭짓점 전체 라운딩)
                         SizedBox(
                           height: 48,
                           width: 80,

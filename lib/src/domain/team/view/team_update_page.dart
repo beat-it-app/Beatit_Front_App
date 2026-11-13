@@ -101,10 +101,14 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
 
   // 갤러리 이미지 선택
   Future<void> _pickImage() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
+
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (pickedFile != null) {
       setState(() {
@@ -170,13 +174,16 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
   String _detectPlatformCode(String url) {
     final lower = url.toLowerCase();
     if (lower.contains('instagram.com')) return 'INSTAGRAM';
-    if (lower.contains('youtube.com') || lower.contains('youtu.be'))
+    if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
       return 'YOUTUBE';
+    }
     return 'CUSTOM';
   }
 
   Future<void> _submitUpdate() async {
     if (!_canSubmit) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
       _isSubmitting = true;
@@ -191,14 +198,16 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
         currentLinks.length != _initialLinks.length ||
         !currentLinks.every((url) => _initialLinks.contains(url));
 
-    List<Map<String, String>>? linksPayload;
-    if (isLinksChanged) {
-      linksPayload = currentLinks
-          .map(
-            (url) => {'platformCode': _detectPlatformCode(url), 'linkUrl': url},
-          )
-          .toList();
-    }
+    final linksPayload = isLinksChanged
+        ? currentLinks
+              .map(
+                (url) => {
+                  'platformCode': _detectPlatformCode(url),
+                  'linkUrl': url,
+                },
+              )
+              .toList()
+        : null;
 
     final String newName = teamNameController.text.trim();
     final String? newDesc =
@@ -281,6 +290,8 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
     return Scaffold(
       appBar: AppTopAppBar.closeOnly(
         onClosePressed: () async {
+          FocusManager.instance.primaryFocus?.unfocus();
+
           // 수정사항이 없으면 확인 팝업 없이 바로 닫기
           if (!_hasChanges) {
             Navigator.of(context).pop();
@@ -298,6 +309,8 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
             confirmText: '확인',
             cancelText: '취소',
           );
+
+          FocusManager.instance.primaryFocus?.unfocus();
 
           if (!context.mounted) return;
 
@@ -341,6 +354,8 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
                         controller: teamDateController,
                         readOnly: true,
                         onTap: () async {
+                          FocusManager.instance.primaryFocus?.unfocus();
+
                           final selectedDate =
                               await AppTimeBottomSheet.showDatePicker(
                                 context,
@@ -348,6 +363,8 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
                                 initialDate: DateTime.now(),
                                 maxDate: DateTime.now(),
                               );
+
+                          FocusManager.instance.primaryFocus?.unfocus();
 
                           if (selectedDate != null) {
                             setState(() {

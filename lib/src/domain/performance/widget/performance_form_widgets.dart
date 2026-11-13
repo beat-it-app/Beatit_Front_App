@@ -70,27 +70,52 @@ class PerformanceDateTimeField extends StatelessWidget {
 class PerformanceDateTimePicker {
   const PerformanceDateTimePicker._();
 
-  static Future<DateTime?> pick(
+  // 날짜만 단독으로 선택
+  static Future<DateTime?> pickDate(
     BuildContext context, {
     required String title,
     DateTime? initial,
   }) async {
     FocusScope.of(context).unfocus();
-    final date = await AppTimeBottomSheet.showDatePicker(
+    final now = DateTime.now();
+    return AppTimeBottomSheet.showDatePicker(
       context,
       title: '$title 날짜 선택',
-      initialDate: initial ?? DateTime.now(),
-      startYear: 2020,
+      initialDate: initial ?? now,
+      startYear: now.year,
       maxDate: DateTime(2035, 12, 31),
+      minDate: now,
     );
-    if (date == null || !context.mounted) return null;
+  }
 
-    final time = await AppTimeBottomSheet.showTimePicker(
+  // 시간만 단독으로 선택 (기본값: 현재 기준 다음 정각)
+  static Future<TimeOfDay?> pickTime(
+    BuildContext context, {
+    required String title,
+    TimeOfDay? initial,
+  }) async {
+    FocusScope.of(context).unfocus();
+    final now = DateTime.now();
+    final defaultTime = TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
+    return AppTimeBottomSheet.showTimePicker(
       context,
       title: '$title 시간 선택',
-      initialTime: initial == null
-          ? TimeOfDay.now()
-          : TimeOfDay.fromDateTime(initial),
+      initialTime: initial ?? defaultTime,
+    );
+  }
+
+  static Future<DateTime?> pick(
+    BuildContext context, {
+    required String title,
+    DateTime? initial,
+  }) async {
+    final date = await pickDate(context, title: title, initial: initial);
+    if (date == null || !context.mounted) return null;
+
+    final time = await pickTime(
+      context,
+      title: title,
+      initial: initial != null ? TimeOfDay.fromDateTime(initial) : null,
     );
     if (time == null || !context.mounted) return null;
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);

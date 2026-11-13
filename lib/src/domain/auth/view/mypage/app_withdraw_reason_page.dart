@@ -289,7 +289,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _canSubmit
-                              ? context.colors.primary
+                              ? context.grays.gray1
                               : context.grays.gray7,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(5),

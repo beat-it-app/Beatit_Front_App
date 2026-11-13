@@ -39,6 +39,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
       final info = await ref
           .read(withdrawalApiProvider)
           .getTeamWithdrawalInfo();
+      debugPrint('✅ [TeamWithdrawalInfo]: $info');
       if (mounted) {
         setState(() {
           _fileCount = (info['fileCount'] as num?)?.toInt() ?? 0;
@@ -47,7 +48,8 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('❌ [TeamWithdrawalInfo Error]: $e\n$st');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -256,7 +258,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                     // 탈퇴하기 버튼
                     AppButton(
                       text: '탈퇴하기',
-                      variant: ButtonVariant.primary,
+                      variant: ButtonVariant.darkGray,
                       width: ButtonWidth.expand,
                       height: ButtonHeight.normal,
                       onPressed: _isConfirmed ? _handleWithdraw : null,

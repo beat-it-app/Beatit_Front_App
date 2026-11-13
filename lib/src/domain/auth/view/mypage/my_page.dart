@@ -159,10 +159,15 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
         preferredSize: const Size.fromHeight(64.0),
         child: AppTopAppBar.alarmOnly(
           actionIconColor: colors.onSurface,
+          unreadNotificationCount: data?.unreadNotificationCount ?? 0,
           onAlarmPressed: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const AlarmMainPage()));
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const AlarmMainPage()))
+                .then((_) {
+                  if (mounted) {
+                    ref.read(myPageProvider.notifier).fetchMyPage();
+                  }
+                });
           },
         ),
       ),

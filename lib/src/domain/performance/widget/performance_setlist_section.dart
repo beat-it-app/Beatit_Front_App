@@ -119,16 +119,17 @@ class _TeamChip extends StatelessWidget {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: selected ? AppColor.beatOrange1 : AppColor.gray4,
-              ),
+              color: selected ? context.colors.primary : AppColor.white,
+              border: selected ? null : Border.all(color: AppColor.gray4),
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(
               teamName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.semi14.copyWith(color: AppColor.white),
+              style: FontStyles.semi15.copyWith(
+                color: selected ? AppColor.white : AppColor.gray1,
+              ),
             ),
           ),
         ),

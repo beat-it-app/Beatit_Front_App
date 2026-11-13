@@ -15,6 +15,7 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 
 import '../../api/withdrawal_api.dart';
+import 'app_withdraw_complete_page.dart';
 import 'team_withdraw_page.dart';
 
 class AppWithdrawInfoPage extends ConsumerStatefulWidget {
@@ -85,12 +86,13 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
     // 2. 최종 탈퇴 확정 팝업
     final confirmed = await AppPopup.show(
       context,
-      title: '정말 탈퇴하시겠습니까?',
-      content: '탈퇴 시 계정 복구가 불가능하며\n모든 데이터 접근이 제한됩니다.',
-      warningType: WarningType.triangle,
+      title: '정말 빗잇을 탈퇴하시겠습니까?',
+      content: '탈퇴 후 7일 이내 로그인 시 계정을 복구할 수 있으며, 이후에는 계정이 삭제됩니다.',
+      warningType: WarningType.circle,
+      warningColor: context.colors.primary,
       contentType: ContentType.small,
       buttonNum: ButtonNum.two,
-      confirmText: '탈퇴 확정',
+      confirmText: '확인',
       cancelText: '취소',
     );
 
@@ -112,7 +114,7 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const SigninPage()),
+        MaterialPageRoute(builder: (_) => const AppWithdrawCompletePage()),
         (route) => false,
       );
     } on WithdrawalApiException catch (e) {

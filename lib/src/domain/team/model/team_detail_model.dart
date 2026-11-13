@@ -56,6 +56,7 @@ class TeamDetailModel {
   final List<TeamDetailMemberModel> members;
   final int archiveCount;
   final int cloudItemCount;
+  final int unreadNotificationCount;
 
   TeamDetailModel({
     required this.teamId,
@@ -73,6 +74,7 @@ class TeamDetailModel {
     required this.members,
     required this.archiveCount,
     required this.cloudItemCount,
+    this.unreadNotificationCount = 0,
   });
 
   factory TeamDetailModel.fromJson(Map<String, dynamic> json) {
@@ -100,6 +102,7 @@ class TeamDetailModel {
           .toList(),
       archiveCount: json['archiveCount'] as int? ?? 0,
       cloudItemCount: json['cloudItemCount'] as int? ?? 0,
+      unreadNotificationCount: json['unreadNotificationCount'] as int? ?? 0,
     );
   }
 }

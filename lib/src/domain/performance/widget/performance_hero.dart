@@ -8,7 +8,7 @@ import 'package:beatit_front_app/src/domain/performance/widget/performance_xfile
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// 시안의 상단 600px 구간. 배경 어둡게·흰 글씨는 라이트/다크 공통 고정 색상이다.
+/// 시안의 상단 배너 구간. 배경 어둡게·흰 글씨는 라이트/다크 공통 고정 색상이다.
 class PerformanceHero extends StatelessWidget {
   const PerformanceHero({
     super.key,
@@ -36,7 +36,8 @@ class PerformanceHero extends StatelessWidget {
         performance.posterFile != null;
 
     return SizedBox(
-      height: 600,
+      // 💡 하단 여백 48px 확보를 위해 전체 배너 높이 확장 (600 -> 624)
+      height: 624,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -54,11 +55,12 @@ class PerformanceHero extends StatelessWidget {
           SafeArea(
             bottom: false,
             child: Padding(
+              // 💡 D-Day 배지 ~ 배너 하단 끝 높이를 48px로 설정
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.x20,
                 58,
                 AppSpacing.x20,
-                24,
+                48,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -87,7 +89,7 @@ class PerformanceHero extends StatelessWidget {
                   Text(
                     performance.title,
                     textAlign: TextAlign.center,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: FontStyles.bold26.copyWith(color: AppColor.white),
                   ),

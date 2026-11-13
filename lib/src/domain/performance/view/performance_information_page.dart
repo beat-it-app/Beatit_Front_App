@@ -56,17 +56,44 @@ class _PerformanceInformationPageState
 
   final Set<PerformanceTicketType> _ticketTypes = {};
   PerformanceHostContactType _hostType = PerformanceHostContactType.link;
-  DateTime? _startsAt;
-  DateTime? _bookingClosesAt;
+
+  DateTime? _startDate;
+  TimeOfDay? _startTime;
+  DateTime? _bookingCloseDate;
+  TimeOfDay? _bookingCloseTime;
+
   LocationData? _location;
   XFile? _poster;
   String? _existingPosterUrl;
   bool _isPosterOverlayActive = false;
-  bool _validate = false;
+
+  Map<String, dynamic>? _step2Draft;
+  Map<String, dynamic>? _step3Draft;
 
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditMode => widget.editTarget != null;
+
+  DateTime? get _startsAt => (_startDate != null && _startTime != null)
+      ? DateTime(
+          _startDate!.year,
+          _startDate!.month,
+          _startDate!.day,
+          _startTime!.hour,
+          _startTime!.minute,
+        )
+      : null;
+
+  DateTime? get _bookingClosesAt =>
+      (_bookingCloseDate != null && _bookingCloseTime != null)
+      ? DateTime(
+          _bookingCloseDate!.year,
+          _bookingCloseDate!.month,
+          _bookingCloseDate!.day,
+          _bookingCloseTime!.hour,
+          _bookingCloseTime!.minute,
+        )
+      : null;
 
   bool get _usesBooking =>
       _ticketTypes.contains(PerformanceTicketType.advance) ||
@@ -79,12 +106,40 @@ class _PerformanceInformationPageState
             int.parse(_prices[type]!.text.trim()) >= 0),
   );
 
+  bool get _isFormValid =>
+      _title.text.trim().isNotEmpty &&
+      _startsAt != null &&
+      _location != null &&
+      _introduction.text.trim().isNotEmpty &&
+      _ticketTypes.isNotEmpty &&
+      _pricesValid &&
+      (!_usesBooking ||
+          (_bookingClosesAt != null &&
+              _bookingClosesAt!.isBefore(_startsAt!) &&
+              _bookingUrl.text.trim().isNotEmpty)) &&
+      _hostName.text.trim().isNotEmpty &&
+      _hostContact.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
+    _title.addListener(_onFieldChanged);
+    _introduction.addListener(_onFieldChanged);
+    _bookingUrl.addListener(_onFieldChanged);
+    _hostName.addListener(_onFieldChanged);
+    _hostContact.addListener(_onFieldChanged);
+
     if (_isEditMode) {
       _prefillData(widget.editTarget!);
     }
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _unfocusAll() {
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   void _prefillData(PerformanceDetailModel target) {
@@ -93,11 +148,13 @@ class _PerformanceInformationPageState
     _title.text = detail.title;
     _introduction.text = detail.introduction;
 
-    _startsAt = detail.startsAt;
+    final start = detail.startsAt;
+    _startDate = DateUtils.dateOnly(start);
+    _startTime = TimeOfDay.fromDateTime(start);
     _startDateText.text =
-        '${_startsAt!.year}. ${_startsAt!.month.toString().padLeft(2, '0')}. ${_startsAt!.day.toString().padLeft(2, '0')}.';
+        '${start.year}. ${start.month.toString().padLeft(2, '0')}. ${start.day.toString().padLeft(2, '0')}.';
     _startTimeText.text =
-        '${_startsAt!.hour.toString().padLeft(2, '0')}:${_startsAt!.minute.toString().padLeft(2, '0')}';
+        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
 
     _location = detail.location;
     _locationText.text =
@@ -116,11 +173,13 @@ class _PerformanceInformationPageState
     }
 
     if (detail.bookingClosesAt != null) {
-      _bookingClosesAt = detail.bookingClosesAt;
+      final close = detail.bookingClosesAt!;
+      _bookingCloseDate = DateUtils.dateOnly(close);
+      _bookingCloseTime = TimeOfDay.fromDateTime(close);
       _bookingCloseDateText.text =
-          '${_bookingClosesAt!.year}. ${_bookingClosesAt!.month.toString().padLeft(2, '0')}. ${_bookingClosesAt!.day.toString().padLeft(2, '0')}.';
+          '${close.year}. ${close.month.toString().padLeft(2, '0')}. ${close.day.toString().padLeft(2, '0')}.';
       _bookingCloseTimeText.text =
-          '${_bookingClosesAt!.hour.toString().padLeft(2, '0')}:${_bookingClosesAt!.minute.toString().padLeft(2, '0')}';
+          '${close.hour.toString().padLeft(2, '0')}:${close.minute.toString().padLeft(2, '0')}';
     }
     _bookingUrl.text = detail.bookingUrl ?? '';
 
@@ -133,6 +192,11 @@ class _PerformanceInformationPageState
 
   @override
   void dispose() {
+    _title.removeListener(_onFieldChanged);
+    _introduction.removeListener(_onFieldChanged);
+    _bookingUrl.removeListener(_onFieldChanged);
+    _hostName.removeListener(_onFieldChanged);
+    _hostContact.removeListener(_onFieldChanged);
     _title.dispose();
     _startDateText.dispose();
     _startTimeText.dispose();
@@ -149,9 +213,8 @@ class _PerformanceInformationPageState
     super.dispose();
   }
 
-  // 💡 작성 중단 확인 팝업
   Future<void> _handleClose() async {
-    FocusScope.of(context).unfocus();
+    _unfocusAll();
 
     final confirmed = await AppPopup.show(
       context,
@@ -164,52 +227,144 @@ class _PerformanceInformationPageState
     );
 
     if (!mounted) return;
+    _unfocusAll();
 
     if (confirmed == true) {
       Navigator.of(context).pop();
     }
   }
 
-  Future<void> _selectStartsAt() async {
-    final value = await PerformanceDateTimePicker.pick(
+  Future<void> _selectStartDate() async {
+    _unfocusAll();
+    final value = await PerformanceDateTimePicker.pickDate(
       context,
       title: '공연',
-      initial: _startsAt,
+      initial: _startDate,
     );
-    if (value == null || !mounted) return;
+    if (!mounted) return;
+    _unfocusAll();
+    if (value == null) return;
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (DateUtils.dateOnly(value).isBefore(today)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('과거 날짜는 선택할 수 없습니다.')));
+      return;
+    }
+
     setState(() {
-      _startsAt = value;
+      _startDate = value;
       _startDateText.text =
           '${value.year}. ${value.month.toString().padLeft(2, '0')}. ${value.day.toString().padLeft(2, '0')}.';
+    });
+  }
+
+  Future<void> _selectStartTime() async {
+    _unfocusAll();
+    final value = await PerformanceDateTimePicker.pickTime(
+      context,
+      title: '공연',
+      initial: _startTime,
+    );
+    if (!mounted) return;
+    _unfocusAll();
+    if (value == null) return;
+
+    if (_startDate != null) {
+      final combined = DateTime(
+        _startDate!.year,
+        _startDate!.month,
+        _startDate!.day,
+        value.hour,
+        value.minute,
+      );
+      if (combined.isBefore(DateTime.now())) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('현재 시간 이후로 선택해주세요.')));
+        return;
+      }
+    }
+
+    setState(() {
+      _startTime = value;
       _startTimeText.text =
           '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     });
   }
 
-  Future<void> _selectBookingDeadline() async {
-    final value = await PerformanceDateTimePicker.pick(
+  Future<void> _selectBookingCloseDate() async {
+    _unfocusAll();
+    final value = await PerformanceDateTimePicker.pickDate(
       context,
       title: '예매 마감',
-      initial: _bookingClosesAt,
+      initial: _bookingCloseDate,
     );
-    if (value == null || !mounted) return;
+    if (!mounted) return;
+    _unfocusAll();
+    if (value == null) return;
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (DateUtils.dateOnly(value).isBefore(today)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('과거 날짜는 선택할 수 없습니다.')));
+      return;
+    }
+
     setState(() {
-      _bookingClosesAt = value;
+      _bookingCloseDate = value;
       _bookingCloseDateText.text =
           '${value.year}. ${value.month.toString().padLeft(2, '0')}. ${value.day.toString().padLeft(2, '0')}.';
+    });
+  }
+
+  Future<void> _selectBookingCloseTime() async {
+    _unfocusAll();
+    final value = await PerformanceDateTimePicker.pickTime(
+      context,
+      title: '예매 마감',
+      initial: _bookingCloseTime,
+    );
+    if (!mounted) return;
+    _unfocusAll();
+    if (value == null) return;
+
+    if (_bookingCloseDate != null) {
+      final combined = DateTime(
+        _bookingCloseDate!.year,
+        _bookingCloseDate!.month,
+        _bookingCloseDate!.day,
+        value.hour,
+        value.minute,
+      );
+      if (combined.isBefore(DateTime.now())) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('현재 시간 이후로 선택해주세요.')));
+        return;
+      }
+    }
+
+    setState(() {
+      _bookingCloseTime = value;
       _bookingCloseTimeText.text =
           '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     });
   }
 
   Future<void> _selectLocation() async {
+    _unfocusAll();
     final location = await Navigator.of(context).push<LocationData>(
       MaterialPageRoute(
         builder: (_) =>
             const LocationSearchPage(returnRegisteredLocationOnSelect: true),
       ),
     );
-    if (location == null || !mounted) return;
+    if (!mounted) return;
+    _unfocusAll();
+    if (location == null) return;
     setState(() {
       _location = location;
       _locationText.text = location.locationName ?? location.roadAddress ?? '';
@@ -217,11 +372,14 @@ class _PerformanceInformationPageState
   }
 
   Future<void> _pickPoster() async {
+    _unfocusAll();
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
-    if (file == null || !mounted) return;
+    if (!mounted) return;
+    _unfocusAll();
+    if (file == null) return;
     setState(() {
       _poster = file;
       _existingPosterUrl = null;
@@ -250,27 +408,18 @@ class _PerformanceInformationPageState
         if (!_ticketTypes.add(type)) _ticketTypes.remove(type);
       }
       if (!_usesBooking) {
-        _bookingClosesAt = null;
+        _bookingCloseDate = null;
+        _bookingCloseTime = null;
         _bookingCloseDateText.clear();
         _bookingCloseTimeText.clear();
       }
     });
   }
 
-  void _goNext() {
-    FocusScope.of(context).unfocus();
-    setState(() => _validate = true);
+  Future<void> _goNext() async {
+    _unfocusAll();
 
-    if (_title.text.trim().isEmpty ||
-        _startsAt == null ||
-        _location == null ||
-        _ticketTypes.isEmpty ||
-        !_pricesValid ||
-        (_usesBooking &&
-            (_bookingClosesAt == null ||
-                !_bookingClosesAt!.isBefore(_startsAt!))) ||
-        _hostName.text.trim().isEmpty ||
-        _hostContact.text.trim().isEmpty) {
+    if (!_isFormValid) {
       return;
     }
 
@@ -293,15 +442,27 @@ class _PerformanceInformationPageState
       hostContact: _hostContact.text.trim(),
     );
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+    final returnedDraft = await Navigator.of(context).push(
+      MaterialPageRoute(
         builder: (_) => PerformanceDetailInformationPage(
           information: information,
           editTarget: widget.editTarget,
           existingPosterUrl: _existingPosterUrl,
+          initialDraft: _step2Draft,
+          initialStep3Draft: _step3Draft,
         ),
       ),
     );
+
+    if (!mounted) return;
+    _unfocusAll();
+
+    if (returnedDraft is Map<String, dynamic>) {
+      setState(() {
+        _step2Draft = returnedDraft['step2'] as Map<String, dynamic>?;
+        _step3Draft = returnedDraft['step3'] as Map<String, dynamic>?;
+      });
+    }
   }
 
   @override
@@ -314,269 +475,294 @@ class _PerformanceInformationPageState
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _handleClose(); // 기기 자체 뒤로가기 제스처/버튼 시에도 팝업 노출
+        _handleClose();
       },
-      child: Scaffold(
-        backgroundColor: context.grays.white,
-        appBar: AppTopAppBar.backClose(
-          onBackPressed: _handleClose, // 왼쪽 뒤로가기 클릭 시 팝업
-          onClosePressed: _handleClose, // 오른쪽 X 닫기 클릭 시 팝업
-        ),
-        body: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    children: [
-                      const PerformanceProgressBar(step: 1),
-                      const SizedBox(height: AppSpacing.x20),
-                      AppTextField(
-                        label: '공연 이름',
-                        requiredMark: true,
-                        controller: _title,
-                        hintText: '공연 이름',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              label: '공연 날짜',
-                              requiredMark: true,
-                              controller: _startDateText,
-                              hintText: '공연 날짜',
-                              readOnly: true,
-                              onTap: _selectStartsAt,
-                              suffixIcon: Icon(
-                                Icons.calendar_today,
-                                size: 20,
-                                color: context.grays.gray5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.x12),
-                          Expanded(
-                            child: AppTextField(
-                              label: '공연 시간',
-                              requiredMark: true,
-                              controller: _startTimeText,
-                              hintText: '공연 시간',
-                              readOnly: true,
-                              onTap: _selectStartsAt,
-                              suffixIcon: Icon(
-                                Icons.access_time,
-                                size: 20,
-                                color: context.grays.gray5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      AppTextField(
-                        label: '공연 장소',
-                        requiredMark: true,
-                        hintText: '공연 장소를 검색하세요.',
-                        controller: _locationText,
-                        readOnly: true,
-                        onTap: _selectLocation,
-                        suffixIcon: const Icon(Icons.search),
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      Text(
-                        '공연 포스터 등록',
-                        style: FontStyles.med15.copyWith(
-                          color: context.grays.black,
+      child: GestureDetector(
+        onTap: _unfocusAll,
+        behavior: HitTestBehavior.translucent,
+        child: Scaffold(
+          backgroundColor: context.grays.white,
+          appBar: AppTopAppBar.closeOnly(onClosePressed: _handleClose),
+          body: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      children: [
+                        const PerformanceProgressBar(step: 1),
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextField(
+                          label: '공연 이름',
+                          requiredMark: true,
+                          controller: _title,
+                          hintText: '공연 이름',
+                          onChanged: (_) => setState(() {}),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.x8),
-                      if (hasPoster) ...[
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            setState(() {
-                              _isPosterOverlayActive = !_isPosterOverlayActive;
-                            });
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 220,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  if (_poster != null)
-                                    Image.file(
-                                      File(_poster!.path),
-                                      width: double.infinity,
-                                      height: 220,
-                                      fit: BoxFit.cover,
-                                    )
-                                  else
-                                    Image.network(
-                                      _existingPosterUrl!,
-                                      width: double.infinity,
-                                      height: 220,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: context.grays.gray8,
-                                        child: const Icon(Icons.broken_image),
-                                      ),
-                                    ),
-                                  if (_isPosterOverlayActive) ...[
-                                    Positioned.fill(
-                                      child: Container(
-                                        color: Colors.white.withOpacity(0.5),
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: _removePoster,
-                                      child: Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          color: context.grays.gray3,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: SvgPicture.asset(
-                                          'assets/icons/team/delete2.svg',
-                                          width: 26,
-                                          height: 26,
-                                          colorFilter: const ColorFilter.mode(
-                                            Colors.white,
-                                            BlendMode.srcIn,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.x12),
-                      ] else ...[
-                        AppUploadButton(
-                          text: '공연 포스터 등록하기',
-                          onPressed: _pickPoster,
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.x20),
-                      AppTextArea(
-                        label: '공연 소개',
-                        requiredMark: true,
-                        hintText: '공연 소개를 입력하세요.',
-                        controller: _introduction,
-                        maxLength: 200,
-                        fieldHeight: 140,
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      PerformanceTicketSelector(
-                        selectedTypes: _ticketTypes,
-                        priceControllers: _prices,
-                        onToggle: _toggleTicket,
-                        onPriceChanged: () => setState(() {}),
-                      ),
-                      if (_usesBooking) ...[
                         const SizedBox(height: AppSpacing.x20),
                         Row(
                           children: [
                             Expanded(
                               child: AppTextField(
-                                label: '사전 예매 마감 날짜',
+                                label: '공연 날짜',
                                 requiredMark: true,
-                                controller: _bookingCloseDateText,
-                                hintText: '예매 마감 날짜',
+                                controller: _startDateText,
+                                hintText: '공연 날짜',
                                 readOnly: true,
-                                onTap: _selectBookingDeadline,
-                                suffixIcon: Icon(
-                                  Icons.calendar_today,
-                                  size: 20,
-                                  color: context.grays.gray5,
+                                onTap: _selectStartDate,
+                                suffixIcon: SvgPicture.asset(
+                                  'assets/icons/performance/calendar.svg',
+                                  width: 24,
+                                  height: 24,
+                                  colorFilter: ColorFilter.mode(
+                                    context.grays.gray5,
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.x12),
                             Expanded(
                               child: AppTextField(
-                                label: '예매 마감 시간',
+                                label: '공연 시간',
                                 requiredMark: true,
-                                controller: _bookingCloseTimeText,
-                                hintText: '마감 시간',
+                                controller: _startTimeText,
+                                hintText: '공연 시간',
                                 readOnly: true,
-                                onTap: _selectBookingDeadline,
-                                suffixIcon: Icon(
-                                  Icons.access_time,
-                                  size: 20,
-                                  color: context.grays.gray5,
+                                onTap: _selectStartTime,
+                                suffixIcon: SvgPicture.asset(
+                                  'assets/icons/performance/clock.svg',
+                                  width: 24,
+                                  height: 24,
+                                  colorFilter: ColorFilter.mode(
+                                    context.grays.gray5,
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                      const SizedBox(height: AppSpacing.x20),
-                      AppTextField(
-                        label: '예매 링크',
-                        hintText: '예매 링크',
-                        controller: _bookingUrl,
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                      AppTextField(
-                        label: '호스트 정보',
-                        requiredMark: true,
-                        hintText: '이름',
-                        controller: _hostName,
-                      ),
-                      const SizedBox(height: AppSpacing.x12),
-                      Wrap(
-                        spacing: AppSpacing.x8,
-                        children: [
-                          AppToggle(
-                            text: '연락처',
-                            isSelected:
-                                _hostType == PerformanceHostContactType.phone,
-                            onChanged: (_) => setState(() {
-                              _hostType = PerformanceHostContactType.phone;
-                              _hostContact.clear();
-                            }),
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextField(
+                          label: '공연 장소',
+                          requiredMark: true,
+                          hintText: '공연 장소를 검색하세요.',
+                          controller: _locationText,
+                          readOnly: true,
+                          onTap: _selectLocation,
+                          suffixIcon: const Icon(Icons.search),
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        Text(
+                          '공연 포스터 등록',
+                          style: FontStyles.med15.copyWith(
+                            color: context.grays.black,
                           ),
-                          AppToggle(
-                            text: '링크',
-                            isSelected:
-                                _hostType == PerformanceHostContactType.link,
-                            onChanged: (_) => setState(() {
-                              _hostType = PerformanceHostContactType.link;
-                              _hostContact.clear();
-                            }),
+                        ),
+                        const SizedBox(height: AppSpacing.x8),
+                        if (hasPoster) ...[
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              _unfocusAll();
+                              setState(() {
+                                _isPosterOverlayActive =
+                                    !_isPosterOverlayActive;
+                              });
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: AspectRatio(
+                                aspectRatio: 165 / 210,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  alignment: Alignment.center,
+                                  children: [
+                                    if (_poster != null)
+                                      Image.file(
+                                        File(_poster!.path),
+                                        fit: BoxFit.cover,
+                                      )
+                                    else
+                                      Image.network(
+                                        _existingPosterUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: context.grays.gray8,
+                                          child: const Icon(Icons.broken_image),
+                                        ),
+                                      ),
+                                    if (_isPosterOverlayActive) ...[
+                                      Positioned.fill(
+                                        child: Container(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      Center(
+                                        child: GestureDetector(
+                                          onTap: _removePoster,
+                                          child: Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: context.grays.gray3,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: SvgPicture.asset(
+                                              'assets/icons/team/delete2.svg',
+                                              width: 26,
+                                              height: 26,
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                    Colors.white,
+                                                    BlendMode.srcIn,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.x12),
+                        ] else ...[
+                          AppUploadButton(
+                            text: '공연 포스터 등록하기',
+                            onPressed: _pickPoster,
                           ),
                         ],
-                      ),
-                      const SizedBox(height: AppSpacing.x12),
-                      AppTextField(
-                        controller: _hostContact,
-                        hintText: _hostType == PerformanceHostContactType.phone
-                            ? '연락처'
-                            : '링크',
-                      ),
-                      const SizedBox(height: AppSpacing.x20),
-                    ],
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextArea(
+                          label: '공연 소개',
+                          requiredMark: true,
+                          hintText: '공연 소개를 입력하세요.',
+                          controller: _introduction,
+                          maxLength: 200,
+                          fieldHeight: 140,
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        PerformanceTicketSelector(
+                          selectedTypes: _ticketTypes,
+                          priceControllers: _prices,
+                          onToggle: _toggleTicket,
+                          onPriceChanged: () => setState(() {}),
+                        ),
+                        if (_usesBooking) ...[
+                          const SizedBox(height: AppSpacing.x20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppTextField(
+                                  label: '사전 예매 마감 날짜',
+                                  requiredMark: true,
+                                  controller: _bookingCloseDateText,
+                                  hintText: '예매 마감 날짜',
+                                  readOnly: true,
+                                  onTap: _selectBookingCloseDate,
+                                  suffixIcon: SvgPicture.asset(
+                                    'assets/icons/performance/calendar.svg',
+                                    width: 24,
+                                    height: 24,
+                                    colorFilter: ColorFilter.mode(
+                                      context.grays.gray5,
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.x12),
+                              Expanded(
+                                child: AppTextField(
+                                  label: '예매 마감 시간',
+                                  requiredMark: true,
+                                  controller: _bookingCloseTimeText,
+                                  hintText: '마감 시간',
+                                  readOnly: true,
+                                  onTap: _selectBookingCloseTime,
+                                  suffixIcon: SvgPicture.asset(
+                                    'assets/icons/performance/clock.svg',
+                                    width: 24,
+                                    height: 24,
+                                    colorFilter: ColorFilter.mode(
+                                      context.grays.gray5,
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextField(
+                          label: '예매 링크',
+                          requiredMark: _usesBooking,
+                          hintText: '예매 링크',
+                          controller: _bookingUrl,
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextField(
+                          label: '호스트 정보',
+                          requiredMark: true,
+                          hintText: '이름',
+                          controller: _hostName,
+                        ),
+                        const SizedBox(height: AppSpacing.x12),
+                        Wrap(
+                          spacing: AppSpacing.x8,
+                          children: [
+                            AppToggle(
+                              text: '연락처',
+                              isSelected:
+                                  _hostType == PerformanceHostContactType.phone,
+                              onChanged: (_) => setState(() {
+                                _hostType = PerformanceHostContactType.phone;
+                                _hostContact.clear();
+                              }),
+                            ),
+                            AppToggle(
+                              text: '링크',
+                              isSelected:
+                                  _hostType == PerformanceHostContactType.link,
+                              onChanged: (_) => setState(() {
+                                _hostType = PerformanceHostContactType.link;
+                                _hostContact.clear();
+                              }),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.x12),
+                        AppTextField(
+                          controller: _hostContact,
+                          hintText:
+                              _hostType == PerformanceHostContactType.phone
+                              ? '연락처'
+                              : '링크',
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.x16),
-                  child: AppButton(text: '다음', onPressed: _goNext),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.x16),
+                    child: AppButton(
+                      text: '다음',
+                      onPressed: _isFormValid ? _goNext : null,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
