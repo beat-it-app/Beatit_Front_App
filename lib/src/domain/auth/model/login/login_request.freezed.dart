@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LoginRequest {
 
- String get identifier; String get password; bool get rememberMe;
+ String get identifier; String get password; bool get rememberMe; bool get isRestore;
 /// Create a copy of LoginRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $LoginRequestCopyWith<LoginRequest> get copyWith => _$LoginRequestCopyWithImpl<L
 @override
 bool operator ==(Object other) {
   final _this = this as LoginRequest;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginRequest&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier)&&(identical(other.password, _this.password) || other.password == _this.password)&&(identical(other.rememberMe, _this.rememberMe) || other.rememberMe == _this.rememberMe));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginRequest&&(identical(other.identifier, _this.identifier) || other.identifier == _this.identifier)&&(identical(other.password, _this.password) || other.password == _this.password)&&(identical(other.rememberMe, _this.rememberMe) || other.rememberMe == _this.rememberMe)&&(identical(other.isRestore, _this.isRestore) || other.isRestore == _this.isRestore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LoginRequest;
-  return Object.hash(runtimeType,_this.identifier,_this.password,_this.rememberMe);
+  return Object.hash(runtimeType,_this.identifier,_this.password,_this.rememberMe,_this.isRestore);
 }
 
 @override
 String toString() {
   final _this = this as LoginRequest;
-  return 'LoginRequest(identifier: ${_this.identifier}, password: ${_this.password}, rememberMe: ${_this.rememberMe})';
+  return 'LoginRequest(identifier: ${_this.identifier}, password: ${_this.password}, rememberMe: ${_this.rememberMe}, isRestore: ${_this.isRestore})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $LoginRequestCopyWith<$Res>  {
   factory $LoginRequestCopyWith(LoginRequest value, $Res Function(LoginRequest) _then) = _$LoginRequestCopyWithImpl;
 @useResult
 $Res call({
- String identifier, String password, bool rememberMe
+ String identifier, String password, bool rememberMe, bool isRestore
 });
 
 
@@ -71,11 +71,12 @@ class _$LoginRequestCopyWithImpl<$Res>
 
 /// Create a copy of LoginRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? identifier = null,Object? password = null,Object? rememberMe = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? identifier = null,Object? password = null,Object? rememberMe = null,Object? isRestore = null,}) {
   return _then(LoginRequest(
 identifier: null == identifier ? _self.identifier : identifier // ignore: cast_nullable_to_non_nullable
 as String,password: null == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String,rememberMe: null == rememberMe ? _self.rememberMe : rememberMe // ignore: cast_nullable_to_non_nullable
+as bool,isRestore: null == isRestore ? _self.isRestore : isRestore // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -161,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String identifier,  String password,  bool rememberMe)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String identifier,  String password,  bool rememberMe,  bool isRestore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LoginRequest() when $default != null:
-return $default(_that.identifier,_that.password,_that.rememberMe);case _:
+return $default(_that.identifier,_that.password,_that.rememberMe,_that.isRestore);case _:
   return orElse();
 
 }
@@ -182,10 +183,10 @@ return $default(_that.identifier,_that.password,_that.rememberMe);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String identifier,  String password,  bool rememberMe)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String identifier,  String password,  bool rememberMe,  bool isRestore)  $default,) {final _that = this;
 switch (_that) {
 case _LoginRequest():
-return $default(_that.identifier,_that.password,_that.rememberMe);case _:
+return $default(_that.identifier,_that.password,_that.rememberMe,_that.isRestore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +203,10 @@ return $default(_that.identifier,_that.password,_that.rememberMe);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String identifier,  String password,  bool rememberMe)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String identifier,  String password,  bool rememberMe,  bool isRestore)?  $default,) {final _that = this;
 switch (_that) {
 case _LoginRequest() when $default != null:
-return $default(_that.identifier,_that.password,_that.rememberMe);case _:
+return $default(_that.identifier,_that.password,_that.rememberMe,_that.isRestore);case _:
   return null;
 
 }
@@ -217,12 +218,13 @@ return $default(_that.identifier,_that.password,_that.rememberMe);case _:
 @JsonSerializable()
 
 class _LoginRequest implements LoginRequest {
-  const _LoginRequest({required this.identifier, required this.password, required this.rememberMe});
+  const _LoginRequest({required this.identifier, required this.password, required this.rememberMe, this.isRestore = false});
   factory _LoginRequest.fromJson(Map<String, dynamic> json) => _$LoginRequestFromJson(json);
 
 @override final  String identifier;
 @override final  String password;
 @override final  bool rememberMe;
+@override@JsonKey() final  bool isRestore;
 
 /// Create a copy of LoginRequest
 /// with the given fields replaced by the non-null parameter values.
@@ -237,18 +239,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.rememberMe, rememberMe) || other.rememberMe == rememberMe));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginRequest&&(identical(other.identifier, identifier) || other.identifier == identifier)&&(identical(other.password, password) || other.password == password)&&(identical(other.rememberMe, rememberMe) || other.rememberMe == rememberMe)&&(identical(other.isRestore, isRestore) || other.isRestore == isRestore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,identifier,password,rememberMe);
+    return Object.hash(runtimeType,identifier,password,rememberMe,isRestore);
 }
 
 @override
 String toString() {
-    return 'LoginRequest(identifier: $identifier, password: $password, rememberMe: $rememberMe)';
+    return 'LoginRequest(identifier: $identifier, password: $password, rememberMe: $rememberMe, isRestore: $isRestore)';
 }
 
 
@@ -259,7 +261,7 @@ abstract mixin class _$LoginRequestCopyWith<$Res> implements $LoginRequestCopyWi
   factory _$LoginRequestCopyWith(_LoginRequest value, $Res Function(_LoginRequest) _then) = __$LoginRequestCopyWithImpl;
 @override @useResult
 $Res call({
- String identifier, String password, bool rememberMe
+ String identifier, String password, bool rememberMe, bool isRestore
 });
 
 
@@ -276,11 +278,12 @@ class __$LoginRequestCopyWithImpl<$Res>
 
 /// Create a copy of LoginRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? identifier = null,Object? password = null,Object? rememberMe = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? identifier = null,Object? password = null,Object? rememberMe = null,Object? isRestore = null,}) {
   return _then(_LoginRequest(
 identifier: null == identifier ? _self.identifier : identifier // ignore: cast_nullable_to_non_nullable
 as String,password: null == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String,rememberMe: null == rememberMe ? _self.rememberMe : rememberMe // ignore: cast_nullable_to_non_nullable
+as bool,isRestore: null == isRestore ? _self.isRestore : isRestore // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

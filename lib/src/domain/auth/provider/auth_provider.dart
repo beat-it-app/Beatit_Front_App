@@ -93,11 +93,43 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
     }
   }
 
+  static const String withdrawnAccountCode = 'LOGIN-011';
+
+  Future<void> Function()? _pendingRestore;
+
+  Future<void> restoreAccount() async {
+    final retry = _pendingRestore;
+    _pendingRestore = null;
+    await retry?.call();
+  }
+
+  void cancelRestore() {
+    _pendingRestore = null;
+  }
+
+  Future<AuthLoginResult> _authenticateOrKeepRestore(
+    Future<AuthLoginResult> Function() authenticate, {
+    required bool isRestore,
+    required Future<void> Function() retryWithRestore,
+  }) async {
+    try {
+      return await authenticate();
+    } on AuthApiException catch (error) {
+      if (!isRestore && error.code == withdrawnAccountCode) {
+        _pendingRestore = retryWithRestore;
+      }
+      rethrow;
+    }
+  }
+
   Future<void> login({
     required String identifier,
     required String password,
     required bool rememberMe,
+    bool isRestore = false,
   }) async {
+    if (state.isLoading) return;
+
     state = const AsyncLoading();
 
     state = await AsyncValue.guard(() async {
@@ -107,13 +139,23 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       final deviceFields = await ref
           .read(authPushRegistrationProvider)
           .collectLoginFields();
-      final result = await authApi.login(
-        LoginRequest(
+      final result = await _authenticateOrKeepRestore(
+        () => authApi.login(
+          LoginRequest(
+            identifier: identifier,
+            password: password,
+            rememberMe: rememberMe,
+            isRestore: isRestore,
+          ),
+          deviceFields: deviceFields,
+        ),
+        isRestore: isRestore,
+        retryWithRestore: () => login(
           identifier: identifier,
           password: password,
           rememberMe: rememberMe,
+          isRestore: true,
         ),
-        deviceFields: deviceFields,
       );
 
       await tokenStorage.saveTokens(
@@ -131,10 +173,10 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
 
   Future<void> loginWithGoogle() => _loginWithSocial(
     getToken: () => ref.read(googleAuthClientProvider).getIdToken(),
-    authenticate: (token, deviceFields) => ref
+    authenticate: (token, deviceFields, isRestore) => ref
         .read(authApiProvider)
         .loginWithGoogle(
-          GoogleLoginRequest(idToken: token),
+          GoogleLoginRequest(idToken: token, isRestore: isRestore),
           deviceFields: deviceFields,
         ),
   );
@@ -142,16 +184,26 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
   Future<void> loginWithNaver({BuildContext? context}) => _loginWithSocial(
     getToken: () =>
         ref.read(naverAuthClientProvider).getAccessToken(context: context),
-    authenticate: (token, deviceFields) => ref
-        .read(authApiProvider)
-        .loginWithNaver(accessToken: token, deviceFields: deviceFields),
+    authenticate: (token, deviceFields, isRestore) =>
+        ref
+            .read(authApiProvider)
+            .loginWithNaver(
+              accessToken: token,
+              isRestore: isRestore,
+              deviceFields: deviceFields,
+            ),
   );
 
   Future<void> loginWithKakao() => _loginWithSocial(
     getToken: () => ref.read(kakaoAuthClientProvider).getAccessToken(),
-    authenticate: (token, deviceFields) => ref
-        .read(authApiProvider)
-        .loginWithKakao(accessToken: token, deviceFields: deviceFields),
+    authenticate: (token, deviceFields, isRestore) =>
+        ref
+            .read(authApiProvider)
+            .loginWithKakao(
+              accessToken: token,
+              isRestore: isRestore,
+              deviceFields: deviceFields,
+            ),
   );
 
   Future<void> _loginWithSocial({
@@ -159,8 +211,10 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
     required Future<AuthLoginResult> Function(
       String token,
       Map<String, dynamic> deviceFields,
+      bool isRestore,
     )
     authenticate,
+    bool isRestore = false,
   }) async {
     if (state.isLoading) return;
 
@@ -182,7 +236,15 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
           .read(authPushRegistrationProvider)
           .collectLoginFields(includePushToken: false);
       debugPrint('[Auth] BeatIt server login started');
-      final result = await authenticate(token, deviceFields);
+      final result = await _authenticateOrKeepRestore(
+        () => authenticate(token, deviceFields, isRestore),
+        isRestore: isRestore,
+        retryWithRestore: () => _loginWithSocial(
+          getToken: () async => token,
+          authenticate: authenticate,
+          isRestore: true,
+        ),
+      );
 
       await ref
           .read(authTokenStorageProvider)

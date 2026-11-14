@@ -11,6 +11,7 @@ _LoginRequest _$LoginRequestFromJson(Map<String, dynamic> json) =>
       identifier: json['identifier'] as String,
       password: json['password'] as String,
       rememberMe: json['rememberMe'] as bool,
+      isRestore: json['isRestore'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$LoginRequestToJson(_LoginRequest instance) =>
@@ -18,4 +19,5 @@ Map<String, dynamic> _$LoginRequestToJson(_LoginRequest instance) =>
       'identifier': instance.identifier,
       'password': instance.password,
       'rememberMe': instance.rememberMe,
+      'isRestore': instance.isRestore,
     };
