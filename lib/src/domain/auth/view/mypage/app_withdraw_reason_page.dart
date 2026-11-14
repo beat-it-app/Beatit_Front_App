@@ -99,7 +99,7 @@ class _AppWithdrawReasonPageState extends ConsumerState<AppWithdrawReasonPage> {
                       ),
                       const SizedBox(height: AppSpacing.x10),
                       Text(
-                        '계정을 삭제하면 팀 페이지 게시글, 채팅 등 모든 활동 정보가 삭제됩니다. 계정 삭제 후 7일 간 다시 가입할 수 없어요.',
+                        '탈퇴 후 7일 이내에 로그인하면 계정을 복구할 수 있어요. 7일이 지나면 팀 페이지 게시글, 채팅 등 모든 활동 정보가 삭제되며 복구할 수 없어요.',
                         style: FontStyles.med16.copyWith(
                           color: context.grays.gray5,
                           height: 1.45,

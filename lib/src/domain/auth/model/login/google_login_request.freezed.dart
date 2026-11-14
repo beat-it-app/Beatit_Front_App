@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GoogleLoginRequest {
 
- String get idToken;
+ String get idToken; bool get isRestore;
 /// Create a copy of GoogleLoginRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $GoogleLoginRequestCopyWith<GoogleLoginRequest> get copyWith => _$GoogleLoginReq
 @override
 bool operator ==(Object other) {
   final _this = this as GoogleLoginRequest;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoogleLoginRequest&&(identical(other.idToken, _this.idToken) || other.idToken == _this.idToken));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoogleLoginRequest&&(identical(other.idToken, _this.idToken) || other.idToken == _this.idToken)&&(identical(other.isRestore, _this.isRestore) || other.isRestore == _this.isRestore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as GoogleLoginRequest;
-  return Object.hash(runtimeType,_this.idToken);
+  return Object.hash(runtimeType,_this.idToken,_this.isRestore);
 }
 
 @override
 String toString() {
   final _this = this as GoogleLoginRequest;
-  return 'GoogleLoginRequest(idToken: ${_this.idToken})';
+  return 'GoogleLoginRequest(idToken: ${_this.idToken}, isRestore: ${_this.isRestore})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $GoogleLoginRequestCopyWith<$Res>  {
   factory $GoogleLoginRequestCopyWith(GoogleLoginRequest value, $Res Function(GoogleLoginRequest) _then) = _$GoogleLoginRequestCopyWithImpl;
 @useResult
 $Res call({
- String idToken
+ String idToken, bool isRestore
 });
 
 
@@ -71,10 +71,11 @@ class _$GoogleLoginRequestCopyWithImpl<$Res>
 
 /// Create a copy of GoogleLoginRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? idToken = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? idToken = null,Object? isRestore = null,}) {
   return _then(GoogleLoginRequest(
 idToken: null == idToken ? _self.idToken : idToken // ignore: cast_nullable_to_non_nullable
-as String,
+as String,isRestore: null == isRestore ? _self.isRestore : isRestore // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String idToken)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String idToken,  bool isRestore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GoogleLoginRequest() when $default != null:
-return $default(_that.idToken);case _:
+return $default(_that.idToken,_that.isRestore);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.idToken);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String idToken)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String idToken,  bool isRestore)  $default,) {final _that = this;
 switch (_that) {
 case _GoogleLoginRequest():
-return $default(_that.idToken);case _:
+return $default(_that.idToken,_that.isRestore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.idToken);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String idToken)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String idToken,  bool isRestore)?  $default,) {final _that = this;
 switch (_that) {
 case _GoogleLoginRequest() when $default != null:
-return $default(_that.idToken);case _:
+return $default(_that.idToken,_that.isRestore);case _:
   return null;
 
 }
@@ -215,10 +216,11 @@ return $default(_that.idToken);case _:
 @JsonSerializable()
 
 class _GoogleLoginRequest implements GoogleLoginRequest {
-  const _GoogleLoginRequest({required this.idToken});
+  const _GoogleLoginRequest({required this.idToken, this.isRestore = false});
   factory _GoogleLoginRequest.fromJson(Map<String, dynamic> json) => _$GoogleLoginRequestFromJson(json);
 
 @override final  String idToken;
+@override@JsonKey() final  bool isRestore;
 
 /// Create a copy of GoogleLoginRequest
 /// with the given fields replaced by the non-null parameter values.
@@ -233,18 +235,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GoogleLoginRequest&&(identical(other.idToken, idToken) || other.idToken == idToken));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GoogleLoginRequest&&(identical(other.idToken, idToken) || other.idToken == idToken)&&(identical(other.isRestore, isRestore) || other.isRestore == isRestore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,idToken);
+    return Object.hash(runtimeType,idToken,isRestore);
 }
 
 @override
 String toString() {
-    return 'GoogleLoginRequest(idToken: $idToken)';
+    return 'GoogleLoginRequest(idToken: $idToken, isRestore: $isRestore)';
 }
 
 
@@ -255,7 +257,7 @@ abstract mixin class _$GoogleLoginRequestCopyWith<$Res> implements $GoogleLoginR
   factory _$GoogleLoginRequestCopyWith(_GoogleLoginRequest value, $Res Function(_GoogleLoginRequest) _then) = __$GoogleLoginRequestCopyWithImpl;
 @override @useResult
 $Res call({
- String idToken
+ String idToken, bool isRestore
 });
 
 
@@ -272,10 +274,11 @@ class __$GoogleLoginRequestCopyWithImpl<$Res>
 
 /// Create a copy of GoogleLoginRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? idToken = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? idToken = null,Object? isRestore = null,}) {
   return _then(_GoogleLoginRequest(
 idToken: null == idToken ? _self.idToken : idToken // ignore: cast_nullable_to_non_nullable
-as String,
+as String,isRestore: null == isRestore ? _self.isRestore : isRestore // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

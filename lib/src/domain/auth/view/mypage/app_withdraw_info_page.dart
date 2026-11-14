@@ -167,7 +167,7 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
                     ),
                     const SizedBox(height: AppSpacing.x10),
                     Text(
-                      '탈퇴 시, 안내 사항을 모두 확인하였으며, 데이터 복구 불가 및 팀 내 활동 기록 처리에 동의합니다.',
+                      '탈퇴 시, 안내 사항을 모두 확인하였으며, 탈퇴 후 7일 경과 시 계정 복구 불가 및 팀 내 활동 기록 처리에 동의합니다.',
                       style: FontStyles.semi16.copyWith(
                         color: context.grays.gray5,
                         height: 1.45,
