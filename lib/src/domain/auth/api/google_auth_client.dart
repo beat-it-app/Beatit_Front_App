@@ -7,7 +7,7 @@ class GoogleAuthClient {
   static const String _serverClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
     defaultValue:
-        '269219968306-29skj0ruajrsujcr7u7ld3v6rrgjnv7c.apps.googleusercontent.com',
+        '269219968306-4eu5u8ci2bu6hdc9djfo9qphfqp3uskm.apps.googleusercontent.com',
   );
 
   // 2. Google Cloud Console에서 발급받은 iOS 전용 클라이언트 ID
