@@ -20,11 +20,8 @@ class ProfileImageBottomSheet extends ConsumerStatefulWidget {
 
   const ProfileImageBottomSheet({super.key, this.initialImageUrl});
 
-  static Future<Map<String, dynamic>?> show(
-    BuildContext context, {
-    String? initialImageUrl,
-  }) {
-    return showModalBottomSheet<Map<String, dynamic>>(
+  static Future<dynamic> show(BuildContext context, {String? initialImageUrl}) {
+    return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -43,6 +40,7 @@ class _ProfileImageBottomSheetState
   int? _selectedDefaultId; // 1 ~ 4 (기본 프로필인 경우)
   File? _selectedCustomFile; // 갤러리에서 새로 고른 파일
   String? _currentNetworkUrl; // 기존 네트워크 이미지 URL
+  String? _savedCustomNetworkUrl; // 첫 번째 썸네일 유지용 기존 커스텀 사진 URL
 
   final ImagePicker _picker = ImagePicker();
   static const double _itemSpacing = 8.0;
@@ -53,38 +51,37 @@ class _ProfileImageBottomSheetState
     _initCurrentProfile();
   }
 
-  // 💡 기존 프로필 사진 분석 및 초기 상태 바인딩
+  // 기존 프로필 사진 분석 및 초기 상태 바인딩
   void _initCurrentProfile() {
     final url = widget.initialImageUrl?.trim();
 
     if (url == null || url.isEmpty || url == 'string') {
-      // 사진이 없는 경우 기본 1번(오렌지) 선택
       _selectedDefaultId = 1;
       return;
     }
 
-    // 1. 기본 프로필 에셋 경로와 일치하는지 확인
     int matchedIndex = _profileAssetPaths.indexWhere(
       (path) => url.contains(path),
     );
 
-    // 2. 서버 URL에 profile_orange, profile_green 등의 키워드가 포함된 경우도 매칭
     if (matchedIndex == -1) {
-      if (url.contains('orange') || url.contains('default_1'))
+      final lowerUrl = url.toLowerCase();
+      if (lowerUrl.contains('orange') || lowerUrl.contains('default_1')) {
         matchedIndex = 0;
-      else if (url.contains('green') || url.contains('default_2'))
+      } else if (lowerUrl.contains('green') || lowerUrl.contains('default_2')) {
         matchedIndex = 1;
-      else if (url.contains('blue') || url.contains('default_3'))
+      } else if (lowerUrl.contains('blue') || lowerUrl.contains('default_3')) {
         matchedIndex = 2;
-      else if (url.contains('pink') || url.contains('default_4'))
+      } else if (lowerUrl.contains('pink') || lowerUrl.contains('default_4')) {
         matchedIndex = 3;
+      }
     }
 
     if (matchedIndex != -1) {
-      _selectedDefaultId = matchedIndex + 1; // 1~4
+      _selectedDefaultId = matchedIndex + 1;
     } else {
-      // 일반 네트워크 커스텀 이미지인 경우
       _currentNetworkUrl = url;
+      _savedCustomNetworkUrl = url;
       _selectedDefaultId = null;
     }
   }
@@ -97,14 +94,15 @@ class _ProfileImageBottomSheetState
     );
 
     if (picked != null) {
+      final file = File(picked.path);
       setState(() {
-        _selectedCustomFile = File(picked.path);
+        _selectedCustomFile = file;
         _selectedDefaultId = null;
         _currentNetworkUrl = null;
       });
 
       if (mounted) {
-        Navigator.pop(context, {'type': 'custom', 'file': _selectedCustomFile});
+        Navigator.pop(context, {'type': 'custom', 'file': file});
       }
     }
   }
@@ -137,12 +135,97 @@ class _ProfileImageBottomSheetState
       return Image.network(
         _currentNetworkUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (context, error, stackTrace) =>
             Image.asset(_profileAssetPaths[0], fit: BoxFit.contain),
       );
     }
 
     return Image.asset(_profileAssetPaths[0], fit: BoxFit.contain);
+  }
+
+  // 첫 번째 원형 버튼(갤러리 / 커스텀 이미지 썸네일 + 카메라 뱃지) 빌드
+  Widget _buildGalleryOrCustomItem(BuildContext context) {
+    final hasCustomFile = _selectedCustomFile != null;
+    final displayNetworkUrl = _currentNetworkUrl ?? _savedCustomNetworkUrl;
+    final hasNetworkImage =
+        displayNetworkUrl != null && displayNetworkUrl.isNotEmpty;
+
+    final bool hasCustomThumbnail = hasCustomFile || hasNetworkImage;
+
+    return GestureDetector(
+      onTap: _pickFromGallery,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: context.grays.gray8,
+            ),
+            child: hasCustomThumbnail
+                ? ClipOval(
+                    child: hasCustomFile
+                        ? Image.file(
+                            _selectedCustomFile!,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.network(
+                            displayNetworkUrl!,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
+                                  child: SvgPicture.asset(
+                                    'assets/icons/auth/gallery.svg',
+                                    width: 30,
+                                    height: 30,
+                                  ),
+                                ),
+                          ),
+                  )
+                : Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/auth/gallery.svg',
+                      width: 30,
+                      height: 30,
+                    ),
+                  ),
+          ),
+          if (hasCustomThumbnail)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: context.grays.gray7,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.surface,
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: SvgPicture.asset(
+                  'assets/icons/auth/camera.svg',
+                  width: 16,
+                  height: 16,
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray1,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -171,7 +254,7 @@ class _ProfileImageBottomSheetState
             ),
             const SizedBox(height: AppSpacing.x50),
 
-            // 💡 중앙 원형 프로필 미리보기
+            // 중앙 원형 프로필 미리보기
             Center(
               child: SizedBox(
                 width: 130,
@@ -188,32 +271,13 @@ class _ProfileImageBottomSheetState
             ),
             const SizedBox(height: AppSpacing.x12),
 
-            // 하단 선택 리스트 (갤러리 + 기본 프로필 4종)
+            // 하단 선택 리스트 (갤러리/커스텀 썸네일 + 기본 프로필 4종)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // 1. 갤러리 선택 버튼
-                  GestureDetector(
-                    onTap: _pickFromGallery,
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: context.grays.gray8,
-                      ),
-                      child: Center(
-                        child: SvgPicture.asset(
-                          'assets/icons/auth/gallery.svg',
-                          width: 26,
-                          height: 26,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildGalleryOrCustomItem(context),
 
-                  // 2. 기본 프로필 아바타 4종
                   for (int i = 0; i < _profileAssetPaths.length; i++) ...[
                     const SizedBox(width: _itemSpacing),
                     GestureDetector(
@@ -229,7 +293,6 @@ class _ProfileImageBottomSheetState
                               fit: BoxFit.contain,
                             ),
                           ),
-                          // 💡 기본 프로필 중 현재 선택된 아이템에 체크 표시 노출
                           if (_selectedDefaultId == i + 1 &&
                               _selectedCustomFile == null &&
                               _currentNetworkUrl == null)
@@ -237,8 +300,8 @@ class _ProfileImageBottomSheetState
                               right: 0,
                               bottom: 0,
                               child: Container(
-                                width: 20,
-                                height: 20,
+                                width: 24,
+                                height: 24,
                                 decoration: BoxDecoration(
                                   color: context.colors.primary,
                                   shape: BoxShape.circle,
@@ -246,8 +309,8 @@ class _ProfileImageBottomSheetState
                                 alignment: Alignment.center,
                                 child: SvgPicture.asset(
                                   'assets/icons/check/check.svg',
-                                  width: 12,
-                                  height: 12,
+                                  width: 18,
+                                  height: 18,
                                   colorFilter: const ColorFilter.mode(
                                     Colors.white,
                                     BlendMode.srcIn,

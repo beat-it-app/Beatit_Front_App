@@ -178,6 +178,12 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     }
   }
 
+  String _formatRating(double rating) {
+    return rating % 1 == 0
+        ? rating.toInt().toString()
+        : rating.toStringAsFixed(1);
+  }
+
   bool _isUpdated(String? createdAt, String? updatedAt) {
     if (createdAt == null || updatedAt == null) return false;
     if (createdAt.trim().isEmpty || updatedAt.trim().isEmpty) return false;
@@ -692,8 +698,9 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      detail.rating.averageRating
-                                          .toStringAsFixed(1),
+                                      _formatRating(
+                                        detail.rating.averageRating,
+                                      ),
                                       style: FontStyles.med12.copyWith(
                                         color: colors.onSurface,
                                       ),
@@ -938,7 +945,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                                     const SizedBox(width: 4),
                                     Text(
                                       _myRating != null
-                                          ? '내 별점 ${_myRating!.toStringAsFixed(1)}'
+                                          ? '내 별점 $_myRating'
                                           : '별점 남기기',
                                       style: FontStyles.med14.copyWith(
                                         color: _myRating != null

@@ -1,4 +1,4 @@
-package com.beatit.app
+package com.beatit.android
 
 import io.flutter.embedding.android.FlutterActivity
 

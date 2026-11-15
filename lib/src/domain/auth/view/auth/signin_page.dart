@@ -143,9 +143,34 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     ).push(MaterialPageRoute(builder: (_) => const CreateProfilePage()));
   }
 
+  Future<void> _confirmRestore() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '계정을 복구하시겠습니까?',
+      content: '탈퇴 후 7일 이내의 계정입니다.\n복구하면 기존 계정으로 로그인됩니다.',
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      warningType: WarningType.circle,
+      confirmText: '복구하기',
+      cancelText: '취소',
+      barrierDismissible: false,
+      theme: AppTheme.light,
+    );
+
+    final notifier = ref.read(authProvider.notifier);
+    if (confirmed == true) {
+      await notifier.restoreAccount();
+    } else {
+      notifier.cancelRestore();
+    }
+  }
+
   void _handleLoginError(Object error) {
     if (error is AuthApiException) {
       switch (error.code) {
+        case AuthNotifier.withdrawnAccountCode:
+          _confirmRestore();
+          return;
         case 'LOGIN-001':
           setState(() {
             _idErrorText = error.message;

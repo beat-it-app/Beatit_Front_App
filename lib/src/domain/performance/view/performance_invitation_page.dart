@@ -1,10 +1,10 @@
 // lib/src/domain/performance/view/performance_invitation_page.dart
 
 import 'dart:convert';
-import 'dart:core';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:beatit_front_app/src/core/network/dio_provider.dart';
 import 'package:beatit_front_app/src/domain/performance/api/performance_api.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_invitation_view_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -37,60 +38,144 @@ class PerformanceInvitationPage extends ConsumerStatefulWidget {
     this.retainDetailFileIds = const [],
     this.deleteDetailFileIds = const [],
     this.deletePosterImage = false,
+    this.initialDraft,
   });
 
   final PerformanceInformation step1;
-  final List<XFile> detailImages;
+  final List detailImages;
   final String detailDescription;
   final bool hasNoDetails;
 
   final PerformanceDetailModel? editTarget;
-  final List<int> retainDetailFileIds;
-  final List<int> deleteDetailFileIds;
+  final List retainDetailFileIds;
+  final List deleteDetailFileIds;
   final bool deletePosterImage;
+  final Map? initialDraft;
 
   @override
-  ConsumerState<PerformanceInvitationPage> createState() =>
-      _PerformanceInvitationPageState();
+  ConsumerState createState() => _PerformanceInvitationPageState();
 }
 
 class _PerformanceInvitationPageState
     extends ConsumerState<PerformanceInvitationPage> {
+  static const int _maxGroupNameLength = 15;
+  static const int _maxMusicDescriptionLength = 50;
+
   final _teamName = TextEditingController();
   final _description = TextEditingController();
 
   bool _enableSetlist = true;
   int _selectedTeamIndex = 0;
-  final List<_TeamGroup> _teams = [];
+  int? _pendingDeleteTeamIndex;
+  final List _teams = [];
   bool _isLoading = false;
   bool _isPrefillingInvitation = false;
   String? _prefillError;
 
   bool get _isEditMode => widget.editTarget != null;
 
+  bool get _isFormValid =>
+      _teamName.text.trim().isNotEmpty && _description.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
-    if (_isEditMode) {
-      // 일반 공연 상세 API에 초대장 데이터가 없으므로 전용 API로 복원한다.
-      // 로딩 중에는 수정 폼을 잠가 저장 데이터가 덮어써지는 것을 방지한다.
+    _teamName.addListener(_onFieldChanged);
+    _description.addListener(_onFieldChanged);
+
+    if (widget.initialDraft != null) {
+      _restoreDraft(widget.initialDraft!);
+    } else if (_isEditMode) {
       _isPrefillingInvitation = true;
       Future.microtask(_loadInvitationForEdit);
     } else {
-      _teamName.text = widget.step1.hostName;
-      _teams.add(_TeamGroup(name: '알사탕')..addMusic());
+      final myTeamName = ref.read(currentTeamProvider).value?.teamName ?? '';
+      _teamName.text = myTeamName;
+      _teams.add(_TeamGroup()..addMusic());
     }
   }
 
-  Future<void> _loadInvitationForEdit() async {
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _unfocusAll() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_pendingDeleteTeamIndex != null && mounted) {
+      setState(() => _pendingDeleteTeamIndex = null);
+    }
+  }
+
+  void _restoreDraft(Map draft) {
+    _teamName.text = draft['teamName'] as String? ?? '';
+    _description.text = draft['description'] as String? ?? '';
+    _enableSetlist = draft['enableSetlist'] as bool? ?? true;
+    _selectedTeamIndex = draft['selectedTeamIndex'] as int? ?? 0;
+
+    final savedTeams = draft['teams'] as List? ?? [];
+    for (final t in savedTeams) {
+      final map = t as Map;
+      final group = _TeamGroup(initialName: map['name'] as String? ?? '');
+      final musics = map['musics'] as List? ?? [];
+      for (final m in musics) {
+        final mMap = m as Map;
+        final entry = _MusicEntry();
+        entry.musicTitle.text = mMap['title'] as String? ?? '';
+        entry.musicArtist.text = mMap['artist'] as String? ?? '';
+        entry.description.text = mMap['description'] as String? ?? '';
+        entry.musicPreviewUrl = mMap['previewUrl'] as String?;
+        entry.musicImageUrl = mMap['imageUrl'] as String?;
+        group.musics.add(entry);
+      }
+      if (group.musics.isEmpty) group.addMusic();
+      _teams.add(group);
+    }
+
+    if (_teams.isEmpty) {
+      _teams.add(_TeamGroup()..addMusic());
+    }
+    if (_selectedTeamIndex >= _teams.length) {
+      _selectedTeamIndex = _teams.length - 1;
+    }
+  }
+
+  void _handleBackWithDraft() {
+    _unfocusAll();
+    final draft = {
+      'teamName': _teamName.text,
+      'description': _description.text,
+      'enableSetlist': _enableSetlist,
+      'selectedTeamIndex': _selectedTeamIndex,
+      'teams': _teams.map((item) {
+        final t = item as _TeamGroup;
+        return {
+          'name': t.nameController.text,
+          'musics': t.musics.map((mItem) {
+            final m = mItem as _MusicEntry;
+            return {
+              'title': m.musicTitle.text,
+              'artist': m.musicArtist.text,
+              'description': m.description.text,
+              'previewUrl': m.musicPreviewUrl,
+              'imageUrl': m.musicImageUrl,
+            };
+          }).toList(),
+        };
+      }).toList(),
+    };
+
+    Navigator.of(context).pop(draft);
+  }
+
+  Future _loadInvitationForEdit() async {
     setState(() {
       _isPrefillingInvitation = true;
       _prefillError = null;
     });
     try {
-      final response = await ref.read(performanceApiProvider).getPerformanceInvitation(
-        widget.editTarget!.performancePublicId,
-      );
+      final response = await ref
+          .read(performanceApiProvider)
+          .getPerformanceInvitation(widget.editTarget!.performancePublicId);
       if (!mounted) return;
       setState(() {
         _prefillInvitationData(response.toInvitationCard());
@@ -107,26 +192,23 @@ class _PerformanceInvitationPageState
 
   void _prefillInvitationData(PerformanceInvitationCard? savedCard) {
     final detail = widget.editTarget!.toDetailData();
+    final myTeamName = ref.read(currentTeamProvider).value?.teamName ?? '';
     _enableSetlist = savedCard?.setlist.isNotEmpty ?? false;
     _teamName.text = savedCard?.performanceTeam.isNotEmpty == true
         ? savedCard!.performanceTeam
-        : detail.hostName;
+        : myTeamName;
     _description.text = savedCard?.description.isNotEmpty == true
         ? savedCard!.description
         : detail.introduction;
 
-    // 공연 조회 응답에 저장된 invitationCard가 포함되어 있으면
-    // 수정 화면에서도 기존 팀과 곡을 그대로 불러온다.
     if (savedCard != null && savedCard.setlist.isNotEmpty) {
       for (final savedTeam in savedCard.setlist) {
-        final group = _TeamGroup(name: savedTeam.teamName);
+        final group = _TeamGroup(initialName: savedTeam.teamName);
         for (final song in savedTeam.musics) {
           final item = _MusicEntry();
           item.musicTitle.text = song.musicTitle;
           item.musicArtist.text = song.musicArtist;
           item.description.text = song.description;
-          // 수정 시 서버에 저장된 음원 메타데이터도 복원해야
-          // 다시 저장해도 커버 이미지와 미리듣기 URL이 사라지지 않는다.
           item.musicPreviewUrl = song.musicPreviewUrl;
           item.musicImageUrl = song.musicImageUrl;
           group.musics.add(item);
@@ -136,30 +218,59 @@ class _PerformanceInvitationPageState
       }
     }
     if (_teams.isEmpty) {
-      _teams.add(_TeamGroup(name: detail.hostName)..addMusic());
+      _teams.add(_TeamGroup()..addMusic());
     }
   }
 
   void _addTeam() {
+    _unfocusAll();
     setState(() {
-      final newTeam = _TeamGroup(name: '${_teams.length + 1}팀');
+      _pendingDeleteTeamIndex = null;
+      final newTeam = _TeamGroup();
       newTeam.addMusic();
       _teams.add(newTeam);
       _selectedTeamIndex = _teams.length - 1;
     });
   }
 
+  void _onTeamChipTap(int idx) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      // 이미 삭제 대기 상태인 칩을 한 번 더 누르면 삭제 (1개만 남았을 때는 삭제 불가)
+      if (_pendingDeleteTeamIndex == idx && _teams.length > 1) {
+        final removed = _teams.removeAt(idx) as _TeamGroup;
+        removed.dispose();
+        _pendingDeleteTeamIndex = null;
+        if (_selectedTeamIndex >= _teams.length) {
+          _selectedTeamIndex = _teams.length - 1;
+        }
+        return;
+      }
+
+      // 현재 선택된 칩을 다시 누르면 삭제 대기 상태로 전환 (2개 이상일 때만)
+      if (_selectedTeamIndex == idx && _teams.length > 1) {
+        _pendingDeleteTeamIndex = idx;
+      } else {
+        _selectedTeamIndex = idx;
+        _pendingDeleteTeamIndex = null;
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _teamName.removeListener(_onFieldChanged);
+    _description.removeListener(_onFieldChanged);
     _teamName.dispose();
     _description.dispose();
-    for (final t in _teams) {
-      t.dispose();
+    for (final item in _teams) {
+      (item as _TeamGroup).dispose();
     }
     super.dispose();
   }
 
-  Future<void> _handleCloseConfirmation() async {
+  Future _handleCloseConfirmation() async {
+    _unfocusAll();
     final confirmed = await AppPopup.show(
       context,
       title: '작성을 중단하시겠습니까?',
@@ -170,25 +281,30 @@ class _PerformanceInvitationPageState
       cancelText: '계속 작성',
     );
 
-    if (confirmed == true && mounted) {
+    if (!mounted) return;
+    _unfocusAll();
+
+    if (confirmed == true) {
       int count = 0;
       Navigator.of(context).popUntil((_) => count++ >= 3);
     }
   }
 
-  Future<void> _selectMusic(_MusicEntry music) async {
-    FocusScope.of(context).unfocus();
-    final selected = await Navigator.of(context).push<MusicSearchResult>(
+  Future _selectMusic(_MusicEntry music) async {
+    _unfocusAll();
+    final selected = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const MusicSearchPage(returnOnSelect: true),
       ),
     );
 
-    if (selected != null && mounted) {
+    if (!mounted) return;
+    _unfocusAll();
+
+    if (selected is MusicSearchResult) {
       setState(() {
         music.musicTitle.text = selected.title;
         music.musicArtist.text = selected.artist;
-        // 음악 검색 API 응답에서 제목/가수 외에 이미지와 미리듣기 URL도 보존한다.
         music.musicPreviewUrl = selected.previewUrl;
         music.musicImageUrl = selected.imageUrl;
       });
@@ -228,7 +344,6 @@ class _PerformanceInvitationPageState
           priceType = 'GENERAL';
           break;
         case PerformanceTicketType.free:
-        default:
           priceType = 'FREE';
           break;
       }
@@ -246,13 +361,14 @@ class _PerformanceInvitationPageState
     if (!_enableSetlist) return [];
 
     final List list = [];
-    for (final team in _teams) {
-      final teamName = team.nameController.text.trim().isEmpty
-          ? team.name
-          : team.nameController.text.trim();
+    for (int i = 0; i < _teams.length; i++) {
+      final team = _teams[i] as _TeamGroup;
+      final typedName = team.nameController.text.trim();
+      final teamName = typedName.isEmpty ? '그룹${i + 1}' : typedName;
 
-      final musics = [];
-      for (final m in team.musics) {
+      final List musics = [];
+      for (final mItem in team.musics) {
+        final m = mItem as _MusicEntry;
         final title = m.musicTitle.text.trim();
         final artist = m.musicArtist.text.trim();
         if (title.isNotEmpty || artist.isNotEmpty) {
@@ -260,7 +376,6 @@ class _PerformanceInvitationPageState
             'musicTitle': title.isEmpty ? '미정' : title,
             'musicArtist': artist.isEmpty ? '미정' : artist,
             'description': m.description.text.trim(),
-            // 서버 SetlistMusicDto의 필드명과 일치시킨다.
             if (m.musicPreviewUrl?.trim().isNotEmpty ?? false)
               'musicPreviewUrl': m.musicPreviewUrl!.trim(),
             if (m.musicImageUrl?.trim().isNotEmpty ?? false)
@@ -276,13 +391,10 @@ class _PerformanceInvitationPageState
     return list;
   }
 
-  Future<void> _submit() async {
-    FocusScope.of(context).unfocus();
+  Future _submit() async {
+    _unfocusAll();
 
-    if (_teamName.text.trim().isEmpty || _description.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('필수 정보를 모두 입력해주세요.')));
+    if (!_isFormValid) {
       return;
     }
 
@@ -312,7 +424,7 @@ class _PerformanceInvitationPageState
       if (e is DioException && e.response != null) {
         debugPrint('❌ [Server Response]: ${e.response?.data}');
         final resData = e.response?.data;
-        if (resData is Map<String, dynamic>) {
+        if (resData is Map) {
           errorMessage =
               resData['message']?.toString() ??
               resData['error']?.toString() ??
@@ -336,11 +448,10 @@ class _PerformanceInvitationPageState
     }
   }
 
-  /// 💡 공연 등록: 백엔드 @RequestPart("performanceCreateRequest") 스펙 충족
-  Future<void> _createPerformance(Dio dio) async {
+  Future _createPerformance(Dio dio) async {
     final formattedSetlist = _buildFormattedSetlist();
 
-    final requestMap = <String, dynamic>{
+    final Map requestMap = {
       'title': widget.step1.title,
       'description': widget.step1.introduction,
       'performanceDateTime': _formatOffsetDateTime(widget.step1.startsAt),
@@ -375,7 +486,6 @@ class _PerformanceInvitationPageState
 
     final formData = FormData();
 
-    // 💡 키 이름을 'performanceCreateRequest'로 변경
     formData.files.add(
       MapEntry(
         'performanceCreateRequest',
@@ -398,7 +508,8 @@ class _PerformanceInvitationPageState
       );
     }
 
-    for (final image in widget.detailImages) {
+    for (final img in widget.detailImages) {
+      final image = img as XFile;
       formData.files.add(
         MapEntry(
           'detailImages',
@@ -410,12 +521,11 @@ class _PerformanceInvitationPageState
     await dio.post('/performances', data: formData);
   }
 
-  /// 💡 공연 수정: 백엔드 @RequestPart("request") 및 retainDetailFileIds 단일화
-  Future<void> _updatePerformance(Dio dio) async {
+  Future _updatePerformance(Dio dio) async {
     final publicId = widget.editTarget!.performancePublicId;
     final formattedSetlist = _buildFormattedSetlist();
 
-    final requestMap = <String, dynamic>{
+    final Map requestMap = {
       'title': widget.step1.title,
       'description': widget.step1.introduction,
       'performanceDateTime': _formatOffsetDateTime(widget.step1.startsAt),
@@ -446,7 +556,6 @@ class _PerformanceInvitationPageState
         'description': _description.text.trim(),
         'setlist': formattedSetlist,
       },
-      // 💡 retainDetailImageUrls 충돌 제거, 검증 가능한 ID 목록으로만 단일화
       'retainDetailFileIds': widget.retainDetailFileIds,
       'deleteDetailFileIds': widget.deleteDetailFileIds,
       'deletePosterImage': widget.deletePosterImage,
@@ -475,7 +584,8 @@ class _PerformanceInvitationPageState
       );
     }
 
-    for (final image in widget.detailImages) {
+    for (final img in widget.detailImages) {
+      final image = img as XFile;
       formData.files.add(
         MapEntry(
           'detailImages',
@@ -490,294 +600,515 @@ class _PerformanceInvitationPageState
   @override
   Widget build(BuildContext context) {
     if (_isEditMode && (_isPrefillingInvitation || _prefillError != null)) {
-      return Scaffold(
-        backgroundColor: context.grays.white,
-        appBar: AppTopAppBar.backClose(
-          onBackPressed: () => Navigator.of(context).pop(),
-          onClosePressed: _handleCloseConfirmation,
-        ),
-        body: Center(
-          child: _isPrefillingInvitation
-              ? const CircularProgressIndicator()
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_prefillError!, textAlign: TextAlign.center),
-                    const SizedBox(height: AppSpacing.x16),
-                    TextButton(
-                      onPressed: _loadInvitationForEdit,
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
-                ),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          _handleBackWithDraft();
+        },
+        child: Scaffold(
+          backgroundColor: context.grays.white,
+          appBar: AppTopAppBar.backClose(
+            onBackPressed: _handleBackWithDraft,
+            onClosePressed: _handleCloseConfirmation,
+          ),
+          body: Center(
+            child: _isPrefillingInvitation
+                ? const CircularProgressIndicator()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_prefillError!, textAlign: TextAlign.center),
+                      const SizedBox(height: AppSpacing.x16),
+                      TextButton(
+                        onPressed: _loadInvitationForEdit,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       );
     }
 
     final currentTeam = _teams.isNotEmpty && _selectedTeamIndex < _teams.length
-        ? _teams[_selectedTeamIndex]
+        ? _teams[_selectedTeamIndex] as _TeamGroup
         : null;
 
-    return Scaffold(
-      backgroundColor: context.grays.white,
-      appBar: AppTopAppBar.backClose(
-        onBackPressed: () => Navigator.of(context).pop(),
-        onClosePressed: _handleCloseConfirmation,
-      ),
-      body: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  children: [
-                    const PerformanceProgressBar(step: 3),
-                    const SizedBox(height: AppSpacing.x20),
-                    AppTextField(
-                      label: '팀 이름',
-                      requiredMark: true,
-                      controller: _teamName,
-                      hintText: '공연에 참여하는 팀 이름을 작성해주세요.',
-                    ),
-                    const SizedBox(height: AppSpacing.x20),
-                    AppTextArea(
-                      label: '초대글',
-                      requiredMark: true,
-                      controller: _description,
-                      hintText: '공연 초대글을 작성해주세요.',
-                      maxLength: 1000,
-                      fieldHeight: 140,
-                    ),
-                    const SizedBox(height: AppSpacing.x28),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBackWithDraft();
+      },
+      child: GestureDetector(
+        onTap: _unfocusAll,
+        behavior: HitTestBehavior.translucent,
+        child: Scaffold(
+          backgroundColor: context.grays.white,
+          appBar: AppTopAppBar.backClose(
+            onBackPressed: _handleBackWithDraft,
+            onClosePressed: _handleCloseConfirmation,
+          ),
+          body: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       children: [
+                        const PerformanceProgressBar(step: 3),
+                        const SizedBox(height: AppSpacing.x20),
+                        _buildReadOnlyStep1Field(
+                          context,
+                          label: '공연 이름',
+                          requiredMark: true,
+                          value: widget.step1.title,
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextField(
+                          label: '공연 팀',
+                          requiredMark: true,
+                          controller: _teamName,
+                          hintText: '공연에 참여하는 팀 이름을 작성해주세요.',
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildReadOnlyStep1Field(
+                                context,
+                                label: '공연 날짜',
+                                requiredMark: true,
+                                value:
+                                    '${widget.step1.startsAt.year}. ${widget.step1.startsAt.month.toString().padLeft(2, '0')}. ${widget.step1.startsAt.day.toString().padLeft(2, '0')}.',
+                                suffixAsset:
+                                    'assets/icons/performance/calendar.svg',
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.x12),
+                            Expanded(
+                              child: _buildReadOnlyStep1Field(
+                                context,
+                                label: '공연 시간',
+                                requiredMark: true,
+                                value:
+                                    '${widget.step1.startsAt.hour.toString().padLeft(2, '0')}:${widget.step1.startsAt.minute.toString().padLeft(2, '0')}',
+                                suffixAsset:
+                                    'assets/icons/performance/clock.svg',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        _buildReadOnlyStep1Field(
+                          context,
+                          label: '공연 장소',
+                          requiredMark: true,
+                          value:
+                              widget.step1.location.locationName ??
+                              widget.step1.location.roadAddress ??
+                              '',
+                        ),
+                        const SizedBox(height: AppSpacing.x20),
+                        AppTextArea(
+                          label: '상세 소개',
+                          requiredMark: true,
+                          controller: _description,
+                          hintText: '공연 초대글을 작성해주세요.',
+                          maxLength: 1000,
+                          fieldHeight: 140,
+                        ),
+                        const SizedBox(height: AppSpacing.x28),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '셋리스트',
+                              style: FontStyles.bold20.copyWith(
+                                color: context.grays.black,
+                              ),
+                            ),
+                            CupertinoSwitch(
+                              value: _enableSetlist,
+                              activeTrackColor: context.brands.beatOrange1,
+                              onChanged: (val) {
+                                _unfocusAll();
+                                setState(() => _enableSetlist = val);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.x4),
                         Text(
-                          '셋리스트',
-                          style: FontStyles.bold20.copyWith(
-                            color: context.grays.black,
+                          '셋리스트는 모바일 초대장을 통해서만 볼 수 있습니다.\n팀 태그를 드래그해서 팀 순서를 변경할 수 있습니다.',
+                          style: FontStyles.semi12.copyWith(
+                            color: context.grays.gray5,
                           ),
                         ),
-                        CupertinoSwitch(
-                          value: _enableSetlist,
-                          activeColor: context.brands.beatOrange1,
-                          onChanged: (val) {
-                            setState(() => _enableSetlist = val);
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    Text(
-                      '셋리스트는 모바일 초대장을 통해서만 볼 수 있습니다.',
-                      style: FontStyles.reg14.copyWith(
-                        color: context.grays.gray4,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.x16),
-                    if (_enableSetlist && currentTeam != null) ...[
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            ..._teams.asMap().entries.map((entry) {
-                              final idx = entry.key;
-                              final isSelected = idx == _selectedTeamIndex;
+                        const SizedBox(height: AppSpacing.x16),
+                        if (_enableSetlist && currentTeam != null) ...[
+                          SizedBox(
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: ReorderableListView.builder(
+                                    shrinkWrap: true,
+                                    scrollDirection: Axis.horizontal,
+                                    buildDefaultDragHandles: false,
+                                    proxyDecorator: (child, index, animation) {
+                                      return Material(
+                                        color: Colors.transparent,
+                                        child: child,
+                                      );
+                                    },
+                                    itemCount: _teams.length,
+                                    onReorder: (oldIndex, newIndex) {
+                                      _unfocusAll();
+                                      setState(() {
+                                        if (oldIndex < newIndex) newIndex -= 1;
+                                        final selectedTeam =
+                                            _teams[_selectedTeamIndex];
+                                        final moved = _teams.removeAt(oldIndex);
+                                        _teams.insert(newIndex, moved);
+                                        _selectedTeamIndex = _teams.indexOf(
+                                          selectedTeam,
+                                        );
+                                        _pendingDeleteTeamIndex = null;
+                                      });
+                                    },
+                                    itemBuilder: (context, idx) {
+                                      final team = _teams[idx] as _TeamGroup;
+                                      final isSelected =
+                                          idx == _selectedTeamIndex;
+                                      final isPendingDelete =
+                                          _pendingDeleteTeamIndex == idx &&
+                                          _teams.length > 1;
+                                      final typedName = team.nameController.text
+                                          .trim();
+                                      final chipLabel = typedName.isNotEmpty
+                                          ? typedName
+                                          : '그룹${idx + 1}';
 
-                              return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedTeamIndex = idx),
-                                child: Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 8,
+                                      return ReorderableDragStartListener(
+                                        key: ValueKey(team),
+                                        index: idx,
+                                        child: GestureDetector(
+                                          onTap: () => _onTeamChipTap(idx),
+                                          child: Container(
+                                            margin: const EdgeInsets.only(
+                                              right: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? context.grays.gray1
+                                                    : context.grays.gray5,
+                                              ),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 18,
+                                                          vertical: 8,
+                                                        ),
+                                                    color: isSelected
+                                                        ? context.grays.gray1
+                                                        : Colors.white,
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      chipLabel,
+                                                      style: FontStyles.med14
+                                                          .copyWith(
+                                                            color: isSelected
+                                                                ? Colors.white
+                                                                : context
+                                                                      .grays
+                                                                      .black,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  if (isPendingDelete) ...[
+                                                    Positioned.fill(
+                                                      child: ColoredBox(
+                                                        color:
+                                                            const Color(
+                                                              0xFF292929,
+                                                            ).withValues(
+                                                              alpha: 0.76,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    SvgPicture.asset(
+                                                      'assets/icons/performance/trash.svg',
+                                                      width: 18,
+                                                      height: 18,
+                                                      colorFilter:
+                                                          const ColorFilter.mode(
+                                                            Colors.white,
+                                                            BlendMode.srcIn,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
+                                ),
+                                GestureDetector(
+                                  onTap: _addTeam,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: context.brands.beatOrange1,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '+ 팀 추가',
+                                      style: FontStyles.med14.copyWith(
+                                        color: context.brands.beatOrange1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.x16),
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.x16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F3F3),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  '팀 이름',
+                                  style: FontStyles.med15.copyWith(
+                                    color: context.grays.black,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.x8),
+                                Container(
+                                  height: 48,
                                   decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? const Color(0xFF2A2A2A)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0xFF2A2A2A)
-                                          : context.grays.gray5,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${idx + 1}팀',
-                                    style: FontStyles.med14.copyWith(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : context.grays.black,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                            GestureDetector(
-                              onTap: _addTeam,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: context.brands.beatOrange1,
-                                  ),
-                                ),
-                                child: Text(
-                                  '+ 팀 추가',
-                                  style: FontStyles.med14.copyWith(
-                                    color: context.brands.beatOrange1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.x16),
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.x16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F3F3),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '팀 이름',
-                              style: FontStyles.med15.copyWith(
-                                color: context.grays.black,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.x8),
-                            Container(
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              alignment: Alignment.centerLeft,
-                              child: TextField(
-                                controller: currentTeam.nameController,
-                                decoration: InputDecoration(
-                                  isCollapsed: true,
-                                  hintText: '팀 이름을 입력해 주세요.',
-                                  hintStyle: FontStyles.reg16.copyWith(
-                                    color: context.grays.gray5,
-                                  ),
-                                  border: InputBorder.none,
-                                  filled: false,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 14,
-                                  ),
-                                ),
-                                style: FontStyles.med16.copyWith(
-                                  color: context.grays.black,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.x20),
-                            Text(
-                              '음원',
-                              style: FontStyles.med15.copyWith(
-                                color: context.grays.black,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.x8),
-                            ReorderableListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              buildDefaultDragHandles: false,
-                              itemCount: currentTeam.musics.length,
-                              onReorder: (oldIndex, newIndex) {
-                                setState(() {
-                                  if (oldIndex < newIndex) newIndex -= 1;
-                                  final item = currentTeam.musics.removeAt(
-                                    oldIndex,
-                                  );
-                                  currentTeam.musics.insert(newIndex, item);
-                                });
-                              },
-                              itemBuilder: (context, mIdx) {
-                                final music = currentTeam.musics[mIdx];
-                                return _buildMusicEntryCard(
-                                  key: ValueKey(music),
-                                  music: music,
-                                  index: mIdx,
-                                  onSelectMusic: () => _selectMusic(music),
-                                  onDelete: () {
-                                    setState(() {
-                                      currentTeam.removeMusic(mIdx);
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.x16),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    currentTeam.addMusic();
-                                  });
-                                },
-                                child: Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: const BoxDecoration(
                                     color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 4,
-                                        offset: Offset(0, 2),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  alignment: Alignment.centerLeft,
+                                  child: TextField(
+                                    controller: currentTeam.nameController,
+                                    maxLength: _maxGroupNameLength,
+                                    inputFormatters: [
+                                      LengthLimitingTextInputFormatter(
+                                        _maxGroupNameLength,
                                       ),
                                     ],
-                                  ),
-                                  child: Icon(
-                                    Icons.add,
-                                    color: context.grays.gray4,
-                                    size: 24,
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      isCollapsed: true,
+                                      counterText: '',
+                                      hintText: '그룹${_selectedTeamIndex + 1}',
+                                      hintStyle: FontStyles.reg16.copyWith(
+                                        color: context.grays.gray5,
+                                      ),
+                                      border: InputBorder.none,
+                                      filled: false,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 14,
+                                          ),
+                                    ),
+                                    style: FontStyles.med16.copyWith(
+                                      color: context.grays.black,
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: AppSpacing.x20),
+                                Text(
+                                  '음원',
+                                  style: FontStyles.med15.copyWith(
+                                    color: context.grays.black,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.x8),
+                                ReorderableListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  buildDefaultDragHandles: false,
+                                  itemCount: currentTeam.musics.length,
+                                  onReorder: (oldIndex, newIndex) {
+                                    _unfocusAll();
+                                    setState(() {
+                                      if (oldIndex < newIndex) newIndex -= 1;
+                                      final item = currentTeam.musics.removeAt(
+                                        oldIndex,
+                                      );
+                                      currentTeam.musics.insert(newIndex, item);
+                                    });
+                                  },
+                                  itemBuilder: (context, mIdx) {
+                                    final music =
+                                        currentTeam.musics[mIdx] as _MusicEntry;
+                                    return _buildMusicEntryCard(
+                                      key: ValueKey(music),
+                                      music: music,
+                                      index: mIdx,
+                                      onSelectMusic: () => _selectMusic(music),
+                                      onDelete: () {
+                                        _unfocusAll();
+                                        setState(() {
+                                          currentTeam.removeMusic(mIdx);
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: AppSpacing.x16),
+                                Center(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _unfocusAll();
+                                      setState(() {
+                                        currentTeam.addMusic();
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 4,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        Icons.add,
+                                        color: context.grays.gray4,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.x24),
-                  ],
-                ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.x24),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.x16),
+                    child: AppButton(
+                      text: _isLoading
+                          ? '저장 중...'
+                          : _isEditMode
+                          ? '수정 완료'
+                          : '작성 완료',
+                      onPressed: (_isLoading || !_isFormValid) ? null : _submit,
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.x16),
-                child: AppButton(
-                  text: _isLoading
-                      ? '저장 중...'
-                      : _isEditMode
-                      ? '수정 완료'
-                      : '작성 완료',
-                  onPressed: _isLoading ? () {} : _submit,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildReadOnlyStep1Field(
+    BuildContext context, {
+    required String label,
+    required String value,
+    bool requiredMark = false,
+    String? suffixAsset,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: label),
+              if (requiredMark)
+                TextSpan(
+                  text: ' *',
+                  style: FontStyles.med15.copyWith(
+                    color: context.brands.beatOrange1,
+                  ),
+                ),
+            ],
+          ),
+          style: FontStyles.med15.copyWith(color: context.grays.gray4),
+        ),
+        const SizedBox(height: AppSpacing.x8),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: context.grays.gray8,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FontStyles.reg17.copyWith(color: context.grays.gray4),
+                ),
+              ),
+              if (suffixAsset != null) ...[
+                const SizedBox(width: 8),
+                SvgPicture.asset(
+                  suffixAsset,
+                  width: 20,
+                  height: 20,
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray5,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -805,13 +1136,17 @@ class _PerformanceInvitationPageState
                   height: 48,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Center(
-                    child: Icon(
-                      Icons.drag_indicator,
-                      color: context.grays.gray4,
-                      size: 22,
+                    child: SvgPicture.asset(
+                      'assets/icons/performance/move.svg',
+                      width: 22,
+                      height: 22,
+                      colorFilter: ColorFilter.mode(
+                        context.grays.gray4,
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ),
@@ -825,7 +1160,7 @@ class _PerformanceInvitationPageState
                     height: 48,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                     child: Row(
                       children: [
@@ -838,7 +1173,7 @@ class _PerformanceInvitationPageState
                                       Flexible(
                                         child: Text(
                                           music.musicTitle.text,
-                                          style: FontStyles.med15.copyWith(
+                                          style: FontStyles.med18.copyWith(
                                             color: context.grays.black,
                                           ),
                                           maxLines: 1,
@@ -875,11 +1210,11 @@ class _PerformanceInvitationPageState
                           Padding(
                             padding: const EdgeInsets.only(right: 14),
                             child: SvgPicture.asset(
-                              'assets/icons/performance/performance.svg',
+                              'assets/icons/performance/music.svg',
                               width: 24,
                               height: 24,
                               colorFilter: ColorFilter.mode(
-                                context.grays.gray4,
+                                context.grays.gray5,
                                 BlendMode.srcIn,
                               ),
                             ),
@@ -889,7 +1224,7 @@ class _PerformanceInvitationPageState
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               _DeleteCircleButton(onTap: onDelete),
             ],
           ),
@@ -901,12 +1236,24 @@ class _PerformanceInvitationPageState
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: TextField(
                     controller: music.description,
                     maxLines: null,
                     minLines: 1,
+                    inputFormatters: [
+                      _MaxLengthNotifyFormatter(
+                        maxLength: _maxMusicDescriptionLength,
+                        onExceededChanged: (exceeded) {
+                          if (music.isDescriptionExceeded != exceeded) {
+                            setState(() {
+                              music.isDescriptionExceeded = exceeded;
+                            });
+                          }
+                        },
+                      ),
+                    ],
                     decoration: InputDecoration(
                       isCollapsed: true,
                       hintText: '설명을 작성해주세요.',
@@ -923,23 +1270,68 @@ class _PerformanceInvitationPageState
                     style: FontStyles.reg15.copyWith(
                       color: context.grays.black,
                     ),
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (val) {
+                      setState(() {
+                        if (val.length < _maxMusicDescriptionLength) {
+                          music.isDescriptionExceeded = false;
+                        }
+                      });
+                    },
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               _DeleteCircleButton(
                 onTap: () {
+                  _unfocusAll();
                   setState(() {
                     music.description.clear();
+                    music.isDescriptionExceeded = false;
                   });
                 },
               ),
             ],
           ),
+          if (music.isDescriptionExceeded) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                '설명은 최대 50자까지 입력할 수 있습니다.',
+                style: FontStyles.reg12.copyWith(color: context.colors.error),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+}
+
+class _MaxLengthNotifyFormatter extends TextInputFormatter {
+  _MaxLengthNotifyFormatter({
+    required this.maxLength,
+    required this.onExceededChanged,
+  });
+
+  final int maxLength;
+  final ValueChanged<bool> onExceededChanged;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.characters.length > maxLength) {
+      onExceededChanged(true);
+      final truncated = newValue.text.characters.take(maxLength).toString();
+      return TextEditingValue(
+        text: truncated,
+        selection: TextSelection.collapsed(offset: truncated.length),
+      );
+    }
+    onExceededChanged(false);
+    return newValue;
   }
 }
 
@@ -953,28 +1345,22 @@ class _DeleteCircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: const BoxDecoration(
-          color: Color(0xFFD3D3D3),
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child: const Icon(Icons.close, size: 16, color: Colors.white),
+      child: SvgPicture.asset(
+        'assets/icons/performance/delete.svg',
+        width: 24,
+        height: 24,
       ),
     );
   }
 }
 
 class _TeamGroup {
-  _TeamGroup({required this.name}) {
-    nameController = TextEditingController(text: name);
+  _TeamGroup({String initialName = ''}) {
+    nameController = TextEditingController(text: initialName);
   }
 
-  final String name;
   late final TextEditingController nameController;
-  final List<_MusicEntry> musics = [];
+  final List musics = [];
 
   void addMusic() {
     musics.add(_MusicEntry());
@@ -982,17 +1368,17 @@ class _TeamGroup {
 
   void removeMusic(int index) {
     if (musics.length <= 1) {
-      musics[0].clear();
+      (musics[0] as _MusicEntry).clear();
       return;
     }
-    final removed = musics.removeAt(index);
+    final removed = musics.removeAt(index) as _MusicEntry;
     removed.dispose();
   }
 
   void dispose() {
     nameController.dispose();
     for (final m in musics) {
-      m.dispose();
+      (m as _MusicEntry).dispose();
     }
   }
 }
@@ -1001,6 +1387,7 @@ class _MusicEntry {
   final musicTitle = TextEditingController();
   final musicArtist = TextEditingController();
   final description = TextEditingController();
+  bool isDescriptionExceeded = false;
   String? musicPreviewUrl;
   String? musicImageUrl;
 
@@ -1008,6 +1395,7 @@ class _MusicEntry {
     musicTitle.clear();
     musicArtist.clear();
     description.clear();
+    isDescriptionExceeded = false;
     musicPreviewUrl = null;
     musicImageUrl = null;
   }

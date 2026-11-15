@@ -55,7 +55,7 @@ class TermsOfServicePage extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.x24),
 
-              // 3. 오픈소스 라이선스 (플러터 기본 제공 LicensePage 호출)
+              // 3. 오픈소스 라이선스
               InkWell(
                 onTap: () {
                   Navigator.of(context).push(
@@ -69,7 +69,7 @@ class TermsOfServicePage extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.x16,
-                    vertical: AppSpacing.x16,
+                    vertical: AppSpacing.x8,
                   ),
                   decoration: BoxDecoration(
                     color: context.grays.gray8,
@@ -80,7 +80,7 @@ class TermsOfServicePage extends StatelessWidget {
                     children: [
                       Text(
                         '오픈소스 라이선스',
-                        style: FontStyles.semi16.copyWith(
+                        style: FontStyles.bold14.copyWith(
                           color: colors.onSurface,
                         ),
                       ),
@@ -89,7 +89,7 @@ class TermsOfServicePage extends StatelessWidget {
                         width: 16,
                         height: 16,
                         colorFilter: ColorFilter.mode(
-                          context.grays.gray4,
+                          context.colors.onSurface,
                           BlendMode.srcIn,
                         ),
                       ),
@@ -107,7 +107,7 @@ class TermsOfServicePage extends StatelessWidget {
   }
 }
 
-class _TermsExpansionTile extends StatelessWidget {
+class _TermsExpansionTile extends StatefulWidget {
   const _TermsExpansionTile({
     required this.title,
     required this.child,
@@ -117,6 +117,19 @@ class _TermsExpansionTile extends StatelessWidget {
   final String title;
   final Widget child;
   final bool initiallyExpanded;
+
+  @override
+  State<_TermsExpansionTile> createState() => _TermsExpansionTileState();
+}
+
+class _TermsExpansionTileState extends State<_TermsExpansionTile> {
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,25 +144,58 @@ class _TermsExpansionTile extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
+          initiallyExpanded: widget.initiallyExpanded,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _isExpanded = expanded;
+            });
+          },
           backgroundColor: context.grays.gray8,
           collapsedBackgroundColor: context.grays.gray8,
+          minTileHeight: 34,
           tilePadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.x16,
-            vertical: 4,
+            vertical: 0,
           ),
-          title: Text(
-            title,
-            style: FontStyles.bold20.copyWith(color: colors.onSurface),
+          // 💡 기본 맨 끝 화살표 제거
+          trailing: const SizedBox.shrink(),
+          // 💡 텍스트 바로 옆에 toggle down.svg 배치
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  widget.title,
+                  style: FontStyles.bold14.copyWith(
+                    color: colors.onSurface,
+                    height: 1.0,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              AnimatedRotation(
+                turns: _isExpanded ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: SvgPicture.asset(
+                  'assets/icons/auth/toggle down.svg',
+                  width: 16,
+                  height: 16,
+                  colorFilter: ColorFilter.mode(
+                    colors.onSurface,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ],
           ),
-          iconColor: colors.onSurface,
-          collapsedIconColor: colors.onSurface,
           children: [
             Container(
               width: double.infinity,
               color: colors.surface,
               padding: const EdgeInsets.all(AppSpacing.x16),
-              child: child,
+              child: widget.child,
             ),
           ],
         ),

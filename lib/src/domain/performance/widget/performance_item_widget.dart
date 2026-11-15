@@ -56,27 +56,34 @@ class PerformanceItem extends StatelessWidget {
                     opacity: showPastLabel ? 0.5 : 1,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: context.grays.gray8, // 💡 배경: gray8
+                        color: context.grays.gray8,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      // 💡 이미지 위에 테두리를 전경(foregroundDecoration)으로 그려 모서리 끊김 방지
+                      foregroundDecoration: BoxDecoration(
                         border: Border.all(
-                          color: context.grays.gray6, // 💡 테두리: gray6
+                          color: context.grays.gray6,
+                          width: 1,
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: hasValidImage
-                          ? (hasFileImage
-                                ? PerformanceXFileImage(
-                                    file: imageFile!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Image.network(
-                                    imageUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            _buildPlaceholder(),
-                                  ))
-                          : _buildPlaceholder(), // 💡 사진이 없을 때 기본 SVG 표시
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: hasValidImage
+                            ? (hasFileImage
+                                  ? PerformanceXFileImage(
+                                      file: imageFile!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      imageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              _buildPlaceholder(),
+                                    ))
+                            : _buildPlaceholder(),
+                      ),
                     ),
                   ),
                   if (showPastLabel)
@@ -105,14 +112,22 @@ class PerformanceItem extends StatelessWidget {
               dateStr,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FontStyles.reg15.copyWith(color: context.grays.gray4),
+              style: FontStyles.reg15.copyWith(
+                color: context.grays.gray4,
+                height: 1.2,
+              ),
             ),
             const SizedBox(height: AppSpacing.x4),
-            Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: FontStyles.semi18.copyWith(color: context.grays.black),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: FontStyles.semi18.copyWith(
+                  color: context.grays.black,
+                  height: 1.25,
+                ),
+              ),
             ),
           ],
         ),
@@ -151,28 +166,30 @@ class PerformanceGrid extends StatelessWidget {
     builder: (context, constraints) {
       final width = (constraints.maxWidth - AppSpacing.x20 * 3) / 2;
 
-      // 고정된 +78은 제목이 두 줄이거나 접근성 글꼴 크기가 커지면
-      // RenderFlex overflow(노랑/검정 줄무늬)를 발생시킬 수 있다.
-      // 실제 Pretendard 글꼴/시스템 텍스트 배율의 높이를 기준으로 카드 크기를 잡는다.
       final direction = Directionality.of(context);
       final scaler = MediaQuery.textScalerOf(context);
+      final titleStyle = FontStyles.semi18.copyWith(height: 1.25);
+      final dateStyle = FontStyles.reg15.copyWith(height: 1.2);
+
       final titleMeasure = TextPainter(
-        text: const TextSpan(text: '공연 이름\n공연 이름', style: FontStyles.semi18),
+        text: TextSpan(text: '공연 이름\n공연 이름', style: titleStyle),
         textDirection: direction,
         textScaler: scaler,
         maxLines: 2,
       )..layout(maxWidth: width);
       final dateMeasure = TextPainter(
-        text: const TextSpan(text: '2026. 11. 10.', style: FontStyles.reg15),
+        text: TextSpan(text: '2026. 11. 10.', style: dateStyle),
         textDirection: direction,
         textScaler: scaler,
         maxLines: 1,
       )..layout(maxWidth: width);
-      final detailsHeight = AppSpacing.x8 +
+
+      final detailsHeight =
+          AppSpacing.x8 +
           dateMeasure.height +
           AppSpacing.x4 +
           titleMeasure.height +
-          AppSpacing.x20; // 폰트별 ascent/descent 및 안전 여백
+          AppSpacing.x12;
       titleMeasure.dispose();
       dateMeasure.dispose();
 

@@ -69,10 +69,14 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
   }
 
   Future<void> _pickImage() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
+
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (pickedFile != null) {
       setState(() {
@@ -84,7 +88,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
   // 팀 생성 API 요청
   Future<void> _submitTeamCreate() async {
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
 
     final File? imageFile = _selectedImage != null
         ? File(_selectedImage!.path)
@@ -109,6 +113,8 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
     if (!mounted) return;
 
     if (success) {
+      FocusManager.instance.primaryFocus?.unfocus();
+
       // 💡 1. pushAndRemoveUntil 대신 Navigator.push로 완료 화면을 띄우고 결과(true) 대기
       final isCompleted = await Navigator.push<bool>(
         context,
@@ -120,6 +126,8 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
           ),
         ),
       );
+
+      FocusManager.instance.primaryFocus?.unfocus();
 
       if (!mounted) return;
 
@@ -191,6 +199,8 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
                         controller: teamDateController,
                         readOnly: true,
                         onTap: () async {
+                          FocusManager.instance.primaryFocus?.unfocus();
+
                           DateTime initialPickerDate = DateTime.now();
                           final rawDateText = teamDateController.text.trim();
                           if (rawDateText.isNotEmpty) {
@@ -207,6 +217,8 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
                                 initialDate: initialPickerDate,
                                 maxDate: DateTime.now(),
                               );
+
+                          FocusManager.instance.primaryFocus?.unfocus();
 
                           if (selectedDate != null) {
                             setState(() {

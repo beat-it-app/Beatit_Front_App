@@ -1,5 +1,6 @@
 
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -19,8 +20,19 @@ if (localPropertiesFile.exists()) {
 val naverClientSecret =
     localProperties.getProperty("naver.client_secret") ?: ""
 
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(
+        FileInputStream(keystorePropertiesFile)
+    )
+}
+
+
 android {
-    namespace = "com.beatit.app"
+    namespace = "com.beatit.android"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -30,7 +42,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.beatit.app"
+        applicationId = "com.beatit.android"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -40,10 +52,19 @@ android {
         resValue("string", "client_secret", naverClientSecret)
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storeFile = keystoreProperties.getProperty("storeFile")
+                ?.let { file(it) }
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: 실제 배포 전에는 debug signingConfig가 아니라 release signingConfig로 변경해야 함.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
