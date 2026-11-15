@@ -49,3 +49,9 @@ app.*.map.json
 # 환경 변수 및 시크릿 키 파일 제외
 *.env
 env.json
+
+
+# Android release signing
+android/key.properties
+*.jks
+*.keystore
