@@ -275,6 +275,10 @@ class _SelectAllRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        hoverColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.x20,

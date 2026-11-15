@@ -11,24 +11,29 @@ class AppToggle extends StatelessWidget {
     required this.text,
     required this.isSelected,
     required this.onChanged,
+    this.isEnabled = true,
   });
 
   final String text;
   final bool isSelected;
   final ValueChanged<bool>? onChanged;
+  final bool isEnabled;
 
   @override
   Widget build(BuildContext context) {
-    final colors = _AppToggleColors.from(context, isSelected: isSelected);
+    final colors = _AppToggleColors.from(
+      context,
+      isSelected: isSelected,
+      isEnabled: isEnabled,
+    );
 
     return Semantics(
       button: true,
       selected: isSelected,
+      enabled: isEnabled,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          onChanged?.call(!isSelected);
-        },
+        onTap: isEnabled ? () => onChanged?.call(!isSelected) : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOutCubic,
@@ -70,7 +75,15 @@ class _AppToggleColors {
   factory _AppToggleColors.from(
     BuildContext context, {
     required bool isSelected,
+    bool isEnabled = true,
   }) {
+    if (!isEnabled) {
+      return _AppToggleColors(
+        background: context.grays.white,
+        border: context.grays.gray7,
+        text: context.grays.gray6,
+      );
+    }
     if (isSelected) {
       return _AppToggleColors(
         background: context.colors.primary.withValues(alpha: 0.20),

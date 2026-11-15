@@ -18,6 +18,11 @@ abstract final class AppDateTimeFormatter {
   static String _timeParts(DateTime time) =>
       '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
 
+  // 일정에서 오전 12시대는 0:nn 대신 12:nn로 보여줍니다.
+  // 시간 비교/저장은 실제 0시로 유지합니다.
+  static String _scheduleTimeParts(DateTime time) =>
+      '${time.hour == 0 ? 12 : time.hour}:${time.minute.toString().padLeft(2, '0')}';
+
   static const List<String> _weekdays = <String>[
     '월요일',
     '화요일',
@@ -51,16 +56,16 @@ abstract final class AppDateTimeFormatter {
           : formatted;
     }
 
-    final startLabel = '${dateLabel(start)} ${_timeParts(start)}';
+    final startLabel = '${dateLabel(start)} ${_scheduleTimeParts(start)}';
     final isSameDate =
         start.year == end.year &&
         start.month == end.month &&
         start.day == end.day;
 
     if (isSameDate) {
-      return '$startLabel - ${_timeParts(end)}';
+      return '$startLabel - ${_scheduleTimeParts(end)}';
     }
-    return '$startLabel - ${dateLabel(end)} ${_timeParts(end)}';
+    return '$startLabel - ${dateLabel(end)} ${_scheduleTimeParts(end)}';
   }
 
   /// 24-hour clock, e.g. 7:05 or 19:05.

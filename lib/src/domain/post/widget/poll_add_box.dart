@@ -53,6 +53,7 @@ class PollAddBox extends StatefulWidget {
     this.initialType = PollOptionType.text,
     this.initialValues = const <String>[],
     this.onChanged,
+    this.onMinimumItemCountReached,
     this.onMusicPressed,
     this.onPlacePressed,
   });
@@ -61,6 +62,7 @@ class PollAddBox extends StatefulWidget {
   final PollOptionType initialType;
   final List<String> initialValues;
   final PollOptionsChanged? onChanged;
+  final VoidCallback? onMinimumItemCountReached;
 
   /// 실제 음원 선택 화면 연결 지점.
   final ValueChanged<int>? onMusicPressed;
@@ -97,7 +99,9 @@ class PollAddBoxState extends State<PollAddBox> {
         _items.add(_createDraft(value));
       }
     } else {
-      final count = widget.initialOptionCount < 0 ? 0 : widget.initialOptionCount;
+      final count = widget.initialOptionCount < 0
+          ? 0
+          : widget.initialOptionCount;
       for (var i = 0; i < count; i++) {
         _items.add(_createDraft());
       }
@@ -145,6 +149,11 @@ class PollAddBoxState extends State<PollAddBox> {
   }
 
   void _deleteItem(int index) {
+    // 최소 2개의 입력란은 남겨 투표 항목을 계속 입력할 수 있게 합니다.
+    if (_items.length <= 2) {
+      widget.onMinimumItemCountReached?.call();
+      return;
+    }
     final removedItem = _items[index];
 
     setState(() {
@@ -459,8 +468,8 @@ class _PollDeleteButton extends StatelessWidget {
           child: Center(
             child: SvgPicture.asset(
               'assets/icons/post/delete.svg',
-              width: 18,
-              height: 18,
+              width: 24,
+              height: 24,
               colorFilter: ColorFilter.mode(
                 context.grays.gray6,
                 BlendMode.srcIn,

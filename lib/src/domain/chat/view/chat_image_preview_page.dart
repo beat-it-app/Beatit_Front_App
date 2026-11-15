@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
-import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
-import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 
@@ -49,8 +48,9 @@ class _ChatImagePreviewPageState extends State<ChatImagePreviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.grays.white,
-      appBar: CloudFileAppbar(
-        titleText: ChatAttachmentMessageCard.resolveFileName(_current),
+      appBar: AppTopAppBar.backOnly(
+        toolbarHeight: 65,
+        onBackPressed: () => Navigator.of(context).pop(),
       ),
       body: CloudPreviewBackground(
         child: Stack(

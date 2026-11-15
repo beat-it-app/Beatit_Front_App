@@ -7,6 +7,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_list_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_member_selection_page.dart';
@@ -31,11 +32,16 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
   }
 
   Future<void> _openChatRoom(ChatRoomSummary room) async {
+    final currentUserId = ref.read(authProvider).asData?.value?.userId;
+    final displayName = ref.read(chatListProvider).displayNameFor(
+      room,
+      currentUserId,
+    );
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => RoomChatPage(
           chatId: room.chatId,
-          initialRoomName: room.roomName,
+          initialRoomName: displayName,
           initialParticipantCount: room.participantCount,
           initialProfileImageUrls: room.profileImage,
         ),
@@ -88,6 +94,7 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(chatListProvider);
+    final currentUserId = ref.watch(authProvider).asData?.value?.userId;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -103,6 +110,7 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
       body: SafeArea(
         child: _ChatListBody(
           state: state,
+          currentUserId: currentUserId,
           onRetry: () =>
               ref.read(chatListProvider.notifier).loadChatRooms(force: true),
           onTapRoom: _openChatRoom,
@@ -115,11 +123,13 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
 class _ChatListBody extends StatelessWidget {
   const _ChatListBody({
     required this.state,
+    required this.currentUserId,
     required this.onRetry,
     required this.onTapRoom,
   });
 
   final ChatListState state;
+  final int? currentUserId;
   final VoidCallback onRetry;
   final ValueChanged<ChatRoomSummary> onTapRoom;
 
@@ -153,7 +163,7 @@ class _ChatListBody extends StatelessWidget {
           final room = state.rooms[index];
 
           return ChatListItem(
-            roomName: room.roomName,
+            roomName: state.displayNameFor(room, currentUserId),
             lastMessage: _formatLastMessage(room.lastMessage),
             timeText: _formatListTime(room.lastMessageTime),
             unreadCount: room.unreadCount,

@@ -13,6 +13,7 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
+import 'package:beatit_front_app/src/domain/chat/provider/chat_list_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_room_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_image_preview_page.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
@@ -214,6 +215,18 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     if (!success) {
       _showCurrentError();
       return;
+    }
+
+    if (state.isDraft) {
+      final createdId = ref.read(chatRoomProvider).chatId;
+      if (createdId != null) {
+        ref.read(chatListProvider.notifier).rememberCreatedRoomMembers(
+          chatId: createdId,
+          otherMemberNames: widget.draftMembers
+              .map((member) => member.userName)
+              .toList(growable: false),
+        );
+      }
     }
 
     // Keep focus (and the keyboard) while sending; do not erase a newer draft.
@@ -682,6 +695,15 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen<ChatRoomState>(chatRoomProvider, (previous, next) {
+      if (next.chatId != null && !next.isDraft &&
+          (next.messages.isNotEmpty || next.readMarkers.isNotEmpty)) {
+        ref.read(chatListProvider.notifier).rememberObservedRoomMembers(
+          chatId: next.chatId!,
+          participantCount: next.participantCount,
+          messages: next.messages,
+          readMarkers: next.readMarkers.values,
+        );
+      }
       // Reset the pagination autofill gate when a different room is opened.
       if (previous?.chatId != next.chatId ||
           (next.isInitialLoading && previous?.isInitialLoading == false)) {
@@ -1182,33 +1204,28 @@ class _ChatMessageList extends StatelessWidget {
                     ? () => onAttachmentPressed(message)
                     : null,
               ),
-              if (participantCount > 2)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  child: readersHere.isEmpty
-                      ? const SizedBox.shrink(key: ValueKey('read-empty'))
-                      : Align(
-                          key: ValueKey('read-${message.messageId}-${readersHere.map((r) => r.userId).join('-')}'),
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.x4),
-                            child: Wrap(
-                              spacing: AppSpacing.x4,
-                              children: [
-                                for (final reader in readersHere)
-                                  Tooltip(
-                                    message: reader.name,
-                                    child: GroupChatProfile(
-                                      imageUrls: reader.profileImageUrl == null
-                                          ? const <String>[]
-                                          : <String>[reader.profileImageUrl!],
-                                      size: 20,
-                                    ),
-                                  ),
-                              ],
+              // 읽음 위치가 바뀌면 페이드 없이 즉시 표시합니다.
+              if (participantCount > 2 && readersHere.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.x4),
+                    child: Wrap(
+                      spacing: AppSpacing.x4,
+                      children: [
+                        for (final reader in readersHere)
+                          Tooltip(
+                            message: reader.name,
+                            child: GroupChatProfile(
+                              imageUrls: reader.profileImageUrl == null
+                                  ? const <String>[]
+                                  : <String>[reader.profileImageUrl!],
+                              size: 20,
                             ),
                           ),
-                        ),
+                      ],
+                    ),
+                  ),
                 ),
               if (messageGap > 0) SizedBox(height: messageGap),
             ],

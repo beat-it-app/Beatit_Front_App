@@ -124,9 +124,11 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
       return members;
     }
 
-    return members.where((member) {
-      return member.name.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return members
+        .where((member) {
+          return member.name.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   bool _isAllSelected(List<MemberSelectionMember> members) {
@@ -134,9 +136,7 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
       return false;
     }
 
-    return members.every(
-      (member) => _selectedMemberIds.contains(member.id),
-    );
+    return members.every((member) => _selectedMemberIds.contains(member.id));
   }
 
   void _handleSearch() {
@@ -220,7 +220,8 @@ class _MemberSelectionPageState extends ConsumerState<MemberSelectionPage> {
               ),
             ),
             _BottomActions(
-              canConfirm: !memberState.isLoading && memberState.errorMessage == null,
+              canConfirm:
+                  !memberState.isLoading && memberState.errorMessage == null,
               onCancel: () => Navigator.of(context).maybePop(),
               onConfirm: () => _handleConfirm(members),
             ),
@@ -292,6 +293,10 @@ class _SelectAllRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        focusColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.x20,

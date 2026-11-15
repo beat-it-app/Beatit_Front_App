@@ -15,6 +15,7 @@ import 'package:beatit_front_app/src/domain/cloud/view/cloud_move_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_preview_host_page.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_upload_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_folder_name_bottomsheet.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_rename_popup.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_api_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
@@ -124,8 +125,8 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _renameFolder(String currentName) async {
-    final name = await showCloudFolderNameBottomSheet(
-      context: context,
+    final name = await showCloudRenamePopup(
+      context,
       initialName: currentName,
     );
     if (!mounted || name == null || name == currentName) return;
@@ -286,11 +287,9 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _renameItem(CloudItem item) async {
-    final name = await showCloudFolderNameBottomSheet(
-      context: context,
+    final name = await showCloudRenamePopup(
+      context,
       initialName: item.itemName,
-      isItemName: true,
-      itemLabel: item.linkUrl == null ? '파일' : '링크',
       preserveExtension: item.linkUrl == null,
     );
     if (!mounted || name == null || name == item.itemName) return;
@@ -579,7 +578,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
         ),
         if (folderOwned) ...[
           AppDropdownItem(
-            label: '폴더 이름 수정하기',
+            label: '이름 수정하기',
             onPressed: () => _renameFolder(folderName),
           ),
           AppDropdownItem(

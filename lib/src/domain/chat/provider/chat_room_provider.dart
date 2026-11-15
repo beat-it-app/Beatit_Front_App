@@ -297,17 +297,18 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
     state = state.copyWith(isCreatingRoom: true, clearErrorMessage: true);
 
     try {
+      final draftDisplayName = state.roomName;
       final created = await ref.read(chatApiProvider).createChatRoom(
-        ChatRoomCreateRequest(
-          roomName: state.roomName,
-          participantIds: participantIds,
-          firstMessageContent: firstMessageContent,
-        ),
+        participantIds: participantIds,
+        firstMessageContent: firstMessageContent,
       );
 
       state = state.copyWith(
         chatId: created.chatId,
-        roomName: created.roomName,
+        // 서버가 이름을 설정하기 전까지 작성자 화면에는 임시 이름을 보여줍니다.
+        roomName: created.roomName.trim().isNotEmpty
+            ? created.roomName
+            : draftDisplayName,
         isDraft: false,
         isCreatingRoom: false,
         clearErrorMessage: true,
@@ -1182,7 +1183,9 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
       ..sort((a, b) => a.messageId.compareTo(b.messageId));
 
     state = state.copyWith(
-      roomName: detail.chatroomName,
+      roomName: detail.chatroomName.trim().isNotEmpty
+          ? detail.chatroomName
+          : state.roomName,
       participantCount: detail.participantCount,
       messages: List<ChatMessage>.unmodifiable(mergedMessages),
       hasNext: state.currentPage == 0 ? detail.hasNext : state.hasNext,
@@ -1197,7 +1200,9 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
         .toList(growable: false);
 
     state = state.copyWith(
-      roomName: detail.chatroomName,
+      roomName: detail.chatroomName.trim().isNotEmpty
+          ? detail.chatroomName
+          : state.roomName,
       participantCount: detail.participantCount,
       messages: List<ChatMessage>.unmodifiable(messages),
       currentPage: 0,

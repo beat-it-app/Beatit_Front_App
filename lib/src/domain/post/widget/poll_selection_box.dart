@@ -201,7 +201,9 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
   }
 
   List<String> get _pollMetaTexts {
-    final texts = <String>['$_participantCount명 참여'];
+    final texts = <String>[
+      if (_hasVoted) '$_participantCount명 참여',
+    ];
 
     if (widget.isAnonymous) {
       texts.add('익명 투표');
@@ -384,9 +386,8 @@ class _PollSelectionBoxState extends State<PollSelectionBox> {
                       enabled: _canEditVote,
                       backgroundColor: inputBackgroundColor,
                       onPressed: () => _toggleOption(i),
-                      // 비익명 투표는 참여/종료 여부와 무관하게 인원수를 누를 수 있습니다.
-                      trailing: (_showResults ||
-                              (!widget.isAnonymous && widget.onParticipantTap != null))
+                      // 익명 여부와 관계없이 본인 투표 완료 전에는 득표수를 숨깁니다.
+                      trailing: _hasVoted
                           ? _PollNumWidget(
                               text: '${_voteCounts[i]}명',
                               onTap: widget.onParticipantTap != null &&
@@ -516,10 +517,8 @@ class _PollOptionButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Wrap(
-                    spacing: AppSpacing.x8,
-                    runSpacing: AppSpacing.x4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
                         width: 15,
@@ -545,15 +544,19 @@ class _PollOptionButton extends StatelessWidget {
                               )
                             : null,
                       ),
-                      Text(
-                        text,
-                        style: isSelected
-                            ? FontStyles.med14.copyWith(
-                                color: context.brands.beatOrange1,
-                              )
-                            : FontStyles.reg14.copyWith(
-                                color: context.grays.black,
-                              ),
+                      const SizedBox(width: AppSpacing.x8),
+                      Expanded(
+                        child: Text(
+                          text,
+                          softWrap: true,
+                          style: isSelected
+                              ? FontStyles.med14.copyWith(
+                                  color: context.brands.beatOrange1,
+                                )
+                              : FontStyles.reg14.copyWith(
+                                  color: context.grays.black,
+                                ),
+                        ),
                       ),
                     ],
                   ),

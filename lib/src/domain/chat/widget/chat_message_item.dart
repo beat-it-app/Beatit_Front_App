@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_attachment_message_card.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_image_message.dart';
+import 'package:beatit_front_app/src/domain/chat/widget/chat_image_collage.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/chat_link_message_preview.dart';
 import 'package:beatit_front_app/src/domain/chat/widget/group_chat_profile.dart';
 
@@ -370,29 +371,16 @@ class _ChatImageGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = messages.length;
-    final columns = count <= 4 ? 2 : 3;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: SizedBox(
-        width: 245,
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            mainAxisSpacing: AppSpacing.x4,
-            crossAxisSpacing: AppSpacing.x4,
-          ),
-          itemCount: count,
-          itemBuilder: (context, index) => InkWell(
-            onTap: () => onPressed?.call(messages[index]),
-            child: Image.network(
-              messages[index].content,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Icon(Icons.broken_image_outlined, color: context.grays.gray5),
-            ),
+    return ChatImageCollage(
+      itemCount: messages.length,
+      itemBuilder: (context, index) => InkWell(
+        onTap: () => onPressed?.call(messages[index]),
+        child: Image.network(
+          messages[index].content,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.broken_image_outlined,
+            color: context.grays.gray5,
           ),
         ),
       ),

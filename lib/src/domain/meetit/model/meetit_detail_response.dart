@@ -40,6 +40,7 @@ class MeetitDetailData {
     required this.totalInvitedCount,
     required this.respondedCount,
     required this.respondedParticipants,
+    this.invitedParticipants = const <MeetitRespondedParticipant>[],
     required this.entireMemberOptimalSlots,
     required this.maxMemberOptimalSlots,
     required this.maxOverlappingCount,
@@ -57,6 +58,9 @@ class MeetitDetailData {
   final int totalInvitedCount;
   final int respondedCount;
   final List<MeetitRespondedParticipant> respondedParticipants;
+
+  /// 전체 초대 명단. 서버가 invitedParticipants를 내려주면 미응답자도 표시합니다.
+  final List<MeetitRespondedParticipant> invitedParticipants;
   final List<MeetitOptimalSlot> entireMemberOptimalSlots;
   final List<MeetitOptimalSlot> maxMemberOptimalSlots;
   final int maxOverlappingCount;
@@ -82,6 +86,16 @@ class MeetitDetailData {
       respondedCount: json['respondedCount'] as int? ?? 0,
       respondedParticipants:
           (json['respondedParticipants'] as List? ?? const <dynamic>[])
+              .whereType<Map>()
+              .map(
+                (item) => MeetitRespondedParticipant.fromJson(
+                  item.cast<String, dynamic>(),
+                ),
+              )
+              .toList(growable: false),
+      invitedParticipants:
+          ((json['invitedParticipants'] ?? json['participants']) as List? ??
+                  const <dynamic>[])
               .whereType<Map>()
               .map(
                 (item) => MeetitRespondedParticipant.fromJson(
@@ -227,15 +241,21 @@ class MeetitRespondedParticipant {
   const MeetitRespondedParticipant({
     required this.userId,
     required this.name,
+    this.isResponded,
   });
 
   final int userId;
   final String name;
 
+  /// 전체 참여자 API가 제공하는 실제 응답 여부.
+  /// 구버전 API에서는 필드가 없으므로 null로 유지합니다.
+  final bool? isResponded;
+
   factory MeetitRespondedParticipant.fromJson(Map<String, dynamic> json) {
     return MeetitRespondedParticipant(
       userId: json['userId'] as int? ?? 0,
       name: json['name'] as String? ?? '',
+      isResponded: json['isResponded'] as bool?,
     );
   }
 }

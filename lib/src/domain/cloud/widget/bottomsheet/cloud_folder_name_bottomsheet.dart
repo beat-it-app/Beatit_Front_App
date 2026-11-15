@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 Future<String?> showCloudFolderNameBottomSheet({
   required BuildContext context,
@@ -60,7 +61,10 @@ class _CloudFolderNameBottomSheetState
   late final TextEditingController _controller = TextEditingController(
     text: _extension.isEmpty
         ? widget.initialName ?? ''
-        : widget.initialName!.substring(0, widget.initialName!.length - _extension.length),
+        : widget.initialName!.substring(
+            0,
+            widget.initialName!.length - _extension.length,
+          ),
   );
 
   bool get _isEditing => widget.initialName != null;
@@ -93,26 +97,39 @@ class _CloudFolderNameBottomSheetState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              widget.isItemName ? '${widget.itemLabel} 이름 수정하기' :
-                  _isEditing ? '폴더 이름 수정하기' : '새 폴더 만들기',
+              widget.isItemName
+                  ? '${widget.itemLabel} 이름 수정하기'
+                  : _isEditing
+                  ? '폴더 이름 수정하기'
+                  : '새 폴더 만들기',
               textAlign: TextAlign.center,
               style: FontStyles.bold26.copyWith(color: context.grays.black),
             ),
-            const SizedBox(height: AppSpacing.x24),
+            const SizedBox(height: AppSpacing.x20),
+            SvgPicture.asset(
+              'assets/icons/cloud/folder.svg',
+              width: 90,
+              height: 90,
+            ),
+            const SizedBox(height: AppSpacing.x16),
             AppTextField(
               controller: _controller,
               label: widget.isItemName ? '${widget.itemLabel} 이름' : '폴더 이름',
-              hintText: widget.isItemName ? '${widget.itemLabel} 이름을 입력해주세요.' : '폴더 이름을 입력해주세요.',
+              hintText: widget.isItemName
+                  ? '${widget.itemLabel} 이름을 입력해주세요.'
+                  : '폴더 이름을 입력해주세요.',
               suffixIcon: _extension.isEmpty
                   ? null
                   : Text(
                       _extension,
-                      style: FontStyles.reg18.copyWith(color: context.grays.black),
+                      style: FontStyles.reg18.copyWith(
+                        color: context.grays.black,
+                      ),
                     ),
               textInputAction: TextInputAction.done,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppSpacing.x24),
+            const SizedBox(height: AppSpacing.x40),
             AppButton(
               text: _isEditing ? '수정하기' : '만들기',
               isDisabled: !_canSubmit,

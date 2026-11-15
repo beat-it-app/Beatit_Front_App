@@ -26,7 +26,8 @@ class MusicPreviewWaveform extends StatefulWidget {
 }
 
 class _MusicPreviewWaveformState extends State<MusicPreviewWaveform> {
-  static const double _minVisibleFraction = 1 / 3;
+  // 공통 음성 파형과 같은 시간 스케일을 사용해 시각적 이동 속도를 통일합니다.
+  static const double _minVisibleFraction = 2 / 9;
   static const double _maxVisibleFraction = 1.0;
   static const double _containerHeight = 60.0;
   static const double _playheadExtension = 4.0;
