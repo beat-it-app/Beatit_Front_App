@@ -9,6 +9,7 @@ abstract class LoginRequest with _$LoginRequest {
     required String identifier,
     required String password,
     required bool rememberMe,
+    @Default(false) bool isRestore,
   }) = _LoginRequest;
 
   factory LoginRequest.fromJson(Map<String, dynamic> json) =>

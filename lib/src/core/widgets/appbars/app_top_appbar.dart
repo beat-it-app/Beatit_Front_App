@@ -23,6 +23,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onAlarmPressed,
     this.onEditPressed,
     this.onSharePressed,
+    this.unreadNotificationCount = 0,
     this.moreMenuItems = const [],
     this.moreMenuAlignment = AppDropdownAlignment.right,
     this.moreMenuWidth = 170.0,
@@ -46,6 +47,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
+       unreadNotificationCount = 0,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -68,6 +70,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
+       unreadNotificationCount = 0,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -92,6 +95,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
+       unreadNotificationCount = 0,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -119,6 +123,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onEditPressed = null,
        onSharePressed = null,
        onAlarmPressed = null,
+       unreadNotificationCount = 0,
        toolbarHeight = toolbarHeight,
        actionIconColor = null;
 
@@ -143,6 +148,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
+       unreadNotificationCount = 0,
        toolbarHeight = toolbarHeight;
 
   const AppTopAppBar.closeOnly({
@@ -159,6 +165,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
        onAlarmPressed = null,
        onEditPressed = null,
        onSharePressed = null,
+       unreadNotificationCount = 0,
        moreMenuItems = const [],
        moreMenuAlignment = AppDropdownAlignment.right,
        moreMenuWidth = 170.0,
@@ -172,6 +179,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
     VoidCallback? onAlarmPressed,
     VoidCallback? onEditPressed,
     VoidCallback? onSharePressed,
+    this.unreadNotificationCount = 0,
     double toolbarHeight = 64.0,
     this.actionIconColor,
   }) : title = null,
@@ -200,6 +208,7 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onAlarmPressed;
   final VoidCallback? onEditPressed;
   final VoidCallback? onSharePressed;
+  final int unreadNotificationCount;
 
   final List<AppDropdownItem> moreMenuItems;
   final AppDropdownAlignment moreMenuAlignment;
@@ -297,14 +306,50 @@ class AppTopAppBar extends StatelessWidget implements PreferredSizeWidget {
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onAlarmPressed ?? _noop,
-                child: SvgPicture.asset(
-                  'assets/icons/appbar/bell.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
-                    effectiveAlarmActionColor,
-                    BlendMode.srcIn,
-                  ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icons/appbar/bell.svg',
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(
+                        effectiveAlarmActionColor,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    if (unreadNotificationCount > 0)
+                      Positioned(
+                        top: -4,
+                        right: -5,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: unreadNotificationCount < 10
+                                ? BoxShape.circle
+                                : BoxShape.rectangle,
+                            borderRadius: unreadNotificationCount >= 10
+                                ? BorderRadius.circular(10)
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            unreadNotificationCount > 99
+                                ? '99+'
+                                : '$unreadNotificationCount',
+                            style: FontStyles.semi10.copyWith(
+                              color: Colors.white,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: 20),

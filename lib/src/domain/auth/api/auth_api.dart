@@ -168,21 +168,31 @@ class AuthApi {
 
   Future<AuthLoginResult> loginWithNaver({
     required String accessToken,
+    bool isRestore = false,
     Map<String, dynamic> deviceFields = const {},
   }) {
     return _authenticate(
       path: _naverLoginPath,
-      data: {'accessToken': accessToken, ...deviceFields},
+      data: {
+        'accessToken': accessToken,
+        'isRestore': isRestore,
+        ...deviceFields,
+      },
     );
   }
 
   Future<AuthLoginResult> loginWithKakao({
     required String accessToken,
+    bool isRestore = false,
     Map<String, dynamic> deviceFields = const {},
   }) {
     return _authenticate(
       path: _kakaoLoginPath,
-      data: {'accessToken': accessToken, ...deviceFields},
+      data: {
+        'accessToken': accessToken,
+        'isRestore': isRestore,
+        ...deviceFields,
+      },
     );
   }
 

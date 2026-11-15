@@ -20,7 +20,7 @@ class WithdrawalApi {
   // 1. 팀 탈퇴 안내 정보 조회 (GET /teams/withdrawal-info)
   Future<Map<String, dynamic>> getTeamWithdrawalInfo() async {
     try {
-      final res = await _dio.get('/teams/withdrawl-info');
+      final res = await _dio.get('/teams/withdrawal-info');
       return (res.data['data'] as Map<String, dynamic>?) ?? {};
     } on DioException catch (e) {
       throw _parseError(e, '팀 탈퇴 안내 정보 조회에 실패했습니다.');
@@ -40,7 +40,7 @@ class WithdrawalApi {
   // 3. 회원(빗잇) 탈퇴 안내 정보 조회 (GET /auth/withdrawl-info)
   Future<Map<String, dynamic>> getAuthWithdrawalInfo() async {
     try {
-      final res = await _dio.get('/auth/withdrawl-info');
+      final res = await _dio.get('/auth/withdrawal-info');
       return (res.data['data'] as Map<String, dynamic>?) ?? {};
     } on DioException catch (e) {
       throw _parseError(e, '회원 탈퇴 안내 정보 조회에 실패했습니다.');

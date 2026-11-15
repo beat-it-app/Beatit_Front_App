@@ -16,6 +16,7 @@ class AppTimeBottomSheet extends StatefulWidget {
     this.minuteInterval = 1,
     this.initialDate,
     this.startYear = 2000,
+    this.minDate,
     this.maxDate,
     required this.onConfirmTime,
     required this.onConfirmDate,
@@ -29,6 +30,7 @@ class AppTimeBottomSheet extends StatefulWidget {
   final int minuteInterval;
   final DateTime? initialDate;
   final int startYear;
+  final DateTime? minDate;
   final DateTime? maxDate;
 
   final ValueChanged<TimeOfDay>? onConfirmTime;
@@ -63,6 +65,7 @@ class AppTimeBottomSheet extends StatefulWidget {
     String? title,
     DateTime? initialDate,
     int? startYear,
+    DateTime? minDate,
     DateTime? maxDate,
   }) {
     return showModalBottomSheet<DateTime>(
@@ -73,7 +76,8 @@ class AppTimeBottomSheet extends StatefulWidget {
         mode: AppTimePickerMode.date,
         title: title,
         initialDate: initialDate,
-        startYear: startYear ?? 2000,
+        startYear: startYear ?? minDate?.year ?? 2000,
+        minDate: minDate,
         maxDate: maxDate,
         onConfirmTime: null,
         onConfirmDate: (selectedDate) {
@@ -96,9 +100,21 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
   late int _selectedMonth;
   late int _selectedDay;
 
-  int get _startYear => widget.startYear;
+  DateTime? get _minDateOnly =>
+      widget.minDate != null ? DateUtils.dateOnly(widget.minDate!) : null;
 
-  int get _endYear => widget.maxDate?.year ?? DateTime.now().year;
+  DateTime get _effectiveMaxDate {
+    if (widget.maxDate != null) return DateUtils.dateOnly(widget.maxDate!);
+    // minDate가 설정된 미래 선택 모드에서는 기본 최대 연도를 10년 뒤로 허용
+    if (widget.minDate != null) {
+      return DateTime(DateTime.now().year + 10, 12, 31);
+    }
+    return DateUtils.dateOnly(DateTime.now());
+  }
+
+  int get _startYear => _minDateOnly?.year ?? widget.startYear;
+
+  int get _endYear => _effectiveMaxDate.year;
 
   @override
   void initState() {
@@ -115,7 +131,15 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
       _selectedMonth = DateTime.now().month;
       _selectedDay = DateTime.now().day;
     } else {
-      final initial = widget.initialDate ?? DateTime.now();
+      DateTime initial = DateUtils.dateOnly(
+        widget.initialDate ?? DateTime.now(),
+      );
+      if (_minDateOnly != null && initial.isBefore(_minDateOnly!)) {
+        initial = _minDateOnly!;
+      }
+      if (initial.isAfter(_effectiveMaxDate)) {
+        initial = _effectiveMaxDate;
+      }
       _selectedYear = initial.year;
       _selectedMonth = initial.month;
       _selectedDay = initial.day;
@@ -141,18 +165,28 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
   }
 
   DateTime _getSelectedDate() {
-    final limitDate = widget.maxDate ?? DateTime.now();
-    int maxYear = limitDate.year;
-    int maxMonth = (_selectedYear == maxYear) ? limitDate.month : 12;
-    int month = _selectedMonth > maxMonth ? maxMonth : _selectedMonth;
+    final minDate = _minDateOnly;
+    final maxDate = _effectiveMaxDate;
 
-    int maxDays = DateUtils.getDaysInMonth(_selectedYear, month);
-    int maxDay = (_selectedYear == maxYear && month == limitDate.month)
-        ? limitDate.day
-        : maxDays;
-    int day = _selectedDay > maxDay ? maxDay : _selectedDay;
+    int year = _selectedYear.clamp(_startYear, maxDate.year);
 
-    return DateTime(_selectedYear, month, day);
+    int minMonth = (minDate != null && year == minDate.year)
+        ? minDate.month
+        : 1;
+    int maxMonth = (year == maxDate.year) ? maxDate.month : 12;
+    int month = _selectedMonth.clamp(minMonth, maxMonth);
+
+    int maxDaysInMonth = DateUtils.getDaysInMonth(year, month);
+    int minDay =
+        (minDate != null && year == minDate.year && month == minDate.month)
+        ? minDate.day
+        : 1;
+    int maxDay = (year == maxDate.year && month == maxDate.month)
+        ? maxDate.day
+        : maxDaysInMonth;
+    int day = _selectedDay.clamp(minDay, maxDay);
+
+    return DateTime(year, month, day);
   }
 
   @override
@@ -373,39 +407,40 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
   }
 
   Widget _buildDatePicker(ColorScheme colors) {
-    final DateTime limitDate = widget.maxDate ?? DateTime.now();
+    final minDate = _minDateOnly;
+    final maxDate = _effectiveMaxDate;
 
-    int maxYear = limitDate.year;
-    int currentYear = _selectedYear > maxYear ? maxYear : _selectedYear;
+    int maxYear = _endYear;
+    int currentYear = _selectedYear.clamp(_startYear, maxYear);
 
-    // 현재 선택된 연도가 제한 연도(올해)와 같으면 maxMonth를 limitDate의 월(8월)로 고정
-    int maxMonth = (currentYear == limitDate.year) ? limitDate.month : 12;
-    int currentMonth = _selectedMonth > maxMonth ? maxMonth : _selectedMonth;
+    int minMonth = (minDate != null && currentYear == minDate.year)
+        ? minDate.month
+        : 1;
+    int maxMonth = (currentYear == maxDate.year) ? maxDate.month : 12;
+    int currentMonth = _selectedMonth.clamp(minMonth, maxMonth);
 
     int maxDaysInMonth = DateUtils.getDaysInMonth(currentYear, currentMonth);
-    int maxDay =
-        (currentYear == limitDate.year && currentMonth == limitDate.month)
-        ? limitDate.day
+    int minDay =
+        (minDate != null &&
+            currentYear == minDate.year &&
+            currentMonth == minDate.month)
+        ? minDate.day
+        : 1;
+    int maxDay = (currentYear == maxDate.year && currentMonth == maxDate.month)
+        ? maxDate.day
         : maxDaysInMonth;
-    int currentDay = _selectedDay > maxDay ? maxDay : _selectedDay;
+    int currentDay = _selectedDay.clamp(minDay, maxDay);
 
-    int yearIndex = currentYear - _startYear;
-    if (yearIndex < 0) yearIndex = 0;
-    if (yearIndex > maxYear - _startYear) yearIndex = maxYear - _startYear;
-
-    int monthIndex = currentMonth - 1;
-    if (monthIndex < 0) monthIndex = 0;
-    if (monthIndex >= maxMonth) monthIndex = maxMonth - 1;
-
-    int dayIndex = currentDay - 1;
-    if (dayIndex < 0) dayIndex = 0;
-    if (dayIndex >= maxDay) dayIndex = maxDay - 1;
+    int yearIndex = (currentYear - _startYear).clamp(0, maxYear - _startYear);
+    int monthIndex = (currentMonth - minMonth).clamp(0, maxMonth - minMonth);
+    int dayIndex = (currentDay - minDay).clamp(0, maxDay - minDay);
 
     return Row(
       children: [
         // 연도 피커
         Expanded(
           child: CupertinoPicker(
+            key: ValueKey('year_$_startYear\_$maxYear'),
             itemExtent: 40,
             selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
@@ -414,20 +449,31 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             onSelectedItemChanged: (index) {
               setState(() {
                 _selectedYear = _startYear + index;
-                int newMaxMonth = (_selectedYear == limitDate.year)
-                    ? limitDate.month
+                final newMinMonth =
+                    (minDate != null && _selectedYear == minDate.year)
+                    ? minDate.month
+                    : 1;
+                final newMaxMonth = (_selectedYear == maxDate.year)
+                    ? maxDate.month
                     : 12;
-                if (_selectedMonth > newMaxMonth) _selectedMonth = newMaxMonth;
-                int mDays = DateUtils.getDaysInMonth(
+                _selectedMonth = _selectedMonth.clamp(newMinMonth, newMaxMonth);
+
+                final mDays = DateUtils.getDaysInMonth(
                   _selectedYear,
                   _selectedMonth,
                 );
-                int mDayLimit =
-                    (_selectedYear == limitDate.year &&
-                        _selectedMonth == limitDate.month)
-                    ? limitDate.day
+                final newMinDay =
+                    (minDate != null &&
+                        _selectedYear == minDate.year &&
+                        _selectedMonth == minDate.month)
+                    ? minDate.day
+                    : 1;
+                final newMaxDay =
+                    (_selectedYear == maxDate.year &&
+                        _selectedMonth == maxDate.month)
+                    ? maxDate.day
                     : mDays;
-                if (_selectedDay > mDayLimit) _selectedDay = mDayLimit;
+                _selectedDay = _selectedDay.clamp(newMinDay, newMaxDay);
               });
             },
             children: List.generate(maxYear - _startYear + 1, (index) {
@@ -441,9 +487,10 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             }),
           ),
         ),
-        // 월 피커: maxMonth 개수(현재 연도라면 8까지만)로 리스트를 생성하여 미래 월을 원천 차단
+        // 월 피커 (과거 월 원천 차단)
         Expanded(
           child: CupertinoPicker(
+            key: ValueKey('month_${currentYear}_$minMonth\_$maxMonth'),
             itemExtent: 40,
             selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
@@ -451,32 +498,42 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             ),
             onSelectedItemChanged: (index) {
               setState(() {
-                _selectedMonth = index + 1;
-                int mDays = DateUtils.getDaysInMonth(
+                _selectedMonth = minMonth + index;
+                final mDays = DateUtils.getDaysInMonth(
                   _selectedYear,
                   _selectedMonth,
                 );
-                int mDayLimit =
-                    (_selectedYear == limitDate.year &&
-                        _selectedMonth == limitDate.month)
-                    ? limitDate.day
+                final newMinDay =
+                    (minDate != null &&
+                        _selectedYear == minDate.year &&
+                        _selectedMonth == minDate.month)
+                    ? minDate.day
+                    : 1;
+                final newMaxDay =
+                    (_selectedYear == maxDate.year &&
+                        _selectedMonth == maxDate.month)
+                    ? maxDate.day
                     : mDays;
-                if (_selectedDay > mDayLimit) _selectedDay = mDayLimit;
+                _selectedDay = _selectedDay.clamp(newMinDay, newMaxDay);
               });
             },
-            children: List.generate(maxMonth, (index) {
+            children: List.generate(maxMonth - minMonth + 1, (index) {
+              final month = minMonth + index;
               return Center(
                 child: Text(
-                  '${index + 1}',
+                  '$month',
                   style: FontStyles.reg18.copyWith(color: colors.onSurface),
                 ),
               );
             }),
           ),
         ),
-        // 일 피커
+        // 일 피커 (과거 일 원천 차단)
         Expanded(
           child: CupertinoPicker(
+            key: ValueKey(
+              'day_${currentYear}_${currentMonth}_$minDay\_$maxDay',
+            ),
             itemExtent: 40,
             selectionOverlay: const SizedBox.shrink(),
             scrollController: FixedExtentScrollController(
@@ -484,13 +541,14 @@ class _AppTimeBottomSheetState extends State<AppTimeBottomSheet> {
             ),
             onSelectedItemChanged: (index) {
               setState(() {
-                _selectedDay = index + 1;
+                _selectedDay = minDay + index;
               });
             },
-            children: List.generate(maxDay, (index) {
+            children: List.generate(maxDay - minDay + 1, (index) {
+              final day = minDay + index;
               return Center(
                 child: Text(
-                  '${index + 1}',
+                  '$day',
                   style: FontStyles.reg18.copyWith(color: colors.onSurface),
                 ),
               );

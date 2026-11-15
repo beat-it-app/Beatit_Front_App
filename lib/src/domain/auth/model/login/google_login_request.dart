@@ -7,6 +7,7 @@ part 'google_login_request.g.dart';
 abstract class GoogleLoginRequest with _$GoogleLoginRequest {
   const factory GoogleLoginRequest({
     required String idToken,
+    @Default(false) bool isRestore,
   }) = _GoogleLoginRequest;
 
   factory GoogleLoginRequest.fromJson(Map<String, dynamic> json) =>

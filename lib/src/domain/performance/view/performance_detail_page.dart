@@ -48,8 +48,31 @@ class PerformanceDetailPage extends ConsumerStatefulWidget {
 }
 
 class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
+  final ScrollController _scrollController = ScrollController();
   int _selectedTab = 0;
   bool _isDeleting = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged(int value) {
+    if (_selectedTab == value) return;
+    final currentOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
+
+    setState(() => _selectedTab = value);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final maxExtent = _scrollController.position.maxScrollExtent;
+        _scrollController.jumpTo(currentOffset.clamp(0.0, maxExtent));
+      }
+    });
+  }
 
   Future<void> _confirmDelete() async {
     final confirmed = await AppPopup.show(
@@ -176,26 +199,31 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
       data: (serverModel) {
         final performance = serverModel.toDetailData();
 
-        // 💡 1. 수정하기/삭제하기 더보기 메뉴: fromMyPage && isWriter 일 때만
+        // 1. 수정하기/삭제하기 더보기 메뉴: fromMyPage && isWriter 일 때만
         final bool canEditOrDelete = widget.fromMyPage && serverModel.isWriter;
 
-        // 💡 2. D-Day 밴드 및 하단 초대장 보기 고정 버튼: fromMyPage 일 때만
+        // 2. D-Day 밴드 및 하단 초대장 보기 고정 버튼: fromMyPage 일 때만
         final bool showMyPageFeatures = widget.fromMyPage;
 
-        // 💡 3. 공유(문의) 버튼: fromMyPage가 아닐 때만 노출
+        // 3. 공유(문의) 버튼: fromMyPage가 아닐 때만 노출
         final bool showShareButton = !widget.fromMyPage;
 
         return Scaffold(
           backgroundColor: context.grays.white,
           body: SingleChildScrollView(
+            controller: _scrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Stack(
                   children: [
-                    PerformanceHero(
-                      performance: performance,
-                      isMine: showMyPageFeatures,
+                    // 💡 D-Day 배지 ~ 배너 하단 끝 높이를 48px 이상으로 확보하기 위해 배너 높이 확장 (600 -> 624)
+                    SizedBox(
+                      height: 624,
+                      child: PerformanceHero(
+                        performance: performance,
+                        isMine: showMyPageFeatures,
+                      ),
                     ),
                     Positioned(
                       top: 0,
@@ -227,7 +255,6 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // 💡 fromMyPage가 아닐 때만 공유(문의) 버튼 노출
                                   if (showShareButton)
                                     IconButton(
                                       icon: SvgPicture.asset(
@@ -242,8 +269,6 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                                       onPressed: () =>
                                           _openHostDialog(performance),
                                     ),
-
-                                  // 💡 fromMyPage && isWriter 일 때만 수정/삭제 드롭다운 노출
                                   if (canEditOrDelete)
                                     AppDropdownList(
                                       items: [
@@ -314,26 +339,34 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                     ),
                   ],
                 ),
-                // 💡 fromMyPage일 때만 D-Day 밴드 노출
+                // fromMyPage일 때만 D-Day 밴드 노출
                 if (showMyPageFeatures)
                   _BookingDeadlineBand(performance: performance),
-                AppTabBar(
-                  labels: const ['공연 정보', '상세 정보'],
-                  selectedIndex: _selectedTab,
-                  onChanged: (value) => setState(() => _selectedTab = value),
+                // 💡 공연 정보 / 상세 정보 카테고리 탭바 높이 확장
+                SizedBox(
+                  height: 54,
+                  child: AppTabBar(
+                    labels: const ['공연 정보', '상세 정보'],
+                    selectedIndex: _selectedTab,
+                    onChanged: _onTabChanged,
+                  ),
                 ),
-                if (_selectedTab == 0)
-                  PerformanceInfoSection(
-                    performance: performance,
-                    isMine: false,
-                  )
-                else
-                  PerformanceDetailSection(performance: performance),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height - 120,
+                  ),
+                  child: _selectedTab == 0
+                      ? PerformanceInfoSection(
+                          performance: performance,
+                          isMine: false,
+                        )
+                      : PerformanceDetailSection(performance: performance),
+                ),
                 if (showMyPageFeatures) const SizedBox(height: 80),
               ],
             ),
           ),
-          // 💡 fromMyPage일 때만 하단 고정 초대장 보기 버튼 노출
+          // fromMyPage일 때만 하단 고정 초대장 보기 버튼 노출
           bottomNavigationBar: showMyPageFeatures
               ? SafeArea(
                   child: Padding(
