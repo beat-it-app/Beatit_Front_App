@@ -26,6 +26,7 @@ class AuthApi {
   static const String _googleLoginPath = '/auth/google';
   static const String _naverLoginPath = '/auth/naver';
   static const String _kakaoLoginPath = '/auth/kakao';
+  static const String _appleLoginPath = '/auth/apple';
   static const String _logoutPath = '/auth/logout';
   static const String _reissueLoginPath = '/auth/reissue/login';
 
@@ -190,6 +191,23 @@ class AuthApi {
       path: _kakaoLoginPath,
       data: {
         'accessToken': accessToken,
+        'isRestore': isRestore,
+        ...deviceFields,
+      },
+    );
+  }
+
+  Future<AuthLoginResult> loginWithApple({
+    required String identityToken,
+    String? email,
+    bool isRestore = false,
+    Map<String, dynamic> deviceFields = const {},
+  }) {
+    return _authenticate(
+      path: _appleLoginPath,
+      data: {
+        'identityToken': identityToken,
+        'email': email ?? '',
         'isRestore': isRestore,
         ...deviceFields,
       },

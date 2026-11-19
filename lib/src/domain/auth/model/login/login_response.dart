@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'login_response.freezed.dart';
+
 part 'login_response.g.dart';
 
 enum Role {
@@ -17,6 +18,8 @@ enum SocialProvider {
   kakao,
   @JsonValue('GOOGLE')
   google,
+  @JsonValue('APPLE')
+  apple,
 }
 
 @freezed

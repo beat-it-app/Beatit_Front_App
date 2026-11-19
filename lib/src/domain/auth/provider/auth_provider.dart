@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:beatit_front_app/src/core/network/auth_token_storage.dart';
+import 'package:beatit_front_app/src/domain/auth/api/apple_auth_client.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_api.dart';
 import 'package:beatit_front_app/src/domain/auth/api/auth_push_registration.dart';
 import 'package:beatit_front_app/src/domain/auth/api/google_auth_client.dart';
@@ -32,6 +33,10 @@ final naverAuthClientProvider = Provider<NaverAuthClient>((ref) {
 
 final kakaoAuthClientProvider = Provider<KakaoAuthClient>((ref) {
   return KakaoAuthClient();
+});
+
+final appleAuthClientProvider = Provider<AppleAuthClient>((ref) {
+  return AppleAuthClient();
 });
 
 final authProvider = NotifierProvider<AuthNotifier, AsyncValue<AuthSession?>>(
@@ -184,27 +189,72 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
   Future<void> loginWithNaver({BuildContext? context}) => _loginWithSocial(
     getToken: () =>
         ref.read(naverAuthClientProvider).getAccessToken(context: context),
-    authenticate: (token, deviceFields, isRestore) =>
-        ref
-            .read(authApiProvider)
-            .loginWithNaver(
-              accessToken: token,
-              isRestore: isRestore,
-              deviceFields: deviceFields,
-            ),
+    authenticate: (token, deviceFields, isRestore) => ref
+        .read(authApiProvider)
+        .loginWithNaver(
+          accessToken: token,
+          isRestore: isRestore,
+          deviceFields: deviceFields,
+        ),
   );
 
   Future<void> loginWithKakao() => _loginWithSocial(
     getToken: () => ref.read(kakaoAuthClientProvider).getAccessToken(),
-    authenticate: (token, deviceFields, isRestore) =>
-        ref
+    authenticate: (token, deviceFields, isRestore) => ref
+        .read(authApiProvider)
+        .loginWithKakao(
+          accessToken: token,
+          isRestore: isRestore,
+          deviceFields: deviceFields,
+        ),
+  );
+
+  Future<void> loginWithApple({bool isRestore = false}) async {
+    if (state.isLoading) return;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      debugPrint('[Auth] Apple SDK login started');
+      final credential = await ref
+          .read(appleAuthClientProvider)
+          .getCredential();
+      if (credential == null) {
+        debugPrint('[Auth] Apple SDK login cancelled');
+        return null;
+      }
+
+      debugPrint('[Auth] Apple SDK credential acquired');
+      final deviceFields = await ref
+          .read(authPushRegistrationProvider)
+          .collectLoginFields(includePushToken: false);
+
+      debugPrint('[Auth] BeatIt Apple server login started');
+      final result = await _authenticateOrKeepRestore(
+        () => ref
             .read(authApiProvider)
-            .loginWithKakao(
-              accessToken: token,
+            .loginWithApple(
+              identityToken: credential.identityToken,
+              email: credential.email,
               isRestore: isRestore,
               deviceFields: deviceFields,
             ),
-  );
+        isRestore: isRestore,
+        retryWithRestore: () => loginWithApple(isRestore: true),
+      );
+
+      await ref
+          .read(authTokenStorageProvider)
+          .saveTokens(
+            accessToken: result.session.accessToken,
+            refreshToken: result.refreshToken,
+          );
+      debugPrint('[Auth] BeatIt Apple session saved');
+
+      _startTokenRefreshListener();
+      unawaited(_retryPushRegistration(result.session.accessToken));
+      return result.session;
+    });
+  }
 
   Future<void> _loginWithSocial({
     required Future<String?> Function() getToken,
