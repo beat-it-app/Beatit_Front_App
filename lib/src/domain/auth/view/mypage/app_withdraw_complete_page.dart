@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-class AppWithdrawCompletePage extends StatelessWidget {
+class AppWithdrawCompletePage extends ConsumerWidget {
   const AppWithdrawCompletePage({super.key});
 
-  void _goToSignin(BuildContext context) {
+  Future<void> _goToSignin(BuildContext context, WidgetRef ref) async {
+    await ref.read(authProvider.notifier).logout();
+
+    if (!context.mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SigninPage()),
       (route) => false,
@@ -17,19 +24,19 @@ class AppWithdrawCompletePage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _goToSignin(context);
+        _goToSignin(context, ref);
       },
       child: Scaffold(
         backgroundColor: colors.surface,
         appBar: AppTopAppBar.backOnly(
-          onBackPressed: () => _goToSignin(context),
+          onBackPressed: () => _goToSignin(context, ref),
         ),
         body: SafeArea(
           child: Padding(
@@ -38,38 +45,51 @@ class AppWithdrawCompletePage extends StatelessWidget {
               children: [
                 const Spacer(flex: 2),
                 // 상단 느낌표 원형 아이콘
-                Container(
+                SizedBox(
                   width: 60,
                   height: 60,
-                  decoration: BoxDecoration(
-                    color: context.grays.gray7,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.priority_high_rounded,
-                    color: Colors.white,
-                    size: 32,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SvgPicture.asset(
+                        'assets/icons/popup/circle.svg',
+                        width: 60,
+                        height: 60,
+                        colorFilter: ColorFilter.mode(
+                          context.grays.gray7,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      SvgPicture.asset(
+                        'assets/icons/popup/point.svg',
+                        width: 30,
+                        height: 30,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.x24),
+                const SizedBox(height: AppSpacing.x30),
 
                 // 메인 타이틀
                 Text(
                   '회원 탈퇴 신청이\n완료되었습니다.',
                   textAlign: TextAlign.center,
-                  style: FontStyles.bold28.copyWith(
+                  style: FontStyles.bold34.copyWith(
                     color: colors.onSurface,
                     height: 1.3,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.x20),
+                const SizedBox(height: AppSpacing.x50),
 
                 // 유예 기간 안내 문구
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
-                    style: FontStyles.med14.copyWith(
+                    style: FontStyles.semi16.copyWith(
                       color: context.grays.gray4,
                       height: 1.5,
                     ),
@@ -78,7 +98,7 @@ class AppWithdrawCompletePage extends StatelessWidget {
                       const TextSpan(text: '탈퇴를 취소하고 싶으시다면 7일 이내에 다시 로그인하여\n'),
                       TextSpan(
                         text: '[복구하기]',
-                        style: FontStyles.bold14.copyWith(
+                        style: FontStyles.semi16.copyWith(
                           color: colors.onSurface,
                         ),
                       ),
@@ -86,13 +106,13 @@ class AppWithdrawCompletePage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.x20),
+                const SizedBox(height: AppSpacing.x10),
 
                 // 감사 인사
                 Text(
                   '그동안 빗잇을 이용해주셔서 감사합니다.',
                   textAlign: TextAlign.center,
-                  style: FontStyles.med14.copyWith(color: context.grays.gray4),
+                  style: FontStyles.semi16.copyWith(color: context.grays.gray4),
                 ),
                 const Spacer(flex: 3),
 
@@ -104,7 +124,7 @@ class AppWithdrawCompletePage extends StatelessWidget {
                     variant: ButtonVariant.black,
                     width: ButtonWidth.expand,
                     height: ButtonHeight.normal,
-                    onPressed: () => _goToSignin(context),
+                    onPressed: () => _goToSignin(context, ref),
                   ),
                 ),
               ],
