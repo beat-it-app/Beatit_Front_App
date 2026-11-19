@@ -46,4 +46,5 @@ const _$SocialProviderEnumMap = {
   SocialProvider.naver: 'NAVER',
   SocialProvider.kakao: 'KAKAO',
   SocialProvider.google: 'GOOGLE',
+  SocialProvider.apple: 'APPLE',
 };

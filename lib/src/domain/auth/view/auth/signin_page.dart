@@ -123,6 +123,11 @@ class _SigninPageState extends ConsumerState<SigninPage> {
     await ref.read(authProvider.notifier).loginWithKakao();
   }
 
+  Future<void> _loginWithApple() async {
+    if (ref.read(authProvider).isLoading) return;
+    await ref.read(authProvider.notifier).loginWithApple();
+  }
+
   void _showUnsupportedSocialLogin(String providerName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$providerName 로그인은 아직 연동되지 않았습니다.')),
@@ -382,9 +387,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                                 SocialLoginButton.apple(
                                   height: 48,
                                   variant: SocialLoginButtonVariant.circle,
-                                  onPressed: () {
-                                    _showUnsupportedSocialLogin('Apple');
-                                  },
+                                  onPressed: _loginWithApple,
                                 ),
                               ],
                             ),
