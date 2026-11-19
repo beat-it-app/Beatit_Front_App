@@ -108,11 +108,7 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
 
       if (!mounted) return;
 
-      // 💡 로그아웃 처리 후 로그인 화면(SigninPage)으로 스택 비우며 이동
-      await ref.read(authProvider.notifier).logout();
-
-      if (!mounted) return;
-
+      // 💡 여기서 바로 logout() 하지 않고 먼저 완료 페이지로 이동
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AppWithdrawCompletePage()),
         (route) => false,
