@@ -118,6 +118,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
   bool get _canSubmit {
     return _hasTitle &&
         _selectedDate != null &&
+        _startTime != null &&
+        _endTime != null &&
         _hasValidTimeRange &&
         _selectedMembers.isNotEmpty;
   }
@@ -468,7 +470,21 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     setState(() {
       _startTime = selectedTime;
       _startTimeController.text = _formatTime(selectedTime);
-      // 종료 시간은 자동 입력하지 않습니다. 각 시간을 독립적으로 선택할 수 있습니다.
+      // 종료 시간이 비어 있거나 시작 시간 이전이 되면 시작 +1시간으로 자동 입력합니다.
+      // 23시 시작은 같은 날 24시가 없으므로 23:59로 입력합니다.
+      final currentEnd = _endTime;
+      final startMinutes = selectedTime.hour * 60 + selectedTime.minute;
+      if (currentEnd == null ||
+          currentEnd.hour * 60 + currentEnd.minute <= startMinutes) {
+        final autoEnd = selectedTime.hour == 23
+            ? const TimeOfDay(hour: 23, minute: 59)
+            : TimeOfDay(
+                hour: selectedTime.hour + 1,
+                minute: selectedTime.minute,
+              );
+        _endTime = autoEnd;
+        _endTimeController.text = _formatTime(autoEnd);
+      }
     });
   }
 
@@ -484,11 +500,11 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
           (_startTime == null
               ? TimeOfDay(hour: currentHour, minute: 0)
               : _startTime!.hour == 23
-                  ? const TimeOfDay(hour: 23, minute: 59)
-                  : TimeOfDay(
-                      hour: _startTime!.hour + 1,
-                      minute: _startTime!.minute,
-                    )),
+              ? const TimeOfDay(hour: 23, minute: 59)
+              : TimeOfDay(
+                  hour: _startTime!.hour + 1,
+                  minute: _startTime!.minute,
+                )),
       excludeMidnightHour: true,
     );
 
@@ -1047,7 +1063,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const _SectionLabel(text: '시간'),
+                            const _SectionLabel(text: '시간', requiredMark: true),
                             SizedBox(
                               height: 24,
                               child: (_startTime != null || _endTime != null)

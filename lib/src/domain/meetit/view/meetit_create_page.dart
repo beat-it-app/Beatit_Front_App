@@ -228,8 +228,9 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       return int.parse(parts[0]) * 60 + int.parse(parts[1]);
     }
 
-    if (toMinutes(start) >= toMinutes(end)) {
-      return '종료 시간은 시작 시간보다 늦게 설정해주세요.';
+    // 종료가 시작보다 이르면 다음 날로 넘어가는 시간대(예: 18:00~2:00)로 보고 서버가 분할합니다.
+    if (toMinutes(start) == toMinutes(end)) {
+      return '시작 시간과 종료 시간은 다르게 설정해주세요.';
     }
 
     return null;
