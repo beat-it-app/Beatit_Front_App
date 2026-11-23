@@ -57,17 +57,18 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
 
   Future<AuthSession?> restoreSession() async {
     final tokenStorage = ref.read(authTokenStorageProvider);
-    final refreshToken = await tokenStorage.readRefreshToken();
-
-    if (refreshToken == null || refreshToken.isEmpty) {
-      await tokenStorage.deleteTokens();
-      state = const AsyncData(null);
-      return null;
-    }
-
-    state = const AsyncLoading();
 
     try {
+      final refreshToken = await tokenStorage.readRefreshToken();
+
+      if (refreshToken == null || refreshToken.isEmpty) {
+        await tokenStorage.deleteTokens();
+        state = const AsyncData(null);
+        return null;
+      }
+
+      state = const AsyncLoading();
+
       final result = await ref
           .read(authApiProvider)
           .reissueLogin(refreshToken: refreshToken);
@@ -81,19 +82,21 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
       _startTokenRefreshListener();
       unawaited(_registerPushAfterRestore(result.session.accessToken));
       return result.session;
-    } on AuthApiException catch (error) {
-      if (_invalidRefreshTokenCodes.contains(error.code)) {
-        await tokenStorage.deleteTokens();
-      }
-
+    } on AuthApiException catch (error, stackTrace) {
       debugPrint(
         '[Auth] session restore failed: ${error.code} ${error.message}',
       );
-      state = const AsyncData(null);
+
+      if (_invalidRefreshTokenCodes.contains(error.code)) {
+        await tokenStorage.deleteTokens();
+        state = const AsyncData(null);
+      } else {
+        state = AsyncError(error, stackTrace);
+      }
       return null;
-    } catch (error) {
+    } catch (error, stackTrace) {
       debugPrint('[Auth] session restore failed: $error');
-      state = const AsyncData(null);
+      state = AsyncError(error, stackTrace);
       return null;
     }
   }

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/utils/platform_media_image_saver.dart';
+import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
@@ -17,6 +18,7 @@ import 'package:beatit_front_app/src/domain/performance/widget/performance_invit
 import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_image_exporter.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_invitation_scroll_arrow.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_setlist_section.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -263,10 +265,28 @@ class _PerformanceInviteViewContentState
     }
 
     setState(() => _isSharing = true);
-    var gallerySaved = 0;
-    var shared = 0;
     final failures = <String>[];
+    final images = <({Uint8List bytes, String fileName})>[];
     final savedAt = DateTime.now().millisecondsSinceEpoch;
+
+    // 팀별 이미지 생성과 저장이 끝날 때까지 로딩 화면을 하나로 이어서 유지한다.
+    // 캡처마다 생기는 임시 로딩 화면이 사이사이 깜빡이지 않게 아래에 깔아둔다.
+    final loadingEntry = OverlayEntry(
+      builder: (_) => const Positioned.fill(
+        child: ColoredBox(
+          color: AppColor.black,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(loadingEntry);
+    var loadingRemoved = false;
+    void removeLoading() {
+      if (loadingRemoved) return;
+      loadingRemoved = true;
+      loadingEntry.remove();
+      loadingEntry.dispose();
+    }
 
     try {
       for (final entry in exportTeams) {
@@ -292,20 +312,36 @@ class _PerformanceInviteViewContentState
             '[셋리스트 저장] $teamLabel: '
             '${team.musics.length}곡, ${bytes.length} bytes',
           );
-          final outcome = await PlatformMediaImageSaver.savePngBytes(
-            bytes: bytes,
-            fileName: fileName,
-            sharePositionOrigin: _shareAnchor(),
-          );
-          if (outcome == PlatformImageSaveOutcome.savedToGallery) {
-            gallerySaved++;
-          } else {
-            shared++;
-          }
+          images.add((bytes: bytes, fileName: fileName));
         } catch (error, stackTrace) {
           debugPrint('[셋리스트 저장] $teamLabel 실패: $error');
           debugPrintStack(stackTrace: stackTrace);
           failures.add('$teamLabel: $error');
+        }
+      }
+
+      if (!mounted) return;
+      // iOS는 공유 시트가 뜨기 전에 로딩 화면을 걷는다. Android는 저장이 끝날 때까지 유지한다.
+      if (defaultTargetPlatform == TargetPlatform.iOS) removeLoading();
+
+      var gallerySaved = 0;
+      var shared = 0;
+      if (images.isNotEmpty) {
+        try {
+          // 생성한 팀별 이미지를 한 번에 저장(Android) / 공유 시트 한 번(iOS).
+          final outcome = await PlatformMediaImageSaver.savePngBatch(
+            images: images,
+            sharePositionOrigin: _shareAnchor(),
+          );
+          if (outcome == PlatformImageSaveOutcome.savedToGallery) {
+            gallerySaved = images.length;
+          } else {
+            shared = images.length;
+          }
+        } catch (error, stackTrace) {
+          debugPrint('[셋리스트 저장] 저장 실패: $error');
+          debugPrintStack(stackTrace: stackTrace);
+          failures.add('$error');
         }
       }
 
@@ -328,6 +364,7 @@ class _PerformanceInviteViewContentState
       debugPrintStack(stackTrace: stackTrace);
       _notify('셋리스트 저장에 실패했습니다: $error');
     } finally {
+      removeLoading();
       if (mounted) setState(() => _isSharing = false);
     }
   }
@@ -360,7 +397,7 @@ class _PerformanceInviteViewContentState
               actions: [
                 IconButton(
                   tooltip: '현재 티켓 저장 또는 공유',
-                  onPressed: _isSharing ? null : _saveInvitationImage,
+                  onPressed: () => _notify('준비 중입니다.'),
                   icon: SvgPicture.asset(
                     'assets/icons/team/share.svg',
                     width: 22,

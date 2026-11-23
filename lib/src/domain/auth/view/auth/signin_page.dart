@@ -14,6 +14,7 @@ import 'package:beatit_front_app/src/domain/auth/view/auth/signup_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/profile/create_profile_page.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/social_login_button.dart';
 import 'package:beatit_front_app/src/domain/auth/widget/text_link_button.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -383,12 +384,16 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                                   variant: SocialLoginButtonVariant.circle,
                                   onPressed: _loginWithKakao,
                                 ),
-                                const SizedBox(width: AppSpacing.x12),
-                                SocialLoginButton.apple(
-                                  height: 48,
-                                  variant: SocialLoginButtonVariant.circle,
-                                  onPressed: _loginWithApple,
-                                ),
+                                // 애플 로그인은 Android에서는 표시하지 않는다.
+                                if (defaultTargetPlatform !=
+                                    TargetPlatform.android) ...[
+                                  const SizedBox(width: AppSpacing.x12),
+                                  SocialLoginButton.apple(
+                                    height: 48,
+                                    variant: SocialLoginButtonVariant.circle,
+                                    onPressed: _loginWithApple,
+                                  ),
+                                ],
                               ],
                             ),
                             const SizedBox(height: AppSpacing.x60),

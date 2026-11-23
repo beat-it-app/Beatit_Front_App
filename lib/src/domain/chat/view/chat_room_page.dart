@@ -220,12 +220,14 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     if (state.isDraft) {
       final createdId = ref.read(chatRoomProvider).chatId;
       if (createdId != null) {
-        ref.read(chatListProvider.notifier).rememberCreatedRoomMembers(
-          chatId: createdId,
-          otherMemberNames: widget.draftMembers
-              .map((member) => member.userName)
-              .toList(growable: false),
-        );
+        ref
+            .read(chatListProvider.notifier)
+            .rememberCreatedRoomMembers(
+              chatId: createdId,
+              otherMemberNames: widget.draftMembers
+                  .map((member) => member.userName)
+                  .toList(growable: false),
+            );
       }
     }
 
@@ -247,19 +249,24 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       return;
     }
     // 파일 선택기에서 사진과 영상/문서를 섞어 골라도 사진들만 한 카드로 묶습니다.
-    final images = pickedFiles.where((file) =>
-        _imageExtensions.contains(_extensionOf(file.name))).toList();
+    final images = pickedFiles
+        .where((file) => _imageExtensions.contains(_extensionOf(file.name)))
+        .toList();
     if (images.isNotEmpty) {
       final batchFiles = <ChatImageBatchFile>[];
       for (final file in images) {
         final path = file.path;
         final size = await file.length() ?? 0;
-        if (path == null || path.isEmpty || size <= 0 || size > _maxAttachmentBytes) {
+        if (path == null ||
+            path.isEmpty ||
+            size <= 0 ||
+            size > _maxAttachmentBytes) {
           await _showUploadBlockedPopup('50MB 이하의 사진을 선택해주세요.');
           continue;
         }
-        batchFiles.add(ChatImageBatchFile(
-            path: path, name: file.name, sizeBytes: size));
+        batchFiles.add(
+          ChatImageBatchFile(path: path, name: file.name, sizeBytes: size),
+        );
       }
       if (batchFiles.isNotEmpty && mounted) {
         await ref.read(chatRoomProvider.notifier).sendImageBatch(batchFiles);
@@ -304,7 +311,9 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     // 영상은 각각 독립 메시지이며 사진 메시지만 묶음 UI로 표시됩니다.
     final pickedMedia = messageType == ChatMessageType.image
         ? await _imagePicker.pickMultiImage(limit: _maxAttachmentsPerSelection)
-        : await _imagePicker.pickMultipleMedia(limit: _maxAttachmentsPerSelection);
+        : await _imagePicker.pickMultipleMedia(
+            limit: _maxAttachmentsPerSelection,
+          );
     if (!mounted || pickedMedia.isEmpty) return;
     if (pickedMedia.length > _maxAttachmentsPerSelection) {
       _showMessage('첨부파일은 한 번에 최대 10개까지 선택할 수 있습니다.');
@@ -323,11 +332,13 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
           await _showUploadBlockedPopup('사진은 장당 50MB 이하로 선택해주세요.');
           continue;
         }
-        batchFiles.add(ChatImageBatchFile(
-          path: media.path,
-          name: media.name,
-          sizeBytes: size,
-        ));
+        batchFiles.add(
+          ChatImageBatchFile(
+            path: media.path,
+            name: media.name,
+            sizeBytes: size,
+          ),
+        );
       }
       if (batchFiles.isNotEmpty && mounted) {
         _goToLatestMessage();
@@ -354,7 +365,6 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
       );
     }
   }
-
 
   bool _canSendAttachment() {
     final state = ref.read(chatRoomProvider);
@@ -458,21 +468,26 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
     ChatMessage selectedMessage, {
     List<ChatMessage>? selectedBatch,
   }) {
-    final images = selectedBatch ?? ref
-        .read(chatRoomProvider)
-        .messages
-        .where(
-          (message) => _attachmentKind(message) == ChatAttachmentKind.image,
-        )
-        .toList(growable: false);
+    final images =
+        selectedBatch ??
+        ref
+            .read(chatRoomProvider)
+            .messages
+            .where(
+              (message) => _attachmentKind(message) == ChatAttachmentKind.image,
+            )
+            .toList(growable: false);
     if (images.isEmpty) return;
     if (selectedBatch != null && images.length > 1) {
-      final index = images.indexWhere((item) =>
-          item.messageId == selectedMessage.messageId);
+      final index = images.indexWhere(
+        (item) => item.messageId == selectedMessage.messageId,
+      );
       Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (_) => PicturePreviewPage(
-            imageUrls: images.map((item) => item.content).toList(growable: false),
+            imageUrls: images
+                .map((item) => item.content)
+                .toList(growable: false),
             initialIndex: index < 0 ? 0 : index,
           ),
         ),
@@ -695,14 +710,17 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen<ChatRoomState>(chatRoomProvider, (previous, next) {
-      if (next.chatId != null && !next.isDraft &&
+      if (next.chatId != null &&
+          !next.isDraft &&
           (next.messages.isNotEmpty || next.readMarkers.isNotEmpty)) {
-        ref.read(chatListProvider.notifier).rememberObservedRoomMembers(
-          chatId: next.chatId!,
-          participantCount: next.participantCount,
-          messages: next.messages,
-          readMarkers: next.readMarkers.values,
-        );
+        ref
+            .read(chatListProvider.notifier)
+            .rememberObservedRoomMembers(
+              chatId: next.chatId!,
+              participantCount: next.participantCount,
+              messages: next.messages,
+              readMarkers: next.readMarkers.values,
+            );
       }
       // Reset the pagination autofill gate when a different room is opened.
       if (previous?.chatId != next.chatId ||
@@ -865,13 +883,20 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
           controller: _scrollController,
           messages: state.imageUploadBatch == null
               ? state.messages
-              : state.messages.where((message) =>
-                  !(message.isMine &&
-                    message.messageType == ChatMessageType.image &&
-                    (state.imageUploadBatch!.files.any(
-                        (file) => file.messageId == message.messageId) ||
-                    message.createdAt.isAfter(state.imageUploadBatch!.startedAt))))
-                  .toList(growable: false),
+              : state.messages
+                    .where(
+                      (message) =>
+                          !(message.isMine &&
+                              message.messageType == ChatMessageType.image &&
+                              (state.imageUploadBatch!.files.any(
+                                    (file) =>
+                                        file.messageId == message.messageId,
+                                  ) ||
+                                  message.createdAt.isAfter(
+                                    state.imageUploadBatch!.startedAt,
+                                  ))),
+                    )
+                    .toList(growable: false),
           imageBatchGroups: state.imageBatchGroups,
           uploadingImageBatch: state.imageUploadBatch,
           onRetryImageBatch: () =>
@@ -883,10 +908,8 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
           pendingAttachments: state.pendingAttachments,
           isLoadingOlderMessages: state.isLoadingOlderMessages,
           onImagePressed: _openImagePreview,
-          onImageBatchPressed: (message, batch) => _openImagePreview(
-            message,
-            selectedBatch: batch,
-          ),
+          onImageBatchPressed: (message, batch) =>
+              _openImagePreview(message, selectedBatch: batch),
           onAttachmentPressed: _openAttachmentPreview,
           onRetryPending: (localId) {
             ref.read(chatRoomProvider.notifier).retryAttachment(localId);
@@ -968,12 +991,15 @@ class _ChatNewMessageBanner extends StatelessWidget {
       ),
       child: Material(
         color: context.grays.white.withValues(alpha: 0.90),
-        shadowColor: context.grays.black.withValues(alpha: 0.50),
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-        elevation: 1,
+        shadowColor: context.grays.black.withValues(alpha: 0.15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
+          side: BorderSide(color: context.grays.gray8, width: 1),
+        ),
+        elevation: 5,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
           onTap: onPressed,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -995,6 +1021,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
@@ -1003,7 +1030,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: FontStyles.bold14.copyWith(
                           color: context.grays.black,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                       ),
                       Text(
@@ -1011,7 +1038,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: FontStyles.reg16.copyWith(
-                          color: context.grays.gray2,
+                          color: context.grays.black,
                         ),
                       ),
                     ],
@@ -1064,11 +1091,14 @@ class _ChatMessageList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final batchCount = uploadingImageBatch == null ? 0 : 1;
-    final contentCount = messages.length + pendingAttachments.length + batchCount;
+    final contentCount =
+        messages.length + pendingAttachments.length + batchCount;
     // 마지막 읽음 위치가 상대방이 보낸 메시지인 경우에도,
     // 그 이전에 보낸 내 마지막 메시지에 읽음 표시를 남깁니다.
-    final lastReadId = readMarkers.values.fold<int>(0, (latest, marker) =>
-        marker.messageId > latest ? marker.messageId : latest);
+    final lastReadId = readMarkers.values.fold<int>(
+      0,
+      (latest, marker) => marker.messageId > latest ? marker.messageId : latest,
+    );
     int? lastMineReadId;
     if (participantCount == 2 && lastReadId > 0) {
       for (final item in messages) {
@@ -1124,7 +1154,9 @@ class _ChatMessageList extends StatelessWidget {
           final effectiveIndex = index - batchCount;
           if (effectiveIndex < pendingAttachments.length) {
             final pending =
-                pendingAttachments[pendingAttachments.length - effectiveIndex - 1];
+                pendingAttachments[pendingAttachments.length -
+                    effectiveIndex -
+                    1];
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.x16),
               child: ChatPendingAttachmentItem(
@@ -1137,7 +1169,9 @@ class _ChatMessageList extends StatelessWidget {
           }
 
           final messageIndex =
-              messages.length - 1 - (effectiveIndex - pendingAttachments.length);
+              messages.length -
+              1 -
+              (effectiveIndex - pendingAttachments.length);
           final message = messages[messageIndex];
           // 묶음의 마지막 사진에서만 그리드를 렌더링합니다.
           final imageBatch = _imageBatchAt(messageIndex);
@@ -1146,9 +1180,13 @@ class _ChatMessageList extends StatelessWidget {
             return const SizedBox.shrink();
           }
           final readersHere = readMarkers.values
-              .where((reader) => imageBatch.isNotEmpty
-                  ? imageBatch.any((photo) => photo.messageId == reader.messageId)
-                  : reader.messageId == message.messageId)
+              .where(
+                (reader) => imageBatch.isNotEmpty
+                    ? imageBatch.any(
+                        (photo) => photo.messageId == reader.messageId,
+                      )
+                    : reader.messageId == message.messageId,
+              )
               .toList(growable: false);
           final previousMessage = messageIndex > 0
               ? messages[messageIndex - 1]
@@ -1160,10 +1198,13 @@ class _ChatMessageList extends StatelessWidget {
               previousMessage == null ||
               !_isSameDate(previousMessage.createdAt, message.createdAt);
           final isGroupStart =
-              imageBatch.length > 1 || previousMessage == null ||
+              imageBatch.length > 1 ||
+              previousMessage == null ||
               !_isSameMessageGroup(previousMessage, message);
-          final isGroupEnd = imageBatch.length > 1 ||
-              nextMessage == null || !_isSameMessageGroup(message, nextMessage);
+          final isGroupEnd =
+              imageBatch.length > 1 ||
+              nextMessage == null ||
+              !_isSameMessageGroup(message, nextMessage);
           final isLastMessage =
               messageIndex == messages.length - 1 && pendingAttachments.isEmpty;
 
@@ -1184,16 +1225,18 @@ class _ChatMessageList extends StatelessWidget {
                 message: message,
                 showProfile: isGroupStart,
                 showSenderName: isGroupStart,
-                showTime: isGroupEnd ||
-                    (participantCount == 2 && message.isMine &&
-                     message.messageId == lastMineReadId),
-                showRead: participantCount == 2 && message.isMine &&
+                showTime:
+                    isGroupEnd ||
+                    (participantCount == 2 &&
+                        message.isMine &&
+                        message.messageId == lastMineReadId),
+                showRead:
+                    participantCount == 2 &&
+                    message.isMine &&
                     message.messageId == lastMineReadId,
                 imageGroup: imageBatch,
-                onGroupedImagePressed: (selected) => onImageBatchPressed(
-                  selected,
-                  imageBatch,
-                ),
+                onGroupedImagePressed: (selected) =>
+                    onImageBatchPressed(selected, imageBatch),
                 onImagePressed: _kindOf(message) == ChatAttachmentKind.image
                     ? () => onImagePressed(message)
                     : null,
@@ -1247,7 +1290,8 @@ class _ChatMessageList extends StatelessWidget {
     }
     final batchStart = first + ((index - first) ~/ 10) * 10;
     var last = batchStart;
-    while (last + 1 < messages.length && last < batchStart + 9 &&
+    while (last + 1 < messages.length &&
+        last < batchStart + 9 &&
         _sameImageBurst(messages[last], messages[last + 1])) {
       last++;
     }
@@ -1258,7 +1302,8 @@ class _ChatMessageList extends StatelessWidget {
     final aGroup = imageBatchGroups[a.messageId];
     final bGroup = imageBatchGroups[b.messageId];
     if (aGroup != null || bGroup != null) {
-      return aGroup != null && aGroup == bGroup &&
+      return aGroup != null &&
+          aGroup == bGroup &&
           a.senderId == b.senderId &&
           _kindOf(a) == ChatAttachmentKind.image &&
           _kindOf(b) == ChatAttachmentKind.image;

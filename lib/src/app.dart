@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
+import 'package:beatit_front_app/src/domain/alarm/provider/pending_alarm_push_provider.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/alarm_push_navigation.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -33,6 +36,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   static const String _noTeamMessage = '현재 로그인된 팀이 없습니다.';
 
   bool _isNoTeamToastVisible = false;
+  bool _isOpeningPush = false;
 
   late int _currentIndex;
 
@@ -52,6 +56,33 @@ class _MainShellState extends ConsumerState<MainShell> {
       0,
       defaultAppNavigationItems.length - 1,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openPendingPush();
+    });
+  }
+
+  Future<void> _openPendingPush() async {
+    if (!mounted || _isOpeningPush) return;
+    final session = ref.read(authProvider).asData?.value;
+    if (session == null || !session.createdProfile) return;
+
+    final message = ref.read(pendingAlarmPushProvider.notifier).take();
+    if (message == null) return;
+    _isOpeningPush = true;
+    try {
+      await openAlarmFromPush(
+        ref: ref,
+        navigator: Navigator.of(context, rootNavigator: true),
+        message: message,
+      );
+    } finally {
+      _isOpeningPush = false;
+      if (mounted && ref.read(pendingAlarmPushProvider) != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openPendingPush();
+        });
+      }
+    }
   }
 
   bool _requiresTeam(int index) => index >= 1 && index <= 3;
@@ -105,6 +136,14 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    // 이미 메인 화면을 사용 중일 때 푸시를 누르면 즉시 처리하고,
+    // 로그인/앱 시작 중 들어온 푸시는 위 initState 콜백에서 처리한다.
+    ref.listen(pendingAlarmPushProvider, (previous, next) {
+      if (next == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openPendingPush();
+      });
+    });
     final selectedTeam = ref.watch(currentTeamProvider).asData?.value;
     final displayIndex = _requiresTeam(_currentIndex) && selectedTeam == null
         ? 0

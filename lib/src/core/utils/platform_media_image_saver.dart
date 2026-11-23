@@ -64,6 +64,76 @@ abstract final class PlatformMediaImageSaver {
     }
   }
 
+  /// 여러 PNG를 한 번에 저장한다.
+  /// Android: 모두 갤러리에 저장 / iOS: 공유 시트 한 번에 모든 이미지를 전달한다.
+  static Future<PlatformImageSaveOutcome> savePngBatch({
+    required List<({Uint8List bytes, String fileName})> images,
+    Rect? sharePositionOrigin,
+  }) async {
+    if (images.isEmpty) {
+      throw const PlatformMediaImageSaveException('저장할 이미지가 없습니다.');
+    }
+    for (final image in images) {
+      if (!_isPng(image.bytes)) {
+        throw const PlatformMediaImageSaveException('생성된 데이터가 유효한 PNG가 아닙니다.');
+      }
+    }
+
+    final directory = await Directory.systemTemp.createTemp('beatit_setlist_');
+    try {
+      final files = <XFile>[];
+      for (final image in images) {
+        final safeName = _safeFileName(image.fileName);
+        final pngName = safeName.toLowerCase().endsWith('.png')
+            ? safeName
+            : '$safeName.png';
+        final file = File('${directory.path}${Platform.pathSeparator}$pngName');
+        await file.writeAsBytes(image.bytes, flush: true);
+        files.add(XFile(file.path, mimeType: 'image/png'));
+      }
+
+      if (Platform.isAndroid) {
+        for (final file in files) {
+          await _saveToAndroidGallery(file.path, 'image/png');
+        }
+        return PlatformImageSaveOutcome.savedToGallery;
+      }
+
+      if (Platform.isIOS) {
+        final result = await SharePlus.instance.share(
+          ShareParams(
+            files: files,
+            sharePositionOrigin: sharePositionOrigin ?? _defaultShareOrigin(),
+          ),
+        );
+        if (result.status == ShareResultStatus.dismissed) {
+          throw const PlatformMediaImageSaveException('이미지 공유를 취소했습니다.');
+        }
+        if (result.status == ShareResultStatus.unavailable) {
+          throw const PlatformMediaImageSaveException('iOS 공유 메뉴를 사용할 수 없습니다.');
+        }
+        return PlatformImageSaveOutcome.shared;
+      }
+
+      throw const PlatformMediaImageSaveException('지원되지 않는 기기입니다.');
+    } finally {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    }
+  }
+
+  static bool _isPng(Uint8List bytes) =>
+      bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4e &&
+      bytes[3] == 0x47 &&
+      bytes[4] == 0x0d &&
+      bytes[5] == 0x0a &&
+      bytes[6] == 0x1a &&
+      bytes[7] == 0x0a;
+
   /// 클라우드가 내려받은 이미지와 공연에서 생성한 PNG가 공유하는 저장 경로.
   static Future<PlatformImageSaveOutcome> saveImageFile({
     required String filePath,
@@ -142,7 +212,9 @@ abstract final class PlatformMediaImageSaver {
       throw PlatformMediaImageSaveException('Android 갤러리 저장 실패: $error');
     }
     if (result == null) {
-      throw const PlatformMediaImageSaveException('Android 갤러리에 이미지를 저장하지 못했습니다.');
+      throw const PlatformMediaImageSaveException(
+        'Android 갤러리에 이미지를 저장하지 못했습니다.',
+      );
     }
     return PlatformImageSaveOutcome.savedToGallery;
   }

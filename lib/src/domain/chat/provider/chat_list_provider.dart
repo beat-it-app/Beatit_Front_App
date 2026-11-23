@@ -97,6 +97,14 @@ class ChatListNotifier extends Notifier<ChatListState> {
     return const ChatListState();
   }
 
+  Future<ChatRoomDuplicateCheckData> checkDuplicateChatRoom({
+    required List<int> participantIds,
+  }) {
+    return ref.read(chatApiProvider).checkDuplicateChatRoom(
+      participantIds: participantIds,
+    );
+  }
+
   // 생성 직후의 임시 제목만 기억합니다. 방 이름을 수정하는 API는 호출하지 않습니다.
   void rememberCreatedRoomMembers({
     required int chatId,

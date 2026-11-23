@@ -92,10 +92,7 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
       return false;
     }
 
-    state = CloudDownloadState(
-      isDownloading: true,
-      totalCount: files.length,
-    );
+    state = CloudDownloadState(isDownloading: true, totalCount: files.length);
 
     try {
       for (var index = 0; index < files.length; index += 1) {
@@ -110,7 +107,8 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
         );
 
         final task = DownloadTask(
-          taskId: 'cloud_${file.itemId}_${DateTime.now().microsecondsSinceEpoch}',
+          taskId:
+              'cloud_${file.itemId}_${DateTime.now().microsecondsSinceEpoch}',
           url: file.fileUrl,
           filename: fileName,
           directory: _temporaryDirectory,
@@ -125,16 +123,12 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
         final result = await FileDownloader().download(
           task,
           onProgress: (progress) {
-            state = state.copyWith(
-              currentProgress: progress.clamp(0.0, 1.0),
-            );
+            state = state.copyWith(currentProgress: progress.clamp(0.0, 1.0));
           },
         );
 
         if (result.status != TaskStatus.complete) {
-          throw CloudDownloadException(
-            '다운로드에 실패했습니다: $fileName',
-          );
+          throw CloudDownloadException('다운로드에 실패했습니다: $fileName');
         }
 
         // iOS는 시스템 공유 시트에서 사용자가 저장할 위치를 선택합니다.
@@ -189,7 +183,7 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
       );
       return outcome == PlatformImageSaveOutcome.savedToGallery
           ? '이미지 저장이 완료되었습니다.'
-          : '이미지 공유를 완료했습니다. 사진 앱 저장 여부를 확인해주세요.';
+          : '이미지 저장이 완료되었습니다. ';
     }
 
     // Android에는 iOS의 사진/파일 저장 메뉴가 공통으로 제공되지 않으므로
@@ -251,7 +245,9 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
     String fileName,
   ) async {
     final isImage = _isPhoto(fileName, file.mimeType);
-    final destination = isImage ? SharedStorage.images : SharedStorage.downloads;
+    final destination = isImage
+        ? SharedStorage.images
+        : SharedStorage.downloads;
     // Android 10+는 일반적으로 별도의 저장소 권한 요청 없이
     // MediaStore로 저장할 수 있습니다. 먼저 저장을 시도하고 필요한 경우만 요청합니다.
     String? savedLocation;
@@ -285,15 +281,21 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
   bool _isPhoto(String name, String? mimeType) {
     // SVG 등 사진 앱에서 지원하지 않을 수 있는 이미지 형식은 일반 파일로 취급합니다.
     const extensions = <String>{
-      'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'avif',
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+      'webp',
+      'heic',
+      'heif',
+      'bmp',
+      'avif',
     };
     final lowerName = name.toLowerCase();
     final ext = lowerName.contains('.') ? lowerName.split('.').last : '';
     if (extensions.contains(ext)) return true;
     final mime = mimeType?.toLowerCase().split(';').first.trim();
-    return mime != null &&
-        mime.startsWith('image/') &&
-        mime != 'image/svg+xml';
+    return mime != null && mime.startsWith('image/') && mime != 'image/svg+xml';
   }
 
   Future<void> _ensureSharedStoragePermission() async {
@@ -314,9 +316,7 @@ class CloudDownloadNotifier extends Notifier<CloudDownloadState> {
     );
 
     if (status != PermissionStatus.granted) {
-      throw const CloudDownloadException(
-        '기기에 파일을 저장하려면 저장소 권한이 필요합니다.',
-      );
+      throw const CloudDownloadException('기기에 파일을 저장하려면 저장소 권한이 필요합니다.');
     }
   }
 

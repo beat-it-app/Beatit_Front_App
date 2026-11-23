@@ -7,11 +7,23 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
+import 'package:beatit_front_app/src/domain/chat/api/chat_api_exception.dart';
+import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
+import 'package:beatit_front_app/src/domain/chat/provider/chat_list_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/model/team_member_search_result.dart';
 import 'package:beatit_front_app/src/domain/etc/provider/member_selection_provider.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/member_selection_item.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
+
+/// 멤버 선택 후 새 대화 시작 또는 이미 존재하는 대화방 이동을 구분합니다.
+class ChatMemberSelectionResult {
+  const ChatMemberSelectionResult({required this.members, this.existingChatId});
+
+  final List<TeamMemberSearchResult> members;
+  final int? existingChatId;
+}
 
 class ChatMemberSelectionPage extends ConsumerStatefulWidget {
   const ChatMemberSelectionPage({super.key});
@@ -26,6 +38,7 @@ class _ChatMemberSelectionPageState
   final TextEditingController _searchController = TextEditingController();
   final Set<int> _selectedUserIds = <int>{};
   String _searchQuery = '';
+  bool _isCheckingDuplicate = false;
 
   @override
   void initState() {
@@ -47,8 +60,7 @@ class _ChatMemberSelectionPageState
   ) {
     return state.members
         .where(
-          (member) =>
-              member.userId != null && member.userId != currentUserId,
+          (member) => member.userId != null && member.userId != currentUserId,
         )
         .toList(growable: false);
   }
@@ -71,12 +83,11 @@ class _ChatMemberSelectionPageState
       return false;
     }
 
-    return members.every(
-      (member) => _selectedUserIds.contains(member.userId),
-    );
+    return members.every((member) => _selectedUserIds.contains(member.userId));
   }
 
   void _toggleMember(int userId) {
+    if (_isCheckingDuplicate) return;
     setState(() {
       if (!_selectedUserIds.add(userId)) {
         _selectedUserIds.remove(userId);
@@ -85,6 +96,7 @@ class _ChatMemberSelectionPageState
   }
 
   void _toggleAll(List<TeamMemberSearchResult> members) {
+    if (_isCheckingDuplicate) return;
     setState(() {
       if (_isAllSelected(members)) {
         _selectedUserIds.clear();
@@ -97,16 +109,94 @@ class _ChatMemberSelectionPageState
     });
   }
 
-  void _confirm(List<TeamMemberSearchResult> members) {
+  Future<void> _confirm(List<TeamMemberSearchResult> members) async {
+    if (_isCheckingDuplicate) return;
+
     final selectedMembers = members
         .where((member) => _selectedUserIds.contains(member.userId))
         .toList(growable: false);
+    if (selectedMembers.isEmpty) return;
 
-    if (selectedMembers.isEmpty) {
+    final participantIds = selectedMembers
+        .map((member) => member.userId)
+        .whereType<int>()
+        .toList(growable: false);
+    if (participantIds.length != selectedMembers.length) {
+      _showError('멤버 정보를 확인할 수 없습니다.');
       return;
     }
 
-    Navigator.of(context).pop(selectedMembers);
+    setState(() => _isCheckingDuplicate = true);
+    try {
+      final duplicate = await ref
+          .read(chatListProvider.notifier)
+          .checkDuplicateChatRoom(participantIds: participantIds);
+      if (!mounted) return;
+
+      if (!duplicate.exists) {
+        Navigator.of(
+          context,
+        ).pop(ChatMemberSelectionResult(members: selectedMembers));
+        return;
+      }
+
+      if (duplicate.existingChatIds.isEmpty) {
+        _showError('기존 채팅방 정보를 확인할 수 없습니다.');
+        return;
+      }
+
+      // 동일 멤버 단체방이 여러 개면 현재 채팅 목록에서 가장 최근에
+      // 사용한 방을 선택합니다. 목록에 없으면 서버가 반환한 첫 ID를 사용합니다.
+      final roomIds = duplicate.existingChatIds;
+      final currentRooms = ref.read(chatListProvider).rooms;
+      var existingChatId = roomIds.first;
+      for (final room in currentRooms) {
+        if (roomIds.contains(room.chatId)) {
+          existingChatId = room.chatId;
+          break;
+        }
+      }
+
+      if (duplicate.roomType == ChatRoomType.direct) {
+        Navigator.of(context).pop(
+          ChatMemberSelectionResult(
+            members: selectedMembers,
+            existingChatId: existingChatId,
+          ),
+        );
+        return;
+      }
+
+      final createNew = await AppPopup.show(
+        context,
+        title: '이미 존재하는 채팅방입니다.',
+        content: '동일한 멤버가 참여 중인 채팅방이 이미 있습니다. 새 채팅방을 생성하시겠어요?',
+        warningType: WarningType.circle,
+        buttonNum: ButtonNum.two,
+        cancelText: '취소',
+        confirmText: '확인',
+        barrierDismissible: true,
+      );
+      if (!mounted || createNew == null) return;
+      Navigator.of(context).pop(
+        ChatMemberSelectionResult(
+          members: selectedMembers,
+          existingChatId: createNew ? null : existingChatId,
+        ),
+      );
+    } on ChatApiException catch (error) {
+      if (mounted) _showError(error.message);
+    } catch (_) {
+      if (mounted) _showError('채팅방 중복 여부를 확인하지 못했습니다.');
+    } finally {
+      if (mounted) setState(() => _isCheckingDuplicate = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -186,8 +276,11 @@ class _ChatMemberSelectionPageState
                   Expanded(
                     child: AppButton(
                       text: '확인',
+                      isLoading: _isCheckingDuplicate,
                       isDisabled:
-                          memberState.isLoading || _selectedUserIds.isEmpty,
+                          memberState.isLoading ||
+                          _isCheckingDuplicate ||
+                          _selectedUserIds.isEmpty,
                       onPressed: () => _confirm(members),
                     ),
                   ),

@@ -12,6 +12,20 @@ enum ChatRoomType {
   }
 }
 
+/// GET /chatrooms/check-duplicate 응답의 data 필드.
+/// 생성 요청과 달리 첫 메시지를 전송하지 않고 기존 방을 확인합니다.
+class ChatRoomDuplicateCheckData {
+  const ChatRoomDuplicateCheckData({
+    required this.exists,
+    required this.roomType,
+    required this.existingChatIds,
+  });
+
+  final bool exists;
+  final ChatRoomType roomType;
+  final List<int> existingChatIds;
+}
+
 @freezed
 abstract class ChatRoomListResponse with _$ChatRoomListResponse {
   const factory ChatRoomListResponse({

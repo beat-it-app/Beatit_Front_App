@@ -148,6 +148,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
             ),
           ),
         );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!mounted || selected == null) return;
 
     setState(() {
@@ -171,6 +172,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       confirmText: '확인',
       cancelText: '취소',
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (confirmed == true && mounted) {
       Navigator.of(context).pop();
@@ -193,6 +195,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       initialTime: initialTime,
       minuteInterval: 30,
     );
+    // 시트가 닫힐 때 이전 입력창으로 포커스가 돌아와 키보드가 다시 열리지 않게 합니다.
+    FocusManager.instance.primaryFocus?.unfocus();
     if (time == null || !mounted) return;
     setState(() {
       controller.text =
@@ -228,8 +232,9 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
       return int.parse(parts[0]) * 60 + int.parse(parts[1]);
     }
 
-    if (toMinutes(start) >= toMinutes(end)) {
-      return '종료 시간은 시작 시간보다 늦게 설정해주세요.';
+    // 종료가 시작보다 이르면 다음 날로 넘어가는 시간대(예: 18:00~2:00)로 보고 서버가 분할합니다.
+    if (toMinutes(start) == toMinutes(end)) {
+      return '시작 시간과 종료 시간은 다르게 설정해주세요.';
     }
 
     return null;

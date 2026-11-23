@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/auth_session.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
@@ -39,7 +40,7 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
   late final Animation<double> _textTransition;
 
   bool _didPrecacheImages = false;
-  late final Future<AuthSession?> _sessionRestoreFuture;
+  late Future<AuthSession?> _sessionRestoreFuture;
 
   @override
   void initState() {
@@ -94,13 +95,40 @@ class _AuthSplashPageState extends ConsumerState<AuthSplashPage>
     }
 
     await _controller.forward();
-    final session = await _sessionRestoreFuture;
 
-    if (!mounted) {
-      return;
+    while (mounted) {
+      final session = await _sessionRestoreFuture;
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!ref.read(authProvider).hasError) {
+        _navigateAfterSplash(session);
+        return;
+      }
+
+      final retry = await AppPopup.show(
+        context,
+        title: '자동 로그인에 실패했습니다.',
+        content: '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
+        buttonNum: ButtonNum.two,
+        confirmText: '다시 시도',
+        cancelText: '로그인하기',
+        barrierDismissible: false,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (retry != true) {
+        _navigateAfterSplash(null);
+        return;
+      }
+
+      _sessionRestoreFuture = ref.read(authProvider.notifier).restoreSession();
     }
-
-    _navigateAfterSplash(session);
   }
 
   void _navigateAfterSplash(AuthSession? session) {

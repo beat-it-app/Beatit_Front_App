@@ -37,7 +37,12 @@ abstract final class PerformanceImageCapture {
                       data: MediaQuery.of(
                         overlayContext,
                       ).copyWith(textScaler: TextScaler.noScaling),
-                      child: SizedBox(width: width, child: child),
+                      // Overlay에는 Material/DefaultTextStyle이 없어 글자에
+                      // 노란 이중 밑줄이 생기므로 투명 Material로 감싼다.
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: SizedBox(width: width, child: child),
+                      ),
                     ),
                   ),
                 ),

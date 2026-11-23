@@ -161,6 +161,47 @@ class ChatApi {
     }
   }
 
+  Future<ChatRoomDuplicateCheckData> checkDuplicateChatRoom({
+    required List<int> participantIds,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '$_chatRoomsPath/check-duplicate',
+        queryParameters: {'participantIds': participantIds},
+      );
+      final body = _requireSuccessBody(
+        response: response,
+        fallbackMessage: '채팅방 중복 여부를 확인하지 못했습니다.',
+      );
+      final data = _requireDataMap(body, '채팅방 중복 확인 응답 형식이 올바르지 않습니다.');
+      final exists = data['exists'];
+      final type = data['roomType']?.toString().toUpperCase();
+      final chatIds = data['existingChatIds'];
+      if (exists is! bool || chatIds is! List) {
+        throw const ChatApiException(message: '채팅방 중복 확인 응답 형식이 올바르지 않습니다.');
+      }
+      final roomType = switch (type) {
+        'DIRECT' => ChatRoomType.direct,
+        'GROUP' => ChatRoomType.group,
+        _ => throw const ChatApiException(message: '채팅방 유형을 확인할 수 없습니다.'),
+      };
+      final existingChatIds = chatIds
+          .map((id) => _requireInt(id, fieldName: 'existingChatIds'))
+          .toList(growable: false);
+      return ChatRoomDuplicateCheckData(
+        exists: exists,
+        roomType: roomType,
+        existingChatIds: existingChatIds,
+      );
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    } on ChatApiException {
+      rethrow;
+    } catch (_) {
+      throw const ChatApiException(message: '채팅방 중복 확인 응답을 처리하지 못했습니다.');
+    }
+  }
+
   Future<ChatRoomCreateData> createChatRoom({
     required List<int> participantIds,
     required String firstMessageContent,
