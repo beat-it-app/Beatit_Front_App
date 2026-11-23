@@ -236,7 +236,6 @@ class _PerformanceInvitationPageState
   void _onTeamChipTap(int idx) {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
-      // 이미 삭제 대기 상태인 칩을 한 번 더 누르면 삭제 (1개만 남았을 때는 삭제 불가)
       if (_pendingDeleteTeamIndex == idx && _teams.length > 1) {
         final removed = _teams.removeAt(idx) as _TeamGroup;
         removed.dispose();
@@ -247,7 +246,6 @@ class _PerformanceInvitationPageState
         return;
       }
 
-      // 현재 선택된 칩을 다시 누르면 삭제 대기 상태로 전환 (2개 이상일 때만)
       if (_selectedTeamIndex == idx && _teams.length > 1) {
         _pendingDeleteTeamIndex = idx;
       } else {
@@ -745,7 +743,7 @@ class _PerformanceInvitationPageState
                         ),
                         const SizedBox(height: AppSpacing.x4),
                         Text(
-                          '셋리스트는 모바일 초대장을 통해서만 볼 수 있습니다.\n팀 태그를 드래그해서 팀 순서를 변경할 수 있습니다.',
+                          '셋리스트는 모바일 초대장을 통해서만 볼 수 있습니다.\n팀 태그를 꾹 누른 후 드래그해서 팀 순서를 변경할 수 있습니다.',
                           style: FontStyles.semi12.copyWith(
                             color: context.grays.gray5,
                           ),
@@ -795,7 +793,7 @@ class _PerformanceInvitationPageState
                                           ? typedName
                                           : '그룹${idx + 1}';
 
-                                      return ReorderableDragStartListener(
+                                      return ReorderableDelayedDragStartListener(
                                         key: ValueKey(team),
                                         index: idx,
                                         child: GestureDetector(

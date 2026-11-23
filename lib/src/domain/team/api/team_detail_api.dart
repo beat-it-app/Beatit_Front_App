@@ -147,7 +147,7 @@ class TeamDetailApi {
             message = '팀 이름은 필수입니다.';
             break;
           case 'TEAM-004':
-            message = '팀 이름은 100자 이하여야 합니다.';
+            message = '팀 이름은 20자 이하여야 합니다.';
             break;
           case 'TEAM-005':
             message = '팀 설명은 500자 이하여야 합니다.';

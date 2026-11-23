@@ -85,7 +85,7 @@ class _WithdrawalTypeSelectPageState
               // 2. 빗잇 탈퇴하기 카드
               _TypeCard(
                 title: '빗잇 탈퇴하기',
-                subtitle: '빗잇 계정을 삭제할 수 있어요. 계정 삭제 시,\n모든 활동 정보가 삭제 돼요.',
+                subtitle: '빗잇 계정을 삭제할 수 있어요. 계정 삭제 시, 모든 활동 정보가 삭제 돼요.',
                 isSelected: _selectedType == 'app',
                 onTap: () => setState(() => _selectedType = 'app'),
               ),

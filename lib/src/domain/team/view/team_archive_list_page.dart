@@ -7,7 +7,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/domain/team/model/team_archive_model.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_archive_provider.dart';
@@ -27,20 +27,12 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
   final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounce;
   String _searchQuery = '';
-  bool _isSearchFocused = false;
+  bool _isSearchMode = false;
   bool _isRatingSort = false;
 
   @override
   void initState() {
     super.initState();
-    _searchFocusNode.addListener(() {
-      if (mounted) {
-        setState(() {
-          _isSearchFocused = _searchFocusNode.hasFocus;
-        });
-      }
-    });
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(teamArchiveProvider.notifier).fetchArchives();
     });
@@ -52,6 +44,28 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _enterSearchMode() {
+    setState(() {
+      _isSearchMode = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _exitSearchMode() {
+    _debounce?.cancel();
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _isSearchMode = false;
+      _searchQuery = '';
+    });
+    ref.read(teamArchiveProvider.notifier).fetchArchives();
   }
 
   void _onSearchChanged(String query) {
@@ -74,11 +88,9 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
     final colors = theme.colorScheme;
     final state = ref.watch(teamArchiveProvider);
 
-    // 💡 검색창을 터치했는데 아직 아무것도 입력하지 않은 상태
     final bool isSearchingWithEmptyQuery =
-        _isSearchFocused && _searchQuery.isEmpty;
+        _isSearchMode && _searchQuery.isEmpty;
 
-    // 1. 검색어 필터링 (검색 중이면서 미입력이면 빈 리스트로 처리해 '검색된 장소가 없습니다.' 노출)
     List<TeamArchiveItemModel> displayItems = isSearchingWithEmptyQuery
         ? []
         : state.items.where((item) {
@@ -89,7 +101,6 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                 address.contains(_searchQuery);
           }).toList();
 
-    // 2. 별점순 정렬 적용
     if (_isRatingSort) {
       displayItems.sort((a, b) => b.averageRating.compareTo(a.averageRating));
     }
@@ -103,93 +114,113 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
       },
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppTopAppBar.backMore(
-          title: '',
-          onBackPressed: () => Navigator.pop(context),
-          onMorePressed: () {},
-          moreMenuOffset: const Offset(-20, 56),
-          moreMenuItems: [
-            AppDropdownItem(
-              label: '기록하기',
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TeamArchivePage(),
-                  ),
-                );
+        appBar: _isSearchMode
+            ? null
+            : AppTwoAppBar.all(
+                onBackPressed: () => Navigator.pop(context),
+                onSearchPressed: _enterSearchMode,
+                addMenuOffset: const Offset(0, 68),
+                // 👈 '기록하기' 메뉴만 아래로 내림 (64~72 사이로 조절 가능)
+                addMenuItems: [
+                  AppDropdownItem(
+                    label: '기록하기',
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TeamArchivePage(),
+                        ),
+                      );
 
-                if (mounted) {
-                  ref.read(teamArchiveProvider.notifier).fetchArchives();
-                }
-              },
-            ),
-          ],
-        ),
+                      if (mounted) {
+                        ref.read(teamArchiveProvider.notifier).fetchArchives();
+                      }
+                    },
+                  ),
+                ],
+              ),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppSpacing.x8),
-
-                // 1. 검색창 영역
-                Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: context.grays.gray8,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
+                if (_isSearchMode) ...[
+                  const SizedBox(height: AppSpacing.x12),
+                  Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          onTap: () {
-                            if (!_isSearchFocused) {
-                              setState(() {
-                                _isSearchFocused = true;
-                              });
-                            }
-                          },
-                          onChanged: _onSearchChanged,
-                          style: FontStyles.reg18.copyWith(
-                            color: colors.onSurface,
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: context.grays.gray8,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          decoration: InputDecoration(
-                            hintText: '검색어를 입력하세요.',
-                            hintStyle: FontStyles.reg18.copyWith(
-                              color: context.grays.gray5,
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  onChanged: _onSearchChanged,
+                                  style: FontStyles.reg18.copyWith(
+                                    color: colors.onSurface,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '검색어를 입력하세요.',
+                                    hintStyle: FontStyles.reg18.copyWith(
+                                      color: context.grays.gray5,
+                                    ),
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    filled: false,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SvgPicture.asset(
+                                'assets/icons/cal/search.svg',
+                                width: 20,
+                                height: 20,
+                                colorFilter: ColorFilter.mode(
+                                  context.grays.gray5,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      SvgPicture.asset(
-                        'assets/icons/cal/search.svg',
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(
-                          context.grays.gray5,
-                          BlendMode.srcIn,
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _exitSearchMode,
+                        child: SizedBox(
+                          width: 36,
+                          height: 44,
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/icons/appbar/delete.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: ColorFilter.mode(
+                                context.grays.black,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
 
                 const SizedBox(height: AppSpacing.x10),
 
-                // 2. '별점순' 정렬 버튼
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
@@ -229,7 +260,6 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
 
                 const SizedBox(height: AppSpacing.x12),
 
-                // 3. 리스트 영역
                 Expanded(
                   child: state.isLoading && state.items.isEmpty
                       ? const Center(child: CircularProgressIndicator())
@@ -239,8 +269,6 @@ class _TeamArchiveListPageState extends ConsumerState<TeamArchiveListPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                // 💡 아예 등록된 장소가 없을 때만 '기록된 장소가 없습니다.'
-                                // 검색창 포커스(미입력) 또는 검색 결과 없음일 때는 '검색된 장소가 없습니다.'
                                 state.items.isEmpty
                                     ? '기록된 장소가 없습니다.'
                                     : '검색된 장소가 없습니다.',

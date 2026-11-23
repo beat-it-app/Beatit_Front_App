@@ -53,12 +53,12 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
 
   bool get _isTeamNameValid {
     final text = teamNameController.text.trim();
-    return text.isNotEmpty && text.length <= 10;
+    return text.isNotEmpty && text.length <= 20;
   }
 
   String? get _teamNameErrorText {
     if (teamNameController.text.isEmpty) return null;
-    if (!_isTeamNameValid) return '팀 이름은 한 글자 이상 10글자 이하로 작성해주세요.';
+    if (!_isTeamNameValid) return '팀 이름은 한 글자 이상 20글자 이하로 작성해주세요.';
     return null;
   }
 
@@ -182,7 +182,7 @@ class _TeamCreatePageState extends ConsumerState<TeamCreatePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AppTextField(
-                        hintText: '팀 이름 (10글자 이내)',
+                        hintText: '팀 이름 (20글자 이내)',
                         requiredMark: true,
                         label: '팀 이름',
                         controller: teamNameController,

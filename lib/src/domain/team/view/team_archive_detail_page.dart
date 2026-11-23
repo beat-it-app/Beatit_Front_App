@@ -313,7 +313,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     }
   }
 
-  // 💡 별점 삭제 처리 함수 (DELETE /teams/archives/{archiveId}/ratings)
   Future<void> _deleteRating() async {
     try {
       final api = ref.read(teamArchiveApiProvider);
@@ -438,7 +437,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                     const SizedBox(height: 28),
                     Row(
                       children: [
-                        // 💡 수정 상태: 삭제 버튼 / 신규 등록: 취소 버튼
                         Expanded(
                           child: TextButton(
                             style: TextButton.styleFrom(
@@ -463,7 +461,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // 💡 확인 버튼: 기존 별점 그대로 유지하거나 변경된 별점 제출
                         Expanded(
                           child: TextButton(
                             style: TextButton.styleFrom(
@@ -478,7 +475,6 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                             onPressed: () {
                               if (tempRating > 0) {
                                 Navigator.pop(context);
-                                // 기존 별점과 동일하면 불필요한 요청 방지 및 유지
                                 if (!isEditing || tempRating != _myRating) {
                                   _submitRating(tempRating);
                                 }
@@ -519,9 +515,8 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppTopAppBar.backMore(
+        appBar: AppTopAppBar.backOnly(
           onBackPressed: () => Navigator.pop(context),
-          onMorePressed: () {},
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -529,9 +524,8 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
 
     if (_errorMessage != null || _detail == null) {
       return Scaffold(
-        appBar: AppTopAppBar.backMore(
+        appBar: AppTopAppBar.backOnly(
           onBackPressed: () => Navigator.pop(context),
-          onMorePressed: () {},
         ),
         body: Center(
           child: Column(
@@ -559,71 +553,72 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         locationData?.latitude != null && locationData?.longitude != null;
 
     return Scaffold(
-      appBar: AppTopAppBar.backMore(
-        onBackPressed: () => Navigator.pop(context),
-        moreMenuOffset: const Offset(-20, 56),
-        moreMenuItems: [
-          if (detail.isWriter) ...[
-            AppDropdownItem(
-              label: '수정하기',
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TeamArchiveUpdatePage(detail: detail),
-                  ),
-                );
-
-                if (mounted) {
-                  await _fetchDetail();
-                  ref.read(teamArchiveProvider.notifier).fetchArchives();
-                }
-              },
-            ),
-            AppDropdownItem(
-              label: '삭제하기',
-              onPressed: () async {
-                final confirmed = await AppPopup.show(
-                  context,
-                  title: '정말 삭제하시겠습니까?',
-                  content: '삭제된 게시물은\n복구할 수 없습니다.',
-                  warningType: WarningType.triangle,
-                  contentType: ContentType.small,
-                  buttonNum: ButtonNum.two,
-                  buttonSymmetric: ButtonSymmetric.horizontal,
-                  confirmText: '확인',
-                  cancelText: '취소',
-                );
-
-                if (!mounted) return;
-
-                if (confirmed == true) {
-                  try {
-                    await ref
-                        .read(teamArchiveApiProvider)
-                        .deleteArchive(widget.archiveId);
-                    ref.read(teamArchiveProvider.notifier).fetchArchives();
-
-                    if (!context.mounted) return;
-                    Navigator.pushAndRemoveUntil(
+      appBar: detail.isWriter
+          ? AppTopAppBar.backMore(
+              onBackPressed: () => Navigator.pop(context),
+              moreMenuOffset: const Offset(-20, 56),
+              moreMenuItems: [
+                AppDropdownItem(
+                  label: '수정하기',
+                  onPressed: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const TeamArchiveListPage(),
+                        builder: (context) =>
+                            TeamArchiveUpdatePage(detail: detail),
                       ),
-                      (route) => route.isFirst,
                     );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(
+
+                    if (mounted) {
+                      await _fetchDetail();
+                      ref.read(teamArchiveProvider.notifier).fetchArchives();
+                    }
+                  },
+                ),
+                AppDropdownItem(
+                  label: '삭제하기',
+                  onPressed: () async {
+                    final confirmed = await AppPopup.show(
                       context,
-                    ).showSnackBar(SnackBar(content: Text('삭제에 실패했습니다: $e')));
-                  }
-                }
-              },
-            ),
-          ],
-        ],
-      ),
+                      title: '정말 삭제하시겠습니까?',
+                      content: '삭제된 게시물은\n복구할 수 없습니다.',
+                      warningType: WarningType.triangle,
+                      contentType: ContentType.small,
+                      buttonNum: ButtonNum.two,
+                      buttonSymmetric: ButtonSymmetric.horizontal,
+                      confirmText: '확인',
+                      cancelText: '취소',
+                    );
+
+                    if (!mounted) return;
+
+                    if (confirmed == true) {
+                      try {
+                        await ref
+                            .read(teamArchiveApiProvider)
+                            .deleteArchive(widget.archiveId);
+                        ref.read(teamArchiveProvider.notifier).fetchArchives();
+
+                        if (!context.mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TeamArchiveListPage(),
+                          ),
+                          (route) => route.isFirst,
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('삭제에 실패했습니다: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            )
+          : AppTopAppBar.backOnly(onBackPressed: () => Navigator.pop(context)),
       body: SafeArea(
         child: Column(
           children: [

@@ -105,7 +105,6 @@ class _PerformanceLocationSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 💡 다른 항목들과 동일한 [lines.svg 아이콘 + '공연 장소' 라벨]
           Row(
             children: [
               SvgPicture.asset(
@@ -125,15 +124,20 @@ class _PerformanceLocationSectionState
             ],
           ),
           const SizedBox(height: AppSpacing.x8),
+          // 💡 Expanded 대신 Flexible을 사용하여 장소 텍스트 바로 옆에 '지도보기' 버튼이 위치하도록 수정
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
                   name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: FontStyles.med16.copyWith(color: context.grays.gray2),
                 ),
               ),
-              if (hasMap)
+              if (hasMap) ...[
+                const SizedBox(width: AppSpacing.x8),
                 InkWell(
                   onTap: () => setState(() => _showMap = !_showMap),
                   child: Row(
@@ -141,10 +145,12 @@ class _PerformanceLocationSectionState
                     children: [
                       Text(
                         '지도보기',
-                        style: FontStyles.med14.copyWith(
+                        style: FontStyles.med15.copyWith(
                           color: context.brands.beatOrange2,
                           decoration: TextDecoration.underline,
                           decorationColor: context.brands.beatOrange2,
+                          decorationThickness: 1.06,
+                          height: 1,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.x4),
@@ -164,6 +170,7 @@ class _PerformanceLocationSectionState
                     ],
                   ),
                 ),
+              ],
             ],
           ),
           if (_showMap && latitude != null && longitude != null) ...[

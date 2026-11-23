@@ -53,47 +53,50 @@ class TermsOfServicePage extends StatelessWidget {
                 child: _PrivacyTermsContent(),
               ),
 
-              const SizedBox(height: AppSpacing.x24),
+              const SizedBox(height: AppSpacing.x16),
 
               // 3. 오픈소스 라이선스
-              InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const OpenSourceLicensePage(),
-                    ),
-                  );
-                },
+              Material(
+                color: context.grays.gray8,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.x16,
-                    vertical: AppSpacing.x8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.grays.gray8,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '오픈소스 라이선스',
-                        style: FontStyles.bold14.copyWith(
-                          color: colors.onSurface,
-                        ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OpenSourceLicensePage(),
                       ),
-                      SvgPicture.asset(
-                        'assets/icons/auth/back.svg',
-                        width: 16,
-                        height: 16,
-                        colorFilter: ColorFilter.mode(
-                          context.colors.onSurface,
-                          BlendMode.srcIn,
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.x16,
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          '오픈소스 라이선스',
+                          style: FontStyles.bold14.copyWith(
+                            color: colors.onSurface,
+                            height: 1.0,
+                          ),
                         ),
-                      ),
-                    ],
+                        SvgPicture.asset(
+                          'assets/icons/auth/back.svg',
+                          width: 16,
+                          height: 16,
+                          colorFilter: ColorFilter.mode(
+                            colors.onSurface,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -135,71 +138,74 @@ class _TermsExpansionTileState extends State<_TermsExpansionTile> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: Container(
-        decoration: BoxDecoration(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. 헤더 박스: 접혔을 때나 펼쳤을 때나 항상 4개 꼭짓점 라운딩(AppRadius.md) 유지
+        Material(
           color: context.grays.gray8,
           borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: ExpansionTile(
-          initiallyExpanded: widget.initiallyExpanded,
-          onExpansionChanged: (expanded) {
-            setState(() {
-              _isExpanded = expanded;
-            });
-          },
-          backgroundColor: context.grays.gray8,
-          collapsedBackgroundColor: context.grays.gray8,
-          minTileHeight: 34,
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x16,
-            vertical: 0,
-          ),
-          // 💡 기본 맨 끝 화살표 제거
-          trailing: const SizedBox.shrink(),
-          // 💡 텍스트 바로 옆에 toggle down.svg 배치
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  widget.title,
-                  style: FontStyles.bold14.copyWith(
-                    color: colors.onSurface,
-                    height: 1.0,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 6),
-              AnimatedRotation(
-                turns: _isExpanded ? 0.5 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: SvgPicture.asset(
-                  'assets/icons/auth/toggle down.svg',
-                  width: 16,
-                  height: 16,
-                  colorFilter: ColorFilter.mode(
-                    colors.onSurface,
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          children: [
-            Container(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            child: Container(
               width: double.infinity,
-              color: colors.surface,
-              padding: const EdgeInsets.all(AppSpacing.x16),
-              child: widget.child,
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.title,
+                      style: FontStyles.bold14.copyWith(
+                        color: colors.onSurface,
+                        height: 1.0,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: SvgPicture.asset(
+                      'assets/icons/auth/toggle down.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: ColorFilter.mode(
+                        colors.onSurface,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
-      ),
+        // 2. 펼쳐진 본문 영역: 테두리 없는 하얀색 배경으로 부드럽게 열림
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Container(
+            width: double.infinity,
+            color: colors.surface,
+            padding: const EdgeInsets.all(AppSpacing.x16),
+            child: widget.child,
+          ),
+          crossFadeState: _isExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+          sizeCurve: Curves.easeInOut,
+        ),
+      ],
     );
   }
 }
