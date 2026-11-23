@@ -20,8 +20,7 @@ class AlarmItemWidget extends StatelessWidget {
   final String? teamName;
   final bool isBusy;
 
-  String _withoutTeamPrefix(String value) =>
-      withoutTeamPrefix(value, teamName);
+  String _withoutTeamPrefix(String value) => withoutTeamPrefix(value, teamName);
 
   String _elapsedTime(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);
@@ -66,7 +65,8 @@ class AlarmItemWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _withoutTeamPrefix(notification.title),
+                      alarmTitleForType(notification.type) ??
+                          _withoutTeamPrefix(notification.title),
                       style: FontStyles.semi18.copyWith(
                         color: grayTitleTone,
                         height: 1,
@@ -88,10 +88,7 @@ class AlarmItemWidget extends StatelessWidget {
               // 읽음 처리 중에도 알림 생성 시각은 그대로 보여줍니다.
               Text(
                 _elapsedTime(notification.createdAt),
-                style: FontStyles.med12.copyWith(
-                  color: gray.gray5,
-                  height: 1,
-                ),
+                style: FontStyles.med12.copyWith(color: gray.gray5, height: 1),
               ),
             ],
           ),

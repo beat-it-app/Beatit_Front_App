@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:beatit_front_app/src/core/theme/app_theme.dart';
 import 'package:beatit_front_app/src/core/theme/theme_mode_provider.dart'; // 💡 테마 모드 프로바이더 import
 import 'package:beatit_front_app/src/domain/alarm/widget/foreground_alarm_banner_host.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/android_grouped_alarm_notifications.dart';
 import 'package:beatit_front_app/src/domain/auth/api/kakao_auth_client.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/auth_splash_page.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
@@ -21,6 +22,14 @@ Future<void> main() async {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
     } catch (error) {
       debugPrint('[Firebase] initialization failed: $error');
+    }
+  }
+
+  if (!kIsWeb && Platform.isAndroid) {
+    try {
+      await AndroidGroupedAlarmNotifications.instance.initialize();
+    } catch (error) {
+      debugPrint('[AlarmGroup] unavailable: $error');
     }
   }
 
@@ -45,7 +54,6 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: currentThemeMode,
-      // 기존 Navigator Overlay에 Android 포그라운드 배너를 표시한다.
       builder: (context, child) => ForegroundAlarmBannerHost(
         navigatorKey: _rootNavigatorKey,
         child: child ?? const SizedBox.shrink(),

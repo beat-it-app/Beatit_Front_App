@@ -1,5 +1,6 @@
 import 'package:beatit_front_app/src/domain/alarm/provider/alarm_api_provider.dart';
 import 'package:beatit_front_app/src/domain/alarm/model/alarm_notification.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/alarm_visibility.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AlarmState {
@@ -82,7 +83,7 @@ class AlarmNotifier extends Notifier<AlarmState> {
         unreadCount: page.unreadCount,
         page: page.page,
         isLast: page.isLast,
-        notifications: page.notifications,
+        notifications: page.notifications.where(isVisibleInAlarmList).toList(),
       );
     } catch (error) {
       if (requestVersion != _listRequestVersion) return;
@@ -115,7 +116,9 @@ class AlarmNotifier extends Notifier<AlarmState> {
         isLast: page.isLast,
         notifications: [
           ...state.notifications,
-          ...page.notifications.where((item) => !knownIds.contains(item.id)),
+          ...page.notifications.where(
+            (item) => isVisibleInAlarmList(item) && !knownIds.contains(item.id),
+          ),
         ],
       );
     } catch (error) {

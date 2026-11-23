@@ -5,19 +5,17 @@ import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/domain/alarm/provider/alarm_provider.dart';
-import 'package:beatit_front_app/src/domain/alarm/util/alarm_navigation.dart';
+import 'package:beatit_front_app/src/domain/alarm/provider/pending_alarm_push_provider.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/android_grouped_alarm_notifications.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/alarm_push_navigation.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
-import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
-import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
-import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Android/iOS 포그라운드 FCM 알림을 실제 Navigator Overlay 위에 표시한다.
-/// 백그라운드/종료 상태의 기존 시스템 푸시 알림에는 관여하지 않는다.
+/// 포그라운드 알림은 Overlay 배너로 표시한다.
+/// 시스템 알림 탭은 백그라운드/종료 상태에서도 메인 화면 준비 후 처리한다.
 class ForegroundAlarmBannerHost extends ConsumerStatefulWidget {
   const ForegroundAlarmBannerHost({
     super.key,
@@ -38,10 +36,14 @@ class ForegroundAlarmBannerHost extends ConsumerStatefulWidget {
 }
 
 class _ForegroundAlarmBannerHostState
-    extends ConsumerState<ForegroundAlarmBannerHost> {
+    extends ConsumerState<ForegroundAlarmBannerHost>
+    with WidgetsBindingObserver {
   static const _displayDuration = Duration(seconds: 20);
 
   StreamSubscription<RemoteMessage>? _messageSubscription;
+  StreamSubscription<RemoteMessage>? _openedAppSubscription;
+  StreamSubscription<RemoteMessage>? _localTapSubscription;
+  String? _lastSystemTapKey;
   Timer? _hideTimer;
   OverlayEntry? _bannerEntry;
   _ForegroundAlarm? _visibleAlarm;
@@ -49,6 +51,15 @@ class _ForegroundAlarmBannerHostState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final localNotifications = AndroidGroupedAlarmNotifications.instance;
+    _localTapSubscription = localNotifications.onTap.listen(
+      _onSystemNotificationTapped,
+      onError: (Object error) =>
+          debugPrint('[AlarmGroup] tap listener error: $error'),
+    );
+    final localInitialTap = localNotifications.takePendingTap();
+    if (localInitialTap != null) _onSystemNotificationTapped(localInitialTap);
     final injected = widget.messages;
     // iOS도 포그라운드에서는 시스템 배너가 뜨지 않으므로 동일하게 앱 배너를 쓴다.
     if (injected != null ||
@@ -59,12 +70,46 @@ class _ForegroundAlarmBannerHostState
           debugPrint('[ForegroundAlarm] message listener error: $error');
         },
       );
+      // 주입 스트림은 배너 테스트 전용이다. 실제 FCM일 때만 시스템 탭을 구독한다.
+      if (injected == null) {
+        _openedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+          _onSystemNotificationTapped,
+          onError: (Object error) =>
+              debugPrint('[AlarmPush] opened-app listener error: $error'),
+        );
+        _readInitialNotification();
+      }
     }
+  }
+
+  Future<void> _readInitialNotification() async {
+    try {
+      final message = await FirebaseMessaging.instance.getInitialMessage();
+      if (message != null && mounted) _onSystemNotificationTapped(message);
+    } catch (error) {
+      debugPrint('[AlarmPush] initial notification unavailable: $error');
+    }
+  }
+
+  void _onSystemNotificationTapped(RemoteMessage message) {
+    if (!mounted) return;
+    final tapKey = message.messageId ??
+        message.data['notificationId']?.toString() ?? '';
+    if (tapKey.isNotEmpty && _lastSystemTapKey == tapKey) return;
+    _lastSystemTapKey = tapKey;
+    ref.read(pendingAlarmPushProvider.notifier).queue(message);
   }
 
   void _onForegroundMessage(RemoteMessage message) {
     if (!mounted || ref.read(authProvider).asData?.value == null) return;
 
+    // Android 알림창에는 채팅도 포함하고, 종류별 groupKey로 묶는다.
+    // 기존 앱 내부 배너는 채팅 제외 정책을 그대로 유지한다.
+    if (!kIsWeb && Platform.isAndroid && widget.messages == null) {
+      unawaited(
+        AndroidGroupedAlarmNotifications.instance.showForeground(message),
+      );
+    }
     if (message.data['type'] == 'CHAT_MESSAGE') return;
 
     final title = message.notification?.title?.trim() ?? '';
@@ -78,11 +123,7 @@ class _ForegroundAlarmBannerHostState
     }
 
     _hideTimer?.cancel();
-    _visibleAlarm = _ForegroundAlarm(
-      title,
-      body,
-      int.tryParse(message.data['notificationId']?.toString() ?? ''),
-    );
+    _visibleAlarm = _ForegroundAlarm(title, body, message);
 
     if (_bannerEntry == null) {
       final entry = OverlayEntry(builder: _buildBannerEntry);
@@ -183,31 +224,16 @@ class _ForegroundAlarmBannerHostState
     );
   }
 
-  /// 배너를 탭하면 서버의 click API로 읽음 처리와 팀 전환을 하고 대상 화면으로 이동한다.
-  /// 다른 팀의 알림이면 서버가 팀을 전환하므로 팀 관련 상태를 새로고침한다.
+  /// 배너에서도 시스템 푸시와 동일한 /click + 화면 이동 경로를 사용한다.
   Future<void> _openAlarm(_ForegroundAlarm alarm) async {
-    final id = alarm.notificationId;
     _dismiss();
     final navigator = widget.navigatorKey.currentState;
     if (navigator == null) return;
-    if (id == null) {
-      debugPrint('[ForegroundAlarm] notificationId missing in push data');
-      return;
-    }
-
-    final previousTeamId = ref.read(currentTeamProvider).asData?.value?.teamId;
-    final target = await ref
-        .read(alarmProvider.notifier)
-        .readNotification(id, switchTeam: true);
-    if (target == null || !mounted || !navigator.mounted) return;
-
-    if (previousTeamId != target.targetTeamId) {
-      ref.invalidate(currentTeamProvider);
-      ref.invalidate(teamDetailProvider);
-      ref.read(myPageProvider.notifier).fetchMyPage();
-    }
-    ref.invalidate(alarmProvider);
-    navigateToAlarmTarget(navigator, target, notificationTitle: alarm.title);
+    await openAlarmFromPush(
+      ref: ref,
+      navigator: navigator,
+      message: alarm.message,
+    );
   }
 
   void _dismiss() {
@@ -224,9 +250,19 @@ class _ForegroundAlarmBannerHostState
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AndroidGroupedAlarmNotifications.instance.refreshSummaries());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _localTapSubscription?.cancel();
     _dismiss();
     _messageSubscription?.cancel();
+    _openedAppSubscription?.cancel();
     super.dispose();
   }
 
@@ -234,7 +270,13 @@ class _ForegroundAlarmBannerHostState
   Widget build(BuildContext context) {
     // 계정 변경/로그아웃 시 이전 계정의 배너가 남지 않도록 정리한다.
     ref.listen(authProvider, (previous, next) {
-      if (next.asData?.value == null) _dismiss();
+      if (next.asData?.value == null) {
+        _dismiss();
+        // 로그인 복원 중에는 보류된 시스템 알림을 보존한다.
+        if (!next.isLoading && previous?.asData?.value != null) {
+          ref.read(pendingAlarmPushProvider.notifier).clear();
+        }
+      }
     });
 
     // Navigator는 MaterialApp이 생성하고, 배너만 Navigator Overlay에 띄운다.
@@ -243,11 +285,11 @@ class _ForegroundAlarmBannerHostState
 }
 
 class _ForegroundAlarm {
-  const _ForegroundAlarm(this.title, this.body, this.notificationId);
+  const _ForegroundAlarm(this.title, this.body, this.message);
 
   final String title;
   final String body;
-  final int? notificationId;
+  final RemoteMessage message;
 }
 
 /// 배너 디자인은 유지하고 좌/우/위 스와이프 시 이동 애니메이션만 담당한다.
