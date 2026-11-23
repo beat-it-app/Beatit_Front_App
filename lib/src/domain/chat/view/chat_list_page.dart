@@ -54,17 +54,18 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
   }
 
   Future<void> _startChatRoomCreation() async {
-    final selectedMembers = await Navigator.of(context)
-        .push<List<TeamMemberSearchResult>>(
-          MaterialPageRoute<List<TeamMemberSearchResult>>(
+    final selection = await Navigator.of(context)
+        .push<ChatMemberSelectionResult>(
+          MaterialPageRoute<ChatMemberSelectionResult>(
             builder: (_) => const ChatMemberSelectionPage(),
           ),
         );
 
-    if (!mounted || selectedMembers == null || selectedMembers.isEmpty) {
+    if (!mounted || selection == null || selection.members.isEmpty) {
       return;
     }
 
+    final selectedMembers = selection.members;
     final roomName = selectedMembers
         .map((member) => member.userName.trim())
         .where((name) => name.isNotEmpty)
@@ -75,13 +76,33 @@ class _ListChatPageState extends ConsumerState<ListChatPage> {
         .where((url) => url.trim().isNotEmpty)
         .toList(growable: false);
 
+    final existingChatId = selection.existingChatId;
+    ChatRoomSummary? existingRoom;
+    if (existingChatId != null) {
+      for (final room in ref.read(chatListProvider).rooms) {
+        if (room.chatId == existingChatId) {
+          existingRoom = room;
+          break;
+        }
+      }
+    }
+    final currentUserId = ref.read(authProvider).asData?.value?.userId;
+    final existingName = existingRoom == null
+        ? roomName
+        : ref.read(chatListProvider).displayNameFor(existingRoom, currentUserId);
+
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => RoomChatPage(
-          initialRoomName: roomName,
-          initialParticipantCount: selectedMembers.length + 1,
-          initialProfileImageUrls: profileImageUrls,
-          draftMembers: selectedMembers,
+          chatId: existingChatId,
+          initialRoomName: existingName,
+          initialParticipantCount:
+              existingRoom?.participantCount ?? selectedMembers.length + 1,
+          initialProfileImageUrls:
+              existingRoom?.profileImage ?? profileImageUrls,
+          draftMembers: existingChatId == null
+              ? selectedMembers
+              : const <TeamMemberSearchResult>[],
         ),
       ),
     );
