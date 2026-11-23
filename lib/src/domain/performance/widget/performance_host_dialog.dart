@@ -1,3 +1,6 @@
+// lib/src/domain/performance/view/performance_invitation_page.dart (또는 해당 다이얼로그 파일)
+
+import 'dart:convert';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -88,18 +91,21 @@ Future<void> showPerformanceHostDialog({
                     ),
                     const SizedBox(height: AppSpacing.x8),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SvgPicture.asset(
-                          isLink
-                              ? 'assets/icons/performance/link.svg'
-                              : 'assets/icons/performance/call.svg',
-                          colorFilter: ColorFilter.mode(
-                            context.grays.gray1,
-                            BlendMode.srcIn,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3.0),
+                          child: SvgPicture.asset(
+                            isLink
+                                ? 'assets/icons/performance/link.svg'
+                                : 'assets/icons/performance/call.svg',
+                            colorFilter: ColorFilter.mode(
+                              context.grays.gray1,
+                              BlendMode.srcIn,
+                            ),
+                            width: 16.0,
+                            height: 16.0,
                           ),
-                          width: 16.0,
-                          height: 16.0,
                         ),
                         const SizedBox(width: AppSpacing.x8),
                         Expanded(

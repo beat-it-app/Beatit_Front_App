@@ -15,7 +15,7 @@ class AppDropdownItem {
   const AppDropdownItem({
     required this.label,
     required this.onPressed,
-    this.svgLink = null,
+    this.svgLink,
     this.isSelected = false,
     this.enabled = true,
   });
@@ -55,58 +55,16 @@ class AppDropdownList extends StatefulWidget {
          '드롭다운을 여는 버튼의 anchorWidth가 필요합니다.',
        );
 
-  /// 메뉴 항목
-  ///
-  /// 전달된 항목 개수만큼 자동으로 표시된다.
   final List<AppDropdownItem> items;
-
-  /// 메뉴를 여는 버튼
   final AppDropdownTriggerBuilder triggerBuilder;
-
-  /// 드롭다운 메뉴 너비
   final double width;
-
-  /// 드롭다운을 여는 기준 버튼의 너비
-  ///
-  /// [alignment]가 [AppDropdownAlignment.right]일 때
-  /// 메뉴의 오른쪽 끝을 버튼의 오른쪽 끝에 맞추기 위해 사용한다.
-  ///
-  /// 예:
-  /// AppBar 버튼 너비가 60이라면 `anchorWidth: 60`
   final double? anchorWidth;
-
-  /// 각 메뉴 항목의 높이
   final double itemHeight;
-
-  /// 버튼을 기준으로 한 메뉴 정렬 방향
   final AppDropdownAlignment alignment;
-
-  /// 정렬된 기본 위치로부터 추가로 이동할 거리
-  ///
-  /// 왼쪽 정렬:
-  /// - dx가 음수이면 왼쪽 이동
-  /// - dx가 양수이면 오른쪽 이동
-  ///
-  /// 오른쪽 정렬:
-  /// - dx가 음수이면 오른쪽 정렬 지점에서 왼쪽 이동
-  /// - dx가 양수이면 오른쪽 정렬 지점에서 오른쪽 이동
-  ///
-  /// 공통:
-  /// - dy가 양수이면 아래 이동
-  /// - dy가 음수이면 위 이동
   final Offset alignmentOffset;
-
-  /// 항목을 누르고 있을 때 체크 아이콘 표시 여부
   final bool showPressedCheck;
-
-  /// 눌림 상태에서 표시할 체크 아이콘
   final String pressedCheckAsset;
-
-  /// 항목 사이 Divider 표시 여부
   final bool showDividers;
-
-  /// 부모 위젯의 Clip에 메뉴가 잘리지 않도록
-  /// 최상위 Overlay를 사용할지 여부
   final bool useRootOverlay;
 
   @override
@@ -116,11 +74,6 @@ class AppDropdownList extends StatefulWidget {
 class _AppDropdownListState extends State<AppDropdownList> {
   final MenuController _menuController = MenuController();
 
-  /// 실제 MenuAnchor에 전달할 위치를 계산한다.
-  ///
-  /// Flutter의 오른쪽 정렬에서는 가로 alignmentOffset이 기대한 대로
-  /// 적용되지 않을 수 있으므로, 항상 왼쪽 기준으로 배치한 후
-  /// 오른쪽 정렬 좌표를 직접 계산한다.
   Offset get _resolvedAlignmentOffset {
     switch (widget.alignment) {
       case AppDropdownAlignment.left:
@@ -148,38 +101,45 @@ class _AppDropdownListState extends State<AppDropdownList> {
     return MenuAnchor(
       controller: _menuController,
       useRootOverlay: widget.useRootOverlay,
-
-      clipBehavior: Clip.antiAlias,
-
+      // 💡 사방 그림자가 잘리지 않도록 Clip.none 설정
+      clipBehavior: Clip.none,
       alignmentOffset: _resolvedAlignmentOffset,
-
-      style: MenuStyle(
+      style: const MenuStyle(
         alignment: Alignment.topLeft,
-
-        minimumSize: WidgetStatePropertyAll(Size(widget.width, 0)),
-        maximumSize: WidgetStatePropertyAll(
-          Size(widget.width, double.infinity),
-        ),
-
-        backgroundColor: WidgetStatePropertyAll(
-          context.grays.white.withValues(alpha: 0.95),
-        ),
-        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-        shadowColor: WidgetStatePropertyAll(
-          context.grays.black.withValues(alpha: 0.2),
-        ),
-        elevation: const WidgetStatePropertyAll(5),
-        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-        side: const WidgetStatePropertyAll(BorderSide.none),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
+        // 💡 기본 아래쪽 쏠림 그림자와 배경을 투명하게 제거하고 아래 Container에서 직접 스타일링
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+        shadowColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+        side: WidgetStatePropertyAll(BorderSide.none),
+      ),
+      menuChildren: [
+        Container(
+          width: widget.width,
+          decoration: BoxDecoration(
+            // 1. fill color white (투명도 90%)
+            color: Colors.white.withValues(alpha: 0.90),
             borderRadius: BorderRadius.circular(AppRadius.md),
+            // 2. 사방으로 고르게 퍼지는 그림자 (Offset.zero)
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 12,
+                spreadRadius: 1,
+                offset: Offset.zero,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _buildMenuChildren(),
+            ),
           ),
         ),
-      ),
-
-      menuChildren: _buildMenuChildren(),
-
+      ],
       builder: (context, controller, child) {
         return widget.triggerBuilder(context, controller);
       },
@@ -270,21 +230,19 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
         color: Colors.transparent,
         child: InkWell(
           onTap: widget.item.enabled ? widget.onPressed : null,
-
-          // 손가락으로 누르고 있는 동안에만 true가 된다.
           onHighlightChanged: _setPressed,
-
-          // 기본 InkWell splash와 overlay를 제거하고
-          // AnimatedContainer로 눌림 상태를 직접 표현한다.
           splashFactory: NoSplash.splashFactory,
           overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOutCubic,
             width: widget.width,
             height: widget.height,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+            // 3. 앞쪽(left) 여백을 좁게 조정 (12px)
+            padding: const EdgeInsets.only(
+              left: AppSpacing.x12,
+              right: AppSpacing.x16,
+            ),
             color: _isPressed
                 ? context.grays.gray7.withValues(alpha: 0.80)
                 : Colors.transparent,
@@ -302,7 +260,8 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
                       child: FadeTransition(opacity: animation, child: child),
                     );
                   },
-                  child: widget.item.isSelected ||
+                  child:
+                      widget.item.isSelected ||
                           (_isPressed && widget.showPressedCheck)
                       ? Center(
                           child: Padding(
@@ -321,20 +280,18 @@ class _AppDropdownMenuItemState extends State<_AppDropdownMenuItem> {
                         )
                       : const SizedBox.shrink(key: ValueKey('empty-check')),
                 ),
-                widget.item.svgLink != null
-                    ? Center(
-                        child: SvgPicture.asset(
-                          widget.item.svgLink ?? '',
-                          colorFilter: ColorFilter.mode(
-                            textColor,
-                            BlendMode.srcIn,
-                          ),
-                          width: 23,
-                          height: 23,
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-                const SizedBox(width: AppSpacing.x8),
+                // svgLink가 있을 때만 아이콘과 간격(8px) 표시
+                if (widget.item.svgLink != null) ...[
+                  Center(
+                    child: SvgPicture.asset(
+                      widget.item.svgLink!,
+                      colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+                      width: 23,
+                      height: 23,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.x8),
+                ],
                 Expanded(
                   child: Text(
                     widget.item.label,

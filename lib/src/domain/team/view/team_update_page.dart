@@ -121,12 +121,12 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
 
   bool get _isTeamNameValid {
     final text = teamNameController.text.trim();
-    return text.isNotEmpty && text.length <= 10;
+    return text.isNotEmpty && text.length <= 20;
   }
 
   String? get _teamNameErrorText {
     if (teamNameController.text.isEmpty) return null;
-    if (!_isTeamNameValid) return '팀 이름은 한 글자 이상 10글자 이하로 작성해주세요.';
+    if (!_isTeamNameValid) return '팀 이름은 한 글자 이상 20글자 이하로 작성해주세요.';
     return null;
   }
 
@@ -143,7 +143,7 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
     });
   }
 
-  // 💡 초기값 대비 하나라도 수정된 사항이 있는지 검사
+  // 초기값 대비 하나라도 수정된 사항이 있는지 검사
   bool get _hasChanges {
     if (teamNameController.text.trim() != _initialName) return true;
     if (teamDescriptionController.text.trim() != _initialDesc) return true;
@@ -336,7 +336,7 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
                     children: [
                       // 1. 팀 이름
                       AppTextField(
-                        hintText: '팀 이름 (10글자 이내)',
+                        hintText: '팀 이름 (20글자 이내)',
                         requiredMark: true,
                         label: '팀 이름',
                         controller: teamNameController,

@@ -13,7 +13,6 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
-import 'package:beatit_front_app/src/core/widgets/tabs/app_tab_bar.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
 import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
 import 'package:beatit_front_app/src/domain/performance/provider/performance_detail_provider.dart';
@@ -217,12 +216,14 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
               children: [
                 Stack(
                   children: [
-                    // 💡 D-Day 배지 ~ 배너 하단 끝 높이를 48px 이상으로 확보하기 위해 배너 높이 확장 (600 -> 624)
-                    SizedBox(
-                      height: 624,
-                      child: PerformanceHero(
-                        performance: performance,
-                        isMine: showMyPageFeatures,
+                    // ClipRect로 감싸 배너 하단 그림자/블러가 탭바 위로 번지지 않게 차단
+                    ClipRect(
+                      child: SizedBox(
+                        height: 624,
+                        child: PerformanceHero(
+                          performance: performance,
+                          isMine: showMyPageFeatures,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -266,8 +267,7 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                                           BlendMode.srcIn,
                                         ),
                                       ),
-                                      onPressed: () =>
-                                          _openHostDialog(performance),
+                                      onPressed: () => _unavailable('준비 중입니다.'),
                                     ),
                                   if (canEditOrDelete)
                                     AppDropdownList(
@@ -342,14 +342,11 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                 // fromMyPage일 때만 D-Day 밴드 노출
                 if (showMyPageFeatures)
                   _BookingDeadlineBand(performance: performance),
-                // 💡 공연 정보 / 상세 정보 카테고리 탭바 높이 확장
-                SizedBox(
-                  height: 54,
-                  child: AppTabBar(
-                    labels: const ['공연 정보', '상세 정보'],
-                    selectedIndex: _selectedTab,
-                    onChanged: _onTabChanged,
-                  ),
+                // 💡 AppTabBar 파일을 수정하지 않고 높이 60 + FontStyles.semi16이 적용된 전용 탭바 사용
+                _PerformanceDetailTabBar(
+                  labels: const ['공연 정보', '상세 정보'],
+                  selectedIndex: _selectedTab,
+                  onChanged: _onTabChanged,
                 ),
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -406,6 +403,104 @@ class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
                   ),
                 )
               : null,
+        );
+      },
+    );
+  }
+}
+
+/// 공통 AppTabBar를 건드리지 않고 높이 60 + FontStyles.semi16을 적용하는 공연 상세 전용 탭바
+class _PerformanceDetailTabBar extends StatelessWidget {
+  const _PerformanceDetailTabBar({
+    required this.labels,
+    required this.selectedIndex,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  static const _tabGap = 6.0;
+  static const _indicatorThickness = 2.0;
+  static const _trackThickness = 0.7;
+  static const _motionDuration = Duration(milliseconds: 280);
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tabWidth =
+            (constraints.maxWidth - _tabGap * (labels.length - 1)) /
+            labels.length;
+        final indicatorInset = tabWidth > AppSpacing.x20 * 2
+            ? AppSpacing.x20
+            : 0.0;
+        final indicatorWidth = tabWidth - indicatorInset * 2;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                for (var index = 0; index < labels.length; index++) ...[
+                  if (index > 0) const SizedBox(width: _tabGap),
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      selected: index == selectedIndex,
+                      label: labels[index],
+                      child: InkWell(
+                        onTap: () => onChanged(index),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        hoverColor: Colors.transparent,
+                        focusColor: Colors.transparent,
+                        child: SizedBox(
+                          height: 58, // 58 + 하단 인디케이터 2 = 총 높이 60
+                          child: Center(
+                            child: AnimatedDefaultTextStyle(
+                              duration: _motionDuration,
+                              curve: Curves.easeInOutCubic,
+                              style: FontStyles.semi16.copyWith(
+                                color: index == selectedIndex
+                                    ? context.grays.black
+                                    : context.grays.gray5,
+                              ),
+                              child: Text(labels[index]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(
+              height: _indicatorThickness,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: _trackThickness,
+                    child: ColoredBox(color: context.grays.gray5),
+                  ),
+                  AnimatedPositioned(
+                    duration: _motionDuration,
+                    curve: Curves.easeInOutCubic,
+                    left: selectedIndex * (tabWidth + _tabGap) + indicatorInset,
+                    bottom: 0,
+                    height: _indicatorThickness,
+                    width: indicatorWidth,
+                    child: ColoredBox(color: context.grays.black),
+                  ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );

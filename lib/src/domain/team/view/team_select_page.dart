@@ -17,7 +17,9 @@ import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
 import '../../auth/provider/mypage_provider.dart';
 
 class TeamSelectPage extends ConsumerStatefulWidget {
-  const TeamSelectPage({super.key});
+  const TeamSelectPage({super.key, this.showBackButton = false});
+
+  final bool showBackButton;
 
   @override
   ConsumerState<TeamSelectPage> createState() => _TeamSelectPageState();
@@ -25,18 +27,16 @@ class TeamSelectPage extends ConsumerStatefulWidget {
 
 class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
   String? _selectedBox;
-  bool _isSelecting = false; // 중복 선택 및 이동 방지 가드
+  bool _isSelecting = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 내 팀 목록 조회 (GET /teams/me)
       ref.read(teamSelectProvider.notifier).fetchMyTeams();
     });
   }
 
-  // 카드 클릭 시 팀 활성화 API(POST /teams/select/{teamPublicId}) 호출
   Future<void> _handleTeamCardTap(MyTeamModel team) async {
     if (_isSelecting) return;
 
@@ -88,15 +88,18 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      // 💡 AppTwoAppBar.add 적용: 뒤로가기 + 우측 '+' 버튼 드롭다운 자동 연결
       appBar: hasTeam
-          ? AppTwoAppBar.add(
+          ? AppTwoAppBar(
               title: '',
-              onBackPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                }
-              },
+              showBackButton: widget.showBackButton,
+              trailing: AppTwoAppBarTrailing.add,
+              onBackPressed: widget.showBackButton
+                  ? () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    }
+                  : null,
               addMenuOffset: const Offset(-5, 60),
               addMenuItems: [
                 AppDropdownItem(
@@ -136,7 +139,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     );
   }
 
-  // 가입된 팀이 없을 때 빈 화면
   Widget _buildTeamEmptyBody(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
@@ -206,7 +208,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     );
   }
 
-  // 가입된 팀 목록 렌더링
   Widget _buildTeamExistBody(BuildContext context, List<MyTeamModel> teams) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
@@ -229,7 +230,6 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     );
   }
 
-  // 팀 카드 위젯 빌더
   Widget _buildTeamItemCard(BuildContext context, MyTeamModel team) {
     final rawDate = team.createdAt;
     final formattedDate = rawDate.length >= 10
@@ -265,7 +265,7 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
             children: [
               Positioned.fill(
                 child: Image.network(
-                  imageUrl!,
+                  imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       Container(color: const Color(0xFF1C1C1E)),

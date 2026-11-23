@@ -29,7 +29,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.269219968306-rc52umj39t821joakhuq5rb2ngpeh526</string>
+				<string>com.googleusercontent.apps.942214017804-7oj7c9fihfpkqa1rogo035f4rlq34i07</string>
 			</array>
 		</dict>
 		<dict>
@@ -52,7 +52,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GIDClientID</key>
-	<string>269219968306-rc52umj39t821joakhuq5rb2ngpeh526.apps.googleusercontent.com</string>
+	<string>942214017804-7oj7c9fihfpkqa1rogo035f4rlq34i07.apps.googleusercontent.com</string>
 	<key>KAKAO_APP_KEY</key>
 	<string>94cff68fd6d931048f34e82f8aabd42</string>
 	<key>LSApplicationQueriesSchemes</key>
