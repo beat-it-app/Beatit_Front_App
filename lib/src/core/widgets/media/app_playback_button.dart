@@ -1,5 +1,6 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -47,14 +48,17 @@ class AppPlaybackButton extends StatelessWidget {
                 ),
               ],
             ),
-            child: Center(
-              child: SvgPicture.asset(
-                iconPath,
-                width: 27.0,
-                height: 27.0,
-                colorFilter: ColorFilter.mode(
-                  context.grays.gray1,
-                  BlendMode.srcIn,
+            child: Padding(
+              padding: EdgeInsets.only(left: AppSpacing.x4),
+              child: Center(
+                child: SvgPicture.asset(
+                  iconPath,
+                  width: 27.0,
+                  height: 27.0,
+                  colorFilter: ColorFilter.mode(
+                    context.grays.gray1,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),
