@@ -12,8 +12,8 @@ import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
 
 import 'package:beatit_front_app/src/domain/auth/provider/signup_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/privacy_consent_popup.dart';
-import 'package:beatit_front_app/src/domain/auth/widget/service_consent_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/privacy_consent_page.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/service_consent_page.dart';
 
 class SignupPage extends ConsumerStatefulWidget {
   const SignupPage({super.key});
@@ -191,11 +191,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     });
   }
 
-  Future<void> _showTermsConsentPopup() async {
-    final isAgreed = await ServiceConsentPopup.show(
-      context,
-      title: '서비스 이용약관',
-      confirmText: '동의하기',
+  Future<void> _openTermsConsentPage() async {
+    final isAgreed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const ServiceConsentPage()),
     );
 
     if (!mounted || isAgreed != true) {
@@ -207,11 +205,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     });
   }
 
-  Future<void> _showPrivacyConsentPopup() async {
-    final isAgreed = await PrivacyConsentPopup.show(
-      context,
-      title: '개인정보 수집 및 이용 동의',
-      confirmText: '동의하기',
+  Future<void> _openPrivacyConsentPage() async {
+    final isAgreed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const PrivacyConsentPage()),
     );
 
     if (!mounted || isAgreed != true) {
@@ -548,7 +544,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                                 ),
 
                                 _AgreementDetailButton(
-                                  onTap: _showTermsConsentPopup,
+                                  onTap: _openTermsConsentPage,
                                 ),
                               ],
                             ),
@@ -590,7 +586,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                                 ),
 
                                 _AgreementDetailButton(
-                                  onTap: _showPrivacyConsentPopup,
+                                  onTap: _openPrivacyConsentPage,
                                 ),
                               ],
                             ),
