@@ -379,6 +379,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       cancelText: '취소',
       barrierDismissible: false,
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     return shouldDiscard == true;
   }
@@ -444,6 +445,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       startYear: _firstScheduleDate.year,
       maxDate: _lastScheduleDate,
     );
+    // 시트가 닫힐 때 이전 입력창으로 포커스가 돌아와 키보드가 다시 열리지 않게 합니다.
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedDate == null) return;
 
@@ -464,6 +467,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       // 사용자가 확인하기 전까지 입력창의 값은 비어 있습니다.
       initialTime: _startTime ?? TimeOfDay(hour: currentHour, minute: 0),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedTime == null) return;
 
@@ -507,6 +511,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
                 )),
       excludeMidnightHour: true,
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedTime == null) return;
 
@@ -650,6 +655,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             const LocationSearchPage(returnRegisteredLocationOnSelect: true),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedLocation == null) {
       return;
@@ -683,6 +689,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
             ),
           ),
         );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selected == null) {
       return;
@@ -718,6 +725,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
         builder: (_) => const MusicSearchPage(returnOnSelect: true),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (!mounted || selectedMusic == null) {
       return;
@@ -755,6 +763,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     }
 
     final pickedFiles = await FilePicker.pickFiles();
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!mounted || pickedFiles.isEmpty) {
       return;
     }
@@ -842,6 +851,7 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
       warningType: WarningType.triangle,
       confirmText: '확인',
     );
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   String _fileExtension(String fileName) {
@@ -893,18 +903,20 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     String? fileSize,
   }) {
     FocusScope.of(context).unfocus();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ScheduleFilePreviewPage(
-          fileName: fileName,
-          source: source,
-          fileSize: fileSize,
-          contextTitle: _titleController.text.trim().isEmpty
-              ? null
-              : _titleController.text.trim(),
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ScheduleFilePreviewPage(
+              fileName: fileName,
+              source: source,
+              fileSize: fileSize,
+              contextTitle: _titleController.text.trim().isEmpty
+                  ? null
+                  : _titleController.text.trim(),
+            ),
+          ),
+        )
+        .whenComplete(() => FocusManager.instance.primaryFocus?.unfocus());
   }
 
   DateTime? _scheduleStartsAt(DateTime date) {
