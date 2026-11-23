@@ -178,6 +178,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
         builder: (_) => const MusicSearchPage(returnOnSelect: true),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (chosen == null || !mounted) return;
 
     _musicChoices[id] = chosen;
@@ -196,6 +197,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
             const LocationSearchPage(returnRegisteredLocationOnSelect: true),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (chosen == null || !mounted) return;
 
     _placeChoices[id] = chosen;
@@ -218,6 +220,8 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       startYear: now.year,
       maxDate: now.add(const Duration(days: 365)),
     );
+    // 시트가 닫힐 때 이전 입력창으로 포커스가 돌아와 키보드가 다시 열리지 않게 합니다.
+    FocusManager.instance.primaryFocus?.unfocus();
     if (date == null || !mounted) return;
 
     setState(() {
@@ -238,6 +242,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       initialTime: initialTime,
       minuteInterval: 10,
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (time == null || !mounted) return;
 
     setState(() {
@@ -431,6 +436,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
       confirmText: '확인',
       cancelText: '취소',
     );
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (confirmed == true && mounted) {
       Navigator.of(context).maybePop();

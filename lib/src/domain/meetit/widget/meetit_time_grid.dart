@@ -81,7 +81,15 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
   static const double _cellHeight = 40.0;
   static const double _horizontalDragAreaHeight = 40.0;
 
+  /// 자정 이후(00시~종료)와 전날 저녁(시작~24시) 사이의 표시용 공백.
+  /// 30분 셀 2개의 높이이므로 정확히 1시간만큼 떨어져 보입니다.
+  static const double _overnightGapHeight = _cellHeight * 2;
+
   final ScrollController _horizontalScrollController = ScrollController();
+
+  /// 최신 백엔드 timetableGrid에는 응답자가 없는 슬롯도 포함됩니다.
+  /// 이 목록을 기준으로 활성 칸을 판정해야 다음 날 새벽 날짜가 이중 확장되지 않습니다.
+  Set<DateTime> _validSlotStarts = <DateTime>{};
 
   Set<DateTime> _editableSlots = <DateTime>{};
   Set<DateTime> _dragBaseSelection = <DateTime>{};
@@ -131,13 +139,21 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
       return _buildEmptyMessage(context, '시작 시간과 종료 시간을 확인해주세요.');
     }
 
+    // 백엔드 candidateDates는 다음 날 새벽을 포함한 실제 슬롯 날짜입니다.
+    // 프론트에서 날짜를 다시 늘리지 않고, 서버가 제공한 슬롯만 활성화합니다.
+    _validSlotStarts = widget.timetableGrid
+        .map((slot) => _parseSlotStartTime(slot.slotStartTime))
+        .whereType<DateTime>()
+        .toSet();
+    final gridDates = dates;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableGridWidth = math.max(
           0.0,
           constraints.maxWidth - _timeLabelWidth,
         );
-        final gridWidth = dates.length * _cellWidth;
+        final gridWidth = gridDates.length * _cellWidth;
         final canScrollHorizontally = gridWidth > availableGridWidth;
 
         return Row(
@@ -161,10 +177,10 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildDateHeader(context, dates),
+                        _buildDateHeader(context, gridDates),
                         _buildDataGrid(
                           context,
-                          dates: dates,
+                          dates: gridDates,
                           slotCount: slotCount,
                         ),
                         _buildHorizontalDragArea(canScrollHorizontally),
@@ -354,7 +370,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
   }
 
   Widget _buildTimeLabels(BuildContext context, int slotCount) {
-    final gridHeight = slotCount * _cellHeight;
+    final gridHeight = slotCount * _cellHeight + _gapHeight;
 
     return SizedBox(
       width: _timeLabelWidth,
@@ -362,23 +378,50 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (var boundary = 0; boundary <= slotCount; boundary++)
-            if (_shouldShowTimeLabel(boundary, slotCount))
-              Positioned(
-                left: 0,
-                top: _headerHeight + boundary * _cellHeight - 8.0,
-                child: Text(
-                  _formatTime(_minutesForBoundary(boundary)),
-                  style: FontStyles.reg14.copyWith(color: context.grays.gray2),
+          if (_gapHeight > 0) ...[
+            // 위쪽 새벽 구간과 아래쪽 저녁 구간은 각각의 시간축을 표시합니다.
+            // 새벽 종료/저녁 시작 경계에는 서로 다른 라벨이 필요합니다.
+            for (var boundary = 0; boundary <= _tailRows; boundary++)
+              if ((boundary * _slotMinutes) % 60 == 0)
+                _buildTimeLabel(context, boundary * _slotMinutes,
+                    boundary * _cellHeight),
+            for (var boundary = _tailRows; boundary <= slotCount; boundary++)
+              if ((_startMinutes +
+                          (boundary - _tailRows) * _slotMinutes) %
+                      60 ==
+                  0)
+                _buildTimeLabel(
+                  context,
+                  _startMinutes + (boundary - _tailRows) * _slotMinutes,
+                  boundary * _cellHeight + _gapHeight,
                 ),
-              ),
+          ] else ...[
+            for (var boundary = 0; boundary <= slotCount; boundary++)
+              if (_minutesForBoundary(boundary) % 60 == 0)
+                _buildTimeLabel(
+                  context,
+                  _minutesForBoundary(boundary),
+                  boundary * _cellHeight,
+                ),
+          ],
         ],
       ),
     );
   }
 
-  bool _shouldShowTimeLabel(int boundary, int slotCount) {
-    return _minutesForBoundary(boundary) % 60 == 0;
+  Widget _buildTimeLabel(
+    BuildContext context,
+    int minutes,
+    double top,
+  ) {
+    return Positioned(
+      left: 0,
+      top: _headerHeight + top - 8.0,
+      child: Text(
+        _formatTime(minutes),
+        style: FontStyles.reg14.copyWith(color: context.grays.gray2),
+      ),
+    );
   }
 
   Widget _buildDateHeader(BuildContext context, List<DateTime> dates) {
@@ -419,7 +462,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     required List<DateTime> dates,
     required int slotCount,
   }) {
-    final gridHeight = slotCount * _cellHeight;
+    final gridHeight = slotCount * _cellHeight + _gapHeight;
     final gridWidth = dates.length * _cellWidth;
 
     final grid = SizedBox(
@@ -431,17 +474,26 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
             for (var column = 0; column < dates.length; column++)
               Positioned(
                 left: column * _cellWidth,
-                top: row * _cellHeight,
+                top: _rowTop(row),
                 width: _cellWidth,
                 height: _cellHeight,
                 child: ColoredBox(
-                  color: _cellColor(
-                    context,
-                    slotStart: _slotForPosition(
-                      dates,
-                      _GridPosition(row: row, column: column),
-                    ),
-                  ),
+                  color:
+                      _isActiveSlot(
+                        _slotForPosition(
+                          dates,
+                          _GridPosition(row: row, column: column),
+                        ),
+                      )
+                      ? _cellColor(
+                          context,
+                          slotStart: _slotForPosition(
+                            dates,
+                            _GridPosition(row: row, column: column),
+                          ),
+                        )
+                      // 후보 시간대가 아닌 칸은 선택할 수 없는 회색으로 표시합니다.
+                      : context.grays.gray7,
                 ),
               ),
           Positioned.fill(
@@ -453,8 +505,9 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                   slotCount: slotCount,
                   cellWidth: _cellWidth,
                   cellHeight: _cellHeight,
-                  startMinutes:
-                      widget.startTime.hour * 60 + widget.startTime.minute,
+                  startMinutes: _startMinutes,
+                  tailRows: _tailRows,
+                  gapHeight: _gapHeight,
                 ),
               ),
             ),
@@ -483,6 +536,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
           if (position == null) return;
 
           final slot = _slotForPosition(dates, position);
+          if (!_isActiveSlot(slot)) return;
           final next = Set<DateTime>.of(_editableSlots);
           if (next.contains(slot)) {
             next.remove(slot);
@@ -502,6 +556,10 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
           _dragStart = position;
           _dragBaseSelection = Set<DateTime>.of(_editableSlots);
           final startSlot = _slotForPosition(dates, position);
+          if (!_isActiveSlot(startSlot)) {
+            _dragStart = null;
+            return;
+          }
           _dragAddsSelection = !_editableSlots.contains(startSlot);
           _applyDragSelection(dates, position);
         },
@@ -661,6 +719,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
           dates,
           _GridPosition(row: row, column: column),
         );
+        if (!_isActiveSlot(slot)) continue;
         if (_dragAddsSelection) {
           next.add(slot);
         } else {
@@ -693,12 +752,21 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
 
     if (clampToGrid) {
       dx = dx.clamp(0.0, columnCount * _cellWidth - 0.001).toDouble();
-      dy = dy.clamp(0.0, rowCount * _cellHeight - 0.001).toDouble();
+      dy = dy.clamp(0.0, rowCount * _cellHeight + _gapHeight - 0.001)
+          .toDouble();
     }
 
     if (dx < 0 || dy < 0) return null;
-    if (dx >= columnCount * _cellWidth || dy >= rowCount * _cellHeight) {
+    if (dx >= columnCount * _cellWidth ||
+        dy >= rowCount * _cellHeight + _gapHeight) {
       return null;
+    }
+
+    // 1시간 높이의 공백에는 셀이 없으므로 탭/드래그로 선택할 수 없습니다.
+    if (_gapHeight > 0) {
+      final gapTop = _tailRows * _cellHeight;
+      if (dy >= gapTop && dy < gapTop + _gapHeight) return null;
+      if (dy >= gapTop + _gapHeight) dy -= _gapHeight;
     }
 
     return _GridPosition(
@@ -719,22 +787,46 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     );
   }
 
+  int get _startMinutes => widget.startTime.hour * 60 + widget.startTime.minute;
+  int get _endMinutes => widget.endTime.hour * 60 + widget.endTime.minute;
+
+  /// 백엔드는 종료 시간이 시작 시간과 같아도 다음 날까지 24시간을 생성합니다.
+  bool get _isOvernight => _endMinutes <= _startMinutes;
+
+  /// 새벽 구간이 있을 때만 두 시간대 사이에 공백을 둡니다.
+  double get _gapHeight => _tailRows > 0 ? _overnightGapHeight : 0.0;
+
+  double _rowTop(int row) => row * _cellHeight +
+      (row >= _tailRows ? _gapHeight : 0.0);
+
+  /// 밤을 넘기는 경우 시간표 위쪽에 먼저 놓이는 새벽 칸(0시~종료 시간) 수입니다.
+  int get _tailRows => _isOvernight ? (_endMinutes / _slotMinutes).ceil() : 0;
+
   int get _slotCount {
-    final start = widget.startTime.hour * 60 + widget.startTime.minute;
-    final end = widget.endTime.hour * 60 + widget.endTime.minute;
-    if (end <= start) return 0;
+    final start = _startMinutes;
+    final end = _endMinutes;
+    if (end <= start) {
+      return _tailRows + ((24 * 60 - start) / _slotMinutes).ceil();
+    }
     return ((end - start) / _slotMinutes).ceil();
   }
 
   int _minutesForRow(int row) {
-    final start = widget.startTime.hour * 60 + widget.startTime.minute;
-    return start + row * _slotMinutes;
+    if (row < _tailRows) return row * _slotMinutes;
+    return _startMinutes + (row - _tailRows) * _slotMinutes;
   }
 
   int _minutesForBoundary(int boundary) {
-    final start = widget.startTime.hour * 60 + widget.startTime.minute;
-    return start + boundary * _slotMinutes;
+    if (boundary > 0 && boundary >= _slotCount) {
+      return _minutesForRow(boundary - 1) + _slotMinutes;
+    }
+    return _minutesForRow(boundary);
   }
+
+  /// 서버가 실제로 생성한 슬롯만 활성화합니다.
+  /// candidateDates에는 새벽이 포함된 다음 날도 있으므로 날짜만으로 판단하면
+  /// 마지막 날 저녁처럼 존재하지 않는 슬롯이 선택되는 오류가 생깁니다.
+  bool _isActiveSlot(DateTime slot) => _validSlotStarts.contains(slot);
 
   bool get _canEdit {
     return widget.mode == MeetitTimeGridMode.edit && !widget.showAllSchedule;
@@ -781,6 +873,8 @@ class _MeetitGridLinePainter extends CustomPainter {
     required this.cellWidth,
     required this.cellHeight,
     required this.startMinutes,
+    required this.tailRows,
+    required this.gapHeight,
   });
 
   final Color lineColor;
@@ -789,6 +883,8 @@ class _MeetitGridLinePainter extends CustomPainter {
   final double cellWidth;
   final double cellHeight;
   final int startMinutes;
+  final int tailRows;
+  final double gapHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -797,26 +893,40 @@ class _MeetitGridLinePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..isAntiAlias = false;
 
-    // 가장 바깥 border: 0.5
-    paint.strokeWidth = 0.5;
-    canvas.drawRect(
-      Rect.fromLTWH(0.25, 0.25, size.width - 0.5, size.height - 0.5),
-      paint,
-    );
+    // 공백을 가로지르는 테두리/구분선을 그리지 않고 각 시간대를 분리합니다.
+    void drawSection(int firstRow, int rowCount, double top) {
+      if (rowCount <= 0) return;
+      final width = columnCount * cellWidth;
+      final height = rowCount * cellHeight;
 
-    // 날짜 구분선: 1.0
-    paint.strokeWidth = 1.0;
-    for (var column = 1; column < columnCount; column++) {
-      final x = column * cellWidth;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+      paint.strokeWidth = 0.5;
+      canvas.drawRect(
+        Rect.fromLTWH(0.25, top + 0.25, width - 0.5, height - 0.5),
+        paint,
+      );
+
+      paint.strokeWidth = 1.0;
+      for (var column = 1; column < columnCount; column++) {
+        final x = column * cellWidth;
+        canvas.drawLine(Offset(x, top), Offset(x, top + height), paint);
+      }
+
+      for (var row = 1; row < rowCount; row++) {
+        final minutes = firstRow < tailRows
+            ? (firstRow + row) * 30
+            : startMinutes + (firstRow + row - tailRows) * 30;
+        paint.strokeWidth = minutes % 60 == 0 ? 1.0 : 0.5;
+        final y = top + row * cellHeight;
+        canvas.drawLine(Offset(0, y), Offset(width, y), paint);
+      }
     }
 
-    // 정각: 1.0 / 30분: 0.5
-    for (var row = 1; row < slotCount; row++) {
-      final boundaryMinutes = startMinutes + row * 30;
-      paint.strokeWidth = boundaryMinutes % 60 == 0 ? 1.0 : 0.5;
-      final y = row * cellHeight;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    if (gapHeight > 0) {
+      drawSection(0, tailRows, 0);
+      drawSection(tailRows, slotCount - tailRows,
+          tailRows * cellHeight + gapHeight);
+    } else {
+      drawSection(0, slotCount, 0);
     }
   }
 
@@ -827,7 +937,9 @@ class _MeetitGridLinePainter extends CustomPainter {
         oldDelegate.slotCount != slotCount ||
         oldDelegate.cellWidth != cellWidth ||
         oldDelegate.cellHeight != cellHeight ||
-        oldDelegate.startMinutes != startMinutes;
+        oldDelegate.startMinutes != startMinutes ||
+        oldDelegate.tailRows != tailRows ||
+        oldDelegate.gapHeight != gapHeight;
   }
 }
 
