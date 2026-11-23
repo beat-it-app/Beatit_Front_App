@@ -61,12 +61,17 @@ class AppButton extends StatelessWidget {
               color: _loadingColor(colors),
             ),
           )
-        : Text(text);
+        : Text(text, style: FontStyles.semi16);
 
     final button = switch (variant) {
       ButtonVariant.primary => FilledButton(
         onPressed: _isDisabled ? null : onPressed,
-        style: _sizeStyle,
+        style: _sizeStyle.merge(
+          FilledButton.styleFrom(
+            foregroundColor: AppColor.white,
+            disabledForegroundColor: colors.onSurfaceVariant,
+          ),
+        ),
         child: child,
       ),
       ButtonVariant.black => FilledButton(
@@ -140,7 +145,7 @@ class AppButton extends StatelessWidget {
 
   Color _loadingColor(ColorScheme colors) {
     return switch (variant) {
-      ButtonVariant.primary => colors.onPrimary,
+      ButtonVariant.primary => AppColor.white,
       ButtonVariant.black => colors.onSecondary,
       ButtonVariant.white => colors.onSurface,
       ButtonVariant.gray => colors.onSurface,
