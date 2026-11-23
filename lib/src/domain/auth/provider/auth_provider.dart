@@ -57,7 +57,6 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
 
   Future<AuthSession?> restoreSession() async {
     final tokenStorage = ref.read(authTokenStorageProvider);
-    state = const AsyncLoading();
 
     try {
       final refreshToken = await tokenStorage.readRefreshToken();
@@ -67,6 +66,8 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
         state = const AsyncData(null);
         return null;
       }
+
+      state = const AsyncLoading();
 
       final result = await ref
           .read(authApiProvider)
