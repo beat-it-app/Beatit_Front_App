@@ -125,7 +125,7 @@ class _AppTextFieldState extends State<AppTextField> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = FontStyles.semi16.copyWith(color: colors.onSurface);
+    final labelStyle = FontStyles.med15.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
@@ -160,89 +160,89 @@ class _AppTextFieldState extends State<AppTextField> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.enabled && widget.readOnly ? widget.onTap : null,
           child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          height: widget.height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-          decoration: BoxDecoration(
-            color: widget.enabled
-                ? widget.fillColor ?? inputTheme.fillColor
-                : colors.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: _borderColor(colors),
-              width: _borderWidth,
+            duration: const Duration(milliseconds: 120),
+            height: widget.height,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+            decoration: BoxDecoration(
+              color: widget.enabled
+                  ? widget.fillColor ?? inputTheme.fillColor
+                  : colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(
+                color: _borderColor(colors),
+                width: _borderWidth,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              if (widget.prefixIcon != null) ...[
-                IconTheme(
-                  data: IconThemeData(
-                    color: inputTheme.suffixIconColor,
-                    size: 20,
+            child: Row(
+              children: [
+                if (widget.prefixIcon != null) ...[
+                  IconTheme(
+                    data: IconThemeData(
+                      color: inputTheme.suffixIconColor,
+                      size: 20,
+                    ),
+                    child: widget.prefixIcon!,
                   ),
-                  child: widget.prefixIcon!,
-                ),
-                const SizedBox(width: AppSpacing.x8),
-              ],
-              Expanded(
-                child: Center(
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: AbsorbPointer(
-                      absorbing: widget.readOnly && widget.onTap != null,
-                      child: TextFormField(
-                      controller: widget.controller,
-                      focusNode: _focusNode,
-                      enabled: widget.enabled,
-                      readOnly: widget.readOnly,
-                      obscureText: widget.obscureText,
-                      keyboardType: widget.keyboardType,
-                      textInputAction: widget.textInputAction,
-                      onChanged: widget.onChanged,
-                      onTap: widget.onTap,
-                      cursorColor: colors.primary,
-                      style: FontStyles.reg18.copyWith(
-                        color: inputTextColor,
-                        height: 1.0,
-                      ),
-                      decoration: InputDecoration(
-                        isCollapsed: true,
-                        filled: false,
-                        fillColor: Colors.transparent,
-                        hintText: widget.hintText,
-                        hintStyle: FontStyles.reg18.copyWith(
-                          color: hintColor,
-                          height: 1.0,
+                  const SizedBox(width: AppSpacing.x8),
+                ],
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: AbsorbPointer(
+                        absorbing: widget.readOnly && widget.onTap != null,
+                        child: TextFormField(
+                          controller: widget.controller,
+                          focusNode: _focusNode,
+                          enabled: widget.enabled,
+                          readOnly: widget.readOnly,
+                          obscureText: widget.obscureText,
+                          keyboardType: widget.keyboardType,
+                          textInputAction: widget.textInputAction,
+                          onChanged: widget.onChanged,
+                          onTap: widget.onTap,
+                          cursorColor: colors.primary,
+                          style: FontStyles.med17.copyWith(
+                            color: inputTextColor,
+                            height: 1.0,
+                          ),
+                          decoration: InputDecoration(
+                            isCollapsed: true,
+                            filled: false,
+                            fillColor: Colors.transparent,
+                            hintText: widget.hintText,
+                            hintStyle: FontStyles.med17.copyWith(
+                              color: hintColor,
+                              height: 1.0,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onTapOutside: (_) {
+                            FocusScope.of(context).unfocus();
+                          },
                         ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        focusedErrorBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onTapOutside: (_) {
-                        FocusScope.of(context).unfocus();
-                      },
                       ),
                     ),
                   ),
                 ),
-              ),
-              if (widget.suffixIcon != null) ...[
-                const SizedBox(width: AppSpacing.x8),
-                IconTheme(
-                  data: IconThemeData(
-                    color: inputTheme.suffixIconColor,
-                    size: 20,
+                if (widget.suffixIcon != null) ...[
+                  const SizedBox(width: AppSpacing.x8),
+                  IconTheme(
+                    data: IconThemeData(
+                      color: inputTheme.suffixIconColor,
+                      size: 20,
+                    ),
+                    child: widget.suffixIcon!,
                   ),
-                  child: widget.suffixIcon!,
-                ),
+                ],
               ],
-            ],
-          ),
+            ),
           ),
         ),
         if (_hasBottomText) ...[
