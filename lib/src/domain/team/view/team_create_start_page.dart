@@ -398,14 +398,12 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: color),
+          style: FontStyles.med15.copyWith(color: color),
           children: [
             TextSpan(text: text, style: style),
             TextSpan(
               text: ' *',
-              style: style.copyWith(color: requiredColor),
+              style: FontStyles.med15.copyWith(color: requiredColor),
             ),
           ],
         ),

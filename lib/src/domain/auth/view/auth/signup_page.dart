@@ -39,7 +39,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     return _isTermsAgreed && _isPrivacyAgreed;
   }
 
-  bool get _isPasswordValid => PasswordValidator.isValid(passwordController.text);
+  bool get _isPasswordValid =>
+      PasswordValidator.isValid(passwordController.text);
 
   String? get _passwordErrorText =>
       PasswordValidator.errorText(passwordController.text);
@@ -192,9 +193,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   }
 
   Future<void> _openTermsConsentPage() async {
-    final isAgreed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const ServiceConsentPage()),
-    );
+    final isAgreed = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const ServiceConsentPage()));
 
     if (!mounted || isAgreed != true) {
       return;
@@ -206,9 +207,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   }
 
   Future<void> _openPrivacyConsentPage() async {
-    final isAgreed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const PrivacyConsentPage()),
-    );
+    final isAgreed = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const PrivacyConsentPage()));
 
     if (!mounted || isAgreed != true) {
       return;
@@ -640,12 +641,12 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: FontStyles.semi16.copyWith(color: color),
+          style: FontStyles.med15.copyWith(color: color),
           children: [
             TextSpan(text: text),
             TextSpan(
               text: ' *',
-              style: FontStyles.semi16.copyWith(color: requiredColor),
+              style: FontStyles.med15.copyWith(color: requiredColor),
             ),
           ],
         ),
