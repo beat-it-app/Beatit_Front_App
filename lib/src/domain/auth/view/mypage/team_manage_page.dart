@@ -1,4 +1,5 @@
 // lib/src/domain/mypage/view/team_manage_page.dart
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/team_delete_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_member_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_update_page.dart';
@@ -24,16 +25,7 @@ class TeamManagePage extends ConsumerWidget {
     if (rawDate == null || rawDate.trim().isEmpty) {
       return '개설일 미등록';
     }
-    final clean = rawDate.trim();
-    if (clean.length >= 10) {
-      final ymd = clean.substring(0, 10);
-      final parts = ymd.split('-');
-      if (parts.length == 3) {
-        return '${parts[0]}. ${parts[1]}. ${parts[2]} 개설';
-      }
-      return '${ymd.replaceAll('-', '.')} 개설';
-    }
-    return '$clean 개설';
+    return '${AppDateTimeFormatter.formatDateString(rawDate)} 개설';
   }
 
   @override

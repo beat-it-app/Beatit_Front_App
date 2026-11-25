@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -58,9 +59,9 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
         _teamName = teamData?.teamName ?? '';
         // 💡 이미지 필드 세팅 (모델 필드명에 맞게 설정: teamImageUrl 또는 imageUrl)
         _teamImageUrl = teamData?.teamImageUrl;
-        _formattedDate = teamData != null && teamData.createdAt.length >= 10
-            ? teamData.createdAt.substring(0, 10).replaceAll('-', '.')
-            : (teamData?.createdAt ?? '');
+        _formattedDate = AppDateTimeFormatter.formatDateString(
+          teamData?.createdAt ?? '',
+        );
       });
     } else {
       final err = ref.read(teamJoinProvider).errorMessage;

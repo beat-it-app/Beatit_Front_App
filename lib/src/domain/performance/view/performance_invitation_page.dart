@@ -1,6 +1,7 @@
 // lib/src/domain/performance/view/performance_invitation_page.dart
 
 import 'dart:convert';
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -683,7 +684,9 @@ class _PerformanceInvitationPageState
                                 label: '공연 날짜',
                                 requiredMark: true,
                                 value:
-                                    '${widget.step1.startsAt.year}. ${widget.step1.startsAt.month.toString().padLeft(2, '0')}. ${widget.step1.startsAt.day.toString().padLeft(2, '0')}.',
+                                    AppDateTimeFormatter.formatDate(
+                                  widget.step1.startsAt,
+                                ),
                                 suffixAsset:
                                     'assets/icons/performance/calendar.svg',
                               ),
@@ -695,7 +698,9 @@ class _PerformanceInvitationPageState
                                 label: '공연 시간',
                                 requiredMark: true,
                                 value:
-                                    '${widget.step1.startsAt.hour.toString().padLeft(2, '0')}:${widget.step1.startsAt.minute.toString().padLeft(2, '0')}',
+                                    AppDateTimeFormatter.formatTime(
+                                  widget.step1.startsAt,
+                                ),
                                 suffixAsset:
                                     'assets/icons/performance/clock.svg',
                               ),

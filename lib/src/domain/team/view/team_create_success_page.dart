@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_select_page.dart';
@@ -38,11 +39,9 @@ class TeamCreateSuccessPage extends ConsumerWidget {
 
     String formattedDate;
     if (establishedOn != null && establishedOn!.trim().isNotEmpty) {
-      formattedDate = establishedOn!.trim().replaceAll('-', '.');
+      formattedDate = AppDateTimeFormatter.formatDateString(establishedOn!);
     } else {
-      final now = DateTime.now();
-      formattedDate =
-          '${now.year}.${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}';
+      formattedDate = AppDateTimeFormatter.formatDate(DateTime.now());
     }
 
     return Scaffold(

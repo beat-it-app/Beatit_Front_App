@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -80,7 +81,7 @@ class PerformanceHero extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.x24),
                   Text(
-                    '${performance.startsAt.year}. ${performance.startsAt.month}. ${performance.startsAt.day}.',
+                    AppDateTimeFormatter.formatDate(performance.startsAt),
                     style: FontStyles.med15.copyWith(
                       color: AppColor.beatOrange2,
                     ),

@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -222,10 +223,9 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
   }
 
   Widget _buildTeamCard(BuildContext context, MyTeamModel team) {
-    final rawDate = team.createdAt;
-    final formattedDate = rawDate.length >= 10
-        ? rawDate.substring(0, 10).replaceAll('-', '.')
-        : rawDate;
+    final formattedDate = AppDateTimeFormatter.formatDateString(
+      team.createdAt,
+    );
 
     final String? imageUrl = team.teamImageUrl;
     final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;

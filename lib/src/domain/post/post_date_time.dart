@@ -5,10 +5,7 @@ import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 String formatPostDate(DateTime value) => AppDateTimeFormatter.formatDate(value);
 
 String formatPostTime(int hour, int minute) =>
-    '${hour.toString().padLeft(2, '0')}:'
-    '${minute.toString().padLeft(2, '0')}';
+    AppDateTimeFormatter.formatHourMinute(hour, minute);
 
-String formatPostDateTime(DateTime value) {
-  final date = value.toLocal();
-  return '${formatPostDate(date)} ${formatPostTime(date.hour, date.minute)}';
-}
+String formatPostDateTime(DateTime value) =>
+    AppDateTimeFormatter.formatDateTime(value);

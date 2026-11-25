@@ -1,5 +1,6 @@
 import 'dart:core';
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -180,13 +181,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
   String _formatDateTime(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     try {
-      final dt = DateTime.parse(raw).toLocal();
-      final year = dt.year;
-      final month = dt.month;
-      final day = dt.day;
-      final hour = dt.hour.toString().padLeft(2, '0');
-      final min = dt.minute.toString().padLeft(2, '0');
-      return '$year. $month. $day. $hour:$min';
+      return AppDateTimeFormatter.formatDateTime(DateTime.parse(raw));
     } catch (_) {
       return raw;
     }

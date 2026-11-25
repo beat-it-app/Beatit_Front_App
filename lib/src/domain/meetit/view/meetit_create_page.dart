@@ -333,8 +333,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   }
 
   String _formatMonth(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    return '${date.year}. $month';
+    return '${date.year}. ${date.month}.';
   }
 
   @override

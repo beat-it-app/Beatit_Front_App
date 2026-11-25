@@ -1,5 +1,6 @@
 // lib/src/domain/performance/view/performance_detail_page.dart
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -566,8 +567,7 @@ class _BookingDeadlineBand extends StatelessWidget {
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
   String _formatDate(DateTime date) =>
-      '${date.year}. ${date.month}. ${date.day}. '
+      '${AppDateTimeFormatter.formatDate(date)} '
       '(${_weekdays[date.weekday - 1]}) '
-      '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}';
+      '${AppDateTimeFormatter.formatTime(date)}';
 }

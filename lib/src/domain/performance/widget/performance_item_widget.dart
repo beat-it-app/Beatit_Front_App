@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,7 +36,7 @@ class PerformanceItem extends StatelessWidget {
     final bool hasValidImage = hasNetworkImage || hasFileImage;
 
     final String dateStr = date != null
-        ? '${date!.year}. ${date!.month}. ${date!.day}.'
+        ? AppDateTimeFormatter.formatDate(date!)
         : '-';
 
     return Material(

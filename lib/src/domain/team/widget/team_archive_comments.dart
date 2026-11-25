@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -255,13 +256,7 @@ class _ArchiveSwipeCommentState extends State<_ArchiveSwipeComment> {
   static String _formatDate(String rawDate) {
     if (rawDate.isEmpty) return '';
     try {
-      final date = DateTime.parse(rawDate).toLocal();
-      final year = date.year;
-      final month = date.month.toString().padLeft(2, '0');
-      final day = date.day.toString().padLeft(2, '0');
-      final hour = date.hour.toString().padLeft(2, '0');
-      final min = date.minute.toString().padLeft(2, '0');
-      return '$year. $month. $day. $hour:$min';
+      return AppDateTimeFormatter.formatDateTime(DateTime.parse(rawDate));
     } catch (_) {
       return rawDate;
     }
