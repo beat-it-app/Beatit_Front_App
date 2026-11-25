@@ -12,6 +12,7 @@ import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 
 import '../../api/withdrawal_api.dart';
 import '../../provider/mypage_provider.dart';
+import '../../../team/util/team_exit_navigation.dart';
 
 class TeamWithdrawPage extends ConsumerStatefulWidget {
   const TeamWithdrawPage({super.key});
@@ -73,12 +74,9 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
     try {
       await ref.read(withdrawalApiProvider).withdrawTeam();
 
-      // 마이페이지 갱신
-      ref.read(myPageProvider.notifier).fetchMyPage();
-
       if (!mounted) return;
 
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      await returnToTeamEntry(context, ref);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

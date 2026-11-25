@@ -9,12 +9,10 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
 import 'package:beatit_front_app/src/domain/team/model/my_team_model.dart';
-import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_switch_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/team_select_provider.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
 import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
-
-import '../../auth/provider/mypage_provider.dart';
 
 class TeamSelectPage extends ConsumerStatefulWidget {
   const TeamSelectPage({super.key, this.showBackButton = false});
@@ -51,8 +49,7 @@ class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
     if (!mounted) return;
 
     if (success) {
-      ref.invalidate(myPageProvider);
-      ref.invalidate(currentTeamProvider);
+      refreshTeamData(ref);
 
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();

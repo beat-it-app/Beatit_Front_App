@@ -9,6 +9,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import '../../team/model/my_team_model.dart';
 import '../../team/provider/current_team_provider.dart';
 import '../../team/provider/team_select_provider.dart';
+import '../../team/provider/team_switch_provider.dart';
 import '../provider/mypage_provider.dart';
 import '../view/mypage/team_add_option_page.dart';
 
@@ -47,7 +48,7 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
     });
   }
 
-  // 1. 팀 선택 시 처리: 마이페이지 최신 데이터 즉시 fetch
+  // 1. 팀 선택 시 처리: 다른 팀으로 바뀐 경우에만 팀 데이터를 다시 조회
   Future<void> _handleTeamSelected(MyTeamModel team) async {
     if (_isSelecting) return;
 
@@ -62,8 +63,9 @@ class _TeamSwitchBottomSheetState extends ConsumerState<TeamSwitchBottomSheet> {
     if (!mounted) return;
 
     if (success) {
-      ref.read(myPageProvider.notifier).fetchMyPage();
-      ref.invalidate(currentTeamProvider);
+      if (team.teamPublicId != widget.currentTeamPublicId) {
+        refreshTeamData(ref);
+      }
 
       Navigator.of(context).pop();
     } else {

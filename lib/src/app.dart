@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_switch_provider.dart';
 import 'package:beatit_front_app/src/domain/cal/view/cal_main_page.dart';
 import 'package:beatit_front_app/src/domain/chat/view/chat_list_page.dart';
 import 'package:beatit_front_app/src/domain/auth/view/mypage/my_page.dart';
@@ -41,6 +42,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   late int _currentIndex;
 
   late final List<Widget> _pages;
+
+  /// 한 번이라도 들어간 탭만 화면을 만들어, 보지 않는 탭의 API 호출을 막는다.
+  final Set<int> _visitedTabs = <int>{};
 
   @override
   void initState() {
@@ -144,13 +148,25 @@ class _MainShellState extends ConsumerState<MainShell> {
         if (mounted) _openPendingPush();
       });
     });
+    // 팀이 바뀌면 방문 기록을 비운다. 현재 탭은 바로 아래에서 다시 등록되고,
+    // 나머지 탭은 제거된 뒤 다음에 들어갈 때 새로 조회한다.
+    ref.listen(teamSwitchProvider, (previous, next) {
+      setState(_visitedTabs.clear);
+    });
     final selectedTeam = ref.watch(currentTeamProvider).asData?.value;
     final displayIndex = _requiresTeam(_currentIndex) && selectedTeam == null
         ? 0
         : _currentIndex;
+    _visitedTabs.add(displayIndex);
 
     return Scaffold(
-      body: IndexedStack(index: displayIndex, children: _pages),
+      body: IndexedStack(
+        index: displayIndex,
+        children: [
+          for (var i = 0; i < _pages.length; i++)
+            _visitedTabs.contains(i) ? _pages[i] : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: displayIndex,
         onTap: _onNavigationTap,

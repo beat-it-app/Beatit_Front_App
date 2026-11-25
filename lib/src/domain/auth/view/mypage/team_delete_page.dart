@@ -10,7 +10,7 @@ import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 
 import '../../api/withdrawal_api.dart';
-import '../../provider/mypage_provider.dart';
+import '../../../team/util/team_exit_navigation.dart';
 
 class TeamDeletePage extends ConsumerStatefulWidget {
   final String teamName;
@@ -78,17 +78,15 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
       // 💡 현재 활성화된 팀 삭제 (DELETE /teams/delete)
       await ref.read(withdrawalApiProvider).deleteTeam();
 
-      // 마이페이지 최신 상태 갱신
-      ref.read(myPageProvider.notifier).fetchMyPage();
-
       if (!mounted) return;
 
-      // 마이페이지 메인으로 복귀
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      final messenger = ScaffoldMessenger.of(context);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('팀이 성공적으로 삭제되었습니다.')));
+      await returnToTeamEntry(context, ref);
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('팀이 성공적으로 삭제되었습니다.')),
+      );
     } on WithdrawalApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

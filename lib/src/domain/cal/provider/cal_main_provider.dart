@@ -98,9 +98,21 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
   int _monthRequestId = 0;
   int _dateRequestId = 0;
+  // invalidate 전에 시작한 요청이 이전 팀 데이터를 캐시에 넣지 못하게 구분합니다.
+  int _generation = 0;
 
   @override
   CalMainState build() {
+    // invalidate(팀 전환) 시 이전 팀의 캐시와 진행 중 요청을 버립니다.
+    _generation++;
+    _monthRequestId++;
+    _dateRequestId++;
+    _monthCache.clear();
+    _dateCache.clear();
+    _participationCache.clear();
+    _participationInFlight.clear();
+    _monthInFlight.clear();
+    _dateInFlight.clear();
     return const CalMainState();
   }
 
@@ -260,10 +272,11 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
     final future = _fetchMonth(year: year, month: month);
     _monthInFlight[key] = future;
+    final generation = _generation;
 
     try {
       final items = await future;
-      _monthCache[key] = items;
+      if (generation == _generation) _monthCache[key] = items;
       return items;
     } finally {
       if (identical(_monthInFlight[key], future)) {
@@ -300,10 +313,11 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
     final future = _fetchDateReady(targetDay);
     _dateInFlight[targetDay] = future;
+    final generation = _generation;
 
     try {
       final items = await future;
-      _dateCache[targetDay] = items;
+      if (generation == _generation) _dateCache[targetDay] = items;
       return items;
     } finally {
       if (identical(_dateInFlight[targetDay], future)) {
@@ -315,6 +329,7 @@ class CalMainNotifier extends Notifier<CalMainState> {
   Future<List<DateSchedule>> _fetchDateReady(DateTime targetDay) async {
     final api = ref.read(calApiProvider);
     final locationCache = ref.read(locationDetailCacheProvider.notifier);
+    final generation = _generation;
     final response = await api.getDateSchedules(
       year: targetDay.year,
       month: targetDay.month,
@@ -323,7 +338,7 @@ class CalMainNotifier extends Notifier<CalMainState> {
 
     final items = response.items;
     final userId = _currentUserId;
-    if (userId != null) {
+    if (userId != null && generation == _generation) {
       for (final entry in response.participantUserIdsByScheduleId.entries) {
         _participationCache[entry.key] = entry.value.contains(userId);
       }
@@ -365,6 +380,7 @@ class CalMainNotifier extends Notifier<CalMainState> {
   }
 
   Future<void> _resolveParticipation(int scheduleId, int userId) async {
+    final generation = _generation;
     try {
       final pending = _participationInFlight[scheduleId];
       if (pending != null) {
@@ -377,7 +393,9 @@ class CalMainNotifier extends Notifier<CalMainState> {
               .any((participant) => participant.userId == userId));
       _participationInFlight[scheduleId] = future;
       final isMine = await future;
-      if (ref.mounted && _currentUserId == userId) {
+      if (ref.mounted &&
+          generation == _generation &&
+          _currentUserId == userId) {
         _participationCache[scheduleId] = isMine;
       }
     } catch (_) {

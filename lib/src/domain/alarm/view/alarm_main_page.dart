@@ -8,9 +8,8 @@ import 'package:beatit_front_app/src/domain/alarm/util/alarm_navigation.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_loading_page.dart';
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_setting_page.dart';
 import 'package:beatit_front_app/src/domain/alarm/widget/alarm_item.dart';
-import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
 import 'package:beatit_front_app/src/domain/team/provider/current_team_provider.dart';
-import 'package:beatit_front_app/src/domain/team/provider/team_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_switch_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -117,12 +116,7 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
       switchedTeam = true;
     }
 
-    if (switchedTeam) {
-      ref.invalidate(currentTeamProvider);
-      ref.invalidate(teamDetailProvider);
-      ref.read(myPageProvider.notifier).fetchMyPage();
-      ref.invalidate(alarmProvider);
-    }
+    if (switchedTeam) refreshTeamData(ref);
     final destination = target;
     if (destination == null) return;
     _navigateToTarget(destination, notificationTitle: notification.title);
