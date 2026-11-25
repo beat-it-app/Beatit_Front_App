@@ -14,8 +14,10 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
     required this.beatGreen,
     required this.beatYellow,
     required this.beatYellowContainer,
+    required this.beatOrangeNightContainer,
     required this.error,
     required this.errorContainer,
+    required this.errorNight,
   });
 
   final Color beatOrange1;
@@ -29,9 +31,11 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
 
   final Color beatYellow;
   final Color beatYellowContainer;
+  final Color beatOrangeNightContainer;
 
   final Color error;
   final Color errorContainer;
+  final Color errorNight;
 
   factory AppBrandColors.light() {
     return const AppBrandColors(
@@ -44,25 +48,28 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatGreen: AppColor.beatGreen,
       beatYellow: AppColor.beatYellow,
       beatYellowContainer: AppColor.beatYellowContainer,
+      beatOrangeNightContainer: AppColor.beatOrangeNightContainer,
       error: AppColor.error,
       errorContainer: AppColor.errorContainer,
+      errorNight: AppColor.errorNight,
     );
   }
 
   factory AppBrandColors.dark() {
     return const AppBrandColors(
-      //TODO: 다크모드 색상 나오면 변경해야 함.
-      beatOrange1: AppColor.beatOrange3,
-      beatOrange2: AppColor.beatOrange3,
-      beatOrange3: AppColor.beatOrange4,
+      beatOrange1: AppColor.beatOrange1,
+      beatOrange2: AppColor.beatOrange2,
+      beatOrange3: AppColor.beatOrange3,
       beatOrange4: AppColor.beatOrange4,
-      beatOrange5: AppColor.beatOrange2,
-      beatOrange6: AppColor.beatOrange1,
+      beatOrange5: AppColor.beatOrange5,
+      beatOrange6: AppColor.beatOrange6,
       beatGreen: AppColor.beatGreen,
       beatYellow: AppColor.beatYellow,
       beatYellowContainer: AppColor.beatYellowContainer,
+      beatOrangeNightContainer: AppColor.beatOrangeNightContainer,
       error: AppColor.error,
       errorContainer: AppColor.errorContainer,
+      errorNight: AppColor.errorNight,
     );
   }
 
@@ -75,8 +82,12 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
     Color? beatOrange5,
     Color? beatOrange6,
     Color? beatGreen,
+    Color? beatYellow,
+    Color? beatYellowContainer,
+    Color? beatOrangeNightContainer,
     Color? error,
     Color? errorContainer,
+    Color? errorNight,
   }) {
     return AppBrandColors(
       beatOrange1: beatOrange1 ?? this.beatOrange1,
@@ -88,8 +99,11 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
       beatGreen: beatGreen ?? this.beatGreen,
       beatYellow: beatYellow ?? this.beatYellow,
       beatYellowContainer: beatYellowContainer ?? this.beatYellowContainer,
+      beatOrangeNightContainer:
+          beatOrangeNightContainer ?? this.beatOrangeNightContainer,
       error: error ?? this.error,
       errorContainer: errorContainer ?? this.errorContainer,
+      errorNight: errorNight ?? this.errorNight,
     );
   }
 
@@ -113,8 +127,14 @@ class AppBrandColors extends ThemeExtension<AppBrandColors> {
         other.beatYellowContainer,
         t,
       )!,
+      beatOrangeNightContainer: Color.lerp(
+        beatOrangeNightContainer,
+        other.beatOrangeNightContainer,
+        t,
+      )!,
       error: Color.lerp(error, other.error, t)!,
       errorContainer: Color.lerp(errorContainer, other.errorContainer, t)!,
+      errorNight: Color.lerp(errorNight, other.errorNight, t)!,
     );
   }
 }
