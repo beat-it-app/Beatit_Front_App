@@ -495,8 +495,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
   }
 
   bool get _hasRequiredInputs {
-    return _titleController.text.trim().isNotEmpty &&
-        _arePollOptionsValid();
+    return _titleController.text.trim().isNotEmpty && _arePollOptionsValid();
   }
 
   Future<void> _submitPoll() async {
@@ -588,8 +587,7 @@ class _PollCreatePageState extends ConsumerState<PollCreatePage> {
                         onChanged: _handlePollOptionsChanged,
                         onMinimumItemCountReached: () {
                           setState(() {
-                            _pollOptionsError =
-                                '두 개 이상의 항목을 입력해야 합니다.';
+                            _pollOptionsError = '두 개 이상의 항목을 입력해야 합니다.';
                           });
                         },
                         onMusicPressed: _handleMusicPressed,
@@ -770,15 +768,13 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: FontStyles.semi16.copyWith(color: color),
+          style: FontStyles.med15.copyWith(color: color),
           children: [
             TextSpan(text: text),
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: requiredColor),
+                style: FontStyles.med15.copyWith(color: requiredColor),
               ),
           ],
         ),

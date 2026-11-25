@@ -157,9 +157,7 @@ class _RequiredLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = Theme.of(
-      context,
-    ).textTheme.labelMedium?.copyWith(color: color);
+    final labelStyle = FontStyles.med15.copyWith(color: color);
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -170,7 +168,7 @@ class _RequiredLabel extends StatelessWidget {
             TextSpan(text: text),
             TextSpan(
               text: ' *',
-              style: labelStyle?.copyWith(color: requiredColor),
+              style: FontStyles.med15.copyWith(color: requiredColor),
             ),
           ],
         ),

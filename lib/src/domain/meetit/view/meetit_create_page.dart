@@ -77,8 +77,10 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
   void _keepMeetingNameVisible() {
     if (!_meetingNameFocusNode.hasFocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_meetingNameFocusNode.hasFocus ||
-          !_formScrollController.hasClients) return;
+      if (!mounted ||
+          !_meetingNameFocusNode.hasFocus ||
+          !_formScrollController.hasClients)
+        return;
       _formScrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 180),
@@ -185,8 +187,8 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
     final initialTime = parts.length == 2
         ? TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]))
         : identical(controller, _startTimeController)
-            ? const TimeOfDay(hour: 9, minute: 0)
-            : const TimeOfDay(hour: 18, minute: 0);
+        ? const TimeOfDay(hour: 9, minute: 0)
+        : const TimeOfDay(hour: 18, minute: 0);
     final time = await AppTimeBottomSheet.showTimePicker(
       context,
       title: identical(controller, _startTimeController)
@@ -777,13 +779,13 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: FontStyles.med16.copyWith(color: color),
+          style: FontStyles.med15.copyWith(color: color),
           children: [
             TextSpan(text: text),
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: TextStyle(color: requiredColor),
+                style: FontStyles.med15.copyWith(color: requiredColor),
               ),
           ],
         ),
