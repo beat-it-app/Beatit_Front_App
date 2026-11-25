@@ -1,6 +1,5 @@
 import 'package:beatit_front_app/src/domain/alarm/view/alarm_setting_page.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/mypage_provider.dart';
-import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -88,7 +87,7 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
       context,
       title: '정말 빗잇을 탈퇴하시겠습니까?',
       content: '탈퇴 후 7일 이내 로그인 시 계정을 복구할 수 있으며, 이후에는 계정이 삭제됩니다.',
-      warningType: WarningType.circle,
+      warningType: WarningType.triangle,
       warningColor: context.colors.primary,
       contentType: ContentType.small,
       buttonNum: ButtonNum.two,
@@ -108,7 +107,11 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
 
       if (!mounted) return;
 
-      // 💡 여기서 바로 logout() 하지 않고 먼저 완료 페이지로 이동
+      // 💡 탈퇴 API 성공 직후 토큰 및 앱 캐시/상태 일괄 삭제
+      await ref.read(authProvider.notifier).logout();
+
+      if (!mounted) return;
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AppWithdrawCompletePage()),
         (route) => false,

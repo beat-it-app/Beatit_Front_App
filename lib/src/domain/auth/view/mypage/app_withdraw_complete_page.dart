@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
-import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/auth/view/auth/signin_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class AppWithdrawCompletePage extends ConsumerWidget {
+class AppWithdrawCompletePage extends StatelessWidget {
   const AppWithdrawCompletePage({super.key});
 
-  Future<void> _goToSignin(BuildContext context, WidgetRef ref) async {
-    await ref.read(authProvider.notifier).logout();
-
-    if (!context.mounted) return;
-
+  void _goToSignin(BuildContext context) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SigninPage()),
       (route) => false,
@@ -24,19 +18,19 @@ class AppWithdrawCompletePage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _goToSignin(context, ref);
+        _goToSignin(context);
       },
       child: Scaffold(
         backgroundColor: colors.surface,
         appBar: AppTopAppBar.backOnly(
-          onBackPressed: () => _goToSignin(context, ref),
+          onBackPressed: () => _goToSignin(context),
         ),
         body: SafeArea(
           child: Padding(
@@ -124,7 +118,7 @@ class AppWithdrawCompletePage extends ConsumerWidget {
                     variant: ButtonVariant.black,
                     width: ButtonWidth.expand,
                     height: ButtonHeight.normal,
-                    onPressed: () => _goToSignin(context, ref),
+                    onPressed: () => _goToSignin(context),
                   ),
                 ),
               ],
