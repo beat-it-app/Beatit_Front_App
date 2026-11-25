@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beatit_front_app/src/core/network/auth_token_storage.dart';
 import 'package:beatit_front_app/src/domain/auth/api/apple_auth_client.dart';
@@ -16,6 +19,8 @@ import 'package:beatit_front_app/src/domain/auth/model/login/google_login_reques
 import 'package:beatit_front_app/src/domain/auth/model/login/login_request.dart';
 import 'package:beatit_front_app/src/domain/auth/model/login/login_response.dart';
 import 'package:beatit_front_app/src/domain/auth/provider/auth_api_provider.dart';
+
+import 'mypage_provider.dart';
 
 final authPushRegistrationProvider = Provider<AuthPushRegistration>((ref) {
   final registration = AuthPushRegistration();
@@ -398,9 +403,42 @@ class AuthNotifier extends Notifier<AsyncValue<AuthSession?>> {
         // 외부 SDK 세션 정리 실패가 BeatIt 로그아웃을 막아서는 안 된다.
         debugPrint('[Auth] social logout failed: $error');
       } finally {
+        // 1. JWT 토큰 및 Keychain/EncryptedSharedPreferences 전체 삭제
         await tokenStorage.deleteTokens();
+        await const FlutterSecureStorage().deleteAll();
+
+        // 2. SharedPreferences 로컬 저장 데이터(선택 팀 ID 등) 전체 삭제
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+        } catch (error) {
+          debugPrint('[Auth] clear prefs failed: $error');
+        }
+        await _clearAppCache();
+
+        ref.invalidate(myPageProvider);
+
         state = const AsyncData(null);
       }
+    }
+  }
+
+  Future<void> _clearAppCache() async {
+    try {
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+
+      // OS 임시 캐시 디렉터리 파일 삭제
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        await for (final entity in tempDir.list()) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {}
+        }
+      }
+    } catch (error) {
+      debugPrint('[Auth] clear app cache failed: $error');
     }
   }
 }

@@ -54,11 +54,13 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     _fetchDetail();
   }
 
-  Future<void> _fetchDetail() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _fetchDetail({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final api = ref.read(teamArchiveApiProvider);
@@ -68,6 +70,9 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         setState(() {
           _detail = data;
           _isLoading = false;
+          _errorMessage = null;
+          _preloadKey = null;
+          _isMapReady = false;
           if (data.rating.myRating > 0) {
             _myRating = data.rating.myRating.toInt();
           } else {
@@ -76,6 +81,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         });
 
         if (data.locationId > 0) {
+          ref.invalidate(locationDetailProvider(data.locationId));
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _prepareMapInBackground(data.locationId);
           });
@@ -84,9 +90,16 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          if (showLoading) {
+            _errorMessage = e.toString();
+          }
           _isLoading = false;
         });
+        if (!showLoading) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('새로고침 실패: $e')));
+        }
       }
     }
   }
@@ -212,7 +225,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         mentionedUserIds: mentionedUserIds,
       );
 
-      await _fetchDetail();
+      await _fetchDetail(showLoading: false);
       ref.read(teamArchiveProvider.notifier).fetchArchives();
       return true;
     } catch (e) {
@@ -245,7 +258,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         commentId: commentId,
       );
 
-      await _fetchDetail();
+      await _fetchDetail(showLoading: false);
       ref.read(teamArchiveProvider.notifier).fetchArchives();
 
       if (mounted) {
@@ -570,7 +583,7 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
                     );
 
                     if (mounted) {
-                      await _fetchDetail();
+                      await _fetchDetail(showLoading: false);
                       ref.read(teamArchiveProvider.notifier).fetchArchives();
                     }
                   },
@@ -623,378 +636,387 @@ class _TeamArchiveDetailPageState extends ConsumerState<TeamArchiveDetailPage> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.x20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. 연습실 제목
-                          Text(
-                            detail.title,
-                            style: FontStyles.bold34.copyWith(
-                              color: colors.onSurface,
-                              letterSpacing: -0.68,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.x4),
-
-                          // 2. 작성일 / 최종수정일
-                          Row(
-                            children: [
-                              Text(
-                                _formatDateTime(detail.createdAt),
-                                style: FontStyles.reg14.copyWith(
-                                  color: context.grays.gray4,
-                                ),
+              child: RefreshIndicator(
+                onRefresh: () => _fetchDetail(showLoading: false),
+                color: context.brands.beatOrange1,
+                backgroundColor: Colors.white,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.x20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. 연습실 제목
+                            Text(
+                              detail.title,
+                              style: FontStyles.bold34.copyWith(
+                                color: colors.onSurface,
+                                letterSpacing: -0.68,
                               ),
-                              if (_isUpdated(
-                                detail.createdAt,
-                                detail.updatedAt,
-                              )) ...[
+                            ),
+                            const SizedBox(height: AppSpacing.x4),
+
+                            // 2. 작성일 / 최종수정일
+                            Row(
+                              children: [
                                 Text(
-                                  ' ｜ 최종수정일 ${_formatDateTime(detail.updatedAt)}',
+                                  _formatDateTime(detail.createdAt),
                                   style: FontStyles.reg14.copyWith(
-                                    color: context.grays.gray5,
+                                    color: context.grays.gray4,
                                   ),
                                 ),
+                                if (_isUpdated(
+                                  detail.createdAt,
+                                  detail.updatedAt,
+                                )) ...[
+                                  Text(
+                                    ' ｜ 최종수정일 ${_formatDateTime(detail.updatedAt)}',
+                                    style: FontStyles.reg14.copyWith(
+                                      color: context.grays.gray5,
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.x10),
+                            ),
+                            const SizedBox(height: AppSpacing.x10),
 
-                          // 3. 평점 & 뱃지
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: context.grays.gray8,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Row(
-                                  children: [
-                                    SvgPicture.asset(
-                                      'assets/icons/team/filled_star.svg',
-                                      width: 16,
-                                      height: 16,
-                                      colorFilter: ColorFilter.mode(
-                                        colors.primary,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _formatRating(
-                                        detail.rating.averageRating,
-                                      ),
-                                      style: FontStyles.med12.copyWith(
-                                        color: colors.onSurface,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '(${detail.rating.ratingCount})',
-                                      style: FontStyles.med12.copyWith(
-                                        color: context.grays.gray5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (detail.topArchive) ...[
-                                const SizedBox(width: 8),
+                            // 3. 평점 & 뱃지
+                            Row(
+                              children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: context.brands.beatOrange5,
+                                    color: context.grays.gray8,
                                     borderRadius: BorderRadius.circular(5),
                                   ),
-                                  child: Text(
-                                    '밴드가 찾는 1순위',
-                                    style: FontStyles.med12.copyWith(
-                                      color: colors.primary,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.x16),
-
-                          // 4. 소개글
-                          Text(
-                            detail.description,
-                            style: FontStyles.reg14.copyWith(
-                              color: context.grays.black,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.x20),
-
-                          // 5. 위치 정보 및 지도보기 토글
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: context.grays.gray8,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Row(
-                                  children: [
-                                    SvgPicture.asset(
-                                      'assets/icons/cal/location.svg',
-                                      width: 16,
-                                      height: 16,
-                                      colorFilter: ColorFilter.mode(
-                                        context.grays.gray1,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '위치',
-                                      style: FontStyles.semi12.copyWith(
-                                        color: colors.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  detail.roadAddress ?? '위치 정보 없음',
-                                  style: FontStyles.med16.copyWith(
-                                    color: colors.onSurface,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.x8),
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: canShowMap ? _toggleMapVisibility : null,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSpacing.x4,
-                                  ),
                                   child: Row(
-                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        '지도보기',
-                                        style: FontStyles.med15.copyWith(
-                                          color: canShowMap
-                                              ? context.brands.beatOrange2
-                                              : context.grays.gray5,
-                                          decoration: canShowMap
-                                              ? TextDecoration.underline
-                                              : TextDecoration.none,
-                                          decorationColor:
-                                              context.brands.beatOrange2,
-                                          decorationThickness: 1.06,
-                                          height: 1,
+                                      SvgPicture.asset(
+                                        'assets/icons/team/filled_star.svg',
+                                        width: 16,
+                                        height: 16,
+                                        colorFilter: ColorFilter.mode(
+                                          colors.primary,
+                                          BlendMode.srcIn,
                                         ),
                                       ),
-                                      const SizedBox(width: AppSpacing.x4),
-                                      AnimatedRotation(
-                                        turns: _isMapVisible ? 0.5 : 0,
-                                        duration: const Duration(
-                                          milliseconds: 220,
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _formatRating(
+                                          detail.rating.averageRating,
                                         ),
-                                        curve: Curves.easeInOut,
-                                        child: SvgPicture.asset(
-                                          'assets/icons/cal/toggle_down.svg',
-                                          width: 20,
-                                          height: 20,
-                                          colorFilter: ColorFilter.mode(
-                                            canShowMap
-                                                ? context.brands.beatOrange2
-                                                : context.grays.gray5,
-                                            BlendMode.srcIn,
-                                          ),
+                                        style: FontStyles.med12.copyWith(
+                                          color: colors.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '(${detail.rating.ratingCount})',
+                                        style: FontStyles.med12.copyWith(
+                                          color: context.grays.gray5,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.x10),
-
-                          // 6. 카카오 정적 지도 미리보기
-                          _VerticalAccordion(
-                            isExpanded: _isMapVisible && canShowMap,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSpacing.x20,
-                              ),
-                              child:
-                                  (_isMapReady &&
-                                      locationData?.latitude != null &&
-                                      locationData?.longitude != null)
-                                  ? KakaoStaticMapWidget(
-                                      latitude: locationData!.latitude!,
-                                      longitude: locationData.longitude!,
-                                      height: 210,
-                                      level: 3,
-                                      borderRadius: BorderRadius.circular(8),
-                                      onTap: () =>
-                                          _openMapPreview(detail.locationId),
-                                    )
-                                  : _InlineMapLoading(
-                                      onReady: () => _prepareMapInBackground(
-                                        detail.locationId,
+                                if (detail.topArchive) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: context.brands.beatOrange5,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      '밴드가 찾는 1순위',
+                                      style: FontStyles.med12.copyWith(
+                                        color: colors.primary,
                                       ),
                                     ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ),
+                            const SizedBox(height: AppSpacing.x16),
 
-                          // 7. 아카이브 이미지 리스트 (가로 스크롤)
-                          if (detail.archiveImageUrls.isNotEmpty) ...[
-                            SizedBox(
-                              height: 190,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: detail.archiveImageUrls.length,
-                                separatorBuilder: (context, index) =>
-                                    const SizedBox(width: 8),
-                                itemBuilder: (context, index) {
-                                  final imgUrl = detail.archiveImageUrls[index];
-                                  return GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () => _openImagePreview(
-                                      detail.archiveImageUrls,
-                                      index,
+                            // 4. 소개글
+                            Text(
+                              detail.description,
+                              style: FontStyles.reg14.copyWith(
+                                color: context.grays.black,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.x20),
+
+                            // 5. 위치 정보 및 지도보기 토글
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: context.grays.gray8,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SvgPicture.asset(
+                                        'assets/icons/cal/location.svg',
+                                        width: 16,
+                                        height: 16,
+                                        colorFilter: ColorFilter.mode(
+                                          context.grays.gray1,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '위치',
+                                        style: FontStyles.semi12.copyWith(
+                                          color: colors.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    detail.roadAddress ?? '위치 정보 없음',
+                                    style: FontStyles.med16.copyWith(
+                                      color: colors.onSurface,
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(5),
-                                      child: Container(
-                                        width: (contentWidth - 8) / 2,
-                                        color: context.grays.gray8,
-                                        child: Image.network(
-                                          imgUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Center(
-                                            child: SvgPicture.asset(
-                                              'assets/icons/team/archive.svg',
-                                              width: 28,
-                                              height: 28,
-                                              colorFilter: ColorFilter.mode(
-                                                context.grays.gray5,
-                                                BlendMode.srcIn,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.x8),
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: canShowMap
+                                      ? _toggleMapVisibility
+                                      : null,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: AppSpacing.x4,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '지도보기',
+                                          style: FontStyles.med15.copyWith(
+                                            color: canShowMap
+                                                ? context.brands.beatOrange2
+                                                : context.grays.gray5,
+                                            decoration: canShowMap
+                                                ? TextDecoration.underline
+                                                : TextDecoration.none,
+                                            decorationColor:
+                                                context.brands.beatOrange2,
+                                            decorationThickness: 1.06,
+                                            height: 1,
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.x4),
+                                        AnimatedRotation(
+                                          turns: _isMapVisible ? 0.5 : 0,
+                                          duration: const Duration(
+                                            milliseconds: 220,
+                                          ),
+                                          curve: Curves.easeInOut,
+                                          child: SvgPicture.asset(
+                                            'assets/icons/cal/toggle_down.svg',
+                                            width: 20,
+                                            height: 20,
+                                            colorFilter: ColorFilter.mode(
+                                              canShowMap
+                                                  ? context.brands.beatOrange2
+                                                  : context.grays.gray5,
+                                              BlendMode.srcIn,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.x10),
+
+                            // 6. 카카오 정적 지도 미리보기
+                            _VerticalAccordion(
+                              isExpanded: _isMapVisible && canShowMap,
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.x20,
+                                ),
+                                child:
+                                    (_isMapReady &&
+                                        locationData?.latitude != null &&
+                                        locationData?.longitude != null)
+                                    ? KakaoStaticMapWidget(
+                                        latitude: locationData!.latitude!,
+                                        longitude: locationData.longitude!,
+                                        height: 210,
+                                        level: 3,
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () =>
+                                            _openMapPreview(detail.locationId),
+                                      )
+                                    : _InlineMapLoading(
+                                        onReady: () => _prepareMapInBackground(
+                                          detail.locationId,
+                                        ),
+                                      ),
+                              ),
+                            ),
+
+                            // 7. 아카이브 이미지 리스트 (가로 스크롤)
+                            if (detail.archiveImageUrls.isNotEmpty) ...[
+                              SizedBox(
+                                height: 190,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: detail.archiveImageUrls.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, index) {
+                                    final imgUrl =
+                                        detail.archiveImageUrls[index];
+                                    return GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => _openImagePreview(
+                                        detail.archiveImageUrls,
+                                        index,
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: Container(
+                                          width: (contentWidth - 8) / 2,
+                                          color: context.grays.gray8,
+                                          child: Image.network(
+                                            imgUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Center(
+                                              child: SvgPicture.asset(
+                                                'assets/icons/team/archive.svg',
+                                                width: 28,
+                                                height: 28,
+                                                colorFilter: ColorFilter.mode(
+                                                  context.grays.gray5,
+                                                  BlendMode.srcIn,
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: AppSpacing.x20),
-                          ],
+                              const SizedBox(height: AppSpacing.x20),
+                            ],
 
-                          const Divider(height: 1),
-                          const SizedBox(height: AppSpacing.x14),
+                            const Divider(height: 1),
+                            const SizedBox(height: AppSpacing.x14),
 
-                          // 8. 내 별점 및 댓글 개수
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _showRatingDialog(context),
-                                child: Row(
+                            // 8. 내 별점 및 댓글 개수
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _showRatingDialog(context),
+                                  child: Row(
+                                    children: [
+                                      SvgPicture.asset(
+                                        _myRating != null
+                                            ? 'assets/icons/team/filled_star.svg'
+                                            : 'assets/icons/team/star.svg',
+                                        width: 16,
+                                        height: 16,
+                                        colorFilter: ColorFilter.mode(
+                                          _myRating != null
+                                              ? colors.primary
+                                              : context.grays.gray4,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _myRating != null
+                                            ? '내 별점 $_myRating'
+                                            : '별점 남기기',
+                                        style: FontStyles.med14.copyWith(
+                                          color: _myRating != null
+                                              ? colors.primary
+                                              : context.grays.gray4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Row(
                                   children: [
                                     SvgPicture.asset(
-                                      _myRating != null
-                                          ? 'assets/icons/team/filled_star.svg'
-                                          : 'assets/icons/team/star.svg',
+                                      'assets/icons/post/chat_off.svg',
                                       width: 16,
                                       height: 16,
                                       colorFilter: ColorFilter.mode(
-                                        _myRating != null
-                                            ? colors.primary
-                                            : context.grays.gray4,
+                                        context.grays.gray4,
                                         BlendMode.srcIn,
                                       ),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      _myRating != null
-                                          ? '내 별점 $_myRating'
-                                          : '별점 남기기',
+                                      '댓글 ${detail.commentCount}',
                                       style: FontStyles.med14.copyWith(
-                                        color: _myRating != null
-                                            ? colors.primary
-                                            : context.grays.gray4,
+                                        color: context.grays.gray4,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Row(
-                                children: [
-                                  SvgPicture.asset(
-                                    'assets/icons/post/chat_off.svg',
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: ColorFilter.mode(
-                                      context.grays.gray4,
-                                      BlendMode.srcIn,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '댓글 ${detail.commentCount}',
-                                    style: FontStyles.med14.copyWith(
-                                      color: context.grays.gray4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    // 9. 댓글 리스트
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.x16,
-                        0,
-                        AppSpacing.x16,
-                        AppSpacing.x24,
+                      // 9. 댓글 리스트
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.x16,
+                          0,
+                          AppSpacing.x16,
+                          AppSpacing.x24,
+                        ),
+                        child: TeamArchiveCommentList(
+                          comments: detail.commentList,
+                          canModerate: detail.isWriter,
+                          onReply: (comment) =>
+                              _composerKey.currentState?.replyTo(comment),
+                          onDelete: _deleteComment,
+                        ),
                       ),
-                      child: TeamArchiveCommentList(
-                        comments: detail.commentList,
-                        canModerate: detail.isWriter,
-                        onReply: (comment) =>
-                            _composerKey.currentState?.replyTo(comment),
-                        onDelete: _deleteComment,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

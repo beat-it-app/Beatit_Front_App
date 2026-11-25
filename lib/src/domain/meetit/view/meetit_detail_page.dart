@@ -57,6 +57,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
 
   MeetitDetailData? _loadedDetail;
   String? _error;
+
   MeetitDetailData get _data => _loadedDetail ?? widget.detail!;
 
   @override
@@ -65,22 +66,31 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     if (widget.detail == null) Future.microtask(_load);
   }
 
-  Future<void> _load() async {
-    if (widget.meetitId == null) {
-      setState(() => _error = '밋잇 ID가 없습니다.');
+  Future<void> _load({bool isRefresh = false}) async {
+    final targetId = widget.meetitId ?? widget.detail?.meetitId;
+    if (targetId == null) {
+      if (!isRefresh) {
+        setState(() => _error = '밋잇 ID가 없습니다.');
+      }
       return;
     }
     try {
-      final detail = await ref
-          .read(postApiProvider)
-          .getMeetit(widget.meetitId!);
-      if (mounted)
+      final detail = await ref.read(postApiProvider).getMeetit(targetId);
+      if (mounted) {
         setState(() {
           _loadedDetail = detail;
           _error = null;
         });
+      }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (!mounted) return;
+      if (isRefresh && (_loadedDetail != null || widget.detail != null)) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      } else {
+        setState(() => _error = error.toString());
+      }
     }
   }
 
@@ -95,6 +105,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   TimeOfDay get _startTime => _data.dateOnly
       ? const TimeOfDay(hour: 0, minute: 0)
       : _parseTimeOfDay(_data.startTime);
+
   TimeOfDay get _endTime => _data.dateOnly
       ? const TimeOfDay(hour: 0, minute: 30)
       : _parseTimeOfDay(_data.endTime);
@@ -135,37 +146,43 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           child: Column(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data.title,
-                        style: FontStyles.bold34.copyWith(
-                          color: colors.onSurface,
-                          letterSpacing: -0.68,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.x10),
-                      if (data.maxMemberOptimalSlots.isNotEmpty) ...[
-                        _SectionLabel(
-                          text: '우리 모임 날짜',
-                          iconPath: 'assets/icons/meetit/clock.svg',
-                          color: Theme.of(context).colorScheme.onSurface,
+                child: RefreshIndicator(
+                  onRefresh: () => _load(isRefresh: true),
+                  color: context.brands.beatOrange1,
+                  backgroundColor: Colors.white,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data.title,
+                          style: FontStyles.bold34.copyWith(
+                            color: colors.onSurface,
+                            letterSpacing: -0.68,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.x10),
-                        _buildMeetingSummary(context, data),
-                        const SizedBox(height: AppSpacing.x16),
+                        if (data.maxMemberOptimalSlots.isNotEmpty) ...[
+                          _SectionLabel(
+                            text: '우리 모임 날짜',
+                            iconPath: 'assets/icons/meetit/clock.svg',
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          const SizedBox(height: AppSpacing.x10),
+                          _buildMeetingSummary(context, data),
+                          const SizedBox(height: AppSpacing.x16),
+                        ],
+                        _buildTimeFilter(context, data),
+                        const SizedBox(height: AppSpacing.x24),
+                        _buildParticipantFilter(context, data),
+                        const SizedBox(height: AppSpacing.x24),
+                        _buildTimeTable(context, data),
+                        const SizedBox(height: AppSpacing.x24),
                       ],
-                      _buildTimeFilter(context, data),
-                      const SizedBox(height: AppSpacing.x24),
-                      _buildParticipantFilter(context, data),
-                      const SizedBox(height: AppSpacing.x24),
-                      _buildTimeTable(context, data),
-                      const SizedBox(height: AppSpacing.x24),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -192,11 +209,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     final currentUserId = _currentUserId;
     final isCreator = currentUserId != null && data.creatorId == currentUserId;
     final items = <AppDropdownItem>[
-      if (isCreator)
-        AppDropdownItem(
-          label: '삭제하기',
-          onPressed: _confirmDelete,
-        ),
+      if (isCreator) AppDropdownItem(label: '삭제하기', onPressed: _confirmDelete),
     ];
 
     if (items.isEmpty) {
@@ -276,7 +289,11 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                 style: FontStyles.med14.copyWith(color: context.grays.gray3),
               )
             else
-              for (var index = 0; index < visibleSuggestions.length; index++) ...[
+              for (
+                var index = 0;
+                index < visibleSuggestions.length;
+                index++
+              ) ...[
                 if (index > 0) const SizedBox(height: AppSpacing.x20),
                 _buildMeetingSuggestion(
                   context,
@@ -355,9 +372,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           ),
           Text(
             '$availableCount명 가능',
-            style: FontStyles.med12.copyWith(
-              color: context.brands.beatOrange1,
-            ),
+            style: FontStyles.med12.copyWith(color: context.brands.beatOrange1),
           ),
         ],
       ),
@@ -599,12 +614,14 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     if (selected == null) return;
 
     try {
-      await ref.read(postApiProvider).submitMeetitResponse(
-        data.meetitId,
-        selected,
-        dateOnly: data.dateOnly,
-      );
-      await _load();
+      await ref
+          .read(postApiProvider)
+          .submitMeetitResponse(
+            data.meetitId,
+            selected,
+            dateOnly: data.dateOnly,
+          );
+      await _load(isRefresh: true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -636,10 +653,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     );
   }
 
-  String _formatOptimalSlot(
-    MeetitOptimalSlot slot, {
-    required bool dateOnly,
-  }) {
+  String _formatOptimalSlot(MeetitOptimalSlot slot, {required bool dateOnly}) {
     final start = slot.wallClockStart;
     final end = slot.wallClockEnd;
     if (start == null || end == null) {

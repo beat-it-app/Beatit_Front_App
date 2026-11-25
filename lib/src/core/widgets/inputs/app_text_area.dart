@@ -87,15 +87,15 @@ class _AppTextAreaState extends State<AppTextArea> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = FontStyles.semi16.copyWith(color: colors.onSurface);
+    final labelStyle = FontStyles.med15.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
         : colors.onSurfaceVariant;
 
-    final areaTextStyle = FontStyles.reg16.copyWith(color: inputTextColor);
+    final areaTextStyle = FontStyles.med16.copyWith(color: inputTextColor);
 
-    final areaHintStyle = FontStyles.reg16.copyWith(
+    final areaHintStyle = FontStyles.med16.copyWith(
       color: inputTheme.hintStyle?.color ?? colors.onSurfaceVariant,
     );
 
@@ -140,7 +140,6 @@ class _AppTextAreaState extends State<AppTextArea> {
             maxLines: null,
             textAlignVertical: TextAlignVertical.top,
 
-            // 핵심: text area 실제 입력값은 med16
             style: areaTextStyle,
 
             decoration: InputDecoration(

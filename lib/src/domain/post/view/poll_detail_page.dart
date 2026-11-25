@@ -25,6 +25,7 @@ class PollDetailPage extends ConsumerStatefulWidget {
     required this.pollId,
     this.participantCount,
   });
+
   final int pollId;
   final int? participantCount;
 
@@ -39,6 +40,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   String? _error;
   final _composerKey = GlobalKey<PostCommentComposerState>();
   final ScrollController _scrollController = ScrollController();
+
   int get _commentCount => _data?.commentCount ?? 0;
 
   @override
@@ -47,7 +49,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
     Future.microtask(_load);
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool isRefresh = false}) async {
     try {
       final result = await ref
           .read(postApiProvider)
@@ -60,15 +62,22 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         _error = null;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (!mounted) return;
+      if (isRefresh && _data != null) {
+        _showError(error);
+      } else {
+        setState(() => _error = error.toString());
+      }
     }
   }
 
   void _scrollToLatestComment() {
     // 키보드가 올라와 Scaffold가 리사이즈된 다음 마지막 댓글을 보여줍니다.
     Future<void>.delayed(const Duration(milliseconds: 320), () {
-      if (!mounted || !_scrollController.hasClients ||
-          _composerKey.currentState?.isReplying == true) return;
+      if (!mounted ||
+          !_scrollController.hasClients ||
+          _composerKey.currentState?.isReplying == true)
+        return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 220),
@@ -78,10 +87,11 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   }
 
   void _showError(Object error) {
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 
   void _showOptionsPreview() {
@@ -96,9 +106,11 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         isMusic: data.pollType == 'MUSIC',
         onLocationTap: (locationId) {
           Navigator.of(sheetContext).pop();
-          Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => LocationMapPreviewPage(locationId: locationId),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => LocationMapPreviewPage(locationId: locationId),
+            ),
+          );
         },
       ),
     );
@@ -111,7 +123,8 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         data.isAnonymous ||
         !data.pollItems.any((item) => item.isVoted) ||
         index < 0 ||
-        index >= data.pollItems.length) return;
+        index >= data.pollItems.length)
+      return;
     final optionId = data.pollItems[index].itemId;
     final voters = _votersByOption[optionId] ?? const <PollVoter>[];
     showModalBottomSheet<void>(
@@ -124,12 +137,12 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
           return item.content?.trim().isNotEmpty == true
               ? item.content!.trim()
               : item.locationName?.trim().isNotEmpty == true
-                  ? item.locationName!.trim()
-                  : item.location?.trim().isNotEmpty == true
-                      ? item.location!.trim()
-                      : item.title?.trim().isNotEmpty == true
-                          ? item.title!.trim()
-                          : '투표 항목';
+              ? item.locationName!.trim()
+              : item.location?.trim().isNotEmpty == true
+              ? item.location!.trim()
+              : item.title?.trim().isNotEmpty == true
+              ? item.title!.trim()
+              : '투표 항목';
         }(),
         loadVoters: () async => voters,
       ),
@@ -151,7 +164,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
             parentCommentId: parentId,
             mentionedUserIds: mentions,
           );
-      if (mounted) await _load();
+      if (mounted) await _load(isRefresh: true);
       return true;
     } catch (error) {
       _showError(error);
@@ -162,7 +175,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
   Future<void> _deleteComment(int id) async {
     try {
       await ref.read(postApiProvider).deletePollComment(widget.pollId, id);
-      if (mounted) await _load();
+      if (mounted) await _load(isRefresh: true);
     } catch (error) {
       _showError(error);
     }
@@ -190,7 +203,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
     );
 
     if (updated == true && mounted) {
-      await _load();
+      await _load(isRefresh: true);
     }
   }
 
@@ -229,7 +242,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    if (_data == null)
+    if (_data == null) {
       return Scaffold(
         body: Center(
           child: _error == null
@@ -237,6 +250,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
               : Text(_error!),
         ),
       );
+    }
     return Scaffold(
       appBar: _data!.isWriter
           ? AppTopAppBar.backMore(
@@ -245,14 +259,8 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
               },
               moreMenuOffset: const Offset(-16, 40),
               moreMenuItems: [
-                AppDropdownItem(
-                  label: '수정하기',
-                  onPressed: _openEditPage,
-                ),
-                AppDropdownItem(
-                  label: '삭제하기',
-                  onPressed: _confirmDelete,
-                ),
+                AppDropdownItem(label: '수정하기', onPressed: _openEditPage),
+                AppDropdownItem(label: '삭제하기', onPressed: _confirmDelete),
               ],
             )
           : AppTopAppBar.backOnly(
@@ -264,241 +272,255 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.x16,
-                        AppSpacing.x24,
-                        AppSpacing.x16,
-                        AppSpacing.x16,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _data!.title,
-                            softWrap: true,
-                            style: FontStyles.bold34.copyWith(
-                              color: colors.onSurface,
-                              letterSpacing: -0.68,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.x20),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _ProfileAvatar(
-                                imageUrl: _data!.writerProfileImageUrl,
+              child: RefreshIndicator(
+                onRefresh: () => _load(isRefresh: true),
+                color: context.brands.beatOrange1,
+                backgroundColor: Colors.white,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.x16,
+                          AppSpacing.x24,
+                          AppSpacing.x16,
+                          AppSpacing.x16,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _data!.title,
+                              softWrap: true,
+                              style: FontStyles.bold34.copyWith(
+                                color: colors.onSurface,
+                                letterSpacing: -0.68,
                               ),
-                              const SizedBox(width: AppSpacing.x8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _data!.writerName,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: FontStyles.semi14.copyWith(
-                                        color: context.grays.black,
+                            ),
+                            const SizedBox(height: AppSpacing.x20),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _ProfileAvatar(
+                                  imageUrl: _data!.writerProfileImageUrl,
+                                ),
+                                const SizedBox(width: AppSpacing.x8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _data!.writerName,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: FontStyles.semi14.copyWith(
+                                          color: context.grays.black,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.x4),
-                                    Text.rich(
-                                      TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: _formatDateTime(
-                                              _data!.createdAt.toLocal(),
-                                            ),
-                                            style: FontStyles.reg12.copyWith(
-                                              color: context.grays.gray4,
-                                            ),
-                                          ),
-                                          if (shouldShowUpdatedAt(
-                                            _data!.createdAt,
-                                            _data!.updatedAt,
-                                          ))
+                                      const SizedBox(height: AppSpacing.x4),
+                                      Text.rich(
+                                        TextSpan(
+                                          children: [
                                             TextSpan(
-                                              text:
-                                                  ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
+                                              text: _formatDateTime(
+                                                _data!.createdAt.toLocal(),
+                                              ),
                                               style: FontStyles.reg12.copyWith(
-                                                color: context.grays.gray5,
+                                                color: context.grays.gray4,
                                               ),
                                             ),
-                                        ],
+                                            if (shouldShowUpdatedAt(
+                                              _data!.createdAt,
+                                              _data!.updatedAt,
+                                            ))
+                                              TextSpan(
+                                                text:
+                                                    ' ｜최종수정일 ${_formatDateTime(_data!.updatedAt.toLocal())}',
+                                                style: FontStyles.reg12
+                                                    .copyWith(
+                                                      color:
+                                                          context.grays.gray5,
+                                                    ),
+                                              ),
+                                          ],
+                                        ),
+                                        softWrap: true,
                                       ),
-                                      softWrap: true,
-                                    ),
-                                  ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.x24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: Text(
+                                _data!.content ?? '',
+                                softWrap: true,
+                                style: FontStyles.reg14.copyWith(
+                                  color: context.grays.black,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.x24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: Text(
-                              _data!.content ?? '',
-                              softWrap: true,
-                              style: FontStyles.reg14.copyWith(
-                                color: context.grays.black,
+                            ),
+                            const SizedBox(height: AppSpacing.x24),
+                            PollSelectionBox(
+                              key: ValueKey(
+                                '${_data!.pollId}-${_data!.updatedAt}',
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.x24),
-                          PollSelectionBox(
-                            key: ValueKey(
-                              '${_data!.pollId}-${_data!.updatedAt}',
-                            ),
-                            options: _data!.pollItems
-                                .map(
-                                  (item) =>
-                                      item.content ??
-                                      item.locationName ??
-                                      item.location ??
-                                      ((item.title ?? '') +
-                                          (item.artist == null
-                                              ? ''
-                                              : ' - ${item.artist}')),
-                                )
-                                .toList(),
-                            status:
-                                _data!.closeAt != null &&
-                                    !_data!.closeAt!.isAfter(DateTime.now())
-                                ? PollStatus.completed
-                                : PollStatus.inProgress,
-                            isAnonymous: _data!.isAnonymous,
-                            participantCount: _data!.isAnonymous
-                                ? (widget.participantCount ?? 0)
-                                : _votersByOption.values
-                                    .expand((voters) => voters.map((voter) => voter.userId))
-                                    .toSet()
-                                    .length,
-                            selectionMode: _data!.allowMultipleChoice
-                                ? PollSelectionMode.multiple
-                                : PollSelectionMode.single,
-                            initialVoteCounts: _data!.pollItems
-                                .map((item) => item.voteCount)
-                                .toList(),
-                            initialSelectedIndexes: {
-                              for (
-                                var index = 0;
-                                index < _data!.pollItems.length;
-                                index++
-                              )
-                                if (_data!.pollItems[index].isVoted) index,
-                            },
-                            initialHasVoted: _data!.pollItems.any(
-                              (item) => item.isVoted,
-                            ),
-                            optionType: switch (_data!.pollType) {
-                              'MUSIC' => PollOptionDisplayType.music,
-                              'LOCATION' => PollOptionDisplayType.location,
-                              _ => PollOptionDisplayType.text,
-                            },
-                            onPreviewTap:
-                                _data!.pollType == 'MUSIC' ||
-                                    _data!.pollType == 'LOCATION'
-                                ? _showOptionsPreview
-                                : null,
-                            onVoteSubmitted: (indexes) async {
-                              try {
-                                final api = ref.read(postApiProvider);
-                                if (indexes.isEmpty) {
-                                  await api.cancelVote(widget.pollId);
-                                } else {
-                                  await api.votePoll(
-                                    widget.pollId,
-                                    indexes
-                                        .map(
-                                          (index) =>
-                                              _data!.pollItems[index].itemId,
+                              options: _data!.pollItems
+                                  .map(
+                                    (item) =>
+                                        item.content ??
+                                        item.locationName ??
+                                        item.location ??
+                                        ((item.title ?? '') +
+                                            (item.artist == null
+                                                ? ''
+                                                : ' - ${item.artist}')),
+                                  )
+                                  .toList(),
+                              status:
+                                  _data!.closeAt != null &&
+                                      !_data!.closeAt!.isAfter(DateTime.now())
+                                  ? PollStatus.completed
+                                  : PollStatus.inProgress,
+                              isAnonymous: _data!.isAnonymous,
+                              participantCount: _data!.isAnonymous
+                                  ? (widget.participantCount ?? 0)
+                                  : _votersByOption.values
+                                        .expand(
+                                          (voters) => voters.map(
+                                            (voter) => voter.userId,
+                                          ),
                                         )
-                                        .toList(),
+                                        .toSet()
+                                        .length,
+                              selectionMode: _data!.allowMultipleChoice
+                                  ? PollSelectionMode.multiple
+                                  : PollSelectionMode.single,
+                              initialVoteCounts: _data!.pollItems
+                                  .map((item) => item.voteCount)
+                                  .toList(),
+                              initialSelectedIndexes: {
+                                for (
+                                  var index = 0;
+                                  index < _data!.pollItems.length;
+                                  index++
+                                )
+                                  if (_data!.pollItems[index].isVoted) index,
+                              },
+                              initialHasVoted: _data!.pollItems.any(
+                                (item) => item.isVoted,
+                              ),
+                              optionType: switch (_data!.pollType) {
+                                'MUSIC' => PollOptionDisplayType.music,
+                                'LOCATION' => PollOptionDisplayType.location,
+                                _ => PollOptionDisplayType.text,
+                              },
+                              onPreviewTap:
+                                  _data!.pollType == 'MUSIC' ||
+                                      _data!.pollType == 'LOCATION'
+                                  ? _showOptionsPreview
+                                  : null,
+                              onVoteSubmitted: (indexes) async {
+                                try {
+                                  final api = ref.read(postApiProvider);
+                                  if (indexes.isEmpty) {
+                                    await api.cancelVote(widget.pollId);
+                                  } else {
+                                    await api.votePoll(
+                                      widget.pollId,
+                                      indexes
+                                          .map(
+                                            (index) =>
+                                                _data!.pollItems[index].itemId,
+                                          )
+                                          .toList(),
+                                    );
+                                  }
+                                  if (mounted) await _load(isRefresh: true);
+                                  return true;
+                                } catch (error) {
+                                  _showError(error);
+                                  return false;
+                                }
+                              },
+                              onParticipantTap: _showOptionVoters,
+                              onMapTap: (index) {
+                                final locationId =
+                                    _data!.pollItems[index].locationId;
+                                if (locationId != null) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LocationMapPreviewPage(
+                                        locationId: locationId,
+                                      ),
+                                    ),
                                   );
                                 }
-                                if (mounted) await _load();
-                                return true;
-                              } catch (error) {
-                                _showError(error);
-                                return false;
-                              }
-                            },
-                            onParticipantTap: _showOptionVoters,
-                            onMapTap: (index) {
-                              final locationId =
-                                  _data!.pollItems[index].locationId;
-                              if (locationId != null)
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LocationMapPreviewPage(
-                                      locationId: locationId,
-                                    ),
-                                  ),
-                                );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: context.grays.gray7,
-                    ),
-                    const SizedBox(height: AppSpacing.x16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.x16,
-                      ),
-                      width: double.infinity,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.x4,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SvgPicture.asset(
-                              'assets/icons/post/chat_off.svg',
-                              colorFilter: ColorFilter.mode(
-                                context.grays.gray4,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.x4),
-                            Text(
-                              '댓글 $_commentCount',
-                              style: FontStyles.reg14.copyWith(
-                                color: context.grays.gray4,
-                              ),
+                              },
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.x20),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.x16,
-                        0,
-                        AppSpacing.x16,
-                        AppSpacing.x24,
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: context.grays.gray7,
                       ),
-                      child: PostCommentList(
-                        comments: _data!.commentList,
-                        onReply: (comment) =>
-                            _composerKey.currentState?.replyTo(comment),
-                        onDelete: _deleteComment,
+                      const SizedBox(height: AppSpacing.x16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.x16,
+                        ),
+                        width: double.infinity,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.x4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/icons/post/chat_off.svg',
+                                colorFilter: ColorFilter.mode(
+                                  context.grays.gray4,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.x4),
+                              Text(
+                                '댓글 $_commentCount',
+                                style: FontStyles.reg14.copyWith(
+                                  color: context.grays.gray4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.x20),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.x16,
+                          0,
+                          AppSpacing.x16,
+                          AppSpacing.x24,
+                        ),
+                        child: PostCommentList(
+                          comments: _data!.commentList,
+                          onReply: (comment) =>
+                              _composerKey.currentState?.replyTo(comment),
+                          onDelete: _deleteComment,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -520,8 +542,7 @@ class _PollDetailPageState extends ConsumerState<PollDetailPage> {
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({this.imageUrl});
 
-  static const String _fallbackAsset =
-      'assets/images/auth/profile_orange.png';
+  static const String _fallbackAsset = 'assets/images/auth/profile_orange.png';
 
   final String? imageUrl;
 
