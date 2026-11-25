@@ -161,11 +161,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
               const SizedBox(width: AppSpacing.x10),
 
               AppButton(
-                text: state.isSendingCode
-                    ? '전송 중'
-                    : state.isCodeSent
-                    ? '재전송'
-                    : '인증번호 발송',
+                text: state.isCodeSent ? '재전송' : '인증번호 발송',
                 width: ButtonWidth.medium,
                 height: ButtonHeight.small,
                 variant: ButtonVariant.black,
@@ -206,7 +202,7 @@ class _VerifyPasswordPageState extends ConsumerState<VerifyPasswordPage> {
               const SizedBox(width: AppSpacing.x10),
 
               AppButton(
-                text: state.isVerifyingCode ? '확인 중' : '확인',
+                text: '확인',
                 width: ButtonWidth.medium,
                 height: ButtonHeight.small,
                 variant: ButtonVariant.black,

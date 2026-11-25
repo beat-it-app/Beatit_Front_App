@@ -3,6 +3,7 @@ import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/loading/app_loading_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -37,6 +38,10 @@ class AppPopup extends StatelessWidget {
   final String confirmText;
   final String cancelText;
 
+  /// 지정하면 확인을 눌러도 팝업을 유지한 채 로딩 오버레이를 덮고,
+  /// 작업이 끝난 뒤 팝업을 닫는다.
+  final Future<void> Function()? confirmTask;
+
   const AppPopup({
     super.key,
     required this.title,
@@ -51,9 +56,12 @@ class AppPopup extends StatelessWidget {
     this.warningColor, // 💡 추가
     this.confirmText = '확인',
     this.cancelText = '취소',
+    this.confirmTask,
   });
 
   /// 호출부에서 showDialog를 매번 직접 쓰기 싫을 때 사용하는 helper.
+  ///
+  /// [confirmTask]에서 발생한 예외는 팝업이 닫힌 뒤 호출부로 다시 던진다.
   static Future<bool?> show(
     BuildContext context, {
     required String title,
@@ -69,9 +77,22 @@ class AppPopup extends StatelessWidget {
     String confirmText = '확인',
     String cancelText = '취소',
     bool barrierDismissible = true,
+    Future<void> Function()? confirmTask,
     ThemeData? theme,
-  }) {
-    return showDialog<bool>(
+  }) async {
+    Object? taskError;
+    StackTrace? taskStackTrace;
+
+    Future<void> runTask() async {
+      try {
+        await confirmTask!();
+      } catch (error, stackTrace) {
+        taskError = error;
+        taskStackTrace = stackTrace;
+      }
+    }
+
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: barrierDismissible,
       builder: (_) {
@@ -88,6 +109,7 @@ class AppPopup extends StatelessWidget {
           warningColor: warningColor,
           confirmText: confirmText,
           cancelText: cancelText,
+          confirmTask: confirmTask == null ? null : runTask,
         );
 
         if (theme == null) {
@@ -97,6 +119,11 @@ class AppPopup extends StatelessWidget {
         return Theme(data: theme, child: popup);
       },
     );
+
+    if (taskError != null) {
+      Error.throwWithStackTrace(taskError!, taskStackTrace!);
+    }
+    return result;
   }
 
   bool get _hasContent {
@@ -111,9 +138,25 @@ class AppPopup extends StatelessWidget {
     return content?.trim().isNotEmpty ?? false;
   }
 
-  void _handleConfirm(BuildContext context) {
-    Navigator.of(context).pop(true);
+  Future<void> _handleConfirm(BuildContext context) async {
+    final task = confirmTask;
+    if (task == null) {
+      Navigator.of(context).pop(true);
+      onConfirm?.call();
+      return;
+    }
+
+    final navigator = Navigator.of(context);
+    final popupRoute = ModalRoute.of(context);
     onConfirm?.call();
+    await AppLoadingOverlay.during(context, task);
+
+    if (popupRoute == null || !popupRoute.isActive) return;
+    if (popupRoute.isCurrent) {
+      navigator.pop(true);
+    } else {
+      navigator.removeRoute(popupRoute);
+    }
   }
 
   void _handleCancel(BuildContext context) {

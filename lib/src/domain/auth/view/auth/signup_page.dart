@@ -292,9 +292,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           const SizedBox(width: AppSpacing.x10),
 
                           AppButton(
-                            text: signupState.isCheckingIdentifier
-                                ? '확인 중'
-                                : '중복 확인',
+                            text: '중복 확인',
                             width: ButtonWidth.small,
                             height: ButtonHeight.small,
                             variant: ButtonVariant.black,
@@ -405,11 +403,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           const SizedBox(width: AppSpacing.x10),
 
                           AppButton(
-                            text: signupState.isSendingCode
-                                ? '발송 중'
-                                : signupState.isCodeSent
-                                ? '재전송'
-                                : '인증번호 발송',
+                            text: signupState.isCodeSent ? '재전송' : '인증번호 발송',
                             width: ButtonWidth.medium,
                             height: ButtonHeight.small,
                             variant: ButtonVariant.black,
@@ -454,11 +448,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           const SizedBox(width: AppSpacing.x10),
 
                           AppButton(
-                            text: signupState.isVerifyingCode
-                                ? '확인 중'
-                                : signupState.isVerified
-                                ? '인증 완료'
-                                : '확인',
+                            text: signupState.isVerified ? '인증 완료' : '확인',
                             width: ButtonWidth.medium,
                             height: ButtonHeight.small,
                             variant: ButtonVariant.black,
@@ -610,7 +600,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
               const SizedBox(height: AppSpacing.x16),
 
               AppButton(
-                text: signupState.isSubmitting ? '가입 중...' : '회원가입 완료',
+                text: '회원가입 완료',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,

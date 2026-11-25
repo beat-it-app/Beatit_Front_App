@@ -52,16 +52,8 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    final child = isLoading
-        ? SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _loadingColor(colors),
-            ),
-          )
-        : Text(text, style: FontStyles.semi16);
+    // 처리 중(isLoading)에도 글자는 그대로 두고 비활성 스타일만 적용한다.
+    final child = Text(text, style: FontStyles.semi16);
 
     final button = switch (variant) {
       ButtonVariant.primary => FilledButton(
@@ -141,18 +133,6 @@ class AppButton extends StatelessWidget {
       fixedSize: WidgetStatePropertyAll(Size.fromHeight(height.value)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
-  }
-
-  Color _loadingColor(ColorScheme colors) {
-    return switch (variant) {
-      ButtonVariant.primary => AppColor.white,
-      ButtonVariant.black => colors.onSecondary,
-      ButtonVariant.white => colors.onSurface,
-      ButtonVariant.gray => colors.onSurface,
-      ButtonVariant.darkGray => colors.surface,
-      ButtonVariant.outlined => colors.primary,
-      ButtonVariant.outlinedGray => colors.primary,
-    };
   }
 }
 

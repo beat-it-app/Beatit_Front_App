@@ -193,7 +193,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
               ),
 
               AppButton(
-                text: state.isResettingPassword ? '재설정 중' : '확인',
+                text: '확인',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,

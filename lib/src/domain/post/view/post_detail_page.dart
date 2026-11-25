@@ -167,20 +167,19 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await AppPopup.show(
-      context,
-      title: '삭제하시겠습니까?',
-      content: '삭제한 내용은 복구할 수 없습니다.',
-      buttonNum: ButtonNum.two,
-      warningType: WarningType.circle,
-      confirmText: '삭제',
-      cancelText: '취소',
-    );
-    if (confirmed != true || !mounted) return;
-
     try {
-      await ref.read(postApiProvider).deleteNotice(widget.noticeId);
-      if (mounted) Navigator.of(context).pop(true);
+      final confirmed = await AppPopup.show(
+        context,
+        title: '삭제하시겠습니까?',
+        content: '삭제한 내용은 복구할 수 없습니다.',
+        buttonNum: ButtonNum.two,
+        warningType: WarningType.circle,
+        confirmText: '삭제',
+        cancelText: '취소',
+        confirmTask: () =>
+            ref.read(postApiProvider).deleteNotice(widget.noticeId),
+      );
+      if (confirmed == true && mounted) Navigator.of(context).pop(true);
     } catch (error) {
       _showError(error);
     }

@@ -497,8 +497,8 @@ class _ExistingPostImagePreview extends StatelessWidget {
                     color: colors.surfaceContainerHighest,
                     alignment: Alignment.center,
                     child: const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   );

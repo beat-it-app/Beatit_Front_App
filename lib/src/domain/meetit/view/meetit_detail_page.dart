@@ -5,6 +5,7 @@ import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/loading/app_loading_overlay.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/toggles/app_toggle.dart';
 import 'package:beatit_front_app/src/domain/meetit/model/meetit_detail_response.dart';
@@ -57,6 +58,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
 
   MeetitDetailData? _loadedDetail;
   String? _error;
+  bool _isSavingResponse = false;
 
   MeetitDetailData get _data => _loadedDetail ?? widget.detail!;
 
@@ -195,6 +197,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
                   width: ButtonWidth.expand,
                   height: ButtonHeight.normal,
                   variant: ButtonVariant.black,
+                  isLoading: _isSavingResponse,
                   onPressed: _openEditPage,
                 ),
               ],
@@ -226,32 +229,42 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await AppPopup.show(
-      context,
-      title: '삭제하시겠습니까?',
-      content: '삭제한 내용은 복구할 수 없습니다.',
-      buttonNum: ButtonNum.two,
-      warningType: WarningType.circle,
-      confirmText: '삭제',
-      cancelText: '취소',
-    );
-    if (confirmed != true || !mounted) return;
-
-    await _deleteMeetit();
+    try {
+      final confirmed = await AppPopup.show(
+        context,
+        title: '삭제하시겠습니까?',
+        content: '삭제한 내용은 복구할 수 없습니다.',
+        buttonNum: ButtonNum.two,
+        warningType: WarningType.circle,
+        confirmText: '삭제',
+        cancelText: '취소',
+        confirmTask: _requestDelete,
+      );
+      if (confirmed == true && mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      _showDeleteError(error);
+    }
   }
 
+  Future<void> _requestDelete() {
+    return ref.read(postApiProvider).deleteMeetit(_data.meetitId);
+  }
+
+  /// 편집 화면에서 이미 삭제를 확인한 경우.
   Future<void> _deleteMeetit() async {
-    final meetitId = _data.meetitId;
     try {
-      await ref.read(postApiProvider).deleteMeetit(meetitId);
+      await AppLoadingOverlay.during(context, _requestDelete);
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
+      _showDeleteError(error);
     }
+  }
+
+  void _showDeleteError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   Widget _buildMeetingSummary(BuildContext context, MeetitDetailData data) {
@@ -573,6 +586,8 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
   }
 
   Future<void> _openEditPage() async {
+    if (_isSavingResponse) return;
+
     final data = _data;
     final currentUserId = _currentUserId;
     if (currentUserId == null) {
@@ -613,6 +628,7 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
     final selected = result.selection;
     if (selected == null) return;
 
+    setState(() => _isSavingResponse = true);
     try {
       await ref
           .read(postApiProvider)
@@ -628,6 +644,8 @@ class _MeetitDetailPageState extends ConsumerState<MeetitDetailPage> {
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
+    } finally {
+      if (mounted) setState(() => _isSavingResponse = false);
     }
   }
 

@@ -1031,11 +1031,7 @@ class _PerformanceInvitationPageState
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.x16),
                     child: AppButton(
-                      text: _isLoading
-                          ? '저장 중...'
-                          : _isEditMode
-                          ? '수정 완료'
-                          : '작성 완료',
+                      text: _isEditMode ? '수정 완료' : '작성 완료',
                       onPressed: (_isLoading || !_isFormValid) ? null : _submit,
                     ),
                   ),

@@ -569,6 +569,7 @@ class _MeetitCreatePageState extends ConsumerState<MeetitCreatePage> {
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,
+                isLoading: _submitting,
                 onPressed: _submit,
               ),
             ],

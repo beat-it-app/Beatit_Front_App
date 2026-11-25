@@ -8,6 +8,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/core/widgets/loading/app_loading_overlay.dart';
 
 import '../../api/withdrawal_api.dart';
 import '../../../team/util/team_exit_navigation.dart';
@@ -59,30 +60,31 @@ class _TeamDeletePageState extends ConsumerState<TeamDeletePage> {
   }
 
   Future<void> _handleDeleteTeam() async {
-    final confirmed = await AppPopup.show(
-      context,
-      title: "정말 '${widget.teamName}'를\n삭제하시겠습니까?",
-      content: '삭제 시, 해당 팀 활동 데이터를\n영구적으로 사용하실 수 없습니다.',
-      warningType: WarningType.circle,
-      warningColor: context.colors.primary,
-      contentType: ContentType.small,
-      buttonNum: ButtonNum.two,
-      buttonSymmetric: ButtonSymmetric.horizontal,
-      confirmText: '확인',
-      cancelText: '취소',
-    );
-
-    if (confirmed != true || !mounted) return;
-
     try {
-      // 💡 현재 활성화된 팀 삭제 (DELETE /teams/delete)
-      await ref.read(withdrawalApiProvider).deleteTeam();
+      final confirmed = await AppPopup.show(
+        context,
+        title: "정말 '${widget.teamName}'를\n삭제하시겠습니까?",
+        content: '삭제 시, 해당 팀 활동 데이터를\n영구적으로 사용하실 수 없습니다.',
+        warningType: WarningType.circle,
+        warningColor: context.colors.primary,
+        contentType: ContentType.small,
+        buttonNum: ButtonNum.two,
+        buttonSymmetric: ButtonSymmetric.horizontal,
+        confirmText: '확인',
+        cancelText: '취소',
+        // 💡 현재 활성화된 팀 삭제 (DELETE /teams/delete)
+        confirmTask: () => ref.read(withdrawalApiProvider).deleteTeam(),
+      );
 
-      if (!mounted) return;
+      if (confirmed != true || !mounted) return;
 
       final messenger = ScaffoldMessenger.of(context);
 
-      await returnToTeamEntry(context, ref);
+      // 팀 정보를 다시 받는 동안에도 화면 조작을 막는다.
+      await AppLoadingOverlay.during(
+        context,
+        () => returnToTeamEntry(context, ref),
+      );
 
       messenger.showSnackBar(
         const SnackBar(content: Text('팀이 성공적으로 삭제되었습니다.')),

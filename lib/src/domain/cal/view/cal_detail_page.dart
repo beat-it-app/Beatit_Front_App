@@ -67,6 +67,7 @@ class _CalDetailPageState extends ConsumerState<CalDetailPage> {
   }
 
   Future<void> _deleteSchedule() async {
+    var deleted = false;
     final confirmed = await AppPopup.show(
       context,
       title: '일정을 삭제하시겠습니까?',
@@ -77,17 +78,14 @@ class _CalDetailPageState extends ConsumerState<CalDetailPage> {
       buttonSymmetric: ButtonSymmetric.horizontal,
       confirmText: '확인',
       cancelText: '취소',
+      confirmTask: () async {
+        deleted = await ref
+            .read(calMutationProvider.notifier)
+            .deleteSchedule(scheduleId: widget.scheduleId);
+      },
     );
 
     if (!mounted || confirmed != true) {
-      return;
-    }
-
-    final deleted = await ref
-        .read(calMutationProvider.notifier)
-        .deleteSchedule(scheduleId: widget.scheduleId);
-
-    if (!mounted) {
       return;
     }
 

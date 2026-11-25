@@ -195,6 +195,10 @@ abstract final class AppTheme {
           side: BorderSide(color: dividerColor),
         ),
       ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colorScheme.primary,
+        strokeWidth: 3,
+      ),
       dividerTheme: DividerThemeData(
         color: dividerColor,
         thickness: 1,

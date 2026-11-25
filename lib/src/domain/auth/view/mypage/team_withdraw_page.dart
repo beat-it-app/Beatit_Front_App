@@ -23,6 +23,7 @@ class TeamWithdrawPage extends ConsumerStatefulWidget {
 
 class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
   bool _isLoading = true;
+  bool _isWithdrawing = false;
   bool _isConfirmed = false;
 
   int _fileCount = 0;
@@ -69,7 +70,9 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
       cancelText: '취소',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted || _isWithdrawing) return;
+
+    setState(() => _isWithdrawing = true);
 
     try {
       await ref.read(withdrawalApiProvider).withdrawTeam();
@@ -83,6 +86,8 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
+    } finally {
+      if (mounted) setState(() => _isWithdrawing = false);
     }
   }
 
@@ -259,6 +264,7 @@ class _TeamWithdrawPageState extends ConsumerState<TeamWithdrawPage> {
                       variant: ButtonVariant.darkGray,
                       width: ButtonWidth.expand,
                       height: ButtonHeight.normal,
+                      isLoading: _isWithdrawing,
                       onPressed: _isConfirmed ? _handleWithdraw : null,
                     ),
                     const SizedBox(height: AppSpacing.x24),

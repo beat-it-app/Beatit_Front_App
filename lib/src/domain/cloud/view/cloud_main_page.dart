@@ -22,6 +22,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_stora
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_folder_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_mutation_guard.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:beatit_front_app/src/domain/etc/widget/search_input_widget.dart';
 import 'package:flutter/material.dart';
@@ -134,6 +135,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   Future<void> _createFolder() async {
+    if (blockIfCloudMutating(context, ref)) return;
     final name = await showCloudFolderNameBottomSheet(context: context);
     if (!mounted || name == null) return;
 
@@ -145,6 +147,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   Future<void> _uploadFile() async {
+    if (blockIfCloudMutating(context, ref)) return;
     final selection = await showCloudFileUploadBottomSheet(context: context);
     if (!mounted || selection == null) return;
 
@@ -161,6 +164,9 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       return;
     }
 
+    // 저장 공간을 조회하는 사이에 다른 요청이 시작됐을 수 있다.
+    if (blockIfCloudMutating(context, ref)) return;
+
     final success = await ref
         .read(cloudMutationProvider.notifier)
         .uploadFile(
@@ -173,6 +179,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   Future<void> _createLink() async {
+    if (blockIfCloudMutating(context, ref)) return;
     final result = await showLinkCreateBottomsheet(context: context);
     if (!mounted || result == null) return;
 
@@ -186,6 +193,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   Future<void> _deleteSelection() async {
     if (!_hasSelection) return;
 
+    var success = false;
     final confirmed = await AppPopup.show(
       context,
       title: '삭제하시겠습니까?',
@@ -198,16 +206,16 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
           : WarningType.triangle,
       confirmText: '삭제',
       cancelText: '취소',
+      confirmTask: () async {
+        success = await ref
+            .read(cloudMutationProvider.notifier)
+            .deleteSelection(
+              itemIds: _selectedItemIds.toList(),
+              folderIds: _selectedFolderIds.toList(),
+            );
+      },
     );
     if (!mounted || confirmed != true) return;
-
-    final success = await ref
-        .read(cloudMutationProvider.notifier)
-        .deleteSelection(
-          itemIds: _selectedItemIds.toList(),
-          folderIds: _selectedFolderIds.toList(),
-        );
-    if (!mounted) return;
 
     if (success) {
       _setSelectionMode(false);
@@ -216,6 +224,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   Future<void> _deleteSingleItem(int itemId) async {
+    var success = false;
     final confirmed = await AppPopup.show(
       context,
       title: '삭제하시겠습니까?',
@@ -224,13 +233,13 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
       warningType: WarningType.triangle,
       confirmText: '삭제',
       cancelText: '취소',
+      confirmTask: () async {
+        success = await ref
+            .read(cloudMutationProvider.notifier)
+            .deleteItems(itemIds: [itemId]);
+      },
     );
     if (!mounted || confirmed != true) return;
-
-    final success = await ref
-        .read(cloudMutationProvider.notifier)
-        .deleteItems(itemIds: [itemId]);
-    if (!mounted) return;
     _showMutationResult(success, successMessage: '삭제했습니다.');
   }
 
@@ -328,6 +337,7 @@ class _CloudMainPageState extends ConsumerState<CloudMainPage> {
   }
 
   Future<void> _renameItem(CloudItem item) async {
+    if (blockIfCloudMutating(context, ref)) return;
     final name = await showCloudRenamePopup(
       context,
       initialName: item.itemName,

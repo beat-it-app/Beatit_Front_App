@@ -82,35 +82,34 @@ class _AppWithdrawInfoPageState extends ConsumerState<AppWithdrawInfoPage> {
       return;
     }
 
-    // 2. 최종 탈퇴 확정 팝업
-    final confirmed = await AppPopup.show(
-      context,
-      title: '정말 빗잇을 탈퇴하시겠습니까?',
-      content: '탈퇴 후 7일 이내 로그인 시 계정을 복구할 수 있으며, 이후에는 계정이 삭제됩니다.',
-      warningType: WarningType.triangle,
-      warningColor: context.colors.primary,
-      contentType: ContentType.small,
-      buttonNum: ButtonNum.two,
-      confirmText: '확인',
-      cancelText: '취소',
-    );
-
-    if (confirmed != true || !mounted) return;
-
     try {
-      await ref
-          .read(withdrawalApiProvider)
-          .withdrawAuth(
-            withdrawalReason: widget.withdrawalReason,
-            detailReason: widget.detailReason,
-          );
+      // 2. 최종 탈퇴 확정 팝업
+      final confirmed = await AppPopup.show(
+        context,
+        title: '정말 빗잇을 탈퇴하시겠습니까?',
+        content: '탈퇴 후 7일 이내 로그인 시 계정을 복구할 수 있으며, 이후에는 계정이 삭제됩니다.',
+        warningType: WarningType.triangle,
+        warningColor: context.colors.primary,
+        contentType: ContentType.small,
+        buttonNum: ButtonNum.two,
+        confirmText: '확인',
+        cancelText: '취소',
+        confirmTask: () async {
+          await ref
+              .read(withdrawalApiProvider)
+              .withdrawAuth(
+                withdrawalReason: widget.withdrawalReason,
+                detailReason: widget.detailReason,
+              );
 
-      if (!mounted) return;
+          if (!mounted) return;
 
-      // 💡 탈퇴 API 성공 직후 토큰 및 앱 캐시/상태 일괄 삭제
-      await ref.read(authProvider.notifier).logout();
+          // 💡 탈퇴 API 성공 직후 토큰 및 앱 캐시/상태 일괄 삭제
+          await ref.read(authProvider.notifier).logout();
+        },
+      );
 
-      if (!mounted) return;
+      if (confirmed != true || !mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AppWithdrawCompletePage()),
