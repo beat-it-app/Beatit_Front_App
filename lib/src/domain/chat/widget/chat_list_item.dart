@@ -1,4 +1,5 @@
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_colors.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
 import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
@@ -9,6 +10,7 @@ class ChatListItem extends StatelessWidget {
   const ChatListItem({
     super.key,
     required this.roomName,
+    required this.participantCount,
     required this.lastMessage,
     required this.timeText,
     required this.unreadCount,
@@ -17,6 +19,7 @@ class ChatListItem extends StatelessWidget {
   });
 
   final String roomName;
+  final int participantCount;
   final String lastMessage;
   final String timeText;
   final int unreadCount;
@@ -57,14 +60,30 @@ class ChatListItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      roomName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FontStyles.semi16.copyWith(
-                        color: context.grays.black,
-                        height: 1,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            roomName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: FontStyles.semi16.copyWith(
+                              color: context.grays.black,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.x4),
+                        Text(
+                          '$participantCount',
+                          maxLines: 1,
+                          style: FontStyles.semi16.copyWith(
+                            color: context.grays.gray4,
+                            height: 1,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.x12),
                     Text(
@@ -119,7 +138,7 @@ class ChatListItem extends StatelessWidget {
                         child: Text(
                           unreadCount > 99 ? '99+' : '$unreadCount',
                           style: FontStyles.med12.copyWith(
-                            color: colorScheme.onPrimary,
+                            color: AppColor.white,
                             fontWeight: FontWeight.w700,
                             height: 1,
                           ),

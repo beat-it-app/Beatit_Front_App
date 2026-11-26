@@ -4,6 +4,7 @@ import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 Future<String?> showCloudRenamePopup(
   BuildContext context, {
@@ -42,6 +43,14 @@ class _CloudRenamePopupState extends State<CloudRenamePopup> {
     text: _parsedFileName.baseName,
   );
 
+  final FocusNode _focusNode = FocusNode();
+
+  void _clearFileName() {
+    _controller.clear();
+    _focusNode.requestFocus();
+    setState(() {});
+  }
+
   bool get _canSubmit => _controller.text.trim().isNotEmpty;
 
   String get _resolvedFileName {
@@ -54,24 +63,34 @@ class _CloudRenamePopupState extends State<CloudRenamePopup> {
     return '$baseName.${_parsedFileName.extension}';
   }
 
-  double _fileNameTextWidth(BuildContext context) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: _controller.text.isEmpty ? ' ' : _controller.text,
-        style: FontStyles.reg18,
-      ),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
+  Widget _buildNameField(BuildContext context) {
+    return TextFormField(
+      controller: _controller,
+      focusNode: _focusNode,
       maxLines: 1,
-    )..layout();
-    // 편집 커서가 잘리지 않도록 여유를 두고 짧은 이름도 편하게 편집합니다.
-    final width = painter.width + 4;
-    painter.dispose();
-    return width < 32 ? 32 : width;
+      cursorColor: context.colors.primary,
+      style: FontStyles.reg18.copyWith(color: context.colors.onSurface),
+      decoration: const InputDecoration(
+        isCollapsed: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+      ),
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
+      onChanged: (_) => setState(() {}),
+      onFieldSubmitted: (_) {
+        // 파일명은 확인 버튼으로만 확정합니다.
+        if (!widget.preserveExtension && _canSubmit) {
+          Navigator.of(context).pop(_resolvedFileName);
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -118,45 +137,59 @@ class _CloudRenamePopupState extends State<CloudRenamePopup> {
                 ),
                 child: Row(
                   children: [
-                    Flexible(
-                      fit: FlexFit.loose,
-                      child: SizedBox(
-                        // 파일명 길이만큼만 입력창을 차지하도록 하여 확장자가
-                        // 남은 입력 영역의 오른쪽 끝으로 밀리지 않게 합니다.
-                        width: _parsedFileName.extension.isEmpty
-                            ? double.infinity
-                            : _fileNameTextWidth(context),
-                        child: TextFormField(
-                          controller: _controller,
-                          maxLines: 1,
-                          cursorColor: context.colors.primary,
-                          style: FontStyles.reg18.copyWith(
-                            color: context.colors.onSurface,
-                          ),
-                          decoration: const InputDecoration(
-                            isCollapsed: true,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          onChanged: (_) => setState(() {}),
-                          onFieldSubmitted: (_) {
-                            if (_canSubmit) {
-                              Navigator.of(context).pop(_resolvedFileName);
-                            }
-                          },
-                        ),
-                      ),
+                    Expanded(
+                      child: _parsedFileName.extension.isEmpty
+                          ? _buildNameField(context)
+                          : Row(
+                              children: [
+                                Flexible(
+                                  // 입력창이 실제 파일명 폭(+커서 3px)만 차지하도록
+                                  // 하여 확장자가 파일명 바로 뒤에 붙게 합니다.
+                                  child: IntrinsicWidth(
+                                    child: _buildNameField(context),
+                                  ),
+                                ),
+                                // 커서 여백 3px과 합쳐 파일명과 4px 간격입니다.
+                                const SizedBox(width: 1),
+                                Text(
+                                  '.${_parsedFileName.extension}',
+                                  style: FontStyles.reg18.copyWith(
+                                    color: context.grays.gray5,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
-                    if (_parsedFileName.extension.isNotEmpty)
-                      Text(
-                        '.${_parsedFileName.extension}',
-                        style: FontStyles.reg18.copyWith(
-                          color: context.grays.gray5,
+                    if (widget.preserveExtension) ...[
+                      const SizedBox(width: AppSpacing.x8),
+                      TextFieldTapRegion(
+                        child: IconButton(
+                          tooltip: '파일 이름 지우기',
+                          onPressed: _controller.text.isEmpty
+                              ? null
+                              : _clearFileName,
+                          constraints: const BoxConstraints(
+                            minWidth: 20,
+                            maxWidth: 20,
+                            minHeight: 40,
+                          ),
+                          padding: EdgeInsets.zero,
+                          // 기본 48px 터치 영역이 좌우 여백으로 보이지 않게 합니다.
+                          style: IconButton.styleFrom(
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: SvgPicture.asset(
+                            'assets/icons/etc/cancel.svg',
+                            width: 16,
+                            height: 16,
+                            colorFilter: ColorFilter.mode(
+                              context.grays.gray6,
+                              BlendMode.srcIn,
+                            ),
+                          ),
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -225,8 +258,6 @@ Future<String?> showCloudFileRenamePopup(
 
 /// 기존 이름 수정 팝업 타입과의 호환성을 유지합니다.
 class CloudFileRenamePopup extends CloudRenamePopup {
-  const CloudFileRenamePopup({
-    super.key,
-    required String initialFileName,
-  }) : super(initialName: initialFileName, preserveExtension: true);
+  const CloudFileRenamePopup({super.key, required String initialFileName})
+    : super(initialName: initialFileName, preserveExtension: true);
 }

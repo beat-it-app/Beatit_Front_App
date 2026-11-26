@@ -185,6 +185,7 @@ class _ChatListBody extends StatelessWidget {
 
           return ChatListItem(
             roomName: state.displayNameFor(room, currentUserId),
+            participantCount: room.participantCount,
             lastMessage: _formatLastMessage(room.lastMessage),
             timeText: _formatListTime(room.lastMessageTime),
             unreadCount: room.unreadCount,

@@ -28,7 +28,8 @@ class AppVideoTimeline extends StatefulWidget {
     this.requestHeaders,
     this.onSelectionChanged,
     this.onSelectionChangeEnd,
-  });
+    this.containerHeight = 60.0,
+  }) : assert(containerHeight > 12.0);
 
   final Uri videoUri;
   final Map<String, String>? requestHeaders;
@@ -45,6 +46,9 @@ class AppVideoTimeline extends StatefulWidget {
   final AppVideoSelectionChanged? onSelectionChanged;
   final AppVideoSelectionChanged? onSelectionChangeEnd;
 
+  /// 재생바 본체 높이 (위아래 playhead 여유는 별도).
+  final double containerHeight;
+
   @override
   State<AppVideoTimeline> createState() => _AppVideoTimelineState();
 }
@@ -56,8 +60,7 @@ class _AppVideoTimelineState extends State<AppVideoTimeline> {
   static const double _minVisibleFraction = 1 / 3;
   static const double _maxVisibleFraction = 1.0;
 
-  // Audio waveform과 동일한 전체 높이: 60 + 위/아래 4 = 68.
-  static const double _containerHeight = 60.0;
+  // Audio waveform과 동일하게 본체 높이에 위/아래 4를 추가합니다.
   static const double _playheadExtension = 4.0;
   static const double _innerPadding = 6.0;
 
@@ -655,7 +658,7 @@ class _AppVideoTimelineState extends State<AppVideoTimeline> {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: _containerHeight + (_playheadExtension * 2),
+      height: widget.containerHeight + (_playheadExtension * 2),
       child: LayoutBuilder(
         builder: (context, constraints) {
           _lastKnownWidth = constraints.maxWidth;
@@ -664,7 +667,7 @@ class _AppVideoTimelineState extends State<AppVideoTimeline> {
             0.0,
             constraints.maxWidth - (_innerPadding * 2),
           );
-          final innerHeight = _containerHeight - (_innerPadding * 2);
+          final innerHeight = widget.containerHeight - (_innerPadding * 2);
 
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -682,7 +685,7 @@ class _AppVideoTimelineState extends State<AppVideoTimeline> {
                   painter: _AppVideoTimelineBackgroundPainter(
                     backgroundColor: context.grays.white,
                     borderColor: context.grays.gray7,
-                    containerHeight: _containerHeight,
+                    containerHeight: widget.containerHeight,
                     playheadExtension: _playheadExtension,
                   ),
                 ),
@@ -737,7 +740,7 @@ class _AppVideoTimelineState extends State<AppVideoTimeline> {
                     playheadBorderColor: context.grays.gray5,
                     playheadFillColor: context.grays.white,
                     playbackIndicatorColor: context.brands.beatOrange1,
-                    containerHeight: _containerHeight,
+                    containerHeight: widget.containerHeight,
                     playheadExtension: _playheadExtension,
                     innerPadding: _innerPadding,
                   ),

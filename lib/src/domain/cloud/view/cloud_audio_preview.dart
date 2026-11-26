@@ -4,7 +4,6 @@ import 'dart:math' as math;
 
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
 import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
-import 'package:beatit_front_app/src/core/theme/app_radius.dart';
 import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
 import 'package:beatit_front_app/src/domain/cloud/view/cloud_file_preview.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_audio_waveform.dart';
@@ -12,6 +11,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_appbar.dart'
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_file_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_media_preview_layout.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_media_playback_controls.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_playback_time_labels.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
@@ -41,6 +41,7 @@ class CloudAudioPreview extends StatefulWidget {
     this.onDownloadPressed,
     this.onOpenExternalPressed,
     this.canManage = true,
+    this.useResponsiveLayout = false,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -60,6 +61,9 @@ class CloudAudioPreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem>? onDownloadPressed;
   final ValueChanged<CloudFilePreviewItem>? onOpenExternalPressed;
   final bool canManage;
+
+  /// 팀 클라우드에서만 새 QA 레이아웃을 활성화합니다.
+  final bool useResponsiveLayout;
 
   /// 음원 외 파일을 선택했을 때 해당 Preview 화면으로 전환하는 진입점이다.
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
@@ -786,65 +790,127 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
               : () => widget.onOpenExternalPressed!(_currentFile),
         );
       case _AudioLoadState.ready:
-        return Center(child: _buildPlayer());
+        return widget.useResponsiveLayout
+            ? _buildPlayer()
+            : Center(child: _buildPlayer());
     }
   }
 
   Widget _buildPlayer() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.x20,
-        AppSpacing.x24,
-        AppSpacing.x20,
-        80.0,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Column(
-            children: [
-              Center(
-                child: SvgPicture.asset(
-                  'assets/icons/cloud/sound.svg',
-                  width: 200.0,
-                  height: 170.0,
-                ),
+    if (!widget.useResponsiveLayout) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.x20,
+          AppSpacing.x24,
+          AppSpacing.x20,
+          80.0,
+        ),
+        child: _buildPlayerContent(),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const horizontalPadding = AppSpacing.x20;
+        const verticalPadding = AppSpacing.x12;
+        final contentWidth = math.max(
+          0.0,
+          constraints.maxWidth - horizontalPadding * 2,
+        );
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: math.max(
+                0.0,
+                constraints.maxHeight - verticalPadding * 2,
               ),
-              const SizedBox(height: AppSpacing.x30),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: AppSpacing.x8,
-                children: [
+            ),
+            child: _buildPlayerContent(
+              iconWidth: constraints.maxWidth * 0.48,
+              availableHeight: constraints.maxHeight,
+              waveformHeight: CloudMediaPreviewLayout.timelineHeight(
+                contentWidth,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlayerContent({
+    double? iconWidth,
+    double? availableHeight,
+    double waveformHeight = 60.0,
+  }) {
+    final responsive = availableHeight != null;
+    // 작은 화면에서는 최소 간격만 남기고, 여유 공간은 실제 콘텐츠 높이에
+    // 맞춰 분배합니다. 글자 크기와 재생 버튼 크기는 변경하지 않습니다.
+    final sectionGap = availableHeight == null
+        ? AppSpacing.x30
+        : (availableHeight * 0.035).clamp(12.0, 24.0).toDouble();
+
+    return Column(
+      mainAxisAlignment: responsive
+          ? MainAxisAlignment.spaceEvenly
+          : MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: SvgPicture.asset(
+                'assets/icons/cloud/sound.svg',
+                width: iconWidth ?? 200.0,
+                height: responsive ? null : 170.0,
+                fit: BoxFit.contain,
+              ),
+            ),
+            SizedBox(height: sectionGap),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.x8,
+              children: [
+                Text(
+                  _currentFile.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: FontStyles.semi20.copyWith(
+                    color: context.grays.gray5,
+                  ),
+                ),
+                if (_currentFile.sizeLabel?.isNotEmpty == true)
                   Text(
-                    _currentFile.name,
-                    maxLines: 2,
+                    _currentFile.sizeLabel!,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: FontStyles.semi20.copyWith(
                       color: context.grays.gray5,
                     ),
                   ),
-                  if (_currentFile.sizeLabel?.isNotEmpty == true)
-                    Text(
-                      _currentFile.sizeLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: FontStyles.semi20.copyWith(
-                        color: context.grays.gray5,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              Text(
-                _currentFile.uploadedAt,
-                style: FontStyles.med16.copyWith(color: context.grays.gray6),
-              ),
-            ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            Text(
+              _currentFile.uploadedAt,
+              style: FontStyles.med16.copyWith(color: context.grays.gray6),
+            ),
+          ],
+        ),
+        Padding(
+          padding: EdgeInsets.only(
+            top: responsive ? AppSpacing.x16 : AppSpacing.x70,
           ),
-          const SizedBox(height: AppSpacing.x70),
-          Column(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               AppMediaPlaybackControls(
                 mediaLabel: '음원',
@@ -855,7 +921,7 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 onTogglePlay: () => unawaited(_togglePlayPause()),
                 onToggleSelection: () => unawaited(_toggleSelectionMode()),
               ),
-              const SizedBox(height: AppSpacing.x30),
+              SizedBox(height: sectionGap),
               AppPlaybackTimeLabels(
                 position: _displayPosition,
                 duration: _sourceDuration,
@@ -863,7 +929,9 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
                 selectionStart: _selectionStart,
                 selectionEnd: _selectionEnd,
               ),
+              if (responsive) const SizedBox(height: AppSpacing.x4),
               AppAudioWaveform(
+                containerHeight: waveformHeight,
                 waveform: _waveform,
                 loadingProgress: _waveformProgress,
                 hasError: _waveformFailed,
@@ -883,8 +951,8 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -915,6 +983,19 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
     final showMove = widget.canManage && widget.onMovePressed != null;
     final showDownload = widget.onDownloadPressed != null;
     final showActions = showDelete || showMove || showDownload;
+    final actions = showActions
+        ? CloudSelectionFloatingBar(
+            isEnabled: true,
+            showDelete: showDelete,
+            showMove: showMove,
+            showDownload: showDownload,
+            onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+            onMovePressed: () => widget.onMovePressed?.call(_currentFile),
+            onDownloadPressed: showDownload
+                ? () => widget.onDownloadPressed?.call(_currentFile)
+                : null,
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: context.grays.white,
@@ -924,29 +1005,23 @@ class _CloudAudioPreviewState extends State<CloudAudioPreview> {
         onTitlePressed: widget.files.length > 1 ? _showFileList : null,
       ),
       body: CloudPreviewBackground(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildBody(),
-            if (showActions)
-              Positioned(
-                left: AppSpacing.x16,
-                bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
-                child: CloudSelectionFloatingBar(
-                  isEnabled: true,
-                  showDelete: showDelete,
-                  showMove: showMove,
-                  showDownload: showDownload,
-                  onDeletePressed: () =>
-                      widget.onDeletePressed?.call(_currentFile),
-                  onMovePressed: () => widget.onMovePressed?.call(_currentFile),
-                  onDownloadPressed: showDownload
-                      ? () => widget.onDownloadPressed?.call(_currentFile)
-                      : null,
-                ),
+        child: widget.useResponsiveLayout
+            ? CloudMediaPreviewLayout(
+                child: _buildBody(),
+                actions: actions,
+              )
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildBody(),
+                  if (showActions)
+                    Positioned(
+                      left: AppSpacing.x16,
+                      bottom: AppSpacing.x16 + MediaQuery.paddingOf(context).bottom,
+                      child: actions!,
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }
