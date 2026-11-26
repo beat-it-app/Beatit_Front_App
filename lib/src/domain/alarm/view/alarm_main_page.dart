@@ -119,7 +119,7 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
     if (switchedTeam) refreshTeamData(ref);
     final destination = target;
     if (destination == null) return;
-    _navigateToTarget(destination, notificationTitle: notification.title);
+    _navigateToTarget(destination);
   }
 
   Future<AlarmClickResponse?> _openTeamLoading({
@@ -138,13 +138,9 @@ class _AlarmMainPageState extends ConsumerState<AlarmMainPage>
     );
   }
 
-  void _navigateToTarget(
-    AlarmClickResponse target, {
-    required String notificationTitle,
-  }) => navigateToAlarmTarget(
+  void _navigateToTarget(AlarmClickResponse target) => navigateToAlarmTarget(
     Navigator.of(context, rootNavigator: true),
     target,
-    notificationTitle: notificationTitle,
   );
 
   @override

@@ -46,11 +46,7 @@ Future<void> openAlarmFromPush({
       ref.invalidate(alarmProvider);
     }
 
-    navigateToAlarmTarget(
-      navigator,
-      target,
-      notificationTitle: message.notification?.title ?? '',
-    );
+    navigateToAlarmTarget(navigator, target);
   } catch (error) {
     debugPrint('[AlarmPush] Notification navigation failed: $error');
     if (!navigator.mounted) return;
