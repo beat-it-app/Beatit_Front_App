@@ -182,6 +182,9 @@ class ChatRoomState {
 
 class ChatRoomNotifier extends Notifier<ChatRoomState> {
   static const int _pageSize = 30;
+
+  /// 소켓 이벤트에는 발신자 정보가 없어, 상세 재조회 전까지 쓰는 임시 이름입니다.
+  static const String pendingSenderName = '멤버';
   static const List<Duration> _reconnectDelays = <Duration>[
     Duration(seconds: 1),
     Duration(seconds: 2),
@@ -913,7 +916,7 @@ class ChatRoomNotifier extends Notifier<ChatRoomState> {
       senderId: event.senderId,
       senderName: isMine
           ? '나'
-          : knownSenderMessage?.senderName ?? '멤버',
+          : knownSenderMessage?.senderName ?? pendingSenderName,
       profileImageUrl: knownSenderMessage?.profileImageUrl,
       content: event.content,
       messageType: event.messageType,
