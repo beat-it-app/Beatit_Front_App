@@ -327,7 +327,7 @@ class _SigninPageState extends ConsumerState<SigninPage> {
                             const SizedBox(height: AppSpacing.x30),
 
                             AppButton(
-                              text: authState.isLoading ? '로그인 중...' : '로그인하기',
+                              text: '로그인하기',
                               width: ButtonWidth.expand,
                               height: ButtonHeight.normal,
                               variant: ButtonVariant.primary,

@@ -68,11 +68,26 @@ abstract final class AppDateTimeFormatter {
     return '$startLabel - ${dateLabel(end)} ${_scheduleTimeParts(end)}';
   }
 
-  /// 24-hour clock, e.g. 7:05 or 19:05.
-  static String formatTime(DateTime value) {
-    final local = value.toLocal();
-    return '${local.hour}:${local.minute.toString().padLeft(2, '0')}';
+  /// 문자열의 앞 10자리(yyyy-MM-dd)를 [formatDate] 형식으로 바꿉니다.
+  /// 시간대 변환은 하지 않으며, 날짜로 읽을 수 없으면 원문을 반환합니다.
+  static String formatDateString(String raw) {
+    final trimmed = raw.trim();
+    final date = trimmed.length >= 10
+        ? DateTime.tryParse(trimmed.substring(0, 10))
+        : null;
+    return date == null ? trimmed : _dateParts(date);
   }
+
+  /// Example: 2026. 1. 2. 9:05
+  static String formatDateTime(DateTime value) =>
+      '${formatDate(value)} ${formatTime(value)}';
+
+  /// 24-hour clock, e.g. 7:05 or 19:05.
+  static String formatTime(DateTime value) => _timeParts(value.toLocal());
+
+  /// [formatTime]과 같은 형식이며, 시·분 값만 있을 때 사용합니다.
+  static String formatHourMinute(int hour, int minute) =>
+      formatTime(DateTime(2000, 1, 1, hour, minute));
 
   /// 12-hour clock with Korean period, e.g. 오전 7:05 / 오후 7:05.
   static String formatTimeWithPeriod(DateTime value) {

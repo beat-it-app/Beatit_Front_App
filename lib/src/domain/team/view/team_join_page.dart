@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -32,6 +33,8 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
   String _formattedDate = '';
   String? _teamImageUrl;
 
+  bool _isJoining = false;
+
   bool get _canSubmit {
     return inviteCodeController.text.trim().length == 6;
   }
@@ -56,9 +59,9 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
         _teamName = teamData?.teamName ?? '';
         // 💡 이미지 필드 세팅 (모델 필드명에 맞게 설정: teamImageUrl 또는 imageUrl)
         _teamImageUrl = teamData?.teamImageUrl;
-        _formattedDate = teamData != null && teamData.createdAt.length >= 10
-            ? teamData.createdAt.substring(0, 10).replaceAll('-', '.')
-            : (teamData?.createdAt ?? '');
+        _formattedDate = AppDateTimeFormatter.formatDateString(
+          teamData?.createdAt ?? '',
+        );
       });
     } else {
       final err = ref.read(teamJoinProvider).errorMessage;
@@ -70,6 +73,8 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
   }
 
   Future<void> _handleJoinSubmit() async {
+    if (_isJoining) return;
+
     final result = await AppPopup.show(
       context,
       title: "팀 '$_teamName'에\n가입하시겠습니까?",
@@ -79,8 +84,17 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
       cancelText: '아니요',
     );
 
-    if (result != true || !mounted) return;
+    if (result != true || !mounted || _isJoining) return;
 
+    setState(() => _isJoining = true);
+    try {
+      await _joinTeam();
+    } finally {
+      if (mounted) setState(() => _isJoining = false);
+    }
+  }
+
+  Future<void> _joinTeam() async {
     final joinSuccess = await ref
         .read(teamJoinProvider.notifier)
         .joinTeam(_teamPublicId);
@@ -170,7 +184,7 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
                   ),
                   const SizedBox(width: AppSpacing.x8),
                   AppButton(
-                    text: state.isVerifying ? '확인 중' : '확인',
+                    text: '확인',
                     variant: _canSubmit
                         ? ButtonVariant.darkGray
                         : ButtonVariant.gray,
@@ -266,6 +280,7 @@ class _TeamJoinPageState extends ConsumerState<TeamJoinPage> {
                         variant: ButtonVariant.primary,
                         width: ButtonWidth.expand,
                         height: ButtonHeight.normal,
+                        isLoading: _isJoining,
                         onPressed: _handleJoinSubmit,
                       ),
                     ),

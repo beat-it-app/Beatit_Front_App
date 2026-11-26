@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_booking_dialog.dart';
 import 'package:beatit_front_app/src/domain/performance/widget/performance_xfile_image.dart';
 import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
@@ -272,7 +273,7 @@ class PerformanceDetailSection extends StatelessWidget {
 
 String _formatDateTime(DateTime date) =>
     '${date.year}년 ${date.month}월 ${date.day}일 (${_weekdays[date.weekday - 1]}) '
-    '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    '${AppDateTimeFormatter.formatTime(date)}';
 
 const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 

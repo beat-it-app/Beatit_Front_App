@@ -464,7 +464,7 @@ class _TeamArchiveUpdatePageState extends ConsumerState<TeamArchiveUpdatePage> {
 
               // 5. 저장하기 버튼
               AppButton(
-                text: _isSubmitting ? '수정 중...' : '저장하기',
+                text: '저장하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,

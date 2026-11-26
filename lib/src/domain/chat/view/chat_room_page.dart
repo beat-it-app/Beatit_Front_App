@@ -1132,8 +1132,8 @@ class _ChatMessageList extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: AppSpacing.x12),
               child: Center(
                 child: SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 18,
+                  height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),

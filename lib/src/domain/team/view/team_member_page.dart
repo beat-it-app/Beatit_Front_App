@@ -97,7 +97,19 @@ class _TeamMemberPageState extends ConsumerState<TeamMemberPage> {
   }
 
   // FAB 버튼을 눌렀을 때 API 호출 처리
+  bool _isSaving = false;
+
   Future<void> _handleSave() async {
+    if (_isSaving) return;
+    _isSaving = true;
+    try {
+      await _saveChanges();
+    } finally {
+      _isSaving = false;
+    }
+  }
+
+  Future<void> _saveChanges() async {
     final notifier = ref.read(teamMemberProvider.notifier);
     final state = ref.read(teamMemberProvider);
     bool isSuccess = true;

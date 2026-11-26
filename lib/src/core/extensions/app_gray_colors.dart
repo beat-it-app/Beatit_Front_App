@@ -13,6 +13,7 @@ class AppGrayColors extends ThemeExtension<AppGrayColors> {
     required this.gray7,
     required this.gray8,
     required this.white,
+    required this.grayBackground,
   });
 
   final Color black;
@@ -25,6 +26,7 @@ class AppGrayColors extends ThemeExtension<AppGrayColors> {
   final Color gray7;
   final Color gray8;
   final Color white;
+  final Color grayBackground;
 
   @override
   AppGrayColors copyWith({
@@ -38,6 +40,7 @@ class AppGrayColors extends ThemeExtension<AppGrayColors> {
     Color? gray7,
     Color? gray8,
     Color? white,
+    Color? grayBackground,
   }) {
     return AppGrayColors(
       black: black ?? this.black,
@@ -50,6 +53,7 @@ class AppGrayColors extends ThemeExtension<AppGrayColors> {
       gray7: gray7 ?? this.gray7,
       gray8: gray8 ?? this.gray8,
       white: white ?? this.white,
+      grayBackground: grayBackground ?? this.grayBackground,
     );
   }
 
@@ -70,6 +74,7 @@ class AppGrayColors extends ThemeExtension<AppGrayColors> {
       gray7: Color.lerp(gray7, other.gray7, t)!,
       gray8: Color.lerp(gray8, other.gray8, t)!,
       white: Color.lerp(white, other.white, t)!,
+      grayBackground: Color.lerp(grayBackground, other.grayBackground, t)!,
     );
   }
 }

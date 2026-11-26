@@ -1216,8 +1216,8 @@ class _CalCreatePageState extends ConsumerState<CalCreatePage> {
     if (_isLoadingInitialMembers) {
       return const Center(
         child: SizedBox(
-          width: 24,
-          height: 24,
+          width: 18,
+          height: 18,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );

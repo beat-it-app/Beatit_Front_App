@@ -2,6 +2,7 @@
 
 import 'dart:io';
 
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -152,9 +153,9 @@ class _PerformanceInformationPageState
     _startDate = DateUtils.dateOnly(start);
     _startTime = TimeOfDay.fromDateTime(start);
     _startDateText.text =
-        '${start.year}. ${start.month.toString().padLeft(2, '0')}. ${start.day.toString().padLeft(2, '0')}.';
+        AppDateTimeFormatter.formatDate(start);
     _startTimeText.text =
-        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+        AppDateTimeFormatter.formatTime(start);
 
     _location = detail.location;
     _locationText.text =
@@ -177,9 +178,9 @@ class _PerformanceInformationPageState
       _bookingCloseDate = DateUtils.dateOnly(close);
       _bookingCloseTime = TimeOfDay.fromDateTime(close);
       _bookingCloseDateText.text =
-          '${close.year}. ${close.month.toString().padLeft(2, '0')}. ${close.day.toString().padLeft(2, '0')}.';
+          AppDateTimeFormatter.formatDate(close);
       _bookingCloseTimeText.text =
-          '${close.hour.toString().padLeft(2, '0')}:${close.minute.toString().padLeft(2, '0')}';
+          AppDateTimeFormatter.formatTime(close);
     }
     _bookingUrl.text = detail.bookingUrl ?? '';
 
@@ -256,7 +257,7 @@ class _PerformanceInformationPageState
     setState(() {
       _startDate = value;
       _startDateText.text =
-          '${value.year}. ${value.month.toString().padLeft(2, '0')}. ${value.day.toString().padLeft(2, '0')}.';
+          AppDateTimeFormatter.formatDate(value);
     });
   }
 
@@ -290,7 +291,10 @@ class _PerformanceInformationPageState
     setState(() {
       _startTime = value;
       _startTimeText.text =
-          '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+          AppDateTimeFormatter.formatHourMinute(
+            value.hour,
+            value.minute,
+          );
     });
   }
 
@@ -316,7 +320,7 @@ class _PerformanceInformationPageState
     setState(() {
       _bookingCloseDate = value;
       _bookingCloseDateText.text =
-          '${value.year}. ${value.month.toString().padLeft(2, '0')}. ${value.day.toString().padLeft(2, '0')}.';
+          AppDateTimeFormatter.formatDate(value);
     });
   }
 
@@ -350,7 +354,10 @@ class _PerformanceInformationPageState
     setState(() {
       _bookingCloseTime = value;
       _bookingCloseTimeText.text =
-          '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+          AppDateTimeFormatter.formatHourMinute(
+            value.hour,
+            value.minute,
+          );
     });
   }
 

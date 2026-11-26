@@ -19,6 +19,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/cloud_file_rename_popup
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/cloud_storage_api_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/bottomsheet/link_create_bottomsheet.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_mutation_guard.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,6 +86,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _uploadFile() async {
+    if (blockIfCloudMutating(context, ref)) return;
     final selection = await showCloudFileUploadBottomSheet(context: context);
     if (!mounted || selection == null) return;
 
@@ -101,6 +103,9 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       return;
     }
 
+    // 저장 공간을 조회하는 사이에 다른 요청이 시작됐을 수 있다.
+    if (blockIfCloudMutating(context, ref)) return;
+
     final success = await ref.read(cloudMutationProvider.notifier).uploadFile(
       folderId: widget.folderId,
       filePath: selection.path,
@@ -112,6 +117,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _createLink() async {
+    if (blockIfCloudMutating(context, ref)) return;
     final result = await showLinkCreateBottomsheet(context: context);
     if (!mounted || result == null) return;
 
@@ -125,6 +131,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _renameFolder(String currentName) async {
+    if (blockIfCloudMutating(context, ref)) return;
     final name = await showCloudRenamePopup(
       context,
       initialName: currentName,
@@ -139,6 +146,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _deleteFolder() async {
+    var success = false;
     final confirmed = await AppPopup.show(
       context,
       title: '폴더를 삭제하시겠습니까?',
@@ -147,13 +155,13 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       warningType: WarningType.folder,
       confirmText: '삭제',
       cancelText: '취소',
+      confirmTask: () async {
+        success = await ref
+            .read(cloudMutationProvider.notifier)
+            .deleteFolder(folderId: widget.folderId);
+      },
     );
     if (!mounted || confirmed != true) return;
-
-    final success = await ref
-        .read(cloudMutationProvider.notifier)
-        .deleteFolder(folderId: widget.folderId);
-    if (!mounted) return;
 
     if (success) {
       Navigator.of(context).pop();
@@ -165,6 +173,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   Future<void> _deleteItems(List<int> itemIds) async {
     if (itemIds.isEmpty) return;
 
+    var success = false;
     final confirmed = await AppPopup.show(
       context,
       title: '삭제하시겠습니까?',
@@ -175,14 +184,14 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
       warningType: WarningType.triangle,
       confirmText: '삭제',
       cancelText: '취소',
+      confirmTask: () async {
+        success = await ref.read(cloudMutationProvider.notifier).deleteItems(
+          itemIds: itemIds,
+          currentFolderId: widget.folderId,
+        );
+      },
     );
     if (!mounted || confirmed != true) return;
-
-    final success = await ref.read(cloudMutationProvider.notifier).deleteItems(
-      itemIds: itemIds,
-      currentFolderId: widget.folderId,
-    );
-    if (!mounted) return;
 
     if (success) {
       _setSelectionMode(false);
@@ -287,6 +296,7 @@ class _CloudFolderPageState extends ConsumerState<CloudFolderPage> {
   }
 
   Future<void> _renameItem(CloudItem item) async {
+    if (blockIfCloudMutating(context, ref)) return;
     final name = await showCloudRenamePopup(
       context,
       initialName: item.itemName,

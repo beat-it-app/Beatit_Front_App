@@ -71,6 +71,7 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
     final itemId = file.itemId;
     if (itemId == null) return;
 
+    var success = false;
     final confirmed = await AppPopup.show(
       context,
       title: '삭제하시겠습니까?',
@@ -79,14 +80,14 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
       warningType: WarningType.triangle,
       confirmText: '삭제',
       cancelText: '취소',
+      confirmTask: () async {
+        success = await ref.read(cloudMutationProvider.notifier).deleteItems(
+          itemIds: [itemId],
+          currentFolderId: widget.folderId,
+        );
+      },
     );
     if (!mounted || confirmed != true) return;
-
-    final success = await ref.read(cloudMutationProvider.notifier).deleteItems(
-      itemIds: [itemId],
-      currentFolderId: widget.folderId,
-    );
-    if (!mounted) return;
 
     if (success) {
       Navigator.of(context).pop();

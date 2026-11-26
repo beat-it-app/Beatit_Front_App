@@ -232,10 +232,11 @@ class _PostMainPageState extends ConsumerState<PostMainPage> {
         warningType: WarningType.circle,
         confirmText: '삭제',
         cancelText: '취소',
+        confirmTask: () =>
+            ref.read(postApiProvider).deleteMeetit(item.meetitId),
       );
       if (confirmed != true || !mounted) return;
 
-      await ref.read(postApiProvider).deleteMeetit(item.meetitId);
       if (mounted) {
         await _loadSelected(
           keyword: widget.searchOnly ? _searchController.text.trim() : '',

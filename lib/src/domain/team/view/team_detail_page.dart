@@ -1,3 +1,4 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -394,10 +395,10 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final bool isDimmed = !isTodayDDay;
 
     final String startTime = data.startsAt != null
-        ? '${data.startsAt!.hour < 12 ? '오전' : '오후'}    ${(data.startsAt!.hour % 12 == 0 ? 12 : data.startsAt!.hour % 12).toString().padLeft(2, '0')}:${data.startsAt!.minute.toString().padLeft(2, '0')}'
+        ? '${data.startsAt!.hour < 12 ? '오전' : '오후'}    ${data.startsAt!.hour % 12 == 0 ? 12 : data.startsAt!.hour % 12}:${data.startsAt!.minute.toString().padLeft(2, '0')}'
         : '-';
     final String endTime = data.endsAt != null
-        ? '${data.endsAt!.hour < 12 ? '오전' : '오후'}    ${(data.endsAt!.hour % 12 == 0 ? 12 : data.endsAt!.hour % 12).toString().padLeft(2, '0')}:${data.endsAt!.minute.toString().padLeft(2, '0')}'
+        ? '${data.endsAt!.hour < 12 ? '오전' : '오후'}    ${data.endsAt!.hour % 12 == 0 ? 12 : data.endsAt!.hour % 12}:${data.endsAt!.minute.toString().padLeft(2, '0')}'
         : '-';
 
     return Padding(
@@ -554,7 +555,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final diffDays = targetDate.difference(today).inDays;
 
     final String dateDisplay =
-        '${date.year}. ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}'
+        '${AppDateTimeFormatter.formatDate(date)}'
         '${diffDays == 0 ? ' (오늘)' : ''}';
 
     String dDayText;
@@ -621,7 +622,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     final date = performance.performanceDateTime;
 
     final String dateStr = date != null
-        ? '${date.year}. ${date.month}. ${date.day}.'
+        ? AppDateTimeFormatter.formatDate(date)
         : '-';
 
     final bool hasPoster =
@@ -720,9 +721,7 @@ class _TeamDetailPageState extends ConsumerState<TeamDetailPage> {
     if (detail.establishedOn != null &&
         detail.establishedOn!.trim().isNotEmpty) {
       final raw = detail.establishedOn!.trim();
-      dateDisplay = raw.length >= 10
-          ? raw.substring(0, 10).replaceAll('-', '.')
-          : raw;
+      dateDisplay = AppDateTimeFormatter.formatDateString(raw);
     }
 
     final bool hasLinks = detail.links.any(

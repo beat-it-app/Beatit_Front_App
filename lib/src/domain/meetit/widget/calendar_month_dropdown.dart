@@ -144,8 +144,7 @@ class _CalendarMonthDropdownState extends State<CalendarMonthDropdown> {
   }
 
   String _formatMonth(DateTime month) {
-    final monthText = month.month.toString().padLeft(2, '0');
-    return '${month.year}. $monthText';
+    return '${month.year}. ${month.month}.';
   }
 
   void _handleMonthChanged(int index) {

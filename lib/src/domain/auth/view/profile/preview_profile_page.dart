@@ -180,7 +180,7 @@ class _PreviewProfilePageState extends ConsumerState<PreviewProfilePage> {
               ],
 
               AppButton(
-                text: state.isSubmitting ? '등록 중' : '완료',
+                text: '완료',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.black,

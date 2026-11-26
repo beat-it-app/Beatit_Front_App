@@ -545,7 +545,7 @@ class _TeamUpdatePageState extends ConsumerState<TeamUpdatePage> {
 
               // 7. 저장하기 버튼 (수정 사항이 없을 땐 비활성화)
               AppButton(
-                text: _isSubmitting ? '저장 중...' : '저장하기',
+                text: '저장하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,

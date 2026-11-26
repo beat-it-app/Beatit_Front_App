@@ -497,8 +497,8 @@ class _ExistingPostImagePreview extends StatelessWidget {
                     color: colors.surfaceContainerHighest,
                     alignment: Alignment.center,
                     child: const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   );
@@ -638,15 +638,13 @@ class _RequiredLabel extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
-          style: FontStyles.semi16.copyWith(color: color),
+          style: FontStyles.med15.copyWith(color: color),
           children: [
             TextSpan(text: text),
             if (requiredColor != null)
               TextSpan(
                 text: ' *',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: requiredColor),
+                style: FontStyles.med15.copyWith(color: requiredColor),
               ),
           ],
         ),

@@ -352,7 +352,7 @@ class _TeamArchivePageState extends ConsumerState<TeamArchivePage> {
 
               // 5. 등록하기 버튼
               AppButton(
-                text: _isSubmitting ? '등록 중...' : '등록하기',
+                text: '등록하기',
                 width: ButtonWidth.expand,
                 height: ButtonHeight.normal,
                 variant: ButtonVariant.primary,

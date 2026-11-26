@@ -31,33 +31,25 @@ class MyPageView extends ConsumerStatefulWidget {
 }
 
 class _MyPageViewState extends ConsumerState<MyPageView> {
-  bool _isLoggingOut = false;
-
   Future<void> _logout() async {
-    if (_isLoggingOut) return;
-
-    // 💡 로그아웃 확인 팝업
-    final confirmed = await AppPopup.show(
-      context,
-      title: '로그아웃 하시겠습니까?',
-      content: '로그아웃시 설정된 로그인이\n해제됩니다. 다시 로그인해 주세요.',
-      warningType: WarningType.circle,
-      warningColor: context.grays.gray7,
-      contentType: ContentType.small,
-      buttonNum: ButtonNum.two,
-      buttonSymmetric: ButtonSymmetric.horizontal,
-      confirmText: '확인',
-      cancelText: '취소',
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _isLoggingOut = true);
-
     try {
-      await ref.read(authProvider.notifier).logout();
+      // 💡 로그아웃 확인 팝업 (확인을 누르면 팝업 위에 로딩을 덮는다)
+      final confirmed = await AppPopup.show(
+        context,
+        title: '로그아웃 하시겠습니까?',
+        content: '로그아웃시 설정된 로그인이\n해제됩니다. 다시 로그인해 주세요.',
+        warningType: WarningType.circle,
+        warningColor: context.grays.gray7,
+        contentType: ContentType.small,
+        buttonNum: ButtonNum.two,
+        buttonSymmetric: ButtonSymmetric.horizontal,
+        confirmText: '확인',
+        cancelText: '취소',
+        confirmTask: () => ref.read(authProvider.notifier).logout(),
+      );
+
+      if (confirmed != true || !mounted) return;
       ref.invalidate(myPageProvider);
-      if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const SigninPage()),
@@ -68,8 +60,6 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('로그아웃에 실패했습니다: $error')));
-    } finally {
-      if (mounted) setState(() => _isLoggingOut = false);
     }
   }
 
@@ -413,10 +403,7 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
                 );
               },
             ),
-            _SettingTile(
-              title: _isLoggingOut ? '로그아웃 중...' : '로그아웃',
-              onTap: _logout,
-            ),
+            _SettingTile(title: '로그아웃', onTap: _logout),
             _SettingTile(
               title: '탈퇴하기',
               onTap: () {
