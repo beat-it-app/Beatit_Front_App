@@ -1,0 +1,573 @@
+// lib/src/domain/performance/view/performance_detail_page.dart
+
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/network/dio_provider.dart';
+import 'package:beatit_front_app/src/core/theme/app_colors.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_data.dart';
+import 'package:beatit_front_app/src/domain/performance/model/performance_detail_response_model.dart';
+import 'package:beatit_front_app/src/domain/performance/provider/performance_detail_provider.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_information_page.dart';
+import 'package:beatit_front_app/src/domain/performance/view/performance_invite_view_page.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_detail_sections.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_hero.dart';
+import 'package:beatit_front_app/src/domain/performance/widget/performance_host_dialog.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_upcoming_provider.dart';
+
+class PerformanceDetailPage extends ConsumerStatefulWidget {
+  const PerformanceDetailPage({
+    super.key,
+    required this.performancePublicId,
+    this.initialPerformance,
+    this.fromMyPage = false, // 나의 공연 목록 진입 여부
+    this.onEdit,
+    this.onDelete,
+    this.onViewResponses,
+  });
+
+  final String performancePublicId;
+  final PerformanceDetailData? initialPerformance;
+  final bool fromMyPage;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onViewResponses;
+
+  @override
+  ConsumerState<PerformanceDetailPage> createState() =>
+      _PerformanceDetailPageState();
+}
+
+class _PerformanceDetailPageState extends ConsumerState<PerformanceDetailPage> {
+  final ScrollController _scrollController = ScrollController();
+  int _selectedTab = 0;
+  bool _isDeleting = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged(int value) {
+    if (_selectedTab == value) return;
+    final currentOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
+
+    setState(() => _selectedTab = value);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final maxExtent = _scrollController.position.maxScrollExtent;
+        _scrollController.jumpTo(currentOffset.clamp(0.0, maxExtent));
+      }
+    });
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: '공연을 삭제하시겠습니까?',
+      content: '삭제된 공연은\n복구할 수 없습니다.',
+      warningType: WarningType.triangle,
+      contentType: ContentType.small,
+      buttonNum: ButtonNum.two,
+      buttonSymmetric: ButtonSymmetric.horizontal,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+    if (!mounted || confirmed != true) return;
+
+    if (widget.onDelete != null) {
+      widget.onDelete!();
+      return;
+    }
+
+    setState(() => _isDeleting = true);
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('/performances/${widget.performancePublicId}');
+
+      ref.invalidate(teamUpcomingPerformancesProvider);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('공연이 삭제되었습니다.')));
+
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      String errorMessage = '공연 삭제에 실패했습니다.';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map<String, dynamic>) {
+          errorMessage =
+              data['message']?.toString() ??
+              data['error']?.toString() ??
+              errorMessage;
+        }
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
+  }
+
+  void _unavailable(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
+
+  void _openHostDialog(PerformanceDetailData performance) {
+    if (performance.hostContact.trim().isEmpty &&
+        performance.hostName.trim().isEmpty) {
+      _unavailable('등록된 호스트 연락처 정보가 없습니다.');
+      return;
+    }
+
+    showPerformanceHostDialog(
+      context: context,
+      hostName: performance.hostName.isNotEmpty ? performance.hostName : '호스트',
+      contactType:
+          performance.hostContactType ?? PerformanceHostContactType.phone,
+      contact: performance.hostContact.isNotEmpty
+          ? performance.hostContact
+          : '연락처 정보 없음',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isDeleting) {
+      return Scaffold(
+        backgroundColor: context.grays.white,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final detailAsync = ref.watch(
+      performanceDetailProvider(widget.performancePublicId),
+    );
+
+    return detailAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: context.grays.white,
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        backgroundColor: context.grays.white,
+        appBar: AppTopAppBar.backOnly(
+          onBackPressed: () => Navigator.of(context).maybePop(),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '공연 정보를 불러오지 못했습니다.',
+                style: FontStyles.med16.copyWith(color: context.colors.error),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => ref.refresh(
+                  performanceDetailProvider(widget.performancePublicId),
+                ),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (serverModel) {
+        final performance = serverModel.toDetailData();
+
+        // 1. 수정하기/삭제하기 더보기 메뉴: fromMyPage && isWriter 일 때만
+        final bool canEditOrDelete = widget.fromMyPage && serverModel.isWriter;
+
+        // 2. D-Day 밴드 및 하단 초대장 보기 고정 버튼: fromMyPage 일 때만
+        final bool showMyPageFeatures = widget.fromMyPage;
+
+        // 3. 공유(문의) 버튼: fromMyPage가 아닐 때만 노출
+        final bool showShareButton = !widget.fromMyPage;
+
+        return Scaffold(
+          backgroundColor: context.grays.white,
+          body: SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Stack(
+                  children: [
+                    // ClipRect로 감싸 배너 하단 그림자/블러가 탭바 위로 번지지 않게 차단
+                    ClipRect(
+                      child: SizedBox(
+                        height: 624,
+                        child: PerformanceHero(
+                          performance: performance,
+                          isMine: showMyPageFeatures,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                icon: SvgPicture.asset(
+                                  'assets/icons/appbar/back.svg',
+                                  width: 20,
+                                  height: 20,
+                                  colorFilter: const ColorFilter.mode(
+                                    AppColor.white,
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    Navigator.of(context).maybePop(),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (showShareButton)
+                                    IconButton(
+                                      icon: SvgPicture.asset(
+                                        'assets/icons/team/share.svg',
+                                        width: 22,
+                                        height: 22,
+                                        colorFilter: const ColorFilter.mode(
+                                          AppColor.white,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
+                                      onPressed: () => _unavailable('준비 중입니다.'),
+                                    ),
+                                  if (canEditOrDelete)
+                                    AppDropdownList(
+                                      items: [
+                                        AppDropdownItem(
+                                          label: '수정하기',
+                                          onPressed: () {
+                                            if (widget.onEdit != null) {
+                                              widget.onEdit!();
+                                              return;
+                                            }
+                                            Navigator.of(context)
+                                                .push(
+                                                  MaterialPageRoute<void>(
+                                                    builder: (_) =>
+                                                        PerformanceInformationPage(
+                                                          editTarget:
+                                                              serverModel,
+                                                        ),
+                                                  ),
+                                                )
+                                                .then((_) {
+                                                  ref.refresh(
+                                                    performanceDetailProvider(
+                                                      widget
+                                                          .performancePublicId,
+                                                    ),
+                                                  );
+                                                });
+                                          },
+                                        ),
+                                        AppDropdownItem(
+                                          label: '삭제하기',
+                                          onPressed: _confirmDelete,
+                                        ),
+                                      ],
+                                      width: 170.0,
+                                      anchorWidth: 48.0,
+                                      itemHeight: 44.0,
+                                      alignment: AppDropdownAlignment.right,
+                                      alignmentOffset: const Offset(-16, 44),
+                                      triggerBuilder: (context, controller) {
+                                        return IconButton(
+                                          icon: SvgPicture.asset(
+                                            'assets/icons/appbar/menu.svg',
+                                            width: 20,
+                                            height: 20,
+                                            colorFilter: const ColorFilter.mode(
+                                              AppColor.white,
+                                              BlendMode.srcIn,
+                                            ),
+                                          ),
+                                          onPressed: () {
+                                            if (controller.isOpen) {
+                                              controller.close();
+                                            } else {
+                                              controller.open();
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // fromMyPage일 때만 D-Day 밴드 노출
+                if (showMyPageFeatures)
+                  _BookingDeadlineBand(performance: performance),
+                // 💡 AppTabBar 파일을 수정하지 않고 높이 60 + FontStyles.semi16이 적용된 전용 탭바 사용
+                _PerformanceDetailTabBar(
+                  labels: const ['공연 정보', '상세 정보'],
+                  selectedIndex: _selectedTab,
+                  onChanged: _onTabChanged,
+                ),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height - 120,
+                  ),
+                  child: _selectedTab == 0
+                      ? PerformanceInfoSection(
+                          performance: performance,
+                          isMine: false,
+                        )
+                      : PerformanceDetailSection(performance: performance),
+                ),
+                if (showMyPageFeatures) const SizedBox(height: 80),
+              ],
+            ),
+          ),
+          // fromMyPage일 때만 하단 고정 초대장 보기 버튼 노출
+          bottomNavigationBar: showMyPageFeatures
+              ? SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.x20,
+                      vertical: AppSpacing.x12,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed:
+                            widget.onViewResponses ??
+                            () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => PerformanceInviteViewPage(
+                                  performance: serverModel,
+                                ),
+                              ),
+                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.colors.primary,
+                          foregroundColor: context.grays.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: Text(
+                          '초대장 보기',
+                          style: FontStyles.med16.copyWith(
+                            color: context.grays.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+        );
+      },
+    );
+  }
+}
+
+/// 공통 AppTabBar를 건드리지 않고 높이 60 + FontStyles.semi16을 적용하는 공연 상세 전용 탭바
+class _PerformanceDetailTabBar extends StatelessWidget {
+  const _PerformanceDetailTabBar({
+    required this.labels,
+    required this.selectedIndex,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  static const _tabGap = 6.0;
+  static const _indicatorThickness = 2.0;
+  static const _trackThickness = 0.7;
+  static const _motionDuration = Duration(milliseconds: 280);
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tabWidth =
+            (constraints.maxWidth - _tabGap * (labels.length - 1)) /
+            labels.length;
+        final indicatorInset = tabWidth > AppSpacing.x20 * 2
+            ? AppSpacing.x20
+            : 0.0;
+        final indicatorWidth = tabWidth - indicatorInset * 2;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                for (var index = 0; index < labels.length; index++) ...[
+                  if (index > 0) const SizedBox(width: _tabGap),
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      selected: index == selectedIndex,
+                      label: labels[index],
+                      child: InkWell(
+                        onTap: () => onChanged(index),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        hoverColor: Colors.transparent,
+                        focusColor: Colors.transparent,
+                        child: SizedBox(
+                          height: 58, // 58 + 하단 인디케이터 2 = 총 높이 60
+                          child: Center(
+                            child: AnimatedDefaultTextStyle(
+                              duration: _motionDuration,
+                              curve: Curves.easeInOutCubic,
+                              style: FontStyles.semi16.copyWith(
+                                color: index == selectedIndex
+                                    ? context.grays.black
+                                    : context.grays.gray5,
+                              ),
+                              child: Text(labels[index]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(
+              height: _indicatorThickness,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: _trackThickness,
+                    child: ColoredBox(color: context.grays.gray5),
+                  ),
+                  AnimatedPositioned(
+                    duration: _motionDuration,
+                    curve: Curves.easeInOutCubic,
+                    left: selectedIndex * (tabWidth + _tabGap) + indicatorInset,
+                    bottom: 0,
+                    height: _indicatorThickness,
+                    width: indicatorWidth,
+                    child: ColoredBox(color: context.grays.black),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BookingDeadlineBand extends StatelessWidget {
+  const _BookingDeadlineBand({required this.performance});
+
+  final PerformanceDetailData performance;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = DateUtils.dateOnly(
+      performance.startsAt,
+    ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+
+    final dayLabel = remaining == 0
+        ? 'D-Day'
+        : remaining > 0
+        ? 'D-$remaining'
+        : 'D+${-remaining}';
+
+    final deadline = performance.bookingClosesAt;
+    final dateText = deadline == null
+        ? '공연일 ${_formatDate(performance.startsAt)}'
+        : '공연 예매 마감일 ${_formatDate(deadline)}';
+
+    return Container(
+      color: AppColor.black,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.x20,
+        vertical: AppSpacing.x16,
+      ),
+      child: Row(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColor.beatOrange2),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: Text(
+                dayLabel,
+                style: FontStyles.reg14.copyWith(color: AppColor.beatOrange2),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.x10),
+          Expanded(
+            child: Text(
+              dateText,
+              maxLines: 2,
+              style: FontStyles.med15.copyWith(color: AppColor.beatOrange2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  String _formatDate(DateTime date) =>
+      '${AppDateTimeFormatter.formatDate(date)} '
+      '(${_weekdays[date.weekday - 1]}) '
+      '${AppDateTimeFormatter.formatTime(date)}';
+}

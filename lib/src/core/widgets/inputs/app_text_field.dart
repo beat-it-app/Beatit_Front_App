@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../theme/app_fonts.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
+import 'app_field_message.dart';
 
 class AppTextField extends StatefulWidget {
   const AppTextField({
@@ -15,13 +17,19 @@ class AppTextField extends StatefulWidget {
     this.enabled = true,
     this.readOnly = false,
     this.obscureText = false,
+    this.isError = false,
     this.errorText,
+    this.messageText,
+    this.messageColor,
+    this.messageIcon,
     this.keyboardType,
     this.textInputAction,
     this.prefixIcon,
     this.suffixIcon,
     this.onChanged,
+    this.onTap,
     this.height = 45,
+    this.fillColor,
   });
 
   final TextEditingController? controller;
@@ -34,15 +42,26 @@ class AppTextField extends StatefulWidget {
   final bool enabled;
   final bool readOnly;
   final bool obscureText;
+
+  /// 외부에서 오류 문구를 표시할 때, 문구 없이 오류 테두리만 적용함.
+  ///
+  /// 기존처럼 [errorText]를 전달하면 오류 테두리와 문구가 모두 표시됨.
+  final bool isError;
   final String? errorText;
+
+  final String? messageText;
+  final Color? messageColor;
+  final String? messageIcon;
 
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
 
   final double height;
+  final Color? fillColor;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -53,8 +72,20 @@ class _AppTextFieldState extends State<AppTextField> {
 
   FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode;
 
-  bool get _hasError {
+  bool get _hasInlineError {
     return widget.errorText != null && widget.errorText!.isNotEmpty;
+  }
+
+  bool get _hasError {
+    return widget.isError || _hasInlineError;
+  }
+
+  bool get _hasMessage {
+    return widget.messageText != null && widget.messageText!.isNotEmpty;
+  }
+
+  bool get _hasBottomText {
+    return _hasInlineError || _hasMessage;
   }
 
   @override
@@ -94,9 +125,7 @@ class _AppTextFieldState extends State<AppTextField> {
     final textTheme = theme.textTheme;
     final inputTheme = theme.inputDecorationTheme;
 
-    final labelStyle = textTheme.labelMedium?.copyWith(
-      color: colors.onSurface,
-    );
+    final labelStyle = FontStyles.med15.copyWith(color: colors.onSurface);
 
     final inputTextColor = widget.enabled
         ? colors.onSurface
@@ -106,6 +135,8 @@ class _AppTextFieldState extends State<AppTextField> {
         ? inputTheme.hintStyle?.color ?? colors.onSurfaceVariant
         : colors.onSurfaceVariant;
 
+    final bottomText = _hasInlineError ? widget.errorText : widget.messageText;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -114,101 +145,113 @@ class _AppTextFieldState extends State<AppTextField> {
             text: TextSpan(
               style: labelStyle,
               children: [
-                TextSpan(text: widget.label),
+                TextSpan(text: widget.label, style: labelStyle),
                 if (widget.requiredMark)
                   TextSpan(
                     text: ' *',
-                    style: labelStyle?.copyWith(
-                      color: colors.primary,
-                    ),
+                    style: labelStyle.copyWith(color: colors.primary),
                   ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.x8),
         ],
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          height: widget.height,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x16,
-          ),
-          decoration: BoxDecoration(
-            color: inputTheme.fillColor,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: _borderColor(colors),
-              width: _borderWidth,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.enabled && widget.readOnly ? widget.onTap : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            height: widget.height,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+            decoration: BoxDecoration(
+              color: widget.enabled
+                  ? widget.fillColor ?? inputTheme.fillColor
+                  : colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(
+                color: _borderColor(colors),
+                width: _borderWidth,
+              ),
+            ),
+            child: Row(
+              children: [
+                if (widget.prefixIcon != null) ...[
+                  IconTheme(
+                    data: IconThemeData(
+                      color: inputTheme.suffixIconColor,
+                      size: 20,
+                    ),
+                    child: widget.prefixIcon!,
+                  ),
+                  const SizedBox(width: AppSpacing.x8),
+                ],
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: AbsorbPointer(
+                        absorbing: widget.readOnly && widget.onTap != null,
+                        child: TextFormField(
+                          controller: widget.controller,
+                          focusNode: _focusNode,
+                          enabled: widget.enabled,
+                          readOnly: widget.readOnly,
+                          obscureText: widget.obscureText,
+                          keyboardType: widget.keyboardType,
+                          textInputAction: widget.textInputAction,
+                          onChanged: widget.onChanged,
+                          onTap: widget.onTap,
+                          cursorColor: colors.primary,
+                          style: FontStyles.med17.copyWith(
+                            color: inputTextColor,
+                            height: 1.0,
+                          ),
+                          decoration: InputDecoration(
+                            isCollapsed: true,
+                            filled: false,
+                            fillColor: Colors.transparent,
+                            hintText: widget.hintText,
+                            hintStyle: FontStyles.med17.copyWith(
+                              color: hintColor,
+                              height: 1.0,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onTapOutside: (_) {
+                            FocusScope.of(context).unfocus();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.suffixIcon != null) ...[
+                  const SizedBox(width: AppSpacing.x8),
+                  IconTheme(
+                    data: IconThemeData(
+                      color: inputTheme.suffixIconColor,
+                      size: 20,
+                    ),
+                    child: widget.suffixIcon!,
+                  ),
+                ],
+              ],
             ),
           ),
-          child: Row(
-            children: [
-              if (widget.prefixIcon != null) ...[
-                IconTheme(
-                  data: IconThemeData(
-                    color: inputTheme.suffixIconColor,
-                    size: 20,
-                  ),
-                  child: widget.prefixIcon!,
-                ),
-                const SizedBox(width: AppSpacing.x8),
-              ],
-              Expanded(
-                child: TextFormField(
-                  controller: widget.controller,
-                  focusNode: _focusNode,
-                  enabled: widget.enabled,
-                  readOnly: widget.readOnly,
-                  obscureText: widget.obscureText,
-                  keyboardType: widget.keyboardType,
-                  textInputAction: widget.textInputAction,
-                  onChanged: widget.onChanged,
-                  cursorColor: colors.primary,
-                  textAlignVertical: TextAlignVertical.center,
-                  style: FontStyles.med18.copyWith(
-                    color: inputTextColor,
-                    height: 1.0,
-                  ),
-                  decoration: InputDecoration(
-                    isCollapsed: true,
-                    filled: false,
-                    fillColor: Colors.transparent,
-                    hintText: widget.hintText,
-                    hintStyle: FontStyles.med18.copyWith(
-                      color: hintColor,
-                      height: 1.0,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onTapOutside: (_) {
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-              ),
-              if (widget.suffixIcon != null) ...[
-                const SizedBox(width: AppSpacing.x8),
-                IconTheme(
-                  data: IconThemeData(
-                    color: inputTheme.suffixIconColor,
-                    size: 20,
-                  ),
-                  child: widget.suffixIcon!,
-                ),
-              ],
-            ],
-          ),
         ),
-        if (_hasError) ...[
-          const SizedBox(height: AppSpacing.x8),
-          Text(
-            widget.errorText!,
-            style: inputTheme.errorStyle,
+        if (_hasBottomText) ...[
+          const SizedBox(height: AppSpacing.x4),
+          AppFieldMessage(
+            text: bottomText!,
+            isError: _hasInlineError,
+            color: widget.messageColor,
+            icon: widget.messageIcon,
           ),
         ],
       ],

@@ -1,4 +1,6 @@
 // lib/src/core/theme/app_theme.dart
+import 'package:beatit_front_app/src/core/extensions/app_brand_colors.dart';
+import 'package:beatit_front_app/src/core/extensions/app_gray_colors.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
@@ -8,29 +10,44 @@ import 'app_spacing.dart';
 
 abstract final class AppTheme {
   static ThemeData get light {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColor.beatOrange1,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColor.beatOrange1,
-      onPrimary: AppColor.white,
-      primaryContainer: AppColor.beatOrange5,
-      onPrimaryContainer: AppColor.beatOrange1,
-      secondary: AppColor.gray1,
-      onSecondary: AppColor.white,
-      surface: AppColor.white,
-      onSurface: AppColor.black,
-      error: AppColor.error,
-      onError: AppColor.white,
-      errorContainer: AppColor.errorContainer,
-      onErrorContainer: AppColor.error,
-      outline: AppColor.gray2,
-      surfaceContainerHighest: AppColor.gray7,
-      onSurfaceVariant: AppColor.gray4,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColor.beatOrange1,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColor.beatOrange1,
+          onPrimary: AppColor.white,
+          primaryContainer: AppColor.beatOrange5,
+          onPrimaryContainer: AppColor.beatOrange1,
+          secondary: AppColor.gray1,
+          onSecondary: AppColor.white,
+          surface: AppColor.white,
+          onSurface: AppColor.black,
+          error: AppColor.error,
+          onError: AppColor.white,
+          errorContainer: AppColor.errorContainer,
+          onErrorContainer: AppColor.error,
+          outline: AppColor.gray2,
+          surfaceContainerHighest: AppColor.gray7,
+          onSurfaceVariant: AppColor.gray4,
+        );
 
     return _theme(
       colorScheme: colorScheme,
+      grayColors: const AppGrayColors(
+        black: AppColor.black,
+        gray1: AppColor.gray1,
+        gray2: AppColor.gray2,
+        gray3: AppColor.gray3,
+        gray4: AppColor.gray4,
+        gray5: AppColor.gray5,
+        gray6: AppColor.gray6,
+        gray7: AppColor.gray7,
+        gray8: AppColor.gray8,
+        white: AppColor.white,
+        grayBackground: AppColor.grayBackground,
+      ),
+      brandColors: AppBrandColors.light(),
       scaffoldBackgroundColor: AppColor.white,
       cardColor: AppColor.white,
       inputFillColor: AppColor.gray8,
@@ -41,32 +58,47 @@ abstract final class AppTheme {
   }
 
   static ThemeData get dark {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColor.beatOrange1,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: AppColor.beatOrange3,
-      onPrimary: AppColor.black,
-      primaryContainer: AppColor.beatOrange1,
-      onPrimaryContainer: AppColor.white,
-      secondary: AppColor.white,
-      onSecondary: AppColor.black,
-      surface: AppColor.black,
-      onSurface: AppColor.white,
-      error: AppColor.error,
-      onError: AppColor.white,
-      errorContainer: AppColor.errorContainer,
-      onErrorContainer: AppColor.error,
-      outline: AppColor.gray6,
-      surfaceContainerHighest: AppColor.gray2,
-      onSurfaceVariant: AppColor.gray5,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColor.beatOrange1,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: AppColor.beatOrange1,
+          onPrimary: AppColor.black,
+          primaryContainer: AppColor.beatOrange1,
+          onPrimaryContainer: AppColor.white,
+          secondary: AppColor.white,
+          onSecondary: AppColor.black,
+          surface: AppColor.black,
+          onSurface: AppColor.white,
+          error: AppColor.error,
+          onError: AppColor.white,
+          errorContainer: AppColor.errorContainer,
+          onErrorContainer: AppColor.error,
+          outline: AppColor.gray6,
+          surfaceContainerHighest: AppColor.gray2,
+          onSurfaceVariant: AppColor.gray5,
+        );
 
     return _theme(
       colorScheme: colorScheme,
+      grayColors: const AppGrayColors(
+        black: AppColor.white,
+        gray1: AppColor.gray2,
+        gray2: AppColor.gray7,
+        gray3: AppColor.gray6,
+        gray4: AppColor.gray4,
+        gray5: AppColor.gray4,
+        gray6: AppColor.gray3,
+        gray7: AppColor.gray2,
+        gray8: AppColor.grayBackground,
+        white: AppColor.black,
+        grayBackground: AppColor.grayBackground,
+      ),
+      brandColors: AppBrandColors.dark(),
       scaffoldBackgroundColor: AppColor.black,
       cardColor: AppColor.gray1,
-      inputFillColor: AppColor.gray2,
+      inputFillColor: AppColor.grayBackground,
       dividerColor: AppColor.gray2,
       textColor: AppColor.white,
       subTextColor: AppColor.gray5,
@@ -75,6 +107,8 @@ abstract final class AppTheme {
 
   static ThemeData _theme({
     required ColorScheme colorScheme,
+    required AppGrayColors grayColors,
+    required AppBrandColors brandColors,
     required Color scaffoldBackgroundColor,
     required Color cardColor,
     required Color inputFillColor,
@@ -86,11 +120,9 @@ abstract final class AppTheme {
       useMaterial3: true,
       fontFamily: 'Pretendard',
       colorScheme: colorScheme,
+      extensions: [grayColors, brandColors],
       scaffoldBackgroundColor: scaffoldBackgroundColor,
-      textTheme: _textTheme(
-        textColor: textColor,
-        subTextColor: subTextColor,
-      ),
+      textTheme: _textTheme(textColor: textColor, subTextColor: subTextColor),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -111,7 +143,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          textStyle: FontStyles.semi16,
+          textStyle: FontStyles.semi16.copyWith(letterSpacing: 0),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -133,12 +165,10 @@ abstract final class AppTheme {
         filled: true,
         fillColor: inputFillColor,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x16,
-        ),
-        hintStyle: FontStyles.med18.copyWith(color: subTextColor),
-        labelStyle: FontStyles.med18.copyWith(color: textColor),
-        errorStyle: FontStyles.med12.copyWith(color: colorScheme.error),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+        hintStyle: FontStyles.reg18.copyWith(color: subTextColor),
+        labelStyle: FontStyles.reg18.copyWith(color: textColor),
+        errorStyle: FontStyles.reg12.copyWith(color: colorScheme.error),
         suffixIconColor: subTextColor,
 
         border: OutlineInputBorder(
@@ -155,10 +185,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: BorderSide(
-            color: colorScheme.secondary,
-            width: 1,
-          ),
+          borderSide: BorderSide(color: colorScheme.secondary, width: 1),
         ),
       ),
       cardTheme: CardThemeData(
@@ -166,9 +193,13 @@ abstract final class AppTheme {
         color: cardColor,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
           side: BorderSide(color: dividerColor),
         ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colorScheme.primary,
+        strokeWidth: 3,
       ),
       dividerTheme: DividerThemeData(
         color: dividerColor,
@@ -179,15 +210,15 @@ abstract final class AppTheme {
         backgroundColor: scaffoldBackgroundColor,
         selectedItemColor: colorScheme.primary,
         unselectedItemColor: subTextColor,
-        selectedLabelStyle: FontStyles.med12,
-        unselectedLabelStyle: FontStyles.med12,
+        selectedLabelStyle: FontStyles.reg12,
+        unselectedLabelStyle: FontStyles.reg12,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: textColor,
-        contentTextStyle: FontStyles.med14.copyWith(
+        contentTextStyle: FontStyles.reg14.copyWith(
           color: scaffoldBackgroundColor,
         ),
         shape: RoundedRectangleBorder(
@@ -198,7 +229,7 @@ abstract final class AppTheme {
         backgroundColor: cardColor,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -206,7 +237,7 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
+            top: Radius.circular(AppRadius.xxxl),
           ),
         ),
       ),
@@ -223,12 +254,12 @@ abstract final class AppTheme {
       headlineMedium: FontStyles.semi24.copyWith(color: textColor),
       titleLarge: FontStyles.semi20.copyWith(color: textColor),
       titleMedium: FontStyles.semi16.copyWith(color: textColor),
-      bodyLarge: FontStyles.med16.copyWith(color: textColor),
-      bodyMedium: FontStyles.med14.copyWith(color: textColor),
-      bodySmall: FontStyles.med12.copyWith(color: subTextColor),
-      labelLarge: FontStyles.med15.copyWith(color: textColor),
+      bodyLarge: FontStyles.reg16.copyWith(color: textColor),
+      bodyMedium: FontStyles.reg14.copyWith(color: textColor),
+      bodySmall: FontStyles.reg12.copyWith(color: subTextColor),
+      labelLarge: FontStyles.reg15.copyWith(color: textColor),
       labelMedium: FontStyles.semi14.copyWith(color: subTextColor),
-      labelSmall: FontStyles.med11.copyWith(color: subTextColor),
+      labelSmall: FontStyles.reg11.copyWith(color: subTextColor),
     );
   }
 }

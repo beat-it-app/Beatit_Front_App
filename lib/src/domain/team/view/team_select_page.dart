@@ -1,0 +1,395 @@
+import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_two_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
+import 'package:beatit_front_app/src/core/widgets/cards/app_card.dart';
+import 'package:beatit_front_app/src/domain/team/model/my_team_model.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_switch_provider.dart';
+import 'package:beatit_front_app/src/domain/team/provider/team_select_provider.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_create_start_page.dart';
+import 'package:beatit_front_app/src/domain/team/view/team_join_page.dart';
+
+class TeamSelectPage extends ConsumerStatefulWidget {
+  const TeamSelectPage({super.key, this.showBackButton = false});
+
+  final bool showBackButton;
+
+  @override
+  ConsumerState<TeamSelectPage> createState() => _TeamSelectPageState();
+}
+
+class _TeamSelectPageState extends ConsumerState<TeamSelectPage> {
+  String? _selectedBox;
+  bool _isSelecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+    });
+  }
+
+  Future<void> _handleTeamCardTap(MyTeamModel team) async {
+    if (_isSelecting) return;
+
+    setState(() {
+      _isSelecting = true;
+    });
+
+    final success = await ref
+        .read(teamSelectProvider.notifier)
+        .selectTeam(team.teamPublicId);
+
+    if (!mounted) return;
+
+    if (success) {
+      refreshTeamData(ref);
+
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } else {
+      setState(() {
+        _isSelecting = false;
+      });
+      final errorMsg = ref.read(teamSelectProvider).errorMessage;
+      if (errorMsg != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final state = ref.watch(teamSelectProvider);
+
+    if (state.isLoading) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final List<MyTeamModel> myTeams = state.teams;
+    final bool hasTeam = myTeams.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: colors.surface,
+      appBar: hasTeam
+          ? AppTwoAppBar(
+              title: '',
+              showBackButton: widget.showBackButton,
+              trailing: AppTwoAppBarTrailing.add,
+              onBackPressed: widget.showBackButton
+                  ? () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    }
+                  : null,
+              addMenuOffset: const Offset(-5, 60),
+              addMenuItems: [
+                AppDropdownItem(
+                  label: '팀 생성하기',
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (context) => const TeamCreatePage(),
+                      ),
+                    );
+                    if (result == true && mounted) {
+                      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                    }
+                  },
+                ),
+                AppDropdownItem(
+                  label: '팀 참여하기',
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TeamJoinPage(),
+                      ),
+                    );
+                    if (mounted) {
+                      ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                    }
+                  },
+                ),
+              ],
+            )
+          : null,
+      body: SafeArea(
+        child: hasTeam
+            ? _buildTeamExistBody(context, myTeams)
+            : _buildTeamEmptyBody(context),
+      ),
+    );
+  }
+
+  Widget _buildTeamEmptyBody(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Spacer(),
+          Text(
+            '아직 참여 중인 팀이 없습니다.',
+            style: FontStyles.bold22.copyWith(color: colors.onSurface),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.x10),
+          Text(
+            '버튼을 눌러 팀을 생성하거나 참여해보세요.',
+            style: FontStyles.med14.copyWith(color: context.grays.gray5),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.x70),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _TeamActionBox(
+                iconPath: 'assets/icons/cal/plus.svg',
+                label: '팀 생성하기',
+                isSelected: _selectedBox == 'create',
+                onTap: () async {
+                  setState(() {
+                    _selectedBox = 'create';
+                  });
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (context) => const TeamCreatePage(),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                  }
+                },
+              ),
+              const SizedBox(width: AppSpacing.x10),
+              _TeamActionBox(
+                iconPath: 'assets/icons/team/plus_team.svg',
+                label: '팀 참여하기',
+                isSelected: _selectedBox == 'join',
+                onTap: () async {
+                  setState(() {
+                    _selectedBox = 'join';
+                  });
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TeamJoinPage(),
+                    ),
+                  );
+                  if (mounted) {
+                    ref.read(teamSelectProvider.notifier).fetchMyTeams();
+                  }
+                },
+              ),
+            ],
+          ),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamExistBody(BuildContext context, List<MyTeamModel> teams) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.x12),
+          Expanded(
+            child: ListView.separated(
+              itemCount: teams.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.x16),
+              itemBuilder: (context, index) {
+                return _buildTeamItemCard(context, teams[index]);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamItemCard(BuildContext context, MyTeamModel team) {
+    final formattedDate = AppDateTimeFormatter.formatDateString(
+      team.createdAt,
+    );
+
+    final String? imageUrl = team.teamImageUrl;
+    final bool hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
+
+    if (!hasImage) {
+      return AppTeamCard(
+        genre: team.teamType,
+        teamName: team.teamName,
+        date: formattedDate,
+        height: 158,
+        showArrow: true,
+        titleStyle: FontStyles.bold28.copyWith(color: context.colors.onPrimary),
+        onTap: () => _handleTeamCardTap(team),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _handleTeamCardTap(team),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          height: 158,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Container(color: const Color(0xFF1C1C1E)),
+                ),
+              ),
+              Positioned.fill(
+                child: Container(color: Colors.black.withOpacity(0.45)),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.x20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team.teamType,
+                      style: FontStyles.med14.copyWith(
+                        color: context.colors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      team.teamName,
+                      style: FontStyles.bold28.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    Text(
+                      '$formattedDate 개설',
+                      style: FontStyles.med14.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: 20,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/icons/auth/back.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TeamActionBox extends StatelessWidget {
+  const _TeamActionBox({
+    this.iconPath,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String? iconPath;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final boxBackgroundColor = isSelected
+        ? context.grays.gray8
+        : colors.surface;
+    final circleBackgroundColor = isSelected
+        ? colors.primary
+        : context.grays.gray8;
+    final iconColor = isSelected ? Colors.white : context.grays.gray5;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 134,
+        height: 158,
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.x20,
+          horizontal: AppSpacing.x12,
+        ),
+        decoration: BoxDecoration(
+          color: boxBackgroundColor,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: context.grays.gray7, width: 1),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: circleBackgroundColor,
+              ),
+              child: Center(
+                child: iconPath != null
+                    ? SvgPicture.asset(
+                        iconPath!,
+                        width: 24,
+                        height: 24,
+                        colorFilter: ColorFilter.mode(
+                          iconColor,
+                          BlendMode.srcIn,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x16),
+            Text(
+              label,
+              style: FontStyles.med16.copyWith(color: colors.onSurface),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -13,6 +13,7 @@ abstract final class AppColor {
   static const gray7 = Color(0xFFE2E2E2);
   static const gray8 = Color(0xFFF1F1F1);
   static const white = Color(0xFFFFFFFF);
+  static const grayBackground = Color(0x801B1B1B);
 
   // Tint Colors
   static const beatOrange1 = Color(0xFFFF5518);
@@ -22,8 +23,12 @@ abstract final class AppColor {
   static const beatOrange5 = Color(0xFFFFCABD);
   static const beatOrange6 = Color(0xFFFFEDE8);
   static const beatGreen = Color(0xFF2DCC70);
+  static const beatYellow = Color(0xFFFFF89A);
+  static const beatYellowContainer = Color(0xFFFFFDE1);
+  static const beatOrangeNightContainer = Color(0xFF5B1400);
 
   // Error Colors
   static const error = Color(0xFFFF4747);
   static const errorContainer = Color(0xFFFFE2E2);
+  static const errorNight = Color(0xFFFF6161);
 }

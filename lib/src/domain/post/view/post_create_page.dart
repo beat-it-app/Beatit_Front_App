@@ -1,0 +1,654 @@
+import 'dart:io';
+
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_fonts.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_button.dart';
+import 'package:beatit_front_app/src/core/widgets/buttons/app_upload_button.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
+import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
+import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
+import 'package:beatit_front_app/src/domain/post/model/post_detail_models.dart';
+import 'package:beatit_front_app/src/domain/post/provider/post_api_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
+
+class PostCreatePage extends ConsumerStatefulWidget {
+  const PostCreatePage({super.key, this.initialNotice, this.maxImageCount = 10})
+    : assert(maxImageCount >= 1 && maxImageCount <= 10);
+
+  /// 일반 등록은 최대 10장, 단일 이미지 화면은 1장으로 지정할 수 있습니다.
+  final int maxImageCount;
+  final NoticeDetailData? initialNotice;
+
+  bool get isEditMode => initialNotice != null;
+
+  @override
+  ConsumerState<PostCreatePage> createState() => _PostCreatePageState();
+}
+
+class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+  static const int _maxTitleLength = 50;
+  static const int _maxContentLength = 500;
+  static const int _maxImageBytes = 50 * 1024 * 1024;
+  static const int _maxUploadRequestBytes = 300 * 1024 * 1024;
+  static const Set<String> _allowedImageExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'heic',
+  };
+  late final TextEditingController _titleController;
+  late final TextEditingController _contentController;
+  late final List<String> _existingImageUrls;
+
+  final List<XFile> _images = [];
+  final Map<String, int> _imageSizeBytes = <String, int>{};
+
+  int? _pendingDeleteExistingImageIndex;
+  int? _pendingDeleteImageIndex;
+  String? _titleError;
+  String? _contentError;
+  bool _imagesChanged = false;
+  bool _submitting = false;
+
+  bool get _isEditMode => widget.isEditMode;
+
+  int get _imageCount => _existingImageUrls.length + _images.length;
+  bool get _canAddImage => _imageCount < widget.maxImageCount;
+
+  bool get _hasChanges {
+    if (!_isEditMode) return true;
+
+    final initial = widget.initialNotice!;
+    return _titleController.text.trim() != initial.title.trim() ||
+        _contentController.text.trim() != initial.content.trim() ||
+        _imagesChanged;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.primaryFocus?.unfocus();
+    // 화면 진입 시 이전 화면의 입력 포커스가 이어져 키보드가 열리지 않게 합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
+    _titleController = TextEditingController(
+      text: widget.initialNotice?.title ?? '',
+    );
+    _contentController = TextEditingController(
+      text: widget.initialNotice?.content ?? '',
+    );
+    _existingImageUrls = List<String>.of(
+      widget.initialNotice?.images ?? const <String>[],
+    );
+  }
+
+  Future<void> _pickImages() async {
+    if (!_canAddImage) return;
+    FocusScope.of(context).unfocus();
+    final List<XFile> selected;
+    if (widget.maxImageCount == 1) {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      selected = image == null ? <XFile>[] : <XFile>[image];
+    } else {
+      selected = await ImagePicker().pickMultiImage();
+    }
+    if (!mounted || selected.isEmpty) return;
+
+    final existingPaths = _images.map((image) => image.path).toSet();
+    final validImages = <XFile>[];
+    final validSizes = <String, int>{};
+    var pendingUploadBytes = _imageSizeBytes.values.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
+    var hasOversizeImage = false;
+    var hasUnsupportedImage = false;
+    var exceedsRequestLimit = false;
+    var exceedsImageCount = false;
+
+    for (final image in selected) {
+      if (_imageCount + validImages.length >= widget.maxImageCount) {
+        exceedsImageCount = true;
+        break;
+      }
+      if (!existingPaths.add(image.path)) continue;
+
+      final extension = _imageExtension(image.name);
+      if (!_allowedImageExtensions.contains(extension)) {
+        hasUnsupportedImage = true;
+        continue;
+      }
+
+      final byteLength = await image.length();
+      if (byteLength > _maxImageBytes) {
+        hasOversizeImage = true;
+        continue;
+      }
+      if (byteLength <= 0) continue;
+      if (pendingUploadBytes + byteLength > _maxUploadRequestBytes) {
+        exceedsRequestLimit = true;
+        continue;
+      }
+
+      pendingUploadBytes += byteLength;
+      validImages.add(image);
+      validSizes[image.path] = byteLength;
+    }
+
+    if (!mounted) return;
+
+    if (validImages.isNotEmpty) {
+      setState(() {
+        _images.addAll(validImages);
+        _imageSizeBytes.addAll(validSizes);
+        _pendingDeleteExistingImageIndex = null;
+        _pendingDeleteImageIndex = null;
+        _refreshImagesChanged();
+      });
+    }
+
+    if (exceedsImageCount) {
+      await _showImageBlockedPopup(
+        '사진은 최대 ${widget.maxImageCount}장까지 등록할 수 있습니다.',
+      );
+    } else if (hasOversizeImage) {
+      await _showImageBlockedPopup('50MB를 초과하는 파일은 업로드할 수 없습니다.');
+    } else if (exceedsRequestLimit) {
+      await _showImageBlockedPopup('한 번에 업로드하는 이미지는 총 300MB를 넘을 수 없습니다.');
+    } else if (hasUnsupportedImage) {
+      await _showImageBlockedPopup('지원하지 않는 이미지 형식이 포함되어 있습니다.');
+    }
+  }
+
+  Future<void> _showImageBlockedPopup(String content) async {
+    if (!mounted) return;
+    await AppPopup.show(
+      context,
+      title: '업로드할 수 없는 파일입니다.',
+      content: content,
+      warningType: WarningType.triangle,
+      confirmText: '확인',
+    );
+  }
+
+  String _imageExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex == fileName.length - 1) return '';
+    return fileName.substring(dotIndex + 1).toLowerCase();
+  }
+
+  void _handleExistingImageTap(int index) {
+    setState(() {
+      _pendingDeleteExistingImageIndex =
+          _pendingDeleteExistingImageIndex == index ? null : index;
+      _pendingDeleteImageIndex = null;
+    });
+  }
+
+  void _deleteExistingImage(int index) {
+    setState(() {
+      _existingImageUrls.removeAt(index);
+      _pendingDeleteExistingImageIndex = null;
+      _refreshImagesChanged();
+    });
+  }
+
+  void _handleImageTap(int index) {
+    setState(() {
+      _pendingDeleteImageIndex = _pendingDeleteImageIndex == index
+          ? null
+          : index;
+      _pendingDeleteExistingImageIndex = null;
+    });
+  }
+
+  void _deleteImage(int index) {
+    setState(() {
+      final removed = _images.removeAt(index);
+      _imageSizeBytes.remove(removed.path);
+      _pendingDeleteImageIndex = null;
+      _refreshImagesChanged();
+    });
+  }
+
+  void _refreshImagesChanged() {
+    if (!_isEditMode) {
+      _imagesChanged = false;
+      return;
+    }
+
+    final initialImages = widget.initialNotice!.images;
+    final existingImagesAreSame =
+        initialImages.length == _existingImageUrls.length &&
+        List.generate(
+          initialImages.length,
+          (index) => initialImages[index] == _existingImageUrls[index],
+        ).every((isSame) => isSame);
+
+    _imagesChanged = !existingImagesAreSame || _images.isNotEmpty;
+  }
+
+  Future<void> _handleClose() async {
+    final confirmed = await AppPopup.show(
+      context,
+      title: _isEditMode ? '수정을 중단하시겠습니까?' : '작성을 중단하시겠습니까?',
+      content: '중단 시, 작성된 내용은\n저장되지 않습니다.',
+      buttonNum: ButtonNum.two,
+      warningType: WarningType.circle,
+      contentType: ContentType.small,
+      confirmText: '확인',
+      cancelText: '취소',
+    );
+
+    if (confirmed == true && mounted) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  bool _validateRequiredFields() {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    setState(() {
+      _titleError = title.isEmpty
+          ? '공지 제목을 입력해주세요.'
+          : title.length > _maxTitleLength
+          ? '공지 제목은 $_maxTitleLength자 이하로 입력해주세요.'
+          : null;
+      _contentError = content.isEmpty
+          ? '공지 내용을 입력해주세요.'
+          : content.length > _maxContentLength
+          ? '공지 내용은 $_maxContentLength자 이하로 입력해주세요.'
+          : null;
+    });
+
+    return _titleError == null && _contentError == null;
+  }
+
+  void _handleTitleChanged(String value) {
+    final title = value.trim();
+
+    setState(() {
+      if (title.length > _maxTitleLength) {
+        _titleError = '공지 제목은 $_maxTitleLength자 이하로 입력해주세요.';
+      } else if (_titleError != null) {
+        _titleError = title.isEmpty ? '공지 제목을 입력해주세요.' : null;
+      }
+    });
+  }
+
+  void _handleContentChanged(String value) {
+    final content = value.trim();
+
+    setState(() {
+      if (content.length > _maxContentLength) {
+        _contentError = '공지 내용은 $_maxContentLength자 이하로 입력해주세요.';
+      } else if (_contentError != null) {
+        _contentError = content.isEmpty ? '공지 내용을 입력해주세요.' : null;
+      }
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_submitting || (_isEditMode && !_hasChanges)) return;
+    if (!_validateRequiredFields()) return;
+
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    setState(() => _submitting = true);
+    try {
+      final api = ref.read(postApiProvider);
+
+      if (_isEditMode) {
+        await api.editNotice(
+          noticeId: widget.initialNotice!.noticeId,
+          title: title,
+          content: content,
+          imagesChanged: _imagesChanged,
+          retainedImageUrls: _existingImageUrls,
+          newImagePaths: _images.map((image) => image.path).toList(),
+        );
+      } else {
+        await api.createNotice(
+          title: title,
+          content: content,
+          imagePaths: _images.map((image) => image.path).toList(),
+        );
+      }
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppTopAppBar.closeOnly(onClosePressed: _handleClose),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.x4,
+            horizontal: AppSpacing.x16,
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppTextField(
+                        label: '공지 제목',
+                        requiredMark: true,
+                        hintText: '제목',
+                        controller: _titleController,
+                        errorText: _titleError,
+                        onChanged: _handleTitleChanged,
+                      ),
+                      const SizedBox(height: AppSpacing.x20),
+                      _RequiredLabel(
+                        text: '내용',
+                        color: colors.onSurface,
+                        requiredColor: colors.error,
+                      ),
+                      const SizedBox(height: AppSpacing.x8),
+                      AppTextArea(
+                        hintText: '공지 글을 작성해주세요.',
+                        controller: _contentController,
+                        errorText: _contentError,
+                        onChanged: _handleContentChanged,
+                        maxLength: _maxContentLength,
+                        fieldHeight: 200,
+                      ),
+                      const SizedBox(height: AppSpacing.x20),
+                      _RequiredLabel(text: '사진 등록', color: colors.onSurface),
+                      const SizedBox(height: AppSpacing.x8),
+                      if (_imageCount > 0) ...[
+                        const SizedBox(height: AppSpacing.x12),
+                        ...List.generate(
+                          _existingImageUrls.length,
+                          (index) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.x8,
+                            ),
+                            child: _ExistingPostImagePreview(
+                              imageUrl: _existingImageUrls[index],
+                              pendingDelete:
+                                  _pendingDeleteExistingImageIndex == index,
+                              onTap: () => _handleExistingImageTap(index),
+                              onDelete: () => _deleteExistingImage(index),
+                            ),
+                          ),
+                        ),
+                        ...List.generate(
+                          _images.length,
+                          (index) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == _images.length - 1
+                                  ? 0
+                                  : AppSpacing.x8,
+                            ),
+                            child: _PostImagePreview(
+                              image: _images[index],
+                              pendingDelete: _pendingDeleteImageIndex == index,
+                              onTap: () => _handleImageTap(index),
+                              onDelete: () => _deleteImage(index),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (_canAddImage) ...[
+                        if (_imageCount > 0)
+                          const SizedBox(height: AppSpacing.x12),
+                        AppUploadButton(
+                          onPressed: _pickImages,
+                          text: '사진 등록하기',
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.x16),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.x16),
+              AppButton(
+                text: _isEditMode ? '수정하기' : '생성하기',
+                width: ButtonWidth.expand,
+                height: ButtonHeight.normal,
+                variant: ButtonVariant.black,
+                onPressed: _submitting || (_isEditMode && !_hasChanges)
+                    ? null
+                    : _submit,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExistingPostImagePreview extends StatelessWidget {
+  const _ExistingPostImagePreview({
+    required this.imageUrl,
+    required this.pendingDelete,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final String imageUrl;
+  final bool pendingDelete;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: pendingDelete ? '사진 삭제' : '사진 삭제 선택',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.network(
+                imageUrl,
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: 180,
+                    color: colors.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: double.infinity,
+                  height: 180,
+                  color: colors.errorContainer,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: colors.onErrorContainer,
+                  ),
+                ),
+              ),
+              if (pendingDelete)
+                Positioned.fill(child: _DeleteImageOverlay(onDelete: onDelete)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostImagePreview extends StatelessWidget {
+  const _PostImagePreview({
+    required this.image,
+    required this.pendingDelete,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final XFile image;
+  final bool pendingDelete;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: pendingDelete ? '사진 삭제' : '사진 삭제 선택',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.file(
+                File(image.path),
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: double.infinity,
+                  height: 180,
+                  color: colors.errorContainer,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: colors.onErrorContainer,
+                  ),
+                ),
+              ),
+              if (pendingDelete)
+                Positioned.fill(child: _DeleteImageOverlay(onDelete: onDelete)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteImageOverlay extends StatelessWidget {
+  const _DeleteImageOverlay({required this.onDelete});
+
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          child: ColoredBox(color: context.grays.white.withValues(alpha: 0.4)),
+        ),
+        Semantics(
+          button: true,
+          label: '사진 삭제',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onDelete,
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.grays.gray3,
+              ),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/icons/post/waste.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  context.grays.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequiredLabel extends StatelessWidget {
+  const _RequiredLabel({
+    required this.text,
+    required this.color,
+    this.requiredColor,
+  });
+
+  final String text;
+  final Color color;
+  final Color? requiredColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: RichText(
+        text: TextSpan(
+          style: FontStyles.med15.copyWith(color: color),
+          children: [
+            TextSpan(text: text),
+            if (requiredColor != null)
+              TextSpan(
+                text: ' *',
+                style: FontStyles.med15.copyWith(color: requiredColor),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

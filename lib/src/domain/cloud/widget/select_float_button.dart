@@ -1,0 +1,346 @@
+import 'package:beatit_front_app/src/core/extensions/app_theme_extension.dart';
+import 'package:beatit_front_app/src/core/theme/app_radius.dart';
+import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+class SelectFloatButton extends StatelessWidget {
+  const SelectFloatButton({
+    super.key,
+    required this.isVisible,
+    required this.onDeletePressed,
+    required this.onMovePressed,
+    required this.onDownloadPressed,
+    required this.onConfirmPressed,
+    this.isEnabled = true,
+    this.showActions = true,
+    this.isDeleteEnabled,
+    this.isMoveEnabled,
+    this.isDownloadEnabled,
+  });
+
+  final bool isVisible;
+
+  /// 왼쪽 작업 바는 선택 여부와 관계없이 보이며, 선택 전 버튼만 비활성화됩니다.
+  final bool showActions;
+  final bool isEnabled;
+  final bool? isDeleteEnabled;
+  final bool? isMoveEnabled;
+  final bool? isDownloadEnabled;
+
+  final VoidCallback onDeletePressed;
+  final VoidCallback onMovePressed;
+  final VoidCallback onDownloadPressed;
+  final VoidCallback onConfirmPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const animationDuration = Duration(milliseconds: 220);
+
+    return ExcludeSemantics(
+      excluding: !isVisible,
+      child: IgnorePointer(
+        ignoring: !isVisible,
+        child: AnimatedSlide(
+          offset: isVisible ? Offset.zero : const Offset(0, 0.15),
+          duration: animationDuration,
+          curve: isVisible ? Curves.easeOutCubic : Curves.easeInCubic,
+          child: AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: animationDuration,
+            curve: isVisible ? Curves.easeOutCubic : Curves.easeInCubic,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: SizedBox(
+                width: MediaQuery.sizeOf(context).width - (AppSpacing.x16 * 2),
+                child: Row(
+                  mainAxisAlignment: showActions
+                      ? MainAxisAlignment.spaceBetween
+                      : MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (showActions)
+                      CloudSelectionFloatingBar(
+                        isEnabled: isEnabled,
+                        isDeleteEnabled: isDeleteEnabled,
+                        isMoveEnabled: isMoveEnabled,
+                        isDownloadEnabled: isDownloadEnabled,
+                        onDeletePressed: onDeletePressed,
+                        onMovePressed: onMovePressed,
+                        onDownloadPressed: onDownloadPressed,
+                      ),
+                    CloudConfirmFloatingButton(onPressed: onConfirmPressed),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CloudSelectionFloatingBar extends StatelessWidget {
+  const CloudSelectionFloatingBar({
+    super.key,
+    this.isEnabled = true,
+    required this.onDeletePressed,
+    required this.onMovePressed,
+    this.onDownloadPressed,
+    this.showDelete = true,
+    this.showMove = true,
+    this.showDownload = true,
+    this.isDeleteEnabled,
+    this.isMoveEnabled,
+    this.isDownloadEnabled,
+  }) : assert(
+         !showDownload || onDownloadPressed != null,
+         'showDownload이 true이면 onDownloadPressed가 필요합니다.',
+       );
+
+  final bool isEnabled;
+  final bool showDelete;
+  final bool showMove;
+  final bool showDownload;
+  final bool? isDeleteEnabled;
+  final bool? isMoveEnabled;
+  final bool? isDownloadEnabled;
+  final VoidCallback onDeletePressed;
+  final VoidCallback onMovePressed;
+  final VoidCallback? onDownloadPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleCount = <bool>[
+      showDelete,
+      showMove,
+      showDownload,
+    ].where((visible) => visible).length;
+    if (visibleCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final width = 24.0 + (visibleCount * 52.0) + ((visibleCount - 1) * 8.0);
+
+    return Container(
+      width: width,
+      height: 66.0,
+      decoration: BoxDecoration(
+        color: context.grays.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadius.xxxl),
+        border: Border.all(color: context.grays.gray7.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: context.grays.black.withValues(alpha: 0.01),
+            blurRadius: 8.0,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.xxxl),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (showDelete)
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 삭제',
+                iconPath: 'assets/icons/cloud/del.svg',
+                isEnabled: isEnabled && (isDeleteEnabled ?? true),
+                onPressed: onDeletePressed,
+              ),
+            if (showDelete && (showMove || showDownload))
+              const SizedBox(width: AppSpacing.x8),
+            if (showMove)
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 이동',
+                iconPath: 'assets/icons/cloud/move.svg',
+                isEnabled: isEnabled && (isMoveEnabled ?? true),
+                onPressed: onMovePressed,
+              ),
+            if (showMove && showDownload) const SizedBox(width: AppSpacing.x8),
+            if (showDownload)
+              _CloudFloatingIconButton(
+                semanticLabel: '선택한 항목 다운로드',
+                iconPath: 'assets/icons/cloud/download.svg',
+                isEnabled: isEnabled && (isDownloadEnabled ?? true),
+                onPressed: onDownloadPressed!,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloudFloatingIconButton extends StatefulWidget {
+  const _CloudFloatingIconButton({
+    required this.semanticLabel,
+    required this.iconPath,
+    required this.isEnabled,
+    required this.onPressed,
+  });
+
+  final String semanticLabel;
+  final String iconPath;
+  final bool isEnabled;
+  final VoidCallback onPressed;
+
+  @override
+  State<_CloudFloatingIconButton> createState() =>
+      _CloudFloatingIconButtonState();
+}
+
+class _CloudFloatingIconButtonState extends State<_CloudFloatingIconButton> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  void _setHovered(bool value) {
+    if (_isHovered == value) return;
+    setState(() => _isHovered = value);
+  }
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = widget.isEnabled && (_isHovered || _isPressed);
+    final backgroundColor = !widget.isEnabled
+        ? context.grays.white.withValues(alpha: 0.0)
+        : isActive
+        ? context.grays.gray7.withValues(alpha: 0.9)
+        : context.grays.white.withValues(alpha: 0.0);
+    final iconColor = widget.isEnabled
+        ? context.grays.gray1
+        : context.grays.gray4;
+
+    return Semantics(
+      button: true,
+      enabled: widget.isEnabled,
+      label: widget.semanticLabel,
+      child: MouseRegion(
+        cursor: widget.isEnabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        onEnter: widget.isEnabled ? (_) => _setHovered(true) : null,
+        onExit: widget.isEnabled ? (_) => _setHovered(false) : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: widget.isEnabled ? (_) => _setPressed(true) : null,
+          onTapUp: widget.isEnabled ? (_) => _setPressed(false) : null,
+          onTapCancel: widget.isEnabled ? () => _setPressed(false) : null,
+          onTap: widget.isEnabled ? widget.onPressed : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            curve: Curves.easeOut,
+            width: 52.0,
+            height: 52.0,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: Center(
+              child: SvgPicture.asset(
+                widget.iconPath,
+                width: 24.0,
+                height: 24.0,
+                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CloudConfirmFloatingButton extends StatefulWidget {
+  const CloudConfirmFloatingButton({
+    super.key,
+    required this.onPressed,
+    this.isEnabled = true,
+    this.semanticLabel = '선택 완료',
+  });
+
+  final VoidCallback onPressed;
+  final bool isEnabled;
+  final String semanticLabel;
+
+  @override
+  State<CloudConfirmFloatingButton> createState() =>
+      _CloudConfirmFloatingButtonState();
+}
+
+class _CloudConfirmFloatingButtonState
+    extends State<CloudConfirmFloatingButton> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultColor = context.brands.beatOrange1.withValues(alpha: 0.9);
+    final pressedColor = Color.alphaBlend(
+      context.grays.black.withValues(alpha: 0.12),
+      defaultColor,
+    );
+    final buttonColor = !widget.isEnabled
+        ? context.grays.gray5
+        : _isPressed
+        ? pressedColor
+        : defaultColor;
+
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      enabled: widget.isEnabled,
+      child: MouseRegion(
+        cursor: widget.isEnabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: widget.isEnabled ? (_) => _setPressed(true) : null,
+          onTapUp: widget.isEnabled ? (_) => _setPressed(false) : null,
+          onTapCancel: widget.isEnabled ? () => _setPressed(false) : null,
+          onTap: widget.isEnabled ? widget.onPressed : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            curve: Curves.easeOut,
+            width: 72.0,
+            height: 62.0,
+            decoration: BoxDecoration(
+              color: buttonColor,
+              borderRadius: BorderRadius.circular(18.0),
+              boxShadow: [
+                BoxShadow(
+                  color: context.grays.black.withValues(alpha: 0.07),
+                  blurRadius: 20.0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/check/check.svg',
+                width: 24.0,
+                height: 24.0,
+                colorFilter: ColorFilter.mode(
+                  context.grays.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

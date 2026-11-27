@@ -1,0 +1,10 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<line x1="9.90686" y1="5.35254" x2="9.90686" y2="0.000453017" stroke="white"/>
+<line x1="9.90686" y1="19.9668" x2="9.90686" y2="14.6147" stroke="white"/>
+<line x1="14.6149" y1="9.71875" x2="19.967" y2="9.71875" stroke="white"/>
+<line y1="9.71875" x2="5.35209" y2="9.71875" stroke="white"/>
+<line x1="12.8643" y1="6.7568" x2="15.1797" y2="4.44141" stroke="white"/>
+<line y1="-0.5" x2="3.27445" y2="-0.5" transform="matrix(-0.707107 -0.707107 -0.707107 0.707107 6.05054 7.04492)" stroke="white"/>
+<line y1="-0.5" x2="3.27445" y2="-0.5" transform="matrix(-0.707107 -0.707107 -0.707107 0.707107 14.6149 15.7725)" stroke="white"/>
+<line x1="4.30001" y1="15.3535" x2="6.6154" y2="13.0381" stroke="white"/>
+</svg>

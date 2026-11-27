@@ -1,72 +1,64 @@
-import 'package:beatit_front_app/src/core/theme/app_spacing.dart';
-import 'package:beatit_front_app/src/core/widgets/appbars/app_top_appbar.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_area.dart';
-import 'package:beatit_front_app/src/core/widgets/inputs/app_text_field.dart';
-import 'package:beatit_front_app/src/core/widgets/navigation/app_navigation_bar.dart';
+import 'dart:io';
+
+import 'package:beatit_front_app/src/core/theme/app_theme.dart';
+import 'package:beatit_front_app/src/core/theme/theme_mode_provider.dart'; // 💡 테마 모드 프로바이더 import
+import 'package:beatit_front_app/src/domain/alarm/widget/foreground_alarm_banner_host.dart';
+import 'package:beatit_front_app/src/domain/alarm/util/android_grouped_alarm_notifications.dart';
+import 'package:beatit_front_app/src/domain/auth/api/kakao_auth_client.dart';
+import 'package:beatit_front_app/src/domain/auth/view/auth/auth_splash_page.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'src/core/theme/app_theme.dart';
-import 'src/core/widgets/bottons/app_button.dart';
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+    } catch (error) {
+      debugPrint('[Firebase] initialization failed: $error');
+    }
+  }
+
+  if (!kIsWeb && Platform.isAndroid) {
+    try {
+      await AndroidGroupedAlarmNotifications.instance.initialize();
+    } catch (error) {
+      debugPrint('[AlarmGroup] unavailable: $error');
+    }
+  }
+
+  if (KakaoAuthClient.nativeAppKey.isNotEmpty) {
+    await KakaoSdk.init(nativeAppKey: KakaoAuthClient.nativeAppKey);
+  }
+
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentThemeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'Beatit',
+      navigatorKey: _rootNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      home: const MyHomePage(title: 'Beatit'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({
-    super.key,
-    required this.title,
-  });
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _currentIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const AppTopAppBar.alarmOnly(),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      themeMode: currentThemeMode,
+      builder: (context, child) => ForegroundAlarmBannerHost(
+        navigatorKey: _rootNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
       ),
-      body: Container(
-        padding: EdgeInsets.all(AppSpacing.x16),
-        height: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 80.0,)
-          ],
-        ),
-      ),
+      home: const AuthSplashPage(),
     );
   }
 }
