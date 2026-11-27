@@ -208,10 +208,16 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
           LayoutBuilder(
             builder: (context, constraints) {
               final rowStart = row * columnsPerRow;
-              final visibleCount = math.min(columnsPerRow, dates.length - rowStart);
+              final visibleCount = math.min(
+                columnsPerRow,
+                dates.length - rowStart,
+              );
               final columnWidth = constraints.maxWidth / columnsPerRow;
               int indexAt(double x) {
-                final column = (x / columnWidth).floor().clamp(0, visibleCount - 1);
+                final column = (x / columnWidth).floor().clamp(
+                  0,
+                  visibleCount - 1,
+                );
                 return rowStart + column.toInt();
               }
 
@@ -221,7 +227,10 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                   for (var column = 0; column < columnsPerRow; column++)
                     Expanded(
                       child: column < visibleCount
-                          ? _buildDateOnlyCell(context, dates[rowStart + column])
+                          ? _buildDateOnlyCell(
+                              context,
+                              dates[rowStart + column],
+                            )
                           : const SizedBox.shrink(),
                     ),
                 ],
@@ -237,7 +246,8 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                 },
                 onPointerUp: (_) {
                   widget.onEditGestureStateChanged?.call(false);
-                  if (_dateDragBaseSelection.isEmpty) _dateDragStartIndex = null;
+                  if (_dateDragBaseSelection.isEmpty)
+                    _dateDragStartIndex = null;
                 },
                 onPointerCancel: (_) {
                   widget.onEditGestureStateChanged?.call(false);
@@ -246,10 +256,14 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragStart: (details) {
-                    final index = _dateDragStartIndex ?? indexAt(details.localPosition.dx);
+                    final index =
+                        _dateDragStartIndex ??
+                        indexAt(details.localPosition.dx);
                     _dateDragStartIndex = index;
                     _dateDragBaseSelection = Set<DateTime>.of(_editableSlots);
-                    _dateDragAddsSelection = !_editableSlots.contains(dates[index]);
+                    _dateDragAddsSelection = !_editableSlots.contains(
+                      dates[index],
+                    );
                     _applyDateDrag(dates, index);
                   },
                   onHorizontalDragUpdate: (details) {
@@ -272,9 +286,11 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     final startIndex = _dateDragStartIndex;
     if (startIndex == null) return;
     final next = Set<DateTime>.of(_dateDragBaseSelection);
-    for (var index = math.min(startIndex, endIndex);
-        index <= math.max(startIndex, endIndex);
-        index++) {
+    for (
+      var index = math.min(startIndex, endIndex);
+      index <= math.max(startIndex, endIndex);
+      index++
+    ) {
       final day = DateUtils.dateOnly(dates[index]);
       if (_dateDragAddsSelection) {
         next.add(day);
@@ -383,11 +399,13 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
             // 새벽 종료/저녁 시작 경계에는 서로 다른 라벨이 필요합니다.
             for (var boundary = 0; boundary <= _tailRows; boundary++)
               if ((boundary * _slotMinutes) % 60 == 0)
-                _buildTimeLabel(context, boundary * _slotMinutes,
-                    boundary * _cellHeight),
+                _buildTimeLabel(
+                  context,
+                  boundary * _slotMinutes,
+                  boundary * _cellHeight,
+                ),
             for (var boundary = _tailRows; boundary <= slotCount; boundary++)
-              if ((_startMinutes +
-                          (boundary - _tailRows) * _slotMinutes) %
+              if ((_startMinutes + (boundary - _tailRows) * _slotMinutes) %
                       60 ==
                   0)
                 _buildTimeLabel(
@@ -409,11 +427,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
     );
   }
 
-  Widget _buildTimeLabel(
-    BuildContext context,
-    int minutes,
-    double top,
-  ) {
+  Widget _buildTimeLabel(BuildContext context, int minutes, double top) {
     return Positioned(
       left: 0,
       top: _headerHeight + top - 8.0,
@@ -492,8 +506,7 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
                             _GridPosition(row: row, column: column),
                           ),
                         )
-                      // 후보 시간대가 아닌 칸은 선택할 수 없는 회색으로 표시합니다.
-                      : context.grays.gray7,
+                      : context.grays.gray3,
                 ),
               ),
           Positioned.fill(
@@ -752,7 +765,8 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
 
     if (clampToGrid) {
       dx = dx.clamp(0.0, columnCount * _cellWidth - 0.001).toDouble();
-      dy = dy.clamp(0.0, rowCount * _cellHeight + _gapHeight - 0.001)
+      dy = dy
+          .clamp(0.0, rowCount * _cellHeight + _gapHeight - 0.001)
           .toDouble();
     }
 
@@ -796,8 +810,8 @@ class _MeetitTimeGridState extends State<MeetitTimeGrid> {
   /// 새벽 구간이 있을 때만 두 시간대 사이에 공백을 둡니다.
   double get _gapHeight => _tailRows > 0 ? _overnightGapHeight : 0.0;
 
-  double _rowTop(int row) => row * _cellHeight +
-      (row >= _tailRows ? _gapHeight : 0.0);
+  double _rowTop(int row) =>
+      row * _cellHeight + (row >= _tailRows ? _gapHeight : 0.0);
 
   /// 밤을 넘기는 경우 시간표 위쪽에 먼저 놓이는 새벽 칸(0시~종료 시간) 수입니다.
   int get _tailRows => _isOvernight ? (_endMinutes / _slotMinutes).ceil() : 0;
@@ -923,8 +937,11 @@ class _MeetitGridLinePainter extends CustomPainter {
 
     if (gapHeight > 0) {
       drawSection(0, tailRows, 0);
-      drawSection(tailRows, slotCount - tailRows,
-          tailRows * cellHeight + gapHeight);
+      drawSection(
+        tailRows,
+        slotCount - tailRows,
+        tailRows * cellHeight + gapHeight,
+      );
     } else {
       drawSection(0, slotCount, 0);
     }

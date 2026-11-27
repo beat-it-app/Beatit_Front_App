@@ -333,6 +333,7 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
     return switch (type) {
       CloudPreviewFileType.audio => CloudAudioPreview(
         key: ValueKey('audio-${currentItem.itemId}'),
+        useResponsiveLayout: true,
         folderName: widget.folderName,
         files: files,
         initialIndex: initialIndex,
@@ -347,6 +348,7 @@ class _CloudPreviewHostPageState extends ConsumerState<CloudPreviewHostPage> {
       ),
       CloudPreviewFileType.video => CloudVideoPreview(
         key: ValueKey('video-${currentItem.itemId}'),
+        useResponsiveLayout: true,
         folderName: widget.folderName,
         files: files,
         initialIndex: initialIndex,

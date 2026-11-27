@@ -13,10 +13,7 @@ import 'package:flutter/material.dart';
 
 /// 서버의 directTo/targetId만으로 판단한다. 매핑되지 않는 경로는
 /// 부정확한 상세 화면을 보여주는 대신 팀 홈으로 이동한다.
-Widget? _detailFor(
-  AlarmClickResponse target, {
-  required String notificationTitle,
-}) {
+Widget? _detailFor(AlarmClickResponse target) {
   final path = target.directTo;
   final id = target.targetId;
   if (path == '/teams/members') return const TeamMemberPage();
@@ -32,7 +29,8 @@ Widget? _detailFor(
   if (path.startsWith('/chats/')) {
     return RoomChatPage(
       chatId: id,
-      initialRoomName: notificationTitle,
+      // 알림 제목은 방 이름이 아니므로, 채팅방에서 목록과 같은 규칙으로 정합니다.
+      initialRoomName: '',
       initialParticipantCount: 0,
     );
   }
@@ -56,10 +54,9 @@ PostMainType _postTypeFor(String? path) {
 /// 알림 목록과 포그라운드 배너가 같은 방식으로 대상 화면에 진입하도록 공유한다.
 void navigateToAlarmTarget(
   NavigatorState rootNavigator,
-  AlarmClickResponse target, {
-  required String notificationTitle,
-}) {
-  final detail = _detailFor(target, notificationTitle: notificationTitle);
+  AlarmClickResponse target,
+) {
+  final detail = _detailFor(target);
 
   // 상세에서 뒤로 갔을 때 알맞은 카테고리 목록이 보이도록 탭부터 설정한다.
   rootNavigator.pushAndRemoveUntil(

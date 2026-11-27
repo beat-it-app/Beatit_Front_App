@@ -12,6 +12,7 @@ import 'package:beatit_front_app/src/domain/cloud/widget/cloud_item_widget.dart'
 import 'package:beatit_front_app/src/core/widgets/media/app_media_playback_controls.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_playback_time_labels.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/cloud_preview_background.dart';
+import 'package:beatit_front_app/src/domain/cloud/widget/cloud_media_preview_layout.dart';
 import 'package:beatit_front_app/src/core/widgets/media/app_video_timeline.dart';
 import 'package:beatit_front_app/src/domain/cloud/widget/select_float_button.dart';
 import 'package:dio/dio.dart';
@@ -34,6 +35,7 @@ class CloudVideoPreview extends StatefulWidget {
     this.onDownloadPressed,
     this.onOpenExternalPressed,
     this.canManage = true,
+    this.useResponsiveLayout = false,
     this.initialIndex = 0,
     this.requestHeaders,
     this.onFileSelected,
@@ -53,6 +55,9 @@ class CloudVideoPreview extends StatefulWidget {
   final ValueChanged<CloudFilePreviewItem>? onDownloadPressed;
   final ValueChanged<CloudFilePreviewItem>? onOpenExternalPressed;
   final bool canManage;
+
+  /// 팀 클라우드에서만 새 QA 레이아웃을 활성화합니다.
+  final bool useResponsiveLayout;
 
   /// 영상 외 파일을 선택했을 때 해당 Preview로 전환시키는 진입점이다.
   final ValueChanged<CloudFilePreviewItem>? onFileSelected;
@@ -403,6 +408,7 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
             _currentFile.previewUri?.toString() ?? _currentFile.name,
           ),
           controller: controller,
+          useResponsiveLayout: widget.useResponsiveLayout,
           previewUri: _playbackUri ?? _currentFile.previewUri!,
           requestHeaders: _temporaryVideo == null ? widget.requestHeaders : null,
         );
@@ -416,6 +422,19 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
     final showMove = widget.canManage && widget.onMovePressed != null;
     final showDownload = widget.onDownloadPressed != null;
     final showActions = showDelete || showMove || showDownload;
+    final actions = showActions
+        ? CloudSelectionFloatingBar(
+            isEnabled: true,
+            showDelete: showDelete,
+            showMove: showMove,
+            showDownload: showDownload,
+            onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
+            onMovePressed: () => widget.onMovePressed?.call(_currentFile),
+            onDownloadPressed: showDownload
+                ? () => widget.onDownloadPressed?.call(_currentFile)
+                : null,
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: context.grays.white,
@@ -425,36 +444,31 @@ class _CloudVideoPreviewState extends State<CloudVideoPreview> {
         onTitlePressed: widget.files.length > 1 ? _showFileList : null,
       ),
       body: CloudPreviewBackground(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                0,
-                AppSpacing.x24,
-                0,
-                showActions ? 98.0 + bottomSafeArea : AppSpacing.x24,
+        child: widget.useResponsiveLayout
+            ? CloudMediaPreviewLayout(
+                child: _buildPreviewContent(),
+                actions: actions,
+              )
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      AppSpacing.x24,
+                      0,
+                      showActions ? 98.0 + bottomSafeArea : AppSpacing.x24,
+                    ),
+                    child: _buildPreviewContent(),
+                  ),
+                  if (showActions)
+                    Positioned(
+                      left: AppSpacing.x16,
+                      bottom: AppSpacing.x16 + bottomSafeArea,
+                      child: actions!,
+                    ),
+                ],
               ),
-              child: _buildPreviewContent(),
-            ),
-            if (showActions)
-              Positioned(
-                left: AppSpacing.x16,
-                bottom: AppSpacing.x16 + bottomSafeArea,
-                child: CloudSelectionFloatingBar(
-                  isEnabled: true,
-                  showDelete: showDelete,
-                  showMove: showMove,
-                  showDownload: showDownload,
-                  onDeletePressed: () => widget.onDeletePressed?.call(_currentFile),
-                  onMovePressed: () => widget.onMovePressed?.call(_currentFile),
-                  onDownloadPressed: showDownload
-                      ? () => widget.onDownloadPressed?.call(_currentFile)
-                      : null,
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -465,10 +479,12 @@ class _VideoPreviewPlayer extends StatefulWidget {
     super.key,
     required this.controller,
     required this.previewUri,
+    required this.useResponsiveLayout,
     this.requestHeaders,
   });
 
   final VideoPlayerController controller;
+  final bool useResponsiveLayout;
   final Uri previewUri;
   final Map<String, String>? requestHeaders;
 
@@ -716,91 +732,149 @@ class _VideoPreviewPlayerState extends State<_VideoPreviewPlayer> {
     return ValueListenableBuilder<VideoPlayerValue>(
       valueListenable: _controller,
       builder: (context, value, child) {
-        final aspectRatio = value.aspectRatio > 0 ? value.aspectRatio : 16 / 9;
+        final aspectRatio = value.aspectRatio.isFinite && value.aspectRatio > 0
+            ? value.aspectRatio
+            : 16 / 9;
 
         return LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
+          builder: (context, constraints) {
+            final responsive = widget.useResponsiveLayout;
+            final availableHeight = constraints.maxHeight;
+            final maxVideoHeight = math.min(
+              availableHeight * 0.48,
+              MediaQuery.sizeOf(context).height * 0.42,
+            );
+            final maxVideoWidth = responsive
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width;
+            final videoWidth = math.min(
+              maxVideoWidth,
+              maxVideoHeight * aspectRatio,
+            );
+            final contentWidth = math.max(
+              0.0,
+              constraints.maxWidth - AppSpacing.x16 * 2,
+            );
+            final controlsGap = responsive
+                ? (availableHeight * 0.035).clamp(12.0, 24.0).toDouble()
+                : AppSpacing.x24;
+            final videoContent = ColoredBox(
+              color: context.grays.black,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-            SizedBox(
-              width: double.infinity,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.sizeOf(context).width,
-                    maxHeight: math.min(
-                      constraints.maxHeight * 0.48,
-                      MediaQuery.sizeOf(context).height * 0.42,
-                    ),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: aspectRatio,
-                    child: ColoredBox(
-                  color: context.grays.black,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      VideoPlayer(_controller),
-                      if (value.isBuffering)
-                        const Center(child: CircularProgressIndicator()),
-                    ],
-                  ),
-                ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.x24),
-            AppMediaPlaybackControls(
-              mediaLabel: '영상',
-              isPlaying: value.isPlaying,
-              isRepeatEnabled: _isRepeatEnabled,
-              isSelectionMode: _isSelectionMode,
-              onToggleRepeat: () => unawaited(_toggleRepeat()),
-              onTogglePlay: () => unawaited(_togglePlayPause()),
-              onToggleSelection: () => unawaited(_toggleSelectionMode()),
-            ),
-            const SizedBox(height: AppSpacing.x24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: AppPlaybackTimeLabels(
-                position: _currentPosition,
-                duration: _duration,
-                isSelectionMode: _isSelectionMode,
-                selectionStart: _selectionStart,
-                selectionEnd: _selectionEnd,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.x8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x16),
-              child: AppVideoTimeline(
-                videoUri: widget.previewUri,
-                requestHeaders: widget.requestHeaders,
-                duration: _duration,
-                position: _currentPosition,
-                isSelectionMode: _isSelectionMode,
-                selectionStart: _selectionStart,
-                selectionEnd: _selectionEnd,
-                onSeek: (position) {
-                  unawaited(_seek(position));
-                },
-                onScrubStart: () => unawaited(_controller.pause()),
-                onScrubEnd: _resumeFromScrub,
-                onSelectionChanged: _updateSelection,
-                onSelectionChangeEnd: (start, end) {
-                  unawaited(_applySelection(start, end));
-                },
-              ),
-            ),
+                  VideoPlayer(_controller),
+                  if (value.isBuffering)
+                    const Center(child: CircularProgressIndicator()),
                 ],
               ),
-            ),
-          ),
+            );
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                vertical: responsive ? AppSpacing.x12 : 0.0,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: math.max(
+                    0.0,
+                    availableHeight - (responsive ? AppSpacing.x24 : 0.0),
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: responsive
+                      ? MainAxisAlignment.spaceEvenly
+                      : MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: Center(
+                        child: responsive
+                            ? SizedBox(
+                                width: videoWidth,
+                                height: videoWidth / aspectRatio,
+                                child: videoContent,
+                              )
+                            : ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: maxVideoWidth,
+                                  maxHeight: maxVideoHeight,
+                                ),
+                                child: AspectRatio(
+                                  aspectRatio: aspectRatio,
+                                  child: videoContent,
+                                ),
+                              ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: responsive ? AppSpacing.x16 : AppSpacing.x24,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppMediaPlaybackControls(
+                            mediaLabel: '영상',
+                            isPlaying: value.isPlaying,
+                            isRepeatEnabled: _isRepeatEnabled,
+                            isSelectionMode: _isSelectionMode,
+                            onToggleRepeat: () => unawaited(_toggleRepeat()),
+                            onTogglePlay: () => unawaited(_togglePlayPause()),
+                            onToggleSelection: () =>
+                                unawaited(_toggleSelectionMode()),
+                          ),
+                          SizedBox(height: controlsGap),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.x16,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AppPlaybackTimeLabels(
+                                  position: _currentPosition,
+                                  duration: _duration,
+                                  isSelectionMode: _isSelectionMode,
+                                  selectionStart: _selectionStart,
+                                  selectionEnd: _selectionEnd,
+                                ),
+                                const SizedBox(height: AppSpacing.x8),
+                                AppVideoTimeline(
+                                  containerHeight: responsive
+                                      ? CloudMediaPreviewLayout.timelineHeight(
+                                          contentWidth,
+                                        )
+                                      : 60.0,
+                                  videoUri: widget.previewUri,
+                                  requestHeaders: widget.requestHeaders,
+                                  duration: _duration,
+                                  position: _currentPosition,
+                                  isSelectionMode: _isSelectionMode,
+                                  selectionStart: _selectionStart,
+                                  selectionEnd: _selectionEnd,
+                                  onSeek: (position) =>
+                                      unawaited(_seek(position)),
+                                  onScrubStart: () =>
+                                      unawaited(_controller.pause()),
+                                  onScrubEnd: _resumeFromScrub,
+                                  onSelectionChanged: _updateSelection,
+                                  onSelectionChangeEnd: (start, end) {
+                                    unawaited(_applySelection(start, end));
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );

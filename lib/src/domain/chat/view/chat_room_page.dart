@@ -11,6 +11,7 @@ import 'package:beatit_front_app/src/core/utils/app_date_time_formatter.dart';
 import 'package:beatit_front_app/src/core/widgets/dropdowns/app_dropdown_list.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_popup.dart';
 import 'package:beatit_front_app/src/core/widgets/popups/app_media_source_popup.dart';
+import 'package:beatit_front_app/src/domain/auth/provider/auth_provider.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_message_models.dart';
 import 'package:beatit_front_app/src/domain/chat/model/chat_room_models.dart';
 import 'package:beatit_front_app/src/domain/chat/provider/chat_list_provider.dart';
@@ -85,6 +86,11 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
               profileImageUrls: widget.initialProfileImageUrls,
             );
         return;
+      }
+
+      // 이름 없이 진입하면(알림) 목록 정보로 방 이름을 정합니다.
+      if (widget.initialRoomName.isEmpty) {
+        ref.read(chatListProvider.notifier).loadChatRooms();
       }
 
       ref
@@ -802,8 +808,14 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
                       // Align로 그 제약을 풀어 배너 자체의 190px 너비가 적용되게 한다.
                       child: Align(
                         alignment: Alignment.bottomCenter,
-                        child: _ChatNewMessageBanner(
-                          message: _latestUnseenMessage!,
+                        child: _DeferredChatNewMessageBanner(
+                          // 상세 재조회로 보강된 최신 메시지 정보를 전달합니다.
+                          message: state.messages.lastWhere(
+                            (message) =>
+                                message.messageId ==
+                                _latestUnseenMessage!.messageId,
+                            orElse: () => _latestUnseenMessage!,
+                          ),
                           onPressed: _goToLatestMessage,
                         ),
                       ),
@@ -945,13 +957,90 @@ class _RoomChatPageState extends ConsumerState<RoomChatPage> {
   }
 
   String _resolvedRoomName(ChatRoomState state) {
-    return state.roomName.isEmpty ? widget.initialRoomName : state.roomName;
+    if (state.roomName.isNotEmpty) return state.roomName;
+    if (widget.initialRoomName.isNotEmpty) return widget.initialRoomName;
+
+    final currentUserId = ref.watch(authProvider).asData?.value?.userId;
+    final listState = ref.watch(chatListProvider);
+    for (final room in listState.rooms) {
+      if (room.chatId == widget.chatId) {
+        return listState.displayNameFor(room, currentUserId);
+      }
+    }
+    return '채팅방';
   }
 
   int _resolvedParticipantCount(ChatRoomState state) {
     return state.participantCount == 0
         ? widget.initialParticipantCount
         : state.participantCount;
+  }
+}
+
+/// 발신자 이름과 프로필 사진이 준비된 뒤에 새 메시지 배너를 띄웁니다.
+class _DeferredChatNewMessageBanner extends StatefulWidget {
+  const _DeferredChatNewMessageBanner({
+    required this.message,
+    required this.onPressed,
+  });
+
+  final ChatMessage message;
+  final VoidCallback onPressed;
+
+  @override
+  State<_DeferredChatNewMessageBanner> createState() =>
+      _DeferredChatNewMessageBannerState();
+}
+
+class _DeferredChatNewMessageBannerState
+    extends State<_DeferredChatNewMessageBanner> {
+  static const Duration _imageTimeout = Duration(seconds: 3);
+
+  ChatMessage? _readyMessage;
+  int? _preparingMessageId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _prepare();
+  }
+
+  @override
+  void didUpdateWidget(_DeferredChatNewMessageBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _prepare();
+  }
+
+  Future<void> _prepare() async {
+    final message = widget.message;
+    if (message.messageId == _readyMessage?.messageId ||
+        message.messageId == _preparingMessageId ||
+        (!message.isMine &&
+            message.senderName == ChatRoomNotifier.pendingSenderName)) {
+      return;
+    }
+
+    _preparingMessageId = message.messageId;
+    final profileUrl = message.profileImageUrl?.trim() ?? '';
+    if (profileUrl.isNotEmpty) {
+      // 불러오기에 실패하거나 너무 오래 걸리면 기본 프로필로 띄웁니다.
+      await precacheImage(
+        NetworkImage(message.profileImageUrl!),
+        context,
+        onError: (_, _) {},
+      ).timeout(_imageTimeout, onTimeout: () {});
+    }
+
+    if (!mounted || _preparingMessageId != message.messageId) return;
+    setState(() => _readyMessage = message);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = _readyMessage;
+    if (message == null) return const SizedBox.shrink();
+
+    return _ChatNewMessageBanner(message: message, onPressed: widget.onPressed);
   }
 }
 
@@ -1006,7 +1095,7 @@ class _ChatNewMessageBanner extends StatelessWidget {
               AppSpacing.x12,
               AppSpacing.x8,
               AppSpacing.x8,
-              AppSpacing.x12,
+              AppSpacing.x8,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

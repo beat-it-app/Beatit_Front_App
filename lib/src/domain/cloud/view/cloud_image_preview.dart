@@ -92,7 +92,7 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
     });
   }
 
-  Widget _buildImage() {
+  Widget _buildImage({required double bottomInset}) {
     final uri = _currentFile.previewUri;
     if (uri == null || _loadFailed) {
       return _buildError();
@@ -139,7 +139,16 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
           key: ValueKey('cloud-image-${_currentIndex}-${uri.toString()}'),
           minScale: 0.5,
           maxScale: 5.0,
-          child: SizedBox(width: width, height: height, child: image),
+          child: SizedBox(
+            width: width,
+            height: height,
+            // 여백을 확대 대상 안쪽에 두어, 처음에는 작업 버튼을 피해 보이고
+            // 확대하면 버튼 아래 영역까지 이미지가 겹쳐 보이게 합니다.
+            child: Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: image,
+            ),
+          ),
         );
       },
     );
@@ -193,15 +202,11 @@ class _CloudImagePreviewState extends State<CloudImagePreview> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Padding(
+            _buildImage(
               // 하단 작업 버튼이 세로로 긴 이미지의 끝을 가리지 않게 합니다.
-              padding: EdgeInsets.only(
-                bottom: showActions
-                    ? 66.0 + AppSpacing.x16 +
-                        MediaQuery.paddingOf(context).bottom
-                    : 0,
-              ),
-              child: _buildImage(),
+              bottomInset: showActions
+                  ? 66.0 + AppSpacing.x16 + MediaQuery.paddingOf(context).bottom
+                  : 0,
             ),
             if (showActions)
               Positioned(

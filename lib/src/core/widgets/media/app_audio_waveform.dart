@@ -33,7 +33,8 @@ class AppAudioWaveform extends StatefulWidget {
     this.selectionEnd = Duration.zero,
     this.onSelectionChanged,
     this.onSelectionChangeEnd,
-  });
+    this.containerHeight = 60.0,
+  }) : assert(containerHeight > 12.0);
 
   final Waveform? waveform;
   final Duration duration;
@@ -57,6 +58,9 @@ class AppAudioWaveform extends StatefulWidget {
   final AppAudioSelectionChanged? onSelectionChanged;
   final AppAudioSelectionChanged? onSelectionChangeEnd;
 
+  /// 재생바 본체 높이 (위아래 playhead 여유는 별도).
+  final double containerHeight;
+
   @override
   State<AppAudioWaveform> createState() => _AppAudioWaveformState();
 }
@@ -68,7 +72,6 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
   // 같은 실제 재생 속도에서도 파형이 화면을 약 1.5배 빠르게 지납니다.
   static const double _minVisibleFraction = 2 / 9;
   static const double _maxVisibleFraction = 1.0;
-  static const double _containerHeight = 60.0;
   static const double _playheadExtension = 4.0;
   static const double _handleHitSlop = 22.0;
   static const double _autoScrollEdge = 34.0;
@@ -583,7 +586,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: _containerHeight + (_playheadExtension * 2),
+      height: widget.containerHeight + (_playheadExtension * 2),
       child: LayoutBuilder(
         builder: (context, constraints) {
           _lastKnownWidth = constraints.maxWidth;
@@ -621,7 +624,7 @@ class _AppAudioWaveformState extends State<AppAudioWaveform> {
                     playheadFillColor: context.grays.white,
                     selectionFillColor: context.brands.beatOrange5,
                     playbackIndicatorColor: context.brands.beatOrange1,
-                    containerHeight: _containerHeight,
+                    containerHeight: widget.containerHeight,
                     playheadExtension: _playheadExtension,
                   ),
                 ),
@@ -975,6 +978,8 @@ class _AppAudioWaveformPainter extends CustomPainter {
         oldDelegate.selectedWaveformColor != selectedWaveformColor ||
         oldDelegate.playheadBorderColor != playheadBorderColor ||
         oldDelegate.playheadFillColor != playheadFillColor ||
-        oldDelegate.selectionFillColor != selectionFillColor;
+        oldDelegate.selectionFillColor != selectionFillColor ||
+        oldDelegate.containerHeight != containerHeight ||
+        oldDelegate.playheadExtension != playheadExtension;
   }
 }
