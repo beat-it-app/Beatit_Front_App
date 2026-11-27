@@ -365,8 +365,11 @@ class _MyPageViewState extends ConsumerState<MyPageView> {
             _SettingTile(
               title: '화면 설정',
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DisplaySettingPage()),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('준비 중입니다.'),
+                    duration: Duration(seconds: 2),
+                  ),
                 );
               },
             ),

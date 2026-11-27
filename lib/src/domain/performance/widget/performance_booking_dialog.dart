@@ -72,16 +72,19 @@ Future<void> showPerformanceBookingDialog({
                     ),
                     const SizedBox(height: AppSpacing.x8),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SvgPicture.asset(
-                          'assets/icons/performance/link.svg',
-                          colorFilter: ColorFilter.mode(
-                            context.grays.gray1,
-                            BlendMode.srcIn,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3.0),
+                          child: SvgPicture.asset(
+                            'assets/icons/performance/link.svg',
+                            colorFilter: ColorFilter.mode(
+                              context.grays.gray1,
+                              BlendMode.srcIn,
+                            ),
+                            width: 16.0,
+                            height: 16.0,
                           ),
-                          width: 16.0,
-                          height: 16.0,
                         ),
                         const SizedBox(width: AppSpacing.x8),
                         Expanded(

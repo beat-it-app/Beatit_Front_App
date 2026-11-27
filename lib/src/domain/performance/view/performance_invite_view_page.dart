@@ -345,19 +345,10 @@ class _PerformanceInviteViewContentState
         }
       }
 
-      if (failures.isNotEmpty) {
-        _notify(
-          '갤러리 $gallerySaved장 저장, 공유 $shared건, '
-          '실패 ${failures.length}건: ${failures.first}',
-        );
-      } else if (shared > 0) {
-        // iOS 공유 시트 종료가 사진 앱에 저장됐다는 의미는 아니다.
-        _notify(
-          '셋리스트 $shared팀 공유를 마쳤습니다. '
-          '사진 앱 저장 여부를 확인해주세요.',
-        );
+      if (failures.isNotEmpty && gallerySaved == 0 && shared == 0) {
+        _notify('셋리스트 저장에 실패했습니다: ${failures.first}');
       } else {
-        _notify('셋리스트 $gallerySaved장 갤러리에 저장했습니다.');
+        _notify('${widget.performance.title} 공연의 셋리스트를 저장했습니다.');
       }
     } catch (error, stackTrace) {
       debugPrint('[셋리스트 저장] 처리 오류: $error');
