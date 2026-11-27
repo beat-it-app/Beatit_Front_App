@@ -6,7 +6,7 @@ import 'auth_token_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://3.34.225.157',
+  defaultValue: 'http://13.124.125.98',
 );
 
 BaseOptions _createBaseOptions() {
