@@ -18,7 +18,7 @@ class NaverAuthClient {
   );
 
   // 네이버 개발자 센터 콘솔의 '서비스 URL / Callback URL'에 등록되어 있는 URL
-  static const String _redirectUri = 'http://localhost:8080';
+  static const String _redirectUri = 'http://13.124.125.98';
 
   Future<String?> getAccessToken({BuildContext? context}) async {
     debugPrint('[NaverAuth] Web OAuth login started');
